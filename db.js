@@ -40,7 +40,7 @@ async function initDatabase() {
       await installersCollection.insertOne({
         phoneNumber: adminUser,
         password: adminPasswordHash,
-        plainPassword: adminPass, // אם לא רוצה לשמור סיסמה גלויה – תגיד לי ואוריד
+        plainPassword: adminPass,
         macAddresses: [],
         createdAt: new Date(),
         lastLogin: null,
@@ -218,6 +218,28 @@ async function resetPassword(phoneNumber) {
   return newPassword;
 }
 
+// ==================== DATABASE BACKUP FUNCTION ====================
+async function getFullDatabaseBackup() {
+  await connectDB();
+
+  const installers = await db.collection("installers").find({}).toArray();
+  const loginLogs = await db.collection("loginLogs").find({}).sort({ timestamp: -1 }).limit(1000).toArray();
+
+  return {
+    exportDate: new Date().toISOString(),
+    version: "2.0",
+    database: "genesistracer",
+    collections: {
+      installers,
+      loginLogs
+    },
+    stats: {
+      totalInstallers: installers.length,
+      totalLogs: loginLogs.length
+    }
+  };
+}
+
 module.exports = {
   connectDB,
   createInstaller,
@@ -230,4 +252,5 @@ module.exports = {
   getLoginLogs,
   deleteInstaller,
   resetPassword,
+  getFullDatabaseBackup,
 };

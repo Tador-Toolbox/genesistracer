@@ -7,6 +7,70 @@ const db = require('./db');
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ==================== IP RESTRICTION (ISRAEL ONLY) ====================
+const ISRAEL_IP_RANGES = [
+  '2.176.0.0/12', '5.28.0.0/14', '31.154.0.0/15', '37.142.0.0/15',
+  '46.116.0.0/14', '77.124.0.0/14', '79.176.0.0/13', '80.178.0.0/15',
+  '82.80.0.0/12', '85.64.0.0/13', '85.250.0.0/15', '87.68.0.0/14',
+  '89.138.0.0/15', '91.90.0.0/15', '94.188.0.0/14', '109.64.0.0/13',
+  '176.12.0.0/14', '185.2.0.0/16', '185.94.0.0/16', '188.64.0.0/13',
+  '212.25.0.0/16', '217.11.16.0/20'
+];
+
+function ipToInt(ip) {
+  return ip.split('.').reduce((int, octet) => (int << 8) + parseInt(octet, 10), 0) >>> 0;
+}
+
+function isIsraeliIP(ip) {
+  // Local/Private IPs are always allowed
+  if (ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
+    return true;
+  }
+
+  // IPv6 localhost
+  if (ip === '::ffff:127.0.0.1') return true;
+
+  // Extract IPv4 from IPv6 format
+  if (ip.startsWith('::ffff:')) {
+    ip = ip.substring(7);
+  }
+
+  const ipInt = ipToInt(ip);
+
+  for (const range of ISRAEL_IP_RANGES) {
+    const [subnet, bits] = range.split('/');
+    const mask = ~(2 ** (32 - parseInt(bits)) - 1);
+    const subnetInt = ipToInt(subnet);
+
+    if ((ipInt & mask) === (subnetInt & mask)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Middleware: Check IP before every request
+app.use((req, res, next) => {
+  // Enable/disable IP restriction via environment variable
+  const ENABLE_IP_RESTRICTION = process.env.RESTRICT_TO_ISRAEL === 'true';
+
+  if (!ENABLE_IP_RESTRICTION) return next();
+
+  const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection.remoteAddress;
+
+  if (!isIsraeliIP(clientIP)) {
+    console.log(`❌ Blocked IP: ${clientIP}`);
+    return res.status(403).json({ 
+      success: false, 
+      error: 'Access denied. This service is only available in Israel. / גישה נדחתה. שירות זה זמין רק בישראל.' 
+    });
+  }
+
+  next();
+});
+
 app.use(express.static('public'));
 
 const NEXHOME_BASE = 'https://nexsmart-us.nexhome.ai';
@@ -70,7 +134,6 @@ async function getAuthToken() {
 
       if (token) {
         cachedAuth = { token, employeeAccountId, customerId, engineeringId };
-        // token cache ל-8 דקות כדי להאיץ (בלי להיתקע על exp)
         cachedAuthExpiresAt = Date.now() + 8 * 60 * 1000;
         console.log('✅ NexHome login success (cached)');
         return cachedAuth;
@@ -87,7 +150,6 @@ async function getAuthToken() {
     lastData?.result?.message ||
     'NexHome login failed';
 
-  // זה בדיוק מה שאתה רואה: WISP_ACCOUNT_OR_PASSWORD_ERROR
   throw new Error(
     `NexHome login failed${code ? ` (${code})` : ''}: ${message}`
   );
@@ -124,7 +186,7 @@ async function searchMac(auth, mac) {
         return res.data;
       }
     } catch (err) {
-      // נסה endpoint הבא
+      // Try next endpoint
     }
   }
   return null;
@@ -237,7 +299,6 @@ app.post('/api/lookup', async (req, res) => {
     });
   } catch (err) {
     console.error('Lookup error:', err.message);
-    // תחזיר שגיאה אמיתית ללקוח במקום רק 500 ריק
     return res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -254,7 +315,7 @@ app.get('/api/debug/:mac', async (req, res) => {
   }
 });
 
-// ==================== MANAGEMENT ENDPOINTS (FIXED ASYNC) ====================
+// ==================== MANAGEMENT ENDPOINTS ====================
 
 // Manager login
 app.post('/api/manager/login', async (req, res) => {
@@ -263,7 +324,7 @@ app.post('/api/manager/login', async (req, res) => {
   res.json(result);
 });
 
-// Create installer account  ✅ FIX: await
+// Create installer account
 app.post('/api/manager/installers', async (req, res) => {
   try {
     const { phoneNumber, macAddresses } = req.body;
@@ -271,19 +332,19 @@ app.post('/api/manager/installers', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Phone number required' });
     }
     const password = await db.createInstaller(phoneNumber, macAddresses || []);
-    res.json({ success: true, phoneNumber, password }); // password is string now
+    res.json({ success: true, phoneNumber, password });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Get all installers ✅ FIX: await
+// Get all installers
 app.get('/api/manager/installers', async (req, res) => {
   const installers = await db.getInstallers();
   res.json({ success: true, installers });
 });
 
-// Get installer details ✅ FIX: await
+// Get installer details
 app.get('/api/manager/installers/:phoneNumber', async (req, res) => {
   const installer = await db.getInstallerDetails(req.params.phoneNumber);
   if (!installer) {
@@ -292,7 +353,7 @@ app.get('/api/manager/installers/:phoneNumber', async (req, res) => {
   res.json({ success: true, installer });
 });
 
-// Assign MAC to installer ✅ FIX: await
+// Assign MAC to installer
 app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
   try {
     const {
@@ -325,7 +386,7 @@ app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
   }
 });
 
-// Remove MAC ✅ FIX: await
+// Remove MAC
 app.delete('/api/manager/installers/:phoneNumber/macs/:macAddress', async (req, res) => {
   try {
     const cleanMac = (req.params.macAddress || '').replace(/[:\s-]/g, '').toUpperCase();
@@ -336,13 +397,13 @@ app.delete('/api/manager/installers/:phoneNumber/macs/:macAddress', async (req, 
   }
 });
 
-// Delete installer ✅ FIX: await
+// Delete installer
 app.delete('/api/manager/installers/:phoneNumber', async (req, res) => {
   await db.deleteInstaller(req.params.phoneNumber);
   res.json({ success: true });
 });
 
-// Reset installer password ✅ FIX: await
+// Reset installer password
 app.post('/api/manager/installers/:phoneNumber/reset-password', async (req, res) => {
   try {
     const newPassword = await db.resetPassword(req.params.phoneNumber);
@@ -352,13 +413,28 @@ app.post('/api/manager/installers/:phoneNumber/reset-password', async (req, res)
   }
 });
 
-// Get login logs ✅ FIX: await
+// Get login logs
 app.get('/api/manager/logs', async (req, res) => {
   const logs = await db.getLoginLogs();
   res.json({ success: true, logs });
 });
 
-// Installer saves description ✅ FIX: await
+// ==================== DATABASE BACKUP ENDPOINT ====================
+app.get('/api/manager/backup', async (req, res) => {
+  try {
+    const backup = await db.getFullDatabaseBackup();
+    
+    const filename = `genesistracer-backup-${new Date().toISOString().split('T')[0]}.json`;
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.json(backup);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Installer saves description
 app.post('/api/installer/description', async (req, res) => {
   try {
     const { phoneNumber, mac, description } = req.body;
@@ -387,7 +463,7 @@ app.post('/api/installer/description', async (req, res) => {
   }
 });
 
-// Installer login ✅ FIX: await
+// Installer login
 app.post('/api/installer/login', async (req, res) => {
   const { phoneNumber, password } = req.body;
   const result = await db.loginInstaller(phoneNumber, password);
@@ -402,5 +478,8 @@ app.listen(PORT, () => {
   console.log(`👨‍💼 Manager: http://localhost:${PORT}/manager.html`);
   console.log(`🔧 Installer: http://localhost:${PORT}/installer.html`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  if (process.env.RESTRICT_TO_ISRAEL === 'true') {
+    console.log('🔒 IP Restriction: Israel only');
+  }
   console.log('Powered by Tador Technologies LTD');
 });
