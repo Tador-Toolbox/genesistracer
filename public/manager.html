@@ -403,6 +403,32 @@
     // Set Hebrew and light theme IMMEDIATELY
     document.documentElement.setAttribute('lang', 'he');
     document.documentElement.setAttribute('dir', 'rtl');
+
+    async function downloadBackup() {
+      try {
+        showMessage(currentLang === 'he' ? 'מוריד גיבוי...' : 'Downloading backup...', 'info');
+        
+        const res = await fetch('/api/manager/backup');
+        if (!res.ok) throw new Error('Backup failed');
+        
+        const data = await res.json();
+        
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `genesistracer-backup-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showMessage(currentLang === 'he' ? '✅ גיבוי הורד בהצלחה!' : '✅ Backup downloaded successfully!', 'success');
+      } catch (err) {
+        showMessage((currentLang === 'he' ? '❌ שגיאה בהורדת גיבוי: ' : '❌ Error downloading backup: ') + err.message, 'error');
+      }
+    }
+
   </script>
 </head>
 <body class="light">
@@ -458,6 +484,10 @@
           <a href="/index.html" target="_blank" class="installer-link">
             <span>🔍</span>
             <span data-i18n="deviceLookupLink">Open Device Lookup</span>
+          </a>
+          <a href="#" onclick="downloadBackup(); return false;" class="installer-link">
+            <span>📥</span>
+            <span data-i18n="downloadBackup">Download Database Backup</span>
           </a>
         </div>
       </div>
@@ -560,6 +590,7 @@
         quickAccess: "🔗 Quick Access",
         installerPanelLink: "Open Installer Panel",
         deviceLookupLink: "Open Device Lookup",
+        downloadBackup: "Download Database Backup",
         createInstaller: "➕ Create Installer Account",
         phoneNumber: "Phone Number (e.g., +972501234567)",
         macAddresses: "MAC Addresses (comma separated, optional)",
@@ -608,6 +639,7 @@
         quickAccess: "🔗 גישה מהירה",
         installerPanelLink: "פתח פאנל מתקין",
         deviceLookupLink: "פתח חיפוש מכשיר",
+        downloadBackup: "הורד גיבוי מסד נתונים",
         createInstaller: "➕ צור חשבון מתקין",
         phoneNumber: "מספר טלפון (לדוגמה: 0501234567+972)",
         macAddresses: "כתובות MAC (מופרדות בפסיקים, אופציונלי)",
@@ -934,7 +966,17 @@
                   </div>
                   <div class="mac-detail-field">
                     <span class="mac-detail-label">🟢 ${translations[currentLang].startDate}:</span>
-                    <span class="mac-detail-value">${macObj.startDate || '—'}</span>
+                    <span class="mac-detail-value">
+                      ${macObj.startDate || '—'}
+                      ${(() => {
+                        if (!macObj.startDate) return '';
+                        const startDateObj = new Date(macObj.startDate);
+                        const now = new Date();
+                        const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+                        const isAnniversary = startDateObj <= oneYearAgo;
+                        return isAnniversary ? '<span style="color: var(--green); font-weight: bold; margin-right: 8px;">🎂 שנה מאז התקנה!</span>' : '';
+                      })()}
+                    </span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "startDate")'>✏️</button>
                   </div>
                   <div class="mac-detail-field">
@@ -981,6 +1023,32 @@
         </tr>
       `).join('');
     }
+
+    async function downloadBackup() {
+      try {
+        showMessage(currentLang === 'he' ? 'מוריד גיבוי...' : 'Downloading backup...', 'info');
+        
+        const res = await fetch('/api/manager/backup');
+        if (!res.ok) throw new Error('Backup failed');
+        
+        const data = await res.json();
+        
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `genesistracer-backup-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showMessage(currentLang === 'he' ? '✅ גיבוי הורד בהצלחה!' : '✅ Backup downloaded successfully!', 'success');
+      } catch (err) {
+        showMessage((currentLang === 'he' ? '❌ שגיאה בהורדת גיבוי: ' : '❌ Error downloading backup: ') + err.message, 'error');
+      }
+    }
+
   </script>
 </body>
 </html>
