@@ -364,6 +364,8 @@ app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
       startDate = '',
       technicianName = '',
       description = '',
+      annualFee = '',
+      licensePaid = false,
     } = req.body;
 
     const cleanMac = (macAddress || '').replace(/[:\s-]/g, '').toUpperCase();
@@ -377,7 +379,9 @@ app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
       purchaseDate,
       startDate,
       technicianName,
-      description
+      description,
+      annualFee,
+      licensePaid
     );
 
     res.json({ success: true });
