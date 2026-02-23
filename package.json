@@ -1,0 +1,17 @@
+{
+  "name": "genesistracer",
+  "version": "2.0.0",
+  "description": "GenesisTracer - NEXhome Device Lookup & Management System by Tador Technologies",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["genesistracer", "nexhome", "device", "lookup", "tador"],
+  "author": "Tador Technologies LTD",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "cors": "^2.8.5"
+  }
+}
