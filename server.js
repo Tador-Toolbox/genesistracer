@@ -254,9 +254,9 @@ app.get('/api/debug/:mac', async (req, res) => {
 // ==================== MANAGEMENT ENDPOINTS ====================
 
 // Manager login
-app.post('/api/manager/login', (req, res) => {
+app.post('/api/manager/login', async (req, res) => {
   const { username, password } = req.body;
-  const result = db.loginManager(username, password);
+  const result = await db.loginManager(username, password);
   res.json(result);
 });
 
