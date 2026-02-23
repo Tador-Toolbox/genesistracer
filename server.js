@@ -9,212 +9,193 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// ==================== NEXHOME CONFIG ====================
 const NEXHOME_BASE = 'https://nexsmart-us.nexhome.ai';
 const USERNAME = 'ort_tadorcom';
-
-// ✅ TEMP PASSWORD (you said you'll change later)
-const PASSWORD = '8vbdQamDznnTkxhk';
-
+const PASSWORD = '5uWRg8sR';
 const APP_ID = 'INTERNATIONAL_COMMUNITY_MANAGER_WEB';
 
 function md5(str) {
   return crypto.createHash('md5').update(str).digest('hex');
 }
 
-// In-memory auth cache (speeds up a LOT)
-let authCache = {
-  value: null,
-  expiresAt: 0
-};
+// -------------------- NexHome auth token cache (for speed) --------------------
+let cachedAuth = null;
+let cachedAuthExpiresAt = 0; // epoch ms
 
 function isAuthValid() {
-  return authCache.value && Date.now() < authCache.expiresAt;
+  return cachedAuth && Date.now() < cachedAuthExpiresAt;
 }
 
-async function loginToNexhome(useMd5) {
-  const passToSend = useMd5 ? md5(PASSWORD) : PASSWORD;
-
+async function tryLoginToNexHome(passwordToSend) {
   const res = await axios.post(
     `${NEXHOME_BASE}/api/employees/account/login`,
     {
       loginName: USERNAME,
-      password: passToSend
+      password: passwordToSend,
     },
     {
       headers: {
         'Content-Type': 'application/json',
-        'AppId': APP_ID,
-        'Referer': NEXHOME_BASE + '/login',
-        'Origin': NEXHOME_BASE,
+        AppId: APP_ID,
+        Referer: NEXHOME_BASE + '/login',
+        Origin: NEXHOME_BASE,
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*'
+        Accept: 'application/json, text/plain, */*',
       },
-      timeout: 15000
+      timeout: 15000,
     }
   );
 
-  const data = res.data;
-  const token = data?.result?.tokenInfo?.token;
-  const employeeAccountId = data?.result?.employeeInfo?.accountId;
-  const customerId = data?.result?.employeeInfo?.customerId;
-  const engineeringId = data?.result?.employeeInfo?.engineeringId;
-
-  if (!token) {
-    // Provide better error message for UI/logs
-    const msg =
-      data?.message ||
-      data?.msg ||
-      data?.code ||
-      'Login failed (no token returned)';
-    throw new Error(`NexHome login failed: ${msg}`);
-  }
-
-  return { token, employeeAccountId, customerId, engineeringId };
+  return res.data;
 }
 
 async function getAuthToken() {
-  // Use cache
-  if (isAuthValid()) return authCache.value;
+  if (isAuthValid()) return cachedAuth;
 
-  console.log('Logging in to NexHome...');
+  // Try MD5 first (old behavior), then plain text (in case they changed)
+  const candidates = [md5(PASSWORD), PASSWORD];
 
-  // Try MD5 first, if fails -> try plain password
-  try {
-    const auth = await loginToNexhome(true);
-    authCache.value = auth;
-    authCache.expiresAt = Date.now() + 20 * 60 * 1000; // 20 minutes
-    console.log('✅ NexHome login success (MD5).');
-    return auth;
-  } catch (e1) {
-    console.log('⚠️ NexHome login (MD5) failed, trying plain password...');
-    const auth = await loginToNexhome(false);
-    authCache.value = auth;
-    authCache.expiresAt = Date.now() + 20 * 60 * 1000;
-    console.log('✅ NexHome login success (PLAIN).');
-    return auth;
+  let lastData = null;
+
+  for (const pass of candidates) {
+    try {
+      const data = await tryLoginToNexHome(pass);
+      lastData = data;
+
+      const token = data?.result?.tokenInfo?.token;
+      const employeeAccountId = data?.result?.employeeInfo?.accountId;
+      const customerId = data?.result?.employeeInfo?.customerId;
+      const engineeringId = data?.result?.employeeInfo?.engineeringId;
+
+      if (token) {
+        cachedAuth = { token, employeeAccountId, customerId, engineeringId };
+        // token cache ל-8 דקות כדי להאיץ (בלי להיתקע על exp)
+        cachedAuthExpiresAt = Date.now() + 8 * 60 * 1000;
+        console.log('✅ NexHome login success (cached)');
+        return cachedAuth;
+      }
+    } catch (err) {
+      lastData = err?.response?.data || { message: err.message };
+    }
   }
+
+  const code = lastData?.code || lastData?.result?.code || null;
+  const message =
+    lastData?.message ||
+    lastData?.msg ||
+    lastData?.result?.message ||
+    'NexHome login failed';
+
+  // זה בדיוק מה שאתה רואה: WISP_ACCOUNT_OR_PASSWORD_ERROR
+  throw new Error(
+    `NexHome login failed${code ? ` (${code})` : ''}: ${message}`
+  );
 }
 
 async function searchMac(auth, mac) {
   const headers = {
-    'Authorization': auth.token,
-    'AppId': APP_ID,
-    'Version': '1.0.0',
-    'ApiVersion': '1.0',
-    'Language': 'en',
-    'EmployeeAccountId': auth.employeeAccountId,
+    Authorization: auth.token,
+    AppId: APP_ID,
+    Version: '1.0.0',
+    ApiVersion: '1.0',
+    Language: 'en',
+    EmployeeAccountId: auth.employeeAccountId,
     'Customer-Id': auth.customerId,
-    'RequestId': crypto.randomUUID(),
+    RequestId: crypto.randomUUID(),
     'User-Agent': 'Mozilla/5.0',
-    'Accept': 'application/json, text/plain, */*'
+    Accept: 'application/json, text/plain, */*',
   };
 
   const endpoints = [
-    NEXHOME_BASE + '/api/employees/publics/devicelibraries?page=0&size=10&engineeringId=' + auth.engineeringId,
-    NEXHOME_BASE + '/api/employees/device/mac/list',
-    NEXHOME_BASE + '/api/device/mac/list'
+    `${NEXHOME_BASE}/api/employees/publics/devicelibraries?page=0&size=10&engineeringId=${auth.engineeringId}&mac=${mac}`,
+    `${NEXHOME_BASE}/api/employees/device/mac/list`,
+    `${NEXHOME_BASE}/api/device/mac/list`,
   ];
 
   for (const url of endpoints) {
     try {
-      const fullUrl = url.includes('?') ? url + '&mac=' + mac : url;
       const params = url.includes('?') ? {} : { mac, pageNum: 1, pageSize: 10 };
-      const res = await axios.get(fullUrl, { params, headers, timeout: 15000 });
-
-      // if response seems valid, return it
-      if (res.data?.code === '0' || (res.data?.code && res.data?.code !== 'SYS_1' && res.data?.code !== 'SYS_0050')) {
+      const res = await axios.get(url, { params, headers, timeout: 15000 });
+      if (
+        res.data?.code === '0' ||
+        (res.data?.code !== 'SYS_1' && res.data?.code !== 'SYS_0050')
+      ) {
         return res.data;
       }
     } catch (err) {
-      console.log('MAC endpoint error:', url, err.message);
+      // נסה endpoint הבא
     }
   }
-
   return null;
 }
 
 async function getDeviceByMac(auth, mac, communityId) {
   const headers = {
-    'Authorization': auth.token,
-    'AppId': APP_ID,
-    'Version': '1.0',
-    'Apiversion': '1.0',
-    'Language': 'en',
+    Authorization: auth.token,
+    AppId: APP_ID,
+    Version: '1.0',
+    Apiversion: '1.0',
+    Language: 'en',
     'Community-Id': communityId,
     'Customer-Id': auth.customerId,
-    'EmployeeAccountId': auth.employeeAccountId,
-    'RequestId': crypto.randomUUID(),
+    EmployeeAccountId: auth.employeeAccountId,
+    RequestId: crypto.randomUUID(),
     'User-Agent': 'Mozilla/5.0',
-    'Accept': 'application/json'
+    Accept: 'application/json',
   };
 
   const url = `${NEXHOME_BASE}/api/employees/publics/devices`;
 
-  try {
-    const res = await axios.get(url, {
-      params: {
-        type: '2,3,7,8,9',
-        size: 10,
-        page: 0,
-        isReload: true,
-        mac: mac,
-        isCloudEnabled: true
-      },
-      headers,
-      timeout: 15000
-    });
-    return res.data;
-  } catch (err) {
-    console.log('Device error:', err.message);
-    return null;
-  }
+  const res = await axios.get(url, {
+    params: {
+      type: '2,3,7,8,9',
+      size: 10,
+      page: 0,
+      isReload: true,
+      mac,
+      isCloudEnabled: true,
+    },
+    headers,
+    timeout: 15000,
+  });
+
+  return res.data;
 }
 
 async function getReverseLoginInfo(auth, deviceId, communityId) {
   const headers = {
-    'Authorization': auth.token,
-    'AppId': APP_ID,
-    'Version': '1.0',
-    'Apiversion': '1.0',
-    'Language': 'en',
+    Authorization: auth.token,
+    AppId: APP_ID,
+    Version: '1.0',
+    Apiversion: '1.0',
+    Language: 'en',
     'Community-Id': communityId,
     'Customer-Id': auth.customerId,
-    'EmployeeAccountId': auth.employeeAccountId,
-    'RequestId': crypto.randomUUID(),
+    EmployeeAccountId: auth.employeeAccountId,
+    RequestId: crypto.randomUUID(),
     'User-Agent': 'Mozilla/5.0',
-    'Accept': 'application/json',
-    'Content-Type': 'application/json; charset=UTF-8'
+    Accept: 'application/json',
+    'Content-Type': 'application/json; charset=UTF-8',
   };
 
   const url = `${NEXHOME_BASE}/api/employees/publics/devices/${deviceId}:reverseLogin`;
-
-  try {
-    const res = await axios.post(url, { type: 'WEB' }, { headers, timeout: 15000 });
-    return res.data;
-  } catch (err) {
-    console.log('Reverse login error:', err.message);
-    return null;
-  }
+  const res = await axios.post(url, { type: 'WEB' }, { headers, timeout: 15000 });
+  return res.data;
 }
 
-// ==================== LOOKUP API ====================
-
+// -------------------- API: Lookup --------------------
 app.post('/api/lookup', async (req, res) => {
   const { mac } = req.body;
-  if (!mac || !mac.trim()) return res.status(400).json({ success: false, error: 'MAC address is required' });
+  if (!mac || !mac.trim()) {
+    return res.status(400).json({ success: false, error: 'MAC address is required' });
+  }
 
   const cleanMac = mac.replace(/[:\-\s]/g, '').toUpperCase();
-  console.log('\n=== Lookup:', cleanMac, '===');
 
   try {
     const auth = await getAuthToken();
-
     const macData = await searchMac(auth, cleanMac);
-    if (!macData) {
-      return res.json({ success: false, error: 'MAC search failed (no response)' });
-    }
 
     const macList = macData?.result?.elements || macData?.result?.list || [];
     const macEntry = macList[0] || null;
@@ -224,11 +205,8 @@ app.post('/api/lookup', async (req, res) => {
     }
 
     const communityId = macEntry.usedCommunityId || macEntry.communityId;
-    if (!communityId) {
-      return res.json({ success: false, error: 'Community ID not found for this MAC' });
-    }
-
     const deviceData = await getDeviceByMac(auth, cleanMac, communityId);
+
     const deviceList = deviceData?.result?.elements || deviceData?.result?.list || [];
     const deviceEntry = deviceList[0] || null;
 
@@ -241,73 +219,51 @@ app.post('/api/lookup', async (req, res) => {
 
     const ip = reverseLoginData?.result?.targetHost || null;
     const port = reverseLoginData?.result?.targetPort || null;
-    const fullAddress = ip && port ? `${ip}:${port}` : ip;
 
     return res.json({
       success: true,
       mac: cleanMac,
       ip: ip || 'Not found',
       port: port || null,
-      fullAddress: fullAddress || 'Not available',
-      sn: macEntry.sn || deviceEntry.mac || 'N/A',
-      project: macEntry.communityName || deviceEntry.communityName || 'N/A',
-      deviceName: deviceEntry.name || macEntry.communityName || 'N/A',
+      fullAddress: ip && port ? `${ip}:${port}` : ip || 'Not available',
+      sn: macEntry.sn || deviceEntry.mac,
+      project: macEntry.communityName || deviceEntry.communityName,
+      deviceName: deviceEntry.name || macEntry.communityName,
       deviceType: deviceEntry.type || 'Door Phone',
       deviceModel: deviceEntry.model || 'T98',
-      status: deviceEntry.onlineStatus || macEntry.status || 'N/A',
+      status: deviceEntry.onlineStatus || macEntry.status,
       building: deviceEntry.buildingName || null,
-      apartment: deviceEntry.roomNumber || null
+      apartment: deviceEntry.roomNumber || null,
     });
-
   } catch (err) {
-    console.error('Lookup Error:', err.message);
-
-    // If token might be expired or bad, clear cache so next try relogs
-    if (String(err.message || '').toLowerCase().includes('login') || String(err.message || '').toLowerCase().includes('token')) {
-      authCache.value = null;
-      authCache.expiresAt = 0;
-    }
-
+    console.error('Lookup error:', err.message);
+    // תחזיר שגיאה אמיתית ללקוח במקום רק 500 ריק
     return res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Debug endpoint (works on: /api/debug/<MAC>)
+// Debug endpoint
 app.get('/api/debug/:mac', async (req, res) => {
   try {
     const auth = await getAuthToken();
-    const mac = req.params.mac.replace(/[:\-\s]/g, '').toUpperCase();
-
-    const macData = await searchMac(auth, mac);
-    const macList = macData?.result?.elements || macData?.result?.list || [];
-    const communityId = macList[0]?.usedCommunityId || macList[0]?.communityId;
-
-    const deviceData = communityId ? await getDeviceByMac(auth, mac, communityId) : null;
-    const deviceList = deviceData?.result?.elements || deviceData?.result?.list || [];
-    const deviceId = deviceList[0]?.id;
-
-    const reverseLoginData = (deviceId && communityId) ? await getReverseLoginInfo(auth, deviceId, communityId) : null;
-
-    res.json({ success: true, mac, communityId, macData, deviceData, reverseLoginData });
+    const cleanMac = req.params.mac.replace(/[:\-\s]/g, '').toUpperCase();
+    const macData = await searchMac(auth, cleanMac);
+    res.json({ success: true, macData });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// ==================== MANAGEMENT ENDPOINTS ====================
+// ==================== MANAGEMENT ENDPOINTS (FIXED ASYNC) ====================
 
 // Manager login
 app.post('/api/manager/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    const result = await db.loginManager(username, password);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+  const { username, password } = req.body;
+  const result = await db.loginManager(username, password);
+  res.json(result);
 });
 
-// Create installer account  ✅ FIXED: await db.createInstaller
+// Create installer account  ✅ FIX: await
 app.post('/api/manager/installers', async (req, res) => {
   try {
     const { phoneNumber, macAddresses } = req.body;
@@ -315,50 +271,52 @@ app.post('/api/manager/installers', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Phone number required' });
     }
     const password = await db.createInstaller(phoneNumber, macAddresses || []);
-    res.json({ success: true, phoneNumber, password });
+    res.json({ success: true, phoneNumber, password }); // password is string now
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Get all installers ✅ FIXED: await
+// Get all installers ✅ FIX: await
 app.get('/api/manager/installers', async (req, res) => {
-  try {
-    const installers = await db.getInstallers();
-    res.json({ success: true, installers });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+  const installers = await db.getInstallers();
+  res.json({ success: true, installers });
 });
 
-// Get installer details ✅ FIXED: await
+// Get installer details ✅ FIX: await
 app.get('/api/manager/installers/:phoneNumber', async (req, res) => {
-  try {
-    const installer = await db.getInstallerDetails(req.params.phoneNumber);
-    if (!installer) return res.status(404).json({ success: false, error: 'Installer not found' });
-    res.json({ success: true, installer });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+  const installer = await db.getInstallerDetails(req.params.phoneNumber);
+  if (!installer) {
+    return res.status(404).json({ success: false, error: 'Installer not found' });
   }
+  res.json({ success: true, installer });
 });
 
-// Assign MAC to installer ✅ FIXED: await
+// Assign MAC to installer ✅ FIX: await
 app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
   try {
-    const { macAddress, address, notes, purchaseDate, startDate, technicianName, description } = req.body;
-    if (!macAddress) return res.status(400).json({ success: false, error: 'macAddress required' });
+    const {
+      macAddress,
+      address = '',
+      notes = '',
+      purchaseDate = '',
+      startDate = '',
+      technicianName = '',
+      description = '',
+    } = req.body;
 
-    const cleanMac = macAddress.replace(/[:\s-]/g, '').toUpperCase();
+    const cleanMac = (macAddress || '').replace(/[:\s-]/g, '').toUpperCase();
+    if (!cleanMac) return res.status(400).json({ success: false, error: 'macAddress required' });
 
     await db.assignMacToInstaller(
       req.params.phoneNumber,
       cleanMac,
-      address || '',
-      notes || '',
-      purchaseDate || '',
-      startDate || '',
-      technicianName || '',
-      description || ''
+      address,
+      notes,
+      purchaseDate,
+      startDate,
+      technicianName,
+      description
     );
 
     res.json({ success: true });
@@ -367,10 +325,10 @@ app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
   }
 });
 
-// Remove MAC ✅ FIXED: await
+// Remove MAC ✅ FIX: await
 app.delete('/api/manager/installers/:phoneNumber/macs/:macAddress', async (req, res) => {
   try {
-    const cleanMac = req.params.macAddress.replace(/[:\s-]/g, '').toUpperCase();
+    const cleanMac = (req.params.macAddress || '').replace(/[:\s-]/g, '').toUpperCase();
     await db.removeMacFromInstaller(req.params.phoneNumber, cleanMac);
     res.json({ success: true });
   } catch (err) {
@@ -378,17 +336,13 @@ app.delete('/api/manager/installers/:phoneNumber/macs/:macAddress', async (req, 
   }
 });
 
-// Delete installer ✅ FIXED: await
+// Delete installer ✅ FIX: await
 app.delete('/api/manager/installers/:phoneNumber', async (req, res) => {
-  try {
-    await db.deleteInstaller(req.params.phoneNumber);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+  await db.deleteInstaller(req.params.phoneNumber);
+  res.json({ success: true });
 });
 
-// Reset installer password ✅ FIXED: await
+// Reset installer password ✅ FIX: await
 app.post('/api/manager/installers/:phoneNumber/reset-password', async (req, res) => {
   try {
     const newPassword = await db.resetPassword(req.params.phoneNumber);
@@ -398,25 +352,22 @@ app.post('/api/manager/installers/:phoneNumber/reset-password', async (req, res)
   }
 });
 
-// Get login logs ✅ FIXED: await
+// Get login logs ✅ FIX: await
 app.get('/api/manager/logs', async (req, res) => {
-  try {
-    const logs = await db.getLoginLogs();
-    res.json({ success: true, logs });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+  const logs = await db.getLoginLogs();
+  res.json({ success: true, logs });
 });
 
-// Installer saves description for a MAC ✅ FIXED: await
+// Installer saves description ✅ FIX: await
 app.post('/api/installer/description', async (req, res) => {
   try {
     const { phoneNumber, mac, description } = req.body;
     const details = await db.getInstallerDetails(phoneNumber);
     if (!details) return res.status(404).json({ success: false, error: 'Installer not found' });
 
-    const cleanMac = mac.replace(/[:\-\s]/g, '').toUpperCase();
-    const existing = (details.macAddresses || []).find(m => (m.mac || '').toUpperCase() === cleanMac);
+    const cleanMac = (mac || '').replace(/[:\s-]/g, '').toUpperCase();
+    const existing = (details.macAddresses || []).find(m => m.mac === cleanMac);
+
     if (!existing) return res.status(404).json({ success: false, error: 'MAC not found' });
 
     await db.assignMacToInstaller(
@@ -436,20 +387,15 @@ app.post('/api/installer/description', async (req, res) => {
   }
 });
 
-// Installer login ✅ FIXED: await
+// Installer login ✅ FIX: await
 app.post('/api/installer/login', async (req, res) => {
-  try {
-    const { phoneNumber, password } = req.body;
-    const result = await db.loginInstaller(phoneNumber, password);
-    if (result.success) result.data.ip = req.ip;
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+  const { phoneNumber, password } = req.body;
+  const result = await db.loginInstaller(phoneNumber, password);
+  if (result.success) result.data.ip = req.ip;
+  res.json(result);
 });
 
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
   console.log(`🌐 Main: http://localhost:${PORT}`);
