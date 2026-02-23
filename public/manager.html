@@ -421,6 +421,25 @@
       0%, 100% { opacity: 1; }
       50% { opacity: 0.7; }
     }
+
+    .license-paid-btn {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+      margin-left: 4px;
+    }
+    
+    .license-paid-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
+    }
+
   </style>
   <script>
     // Set Hebrew and light theme IMMEDIATELY
@@ -463,6 +482,46 @@
         if (!res.ok) throw new Error('Failed to update');
         
         showMessage('✅ ' + (currentLang === 'he' ? 'רישיון סומן כשולם!' : 'License marked as paid!'), 'success');
+        loadInstallers();
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+      }
+    }
+
+
+    async function handleLicenseUnpaid(phoneNumber, mac) {
+      const confirmed = confirm(currentLang === 'he' ? 'לבטל סימון תשלום?' : 'Mark as unpaid?');
+      
+      if (!confirmed) return;
+      
+      try {
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        const macObj = details.installer.macAddresses.find(m => m.mac === mac);
+        
+        if (!macObj) {
+          showMessage('❌ MAC not found', 'error');
+          return;
+        }
+        
+        // Update with licensePaid = false
+        const res = await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            macAddress: mac,
+            address: macObj.address || '',
+            purchaseDate: macObj.purchaseDate || '',
+            startDate: macObj.startDate || '',
+            notes: macObj.notes || '',
+            technicianName: macObj.technicianName || '',
+            annualFee: macObj.annualFee || '',
+            licensePaid: false,
+          }),
+        });
+        
+        if (!res.ok) throw new Error('Failed to update');
+        
+        showMessage('✅ ' + (currentLang === 'he' ? 'סומן כלא שולם' : 'Marked as unpaid'), 'success');
         loadInstallers();
       } catch (err) {
         showMessage('❌ ' + err.message, 'error');
@@ -1086,10 +1145,12 @@
           </td>
           <td>
             ${(() => {
-              // Check all MACs for license warnings
+              // Check all MACs for license status
               const warnings = [];
+              const paid = [];
+              
               for (const macObj of details.installer.macAddresses) {
-                if (!macObj.startDate || macObj.licensePaid) continue;
+                if (!macObj.startDate) continue;
                 
                 const startDateObj = new Date(macObj.startDate);
                 const now = new Date();
@@ -1106,19 +1167,40 @@
                   const yearsText = yearsElapsed === 1 ? 
                     translations[currentLang].oneYear : 
                     yearsElapsed + ' ' + translations[currentLang].yearsCount;
-                  warnings.push({mac: macObj.mac, years: yearsElapsed, text: yearsText});
+                  
+                  if (macObj.licensePaid) {
+                    paid.push({mac: macObj.mac, years: yearsElapsed, text: yearsText});
+                  } else {
+                    warnings.push({mac: macObj.mac, years: yearsElapsed, text: yearsText});
+                  }
                 }
               }
               
-              if (warnings.length === 0) return '—';
+              let html = '';
               
-              return warnings.map(w => 
-                `<button class="license-warning-btn" 
-                  onclick="handleLicensePayment('${installer.phoneNumber}', '` + '${w.mac}' + `')" 
-                  title="` + '${w.text}' + `">
-                  🔔 ${w.years}
-                </button>`
-              ).join(' ');
+              // Show warnings (red bells)
+              if (warnings.length > 0) {
+                html += warnings.map(w => 
+                  `<button class="license-warning-btn" 
+                    onclick="handleLicensePayment('${installer.phoneNumber}', '` + '${w.mac}' + `')" 
+                    title="` + '${w.text}' + `">
+                    🔔 ${w.years}
+                  </button>`
+                ).join(' ');
+              }
+              
+              // Show paid licenses (green checks)
+              if (paid.length > 0) {
+                html += paid.map(p => 
+                  `<button class="license-paid-btn" 
+                    onclick="handleLicenseUnpaid('${installer.phoneNumber}', '` + '${p.mac}' + `')" 
+                    title="✅ רישיון שולם - ` + '${p.text}' + `">
+                    ✅ ${p.years}
+                  </button>`
+                ).join(' ');
+              }
+              
+              return html || '—';
             })()}
           </td>
           <td>${new Date(installer.createdAt).toLocaleString()}</td>
@@ -1187,31 +1269,43 @@
       }
     }
 
-    async function downloadBackup() {
+
+    async function handleLicenseUnpaid(phoneNumber, mac) {
+      const confirmed = confirm(currentLang === 'he' ? 'לבטל סימון תשלום?' : 'Mark as unpaid?');
+      
+      if (!confirmed) return;
+      
       try {
-        showMessage(currentLang === 'he' ? 'מוריד גיבוי...' : 'Downloading backup...', 'info');
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        const macObj = details.installer.macAddresses.find(m => m.mac === mac);
         
-        const res = await fetch('/api/manager/backup');
-        if (!res.ok) throw new Error('Backup failed');
+        if (!macObj) {
+          showMessage('❌ MAC not found', 'error');
+          return;
+        }
         
-        const data = await res.json();
+        // Update with licensePaid = false
+        const res = await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            macAddress: mac,
+            address: macObj.address || '',
+            purchaseDate: macObj.purchaseDate || '',
+            startDate: macObj.startDate || '',
+            notes: macObj.notes || '',
+            technicianName: macObj.technicianName || '',
+            annualFee: macObj.annualFee || '',
+            licensePaid: false,
+          }),
+        });
         
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `genesistracer-backup-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        if (!res.ok) throw new Error('Failed to update');
         
-        showMessage(currentLang === 'he' ? '✅ גיבוי הורד בהצלחה!' : '✅ Backup downloaded successfully!', 'success');
+        showMessage('✅ ' + (currentLang === 'he' ? 'סומן כלא שולם' : 'Marked as unpaid'), 'success');
+        loadInstallers();
       } catch (err) {
-        showMessage((currentLang === 'he' ? '❌ שגיאה בהורדת גיבוי: ' : '❌ Error downloading backup: ') + err.message, 'error');
+        showMessage('❌ ' + err.message, 'error');
       }
     }
 
-  </script>
-</body>
-</html>
