@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Installer Panel - Tador</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg: #0a0d14;
+      --surface: #111520;
+      --surface2: #161c2e;
+      --border: #1e2840;
+      --accent: #2563eb;
+      --green: #10b981;
+      --text: #f1f5f9;
+      --text-dim: #64748b;
+    }
+
+    body.light {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --surface2: #e8edf5;
+      --border: #cbd5e1;
+      --accent: #2563eb;
+      --green: #059669;
+      --text: #0f172a;
+      --text-dim: #64748b;
+    }
+
+    .theme-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 8px 14px;
+      width: auto;
+      margin-top: 0;
+    }
+    
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container { max-width: 600px; width: 100%; }
+    
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px;
+    }
+    
+    h1 { font-size: 28px; margin-bottom: 8px; }
+    .subtitle { color: var(--text-dim); margin-bottom: 32px; }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 14px;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 15px;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    
+    button {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, var(--accent), #1d4ed8);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      margin-top: 24px;
+    }
+    
+    button:hover { opacity: 0.9; }
+    
+    .result {
+      margin-top: 24px;
+      padding: 20px;
+      background: var(--surface2);
+      border-radius: 10px;
+    }
+    
+    .result h3 {
+      font-size: 14px;
+      color: var(--green);
+      margin-bottom: 12px;
+    }
+    
+    .ip-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px;
+      color: var(--green);
+      margin-bottom: 16px;
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      font-size: 13px;
+    }
+    
+    .info-item {
+      background: var(--bg);
+      padding: 10px;
+      border-radius: 6px;
+    }
+    
+    .info-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+    
+    .info-value {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .logout-btn {
+      margin-top: 16px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+    
+    .mac-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    
+    .mac-card:hover { border-color: var(--accent); }
+    .mac-card.selected { border-color: var(--accent); background: rgba(37,99,235,0.08); }
+    
+    .mac-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .mac-address {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--accent);
+    }
+    
+    .mac-description {
+      font-size: 13px;
+      color: var(--text-dim);
+      font-style: italic;
+      margin-top: 4px;
+    }
+    
+    .mac-description.has-value {
+      color: var(--text);
+      font-style: normal;
+    }
+    
+    .edit-desc-btn {
+      padding: 4px 10px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      width: auto;
+      margin-top: 0;
+    }
+    
+    .edit-desc-btn:hover { border-color: var(--accent); color: var(--accent); }
+    
+    .desc-input-wrap {
+      display: none;
+      margin-top: 10px;
+      gap: 8px;
+      flex-direction: column;
+    }
+    
+    .desc-input-wrap.open { display: flex; }
+    
+    .desc-input-wrap input {
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    
+    .desc-save-btn {
+      padding: 8px;
+      background: var(--green);
+      color: white;
+      font-size: 13px;
+      width: auto;
+      margin-top: 0;
+    }
+    
+    .lang-switch {
+      display: flex;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+      margin-top: 24px;
+      justify-content: center;
+    }
+    
+    .lang-btn {
+      padding: 8px 16px;
+      background: transparent;
+      color: var(--text-dim);
+      border: none;
+      border-radius: 6px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    
+    .lang-btn.active {
+      background: var(--accent);
+      color: white;
+    }
+    
+    #installerPanel { display: none; }
+  </style>
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="loginScreen" class="container">
+    <div class="card">
+      <h1 data-i18n="loginTitle">Installer Login</h1>
+      <p class="subtitle">Tador Technologies LTD</p>
+      
+      <div class="form-group">
+        <label data-i18n="phoneLabel">Phone Number</label>
+        <input type="text" id="loginPhone" data-i18n-placeholder="phonePlaceholder" placeholder="+972501234567" />
+      </div>
+      
+      <div class="form-group">
+        <label data-i18n="passwordLabel">Password</label>
+        <input type="password" id="loginPassword" data-i18n-placeholder="passwordPlaceholder" placeholder="Password" />
+      </div>
+      
+      <button onclick="login()" data-i18n="loginBtn">Login</button>
+      <div id="loginError" style="color: var(--red); margin-top: 12px; text-align: center;"></div>
+      
+      <div class="lang-switch">
+        <button class="lang-btn active" data-lang="en">English</button>
+        <button class="lang-btn" data-lang="he">עברית</button>
+      </div>
+      <div style="text-align: center; margin-top: 12px;">
+        <button class="theme-btn" onclick="toggleTheme()">☀️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Installer Panel -->
+  <div id="installerPanel" class="container">
+    <div class="card">
+      <h1 data-i18n="panelTitle">Device Lookup</h1>
+      <p class="subtitle" data-i18n="panelSubtitle">Select a MAC address to find device IP</p>
+      
+      <div class="form-group">
+        <label data-i18n="macLabel">Your MAC Addresses</label>
+        <div id="macList"></div>
+      </div>
+      
+      <button onclick="lookup()">
+        <span>🔍</span>
+        <span data-i18n="lookupBtn">Find Device IP</span>
+      </button>
+      
+      <div id="result"></div>
+      
+      <button class="logout-btn" onclick="logout()" data-i18n="logoutBtn">Logout</button>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+        <div class="lang-switch" style="margin-top: 0;">
+          <button class="lang-btn active" data-lang="en">English</button>
+          <button class="lang-btn" data-lang="he">עברית</button>
+        </div>
+        <button class="theme-btn" onclick="toggleTheme()">☀️</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Translations
+    const translations = {
+      en: {
+        loginTitle: "Installer Login",
+        phoneLabel: "Phone Number",
+        phonePlaceholder: "+972501234567",
+        passwordLabel: "Password",
+        passwordPlaceholder: "Password",
+        loginBtn: "Login",
+        panelTitle: "Device Lookup",
+        panelSubtitle: "Select a MAC address to find device IP",
+        macLabel: "Your MAC Addresses",
+        lookupBtn: "Find Device IP",
+        logoutBtn: "Logout",
+        deviceFound: "DEVICE FOUND",
+        error: "ERROR",
+        mac: "MAC",
+        serial: "SERIAL",
+        project: "PROJECT",
+        status: "STATUS",
+        openBackend: "Open Device Backend",
+        addDescription: "Add description...",
+        editDescription: "✏️ Edit",
+        saveDescription: "Save",
+        descriptionLabel: "📝 Description",
+        noDescription: "No description yet — click Edit to add one",
+      },
+      he: {
+        loginTitle: "כניסת מתקין",
+        phoneLabel: "מספר טלפון",
+        phonePlaceholder: "0501234567+972",
+        passwordLabel: "סיסמה",
+        passwordPlaceholder: "סיסמה",
+        loginBtn: "התחבר",
+        panelTitle: "חיפוש מכשיר",
+        panelSubtitle: "בחר כתובת MAC כדי למצוא IP של המכשיר",
+        macLabel: "כתובות MAC שלך",
+        lookupBtn: "מצא IP של המכשיר",
+        logoutBtn: "התנתק",
+        deviceFound: "מכשיר נמצא",
+        error: "שגיאה",
+        mac: "MAC",
+        serial: "מספר סידורי",
+        project: "פרויקט",
+        status: "סטטוס",
+        openBackend: "פתח ממשק מכשיר",
+        addDescription: "הוסף תיאור...",
+        editDescription: "✏️ ערוך",
+        saveDescription: "שמור",
+        descriptionLabel: "📝 תיאור",
+        noDescription: "אין תיאור עדיין — לחץ ערוך להוספה",
+      }
+    };
+
+    let currentLang = 'en';
+
+    function toggleTheme() {
+      document.body.classList.toggle('light');
+      const isLight = document.body.classList.contains('light');
+      document.querySelectorAll('.theme-btn').forEach(b => b.textContent = isLight ? '🌙' : '☀️');
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    }
+
+    if (localStorage.getItem('theme') === 'light') {
+      document.body.classList.add('light');
+      document.querySelectorAll('.theme-btn').forEach(b => b.textContent = '🌙');
+    }
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
+      
+      // Update text elements
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[lang][key]) {
+          el.textContent = translations[lang][key];
+        }
+      });
+      
+      // Update placeholders
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (translations[lang][key]) {
+          el.placeholder = translations[lang][key];
+        }
+      });
+      
+      // Update active button
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+      });
+    }
+
+    // Language switcher
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('lang-btn')) {
+        setLanguage(e.target.dataset.lang);
+      }
+    });
+
+    let installerData = null;
+    let selectedMac = null;
+
+    function renderMacList() {
+      const t = translations[currentLang];
+      const container = document.getElementById('macList');
+      container.innerHTML = installerData.macAddresses.map(macObj => `
+        <div class="mac-card ${selectedMac === macObj.mac ? 'selected' : ''}" 
+             id="card-${macObj.mac}" onclick="selectMac('${macObj.mac}')">
+          <div class="mac-card-header">
+            <span class="mac-address">${macObj.mac}</span>
+            <button class="edit-desc-btn" onclick="event.stopPropagation(); toggleDescEdit('${macObj.mac}')">
+              ${t.editDescription}
+            </button>
+          </div>
+          <div class="mac-description ${macObj.description ? 'has-value' : ''}">
+            ${macObj.description ? '📝 ' + macObj.description : t.noDescription}
+          </div>
+          <div class="desc-input-wrap" id="desc-wrap-${macObj.mac}">
+            <input type="text" id="desc-input-${macObj.mac}" 
+                   value="${macObj.description || ''}" 
+                   placeholder="${t.addDescription}" 
+                   onclick="event.stopPropagation()" />
+            <button class="desc-save-btn" onclick="event.stopPropagation(); saveDescription('${macObj.mac}')">
+              ${t.saveDescription}
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function selectMac(mac) {
+      selectedMac = mac;
+      renderMacList();
+    }
+
+    function toggleDescEdit(mac) {
+      const wrap = document.getElementById(`desc-wrap-${mac}`);
+      wrap.classList.toggle('open');
+      if (wrap.classList.contains('open')) {
+        document.getElementById(`desc-input-${mac}`).focus();
+      }
+    }
+
+    async function saveDescription(mac) {
+      const description = document.getElementById(`desc-input-${mac}`).value;
+      
+      await fetch('/api/installer/description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: installerData.phoneNumber, mac, description })
+      });
+
+      // Update local data
+      const macObj = installerData.macAddresses.find(m => m.mac === mac);
+      if (macObj) macObj.description = description;
+      
+      document.getElementById(`desc-wrap-${mac}`).classList.remove('open');
+      renderMacList();
+    }
+
+    async function login() {
+      const phoneNumber = document.getElementById('loginPhone').value;
+      const password = document.getElementById('loginPassword').value;
+      
+      const res = await fetch('/api/installer/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber, password })
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        installerData = data.data;
+        selectedMac = installerData.macAddresses.length > 0 ? installerData.macAddresses[0].mac : null;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('installerPanel').style.display = 'block';
+        renderMacList();
+      } else {
+        document.getElementById('loginError').textContent = data.error || 'Login failed';
+      }
+    }
+
+    function logout() {
+      installerData = null;
+      selectedMac = null;
+      document.getElementById('loginScreen').style.display = 'block';
+      document.getElementById('installerPanel').style.display = 'none';
+      document.getElementById('loginPhone').value = '';
+      document.getElementById('loginPassword').value = '';
+      document.getElementById('loginError').textContent = '';
+      document.getElementById('result').innerHTML = '';
+    }
+
+    async function lookup() {
+      if (!selectedMac) return alert('Please select a MAC address');
+      const mac = selectedMac;
+      
+      const res = await fetch('/api/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mac })
+      });
+      
+      const data = await res.json();
+      const resultDiv = document.getElementById('result');
+      
+      if (data.success) {
+        resultDiv.innerHTML = `
+          <div class="result">
+            <h3>✓ ${translations[currentLang].deviceFound}</h3>
+            <div class="ip-display">${data.fullAddress || data.ip}</div>
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label">${translations[currentLang].mac}</div>
+                <div class="info-value">${data.mac}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">${translations[currentLang].serial}</div>
+                <div class="info-value">${data.sn || 'N/A'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">${translations[currentLang].project}</div>
+                <div class="info-value">${data.project || 'N/A'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">${translations[currentLang].status}</div>
+                <div class="info-value">${data.status || 'N/A'}</div>
+              </div>
+            </div>
+            ${data.fullAddress ? `
+              <button onclick="window.open('http://${data.fullAddress}', '_blank')" style="margin-top: 16px;">
+                🌐 ${translations[currentLang].openBackend}
+              </button>
+            ` : ''}
+          </div>
+        `;
+      } else {
+        resultDiv.innerHTML = `
+          <div class="result" style="background: rgba(239, 68, 68, 0.1);">
+            <h3 style="color: var(--red);">✗ ${translations[currentLang].error}</h3>
+            <p>${data.error}</p>
+          </div>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tador - Device Lookup</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg: #0a0d14;
+      --surface: #111520;
+      --surface2: #161c2e;
+      --border: #1e2840;
+      --accent: #2563eb;
+      --accent-glow: rgba(37, 99, 235, 0.35);
+      --accent-light: #3b82f6;
+      --green: #10b981;
+      --green-glow: rgba(16, 185, 129, 0.2);
+      --red: #ef4444;
+      --text: #f1f5f9;
+      --text-dim: #64748b;
+      --text-mid: #94a3b8;
+      --tador-red: #e31e24;
+    }
+
+    body.light {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --surface2: #e8edf5;
+      --border: #cbd5e1;
+      --accent-glow: rgba(37, 99, 235, 0.15);
+      --green: #059669;
+      --green-glow: rgba(5, 150, 105, 0.15);
+      --text: #0f172a;
+      --text-dim: #64748b;
+      --text-mid: #475569;
+    }
+
+    .theme-toggle-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 8px 12px;
+    }
+    
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      overflow-x: hidden;
+    }
+    
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(37,99,235,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(37,99,235,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    body::after {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 500px;
+      background: radial-gradient(ellipse, rgba(37,99,235,0.12) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    .container {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+    
+    /* Language Switcher */
+    .lang-switch {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      display: flex;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+    }
+    
+    .lang-btn {
+      padding: 8px 16px;
+      background: transparent;
+      color: var(--text-mid);
+      border: none;
+      border-radius: 6px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .lang-btn:hover {
+      color: var(--text);
+      background: var(--surface2);
+    }
+    
+    .lang-btn.active {
+      background: var(--accent);
+      color: white;
+    }
+    
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+      animation: fadeDown 0.6s ease both;
+    }
+    
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .logo-text-wrap {
+      text-align: center;
+    }
+    
+    .logo-text-en {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    
+    .logo-text-he {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-mid);
+      letter-spacing: 0.5px;
+    }
+    
+    .tador-logo {
+      height: 45px;
+      width: auto;
+      filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.1));
+    }
+    
+    .title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--text);
+    }
+    
+    .subtitle {
+      font-size: 15px;
+      color: var(--text-dim);
+      font-weight: 500;
+      margin-top: 8px;
+    }
+    
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px;
+      width: 100%;
+      max-width: 580px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      animation: fadeUp 0.6s 0.1s ease both;
+    }
+    
+    .input-group {
+      margin-bottom: 32px;
+    }
+    
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+    
+    .input-wrap {
+      position: relative;
+    }
+    
+    input[type="text"] {
+      width: 100%;
+      padding: 16px 20px 16px 52px;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      transition: all 0.3s;
+    }
+    
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-glow);
+    }
+    
+    .input-icon {
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 20px;
+      pointer-events: none;
+    }
+    
+    .hint {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .btn-primary {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(135deg, var(--accent), #1d4ed8);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 8px 24px var(--accent-glow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px var(--accent-glow);
+    }
+    
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+    
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    
+    /* Progress */
+    .progress {
+      margin: 32px 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    
+    .step {
+      flex: 1;
+      text-align: center;
+      opacity: 0.4;
+      transition: all 0.3s;
+    }
+    
+    .step.active {
+      opacity: 1;
+    }
+    
+    .step-circle {
+      width: 48px;
+      height: 48px;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      margin: 0 auto 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+      transition: all 0.3s;
+    }
+    
+    .step.active .step-circle {
+      background: var(--green);
+      border-color: var(--green);
+      box-shadow: 0 0 20px var(--green-glow);
+      animation: pulse 2s infinite;
+    }
+    
+    .step-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      line-height: 1.3;
+      max-width: 120px;
+      margin: 0 auto;
+    }
+    
+    .step.active .step-label {
+      color: var(--green);
+    }
+    
+    @media (max-width: 768px) {
+      .step-label {
+        font-size: 10px;
+        max-width: 80px;
+      }
+    }
+    
+    /* Result */
+    .result {
+      margin-top: 32px;
+      padding: 24px;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      animation: fadeUp 0.3s ease;
+    }
+    
+    .result-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 20px;
+    }
+    
+    .result-title.success {
+      color: var(--green);
+    }
+    
+    .result-title.error {
+      color: var(--red);
+    }
+    
+    .ip-display {
+      padding: 20px;
+      background: var(--bg);
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .ip-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    
+    .ip-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .copy-btn {
+      padding: 8px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-mid);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .copy-btn:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+    
+    .info-item {
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 8px;
+    }
+    
+    .info-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    
+    .info-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    
+    .btn-open {
+      width: 100%;
+      margin-top: 20px;
+      padding: 14px;
+      background: transparent;
+      border: 2px solid var(--accent);
+      color: var(--accent);
+      border-radius: 10px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .btn-open:hover {
+      background: var(--accent);
+      color: white;
+    }
+    
+    .error-text {
+      color: var(--red);
+      padding: 16px;
+      background: rgba(239, 68, 68, 0.1);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    
+    .footer {
+      margin-top: 32px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    @media (max-width: 640px) {
+      .card { padding: 32px 24px; }
+      .info-grid { grid-template-columns: 1fr; }
+      .lang-switch { top: 16px; right: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Language Switcher + Theme -->
+    <div style="display: flex; gap: 10px; position: absolute; top: 20px; right: 20px; z-index: 100;">
+      <button class="theme-toggle-btn" onclick="toggleTheme()">☀️</button>
+      <div class="lang-switch">
+        <button class="lang-btn active" data-lang="en">English</button>
+        <button class="lang-btn" data-lang="he">עברית</button>
+      </div>
+    </div>
+
+    <div class="header">
+      <div class="logo-wrap">
+        <div class="logo-text-wrap">
+          <div class="logo-text-en">Tador Technologies LTD</div>
+          <div class="logo-text-he">תדאור טכנולוגיות בע"מ</div>
+        </div>
+      </div>
+      <h1 class="title" data-i18n="title">Device Lookup</h1>
+      <p class="subtitle" data-i18n="subtitle">Enter MAC address to retrieve device IP and port</p>
+    </div>
+
+    <div class="card">
+      <div class="input-group">
+        <label data-i18n="inputLabel">ENTER MAC ADDRESS</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔍</span>
+          <input
+            type="text"
+            id="macInput"
+            placeholder="2875D8C16B0F"
+            maxlength="17"
+          />
+        </div>
+        <p class="hint" data-i18n="hint">Format: 2875D8C16B0E or 28:75:D8:C1:6B:0E</p>
+      </div>
+
+      <button class="btn-primary" id="searchBtn">
+        <span>●</span>
+        <span data-i18n="btnSearch">FIND DEVICE IP</span>
+      </button>
+
+      <div class="progress" id="progress">
+        <div class="step">
+          <div class="step-circle">1</div>
+          <div class="step-label" data-i18n="step1">LOGIN</div>
+        </div>
+        <div class="step">
+          <div class="step-circle">2</div>
+          <div class="step-label" data-i18n="step2">SEARCH MAC</div>
+        </div>
+        <div class="step">
+          <div class="step-circle">3</div>
+          <div class="step-label" data-i18n="step3">GET DEVICE</div>
+        </div>
+        <div class="step">
+          <div class="step-circle">4</div>
+          <div class="step-label" data-i18n="step4">RETRIEVE IP</div>
+        </div>
+      </div>
+
+      <div id="result"></div>
+    </div>
+
+    <div class="footer">
+      <span data-i18n="footer">Powered by Tador Technologies LTD</span>
+    </div>
+  </div>
+
+  <script>
+    // Translations
+    const translations = {
+      en: {
+        title: "Device Lookup",
+        subtitle: "Enter MAC address to retrieve device IP and port",
+        inputLabel: "ENTER MAC ADDRESS",
+        hint: "Format: 2875D8C16B0E or 28:75:D8:C1:6B:0E",
+        btnSearch: "FIND DEVICE IP",
+        step1: "LOGIN",
+        step2: "SEARCH MAC",
+        step3: "GET DEVICE",
+        step4: "RETRIEVE IP",
+        footer: "Powered by Tador Technologies LTD",
+        deviceFound: "DEVICE FOUND",
+        deviceNotFound: "DEVICE NOT FOUND",
+        deviceIpPort: "DEVICE IP • PORT",
+        copy: "Copy",
+        copied: "Copied!",
+        openBackend: "🌐 OPEN DEVICE BACKEND",
+        mac: "MAC",
+        serialNo: "SERIAL NO.",
+        project: "PROJECT",
+        deviceName: "DEVICE NAME",
+        typeModel: "TYPE / MODEL",
+        status: "STATUS",
+        building: "BUILDING",
+        apartment: "APARTMENT",
+        online: "Online",
+        offline: "Offline"
+      },
+      he: {
+        title: "חיפוש מכשיר",
+        subtitle: "הזן כתובת MAC לקבלת IP ופורט של המכשיר",
+        inputLabel: "הזן כתובת MAC",
+        hint: "פורמט: 2875D8C16B0E או 28:75:D8:C1:6B:0E",
+        btnSearch: "מצא IP של המכשיר",
+        step1: "התחברות מאובטחת לשרת",
+        step2: "איתור כתובת MAC",
+        step3: "קבלת אינפורמציה על מכשיר",
+        step4: "כתובת אייפי מאובטחת",
+        footer: "Powered by Tador Technologies LTD",
+        deviceFound: "מכשיר נמצא",
+        deviceNotFound: "מכשיר לא נמצא",
+        deviceIpPort: "IP • PORT של המכשיר",
+        copy: "העתק",
+        copied: "הועתק!",
+        openBackend: "🌐 פתח ממשק מכשיר",
+        mac: "MAC",
+        serialNo: "מספר סידורי",
+        project: "פרויקט",
+        deviceName: "שם מכשיר",
+        typeModel: "סוג / דגם",
+        status: "סטטוס",
+        building: "בניין",
+        apartment: "דירה",
+        online: "מחובר",
+        offline: "מנותק"
+      }
+    };
+
+    let currentLang = 'en';
+
+    function toggleTheme() {
+      document.body.classList.toggle('light');
+      const isLight = document.body.classList.contains('light');
+      document.querySelectorAll('.theme-toggle-btn').forEach(b => b.textContent = isLight ? '🌙' : '☀️');
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    }
+
+    if (localStorage.getItem('theme') === 'light') {
+      document.body.classList.add('light');
+      document.querySelectorAll('.theme-toggle-btn').forEach(b => b.textContent = '🌙');
+    }
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[lang][key]) {
+          el.textContent = translations[lang][key];
+        }
+      });
+      
+      // Update active button
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+      });
+      
+      // Update HTML dir for RTL
+      document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
+    }
+
+    // Language switcher
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+    });
+
+    const macInput = document.getElementById('macInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const resultDiv = document.getElementById('result');
+    const progressSteps = document.querySelectorAll('.step');
+
+    function updateProgress(step) {
+      progressSteps.forEach((s, i) => {
+        s.classList.toggle('active', i < step);
+      });
+    }
+
+    async function searchDevice() {
+      const mac = macInput.value.trim();
+      if (!mac) return;
+
+      searchBtn.disabled = true;
+      resultDiv.innerHTML = '';
+      updateProgress(0);
+
+      try {
+        updateProgress(1);
+        await new Promise(r => setTimeout(r, 300));
+        updateProgress(2);
+        await new Promise(r => setTimeout(r, 300));
+        updateProgress(3);
+        await new Promise(r => setTimeout(r, 300));
+        updateProgress(4);
+
+        const res = await fetch('/api/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mac })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          const t = translations[currentLang];
+          resultDiv.innerHTML = `
+            <div class="result">
+              <div class="result-title success">
+                ✅ <span>${t.deviceFound}</span>
+              </div>
+              <div class="ip-display">
+                <div class="ip-label">${t.deviceIpPort}</div>
+                <div class="ip-value">
+                  <span>${data.fullAddress || data.ip}</span>
+                  <button class="copy-btn" onclick="copyIP('${data.fullAddress || data.ip}')">
+                    📋 ${t.copy}
+                  </button>
+                </div>
+              </div>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">${t.mac}</div>
+                  <div class="info-value">${data.mac}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">${t.serialNo}</div>
+                  <div class="info-value">${data.sn || 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">${t.project}</div>
+                  <div class="info-value">${data.project || 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">${t.deviceName}</div>
+                  <div class="info-value">${data.deviceName || 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">${t.typeModel}</div>
+                  <div class="info-value">${data.deviceType || 'N/A'} ${data.deviceModel || ''}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">${t.status}</div>
+                  <div class="info-value">${data.status === 'online' ? '🟢 ' + t.online : '🔴 ' + t.offline}</div>
+                </div>
+              </div>
+              ${data.fullAddress ? `
+                <button class="btn-open" onclick="window.open('http://${data.fullAddress}', '_blank')">
+                  ${t.openBackend}
+                </button>
+              ` : ''}
+            </div>
+          `;
+        } else {
+          resultDiv.innerHTML = `
+            <div class="result">
+              <div class="result-title error">
+                ❌ <span>${translations[currentLang].deviceNotFound}</span>
+              </div>
+              <div class="error-text">${data.error}</div>
+            </div>
+          `;
+        }
+      } catch (err) {
+        resultDiv.innerHTML = `
+          <div class="result">
+            <div class="result-title error">
+              ❌ <span>ERROR</span>
+            </div>
+            <div class="error-text">${err.message}</div>
+          </div>
+        `;
+      } finally {
+        searchBtn.disabled = false;
+      }
+    }
+
+    function copyIP(ip) {
+      navigator.clipboard.writeText(ip);
+      event.target.textContent = '✅ ' + translations[currentLang].copied;
+      setTimeout(() => {
+        event.target.textContent = '📋 ' + translations[currentLang].copy;
+      }, 2000);
+    }
+
+    searchBtn.addEventListener('click', searchDevice);
+    macInput.addEventListener('keypress', e => {
+      if (e.key === 'Enter') searchDevice();
+    });
+  </script>
+</body>
+</html>
