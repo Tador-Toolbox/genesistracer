@@ -398,11 +398,76 @@
       border-radius: 8px;
       margin-top: 12px;
     }
+
+    .license-warning-btn {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+      animation: pulse 2s infinite;
+    }
+    
+    .license-warning-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(255, 107, 107, 0.5);
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
   </style>
   <script>
     // Set Hebrew and light theme IMMEDIATELY
     document.documentElement.setAttribute('lang', 'he');
     document.documentElement.setAttribute('dir', 'rtl');
+
+
+    async function handleLicensePayment(phoneNumber, mac) {
+      const t = translations[currentLang];
+      const confirmed = confirm(t.licenseQuestion);
+      
+      if (!confirmed) return;
+      
+      try {
+        // Mark license as paid by adding licensePaid flag
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        const macObj = details.installer.macAddresses.find(m => m.mac === mac);
+        
+        if (!macObj) {
+          showMessage('❌ MAC not found', 'error');
+          return;
+        }
+        
+        // Update with licensePaid flag
+        const res = await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            macAddress: mac,
+            address: macObj.address || '',
+            purchaseDate: macObj.purchaseDate || '',
+            startDate: macObj.startDate || '',
+            notes: macObj.notes || '',
+            technicianName: macObj.technicianName || '',
+            annualFee: macObj.annualFee || '',
+            licensePaid: true,
+          }),
+        });
+        
+        if (!res.ok) throw new Error('Failed to update');
+        
+        showMessage('✅ ' + (currentLang === 'he' ? 'רישיון סומן כשולם!' : 'License marked as paid!'), 'success');
+        loadInstallers();
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+      }
+    }
 
     async function downloadBackup() {
       try {
@@ -620,6 +685,11 @@
         purchaseDate: "Date of Purchase",
         startDate: "Date of Start Working",
         technicianName: "Technician Name",
+        annualFee: "Annual License Fee",
+        licenseWarning: "License payment required!",
+        licenseQuestion: "Has the annual license been paid?",
+        oneYear: "1 year since installation",
+        yearsCount: "years since installation",
         installerDescription: "Installer Description",
         edit: "Edit",
         enterMac: "Enter MAC address",
@@ -669,6 +739,11 @@
         purchaseDate: "תאריך רכישה",
         startDate: "תאריך תחילת עבודה",
         technicianName: "שם טכנאי",
+        annualFee: "דמי רישיון שנתיים",
+        licenseWarning: "נדרש תשלום רישיון!",
+        licenseQuestion: "האם שולם רישיון שנתי?",
+        oneYear: "שנה מאז התקנה",
+        yearsCount: "שנים מאז התקנה",
         installerDescription: "תיאור מתקין",
         edit: "ערוך",
         enterMac: "הזן כתובת MAC",
@@ -833,6 +908,7 @@
       document.getElementById('modalStartDate').value = macObj ? (macObj.startDate || '') : '';
       document.getElementById('modalNotes').value = macObj ? (macObj.notes || '') : '';
       document.getElementById('modalTechnicianName').value = macObj ? (macObj.technicianName || '') : '';
+      document.getElementById('modalAnnualFee').value = macObj ? (macObj.annualFee || '') : '';
       
       // Translate modal
       document.getElementById('modalTitle').textContent = macObj ? t.edit + ' MAC' : '+ ' + t.addMac;
@@ -842,6 +918,7 @@
       document.getElementById('labelStart').textContent = '🟢 ' + t.startDate;
       document.getElementById('labelNotes').textContent = '📝 ' + t.notes;
       document.getElementById('labelTechnician').textContent = '👷 ' + t.technicianName;
+      document.getElementById('labelAnnualFee').textContent = '💰 ' + t.annualFee;
       document.getElementById('modalCancelBtn').textContent = currentLang === 'he' ? 'ביטול' : 'Cancel';
       document.getElementById('modalSaveBtn').textContent = currentLang === 'he' ? 'שמור' : 'Save';
       
@@ -854,6 +931,7 @@
             startDate: 'modalStartDate',
             notes: 'modalNotes',
             technicianName: 'modalTechnicianName',
+            annualFee: 'modalAnnualFee',
           };
           const el = document.getElementById(fieldMap[focusField]);
           if (el) { el.focus(); el.select && el.select(); }
@@ -875,6 +953,7 @@
       const startDate = document.getElementById('modalStartDate').value;
       const notes = document.getElementById('modalNotes').value;
       const technicianName = document.getElementById('modalTechnicianName').value;
+      const annualFee = document.getElementById('modalAnnualFee').value;
 
       if (!mac) return alert('MAC address is required');
 
@@ -989,6 +1068,11 @@
                     <span class="mac-detail-value">${macObj.technicianName || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "technicianName")'>✏️</button>
                   </div>
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">💰 ${translations[currentLang].annualFee}:</span>
+                    <span class="mac-detail-value">${macObj.annualFee || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "annualFee")'>✏️</button>
+                  </div>
                   <div class="mac-detail-field" style="border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px;">
                     <span class="mac-detail-label" style="color: var(--green);">💬 ${translations[currentLang].installerDescription}:</span>
                     <span class="mac-detail-value" style="color: var(--green); font-style: italic;">
@@ -999,6 +1083,43 @@
               `).join('')}
               <button class="small" onclick="addMac('${installer.phoneNumber}')" style="margin-top: 8px;">+ ${translations[currentLang].addMac}</button>
             </div>
+          </td>
+          <td>
+            ${(() => {
+              // Check all MACs for license warnings
+              const warnings = [];
+              for (const macObj of details.installer.macAddresses) {
+                if (!macObj.startDate || macObj.licensePaid) continue;
+                
+                const startDateObj = new Date(macObj.startDate);
+                const now = new Date();
+                const yearsDiff = now.getFullYear() - startDateObj.getFullYear();
+                const monthsDiff = now.getMonth() - startDateObj.getMonth();
+                const daysDiff = now.getDate() - startDateObj.getDate();
+                
+                let yearsElapsed = yearsDiff;
+                if (monthsDiff < 0 || (monthsDiff === 0 && daysDiff < 0)) {
+                  yearsElapsed--;
+                }
+                
+                if (yearsElapsed >= 1) {
+                  const yearsText = yearsElapsed === 1 ? 
+                    translations[currentLang].oneYear : 
+                    yearsElapsed + ' ' + translations[currentLang].yearsCount;
+                  warnings.push({mac: macObj.mac, years: yearsElapsed, text: yearsText});
+                }
+              }
+              
+              if (warnings.length === 0) return '—';
+              
+              return warnings.map(w => 
+                `<button class="license-warning-btn" 
+                  onclick="handleLicensePayment('${installer.phoneNumber}', '` + '${w.mac}' + `')" 
+                  title="` + '${w.text}' + `">
+                  🔔 ${w.years}
+                </button>`
+              ).join(' ');
+            })()}
           </td>
           <td>${new Date(installer.createdAt).toLocaleString()}</td>
           <td>${installer.lastLogin ? new Date(installer.lastLogin).toLocaleString() : translations[currentLang].never}</td>
@@ -1022,6 +1143,48 @@
           <td>${log.ip || 'N/A'}</td>
         </tr>
       `).join('');
+    }
+
+
+    async function handleLicensePayment(phoneNumber, mac) {
+      const t = translations[currentLang];
+      const confirmed = confirm(t.licenseQuestion);
+      
+      if (!confirmed) return;
+      
+      try {
+        // Mark license as paid by adding licensePaid flag
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        const macObj = details.installer.macAddresses.find(m => m.mac === mac);
+        
+        if (!macObj) {
+          showMessage('❌ MAC not found', 'error');
+          return;
+        }
+        
+        // Update with licensePaid flag
+        const res = await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            macAddress: mac,
+            address: macObj.address || '',
+            purchaseDate: macObj.purchaseDate || '',
+            startDate: macObj.startDate || '',
+            notes: macObj.notes || '',
+            technicianName: macObj.technicianName || '',
+            annualFee: macObj.annualFee || '',
+            licensePaid: true,
+          }),
+        });
+        
+        if (!res.ok) throw new Error('Failed to update');
+        
+        showMessage('✅ ' + (currentLang === 'he' ? 'רישיון סומן כשולם!' : 'License marked as paid!'), 'success');
+        loadInstallers();
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+      }
     }
 
     async function downloadBackup() {
