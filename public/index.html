@@ -501,12 +501,17 @@
       .lang-switch { top: 16px; right: 16px; }
     }
   </style>
+  <script>
+    // Set Hebrew IMMEDIATELY before page loads
+    document.documentElement.setAttribute('lang', 'he');
+    document.documentElement.setAttribute('dir', 'rtl');
+  </script>
 </head>
-<body>
+<body class="light">
   <div class="container">
     <!-- Language Switcher + Theme -->
     <div style="display: flex; gap: 10px; position: absolute; top: 20px; right: 20px; z-index: 100;">
-      <button class="theme-toggle-btn" onclick="toggleTheme()">☀️</button>
+      <button class="theme-toggle-btn" onclick="toggleTheme()">🌙</button>
       <div class="lang-switch">
         <button class="lang-btn" data-lang="en">English</button>
         <button class="lang-btn active" data-lang="he">עברית</button>
@@ -520,13 +525,13 @@
           <div class="logo-text-he">תדאור טכנולוגיות בע"מ</div>
         </div>
       </div>
-      <h1 class="title" data-i18n="title">Device Lookup</h1>
-      <p class="subtitle" data-i18n="subtitle">Enter MAC address to retrieve device IP and port</p>
+      <h1 class="title" data-i18n="title">חיפוש מכשיר</h1>
+      <p class="subtitle" data-i18n="subtitle">הזן כתובת MAC כדי לקבל IP ופורט של המכשיר</p>
     </div>
 
     <div class="card">
       <div class="input-group">
-        <label data-i18n="inputLabel">ENTER MAC ADDRESS</label>
+        <label data-i18n="inputLabel">הזן כתובת MAC</label>
         <div class="input-wrap">
           <span class="input-icon">🔍</span>
           <input
@@ -541,7 +546,7 @@
 
       <button class="btn-primary" id="searchBtn">
         <span>●</span>
-        <span data-i18n="btnSearch">FIND DEVICE IP</span>
+        <span data-i18n="btnSearch">מצא IP של המכשיר</span>
       </button>
 
       <div class="progress" id="progress">

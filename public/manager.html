@@ -399,17 +399,22 @@
       margin-top: 12px;
     }
   </style>
+  <script>
+    // Set Hebrew and light theme IMMEDIATELY
+    document.documentElement.setAttribute('lang', 'he');
+    document.documentElement.setAttribute('dir', 'rtl');
+  </script>
 </head>
-<body>
+<body class="light">
   <!-- Login Screen -->
   <div id="loginScreen">
     <div class="login-card">
-      <h1 data-i18n="loginTitle">Manager Login</h1>
+      <h1 data-i18n="loginTitle">כניסת מנהל</h1>
       <p class="subtitle">Tador Technologies LTD</p>
       <div class="form-row" style="flex-direction: column; margin-top: 24px;">
-        <input type="text" id="loginUsername" data-i18n-placeholder="username" placeholder="Username" />
-        <input type="password" id="loginPassword" data-i18n-placeholder="password" placeholder="Password" />
-        <button onclick="login()" data-i18n="loginBtn">Login</button>
+        <input type="text" id="loginUsername" data-i18n-placeholder="username" placeholder="שם משתמש" />
+        <input type="password" id="loginPassword" data-i18n-placeholder="password" placeholder="סיסמה" />
+        <button onclick="login()" data-i18n="loginBtn">התחבר</button>
       </div>
       <div id="loginError" class="error-msg" style="display: none; margin-top: 12px;"></div>
       
@@ -418,7 +423,7 @@
         <button class="lang-btn active" data-lang="he">עברית</button>
       </div>
       <div style="text-align: center; margin-top: 12px;">
-        <button class="theme-btn" onclick="toggleTheme()" id="loginThemeBtn">☀️</button>
+        <button class="theme-btn" onclick="toggleTheme()" id="loginThemeBtn">🌙</button>
       </div>
     </div>
   </div>
@@ -434,7 +439,7 @@
           <p class="subtitle" data-i18n="panelSubtitle">Manage installer accounts and MAC assignments</p>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
-          <button class="theme-btn" onclick="toggleTheme()" id="panelThemeBtn">☀️</button>
+          <button class="theme-btn" onclick="toggleTheme()" id="panelThemeBtn">🌙</button>
           <div class="lang-switch">
             <button class="lang-btn" data-lang="en">English</button>
             <button class="lang-btn active" data-lang="he">עברית</button>
