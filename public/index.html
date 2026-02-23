@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -508,8 +508,8 @@
     <div style="display: flex; gap: 10px; position: absolute; top: 20px; right: 20px; z-index: 100;">
       <button class="theme-toggle-btn" onclick="toggleTheme()">☀️</button>
       <div class="lang-switch">
-        <button class="lang-btn active" data-lang="en">English</button>
-        <button class="lang-btn" data-lang="he">עברית</button>
+        <button class="lang-btn" data-lang="en">English</button>
+        <button class="lang-btn active" data-lang="he">עברית</button>
       </div>
     </div>
 
@@ -590,7 +590,7 @@
         deviceIpPort: "DEVICE IP • PORT",
         copy: "Copy",
         copied: "Copied!",
-        openBackend: "🌐 OPEN DEVICE BACKEND",
+        openBackend: "🔐 Secure Panel Connection",
         mac: "MAC",
         serialNo: "SERIAL NO.",
         project: "PROJECT",
@@ -618,7 +618,7 @@
         deviceIpPort: "IP • PORT של המכשיר",
         copy: "העתק",
         copied: "הועתק!",
-        openBackend: "🌐 פתח ממשק מכשיר",
+        openBackend: "🔐 התחברות מאובטחת לפנל",
         mac: "MAC",
         serialNo: "מספר סידורי",
         project: "פרויקט",
@@ -632,7 +632,7 @@
       }
     };
 
-    let currentLang = 'en';
+    let currentLang = 'he';
 
     function toggleTheme() {
       document.body.classList.toggle('light');
@@ -641,9 +641,13 @@
       localStorage.setItem('theme', isLight ? 'light' : 'dark');
     }
 
-    if (localStorage.getItem('theme') === 'light') {
+    // Default to light theme
+    if (localStorage.getItem('theme') !== 'dark') {
       document.body.classList.add('light');
       document.querySelectorAll('.theme-toggle-btn').forEach(b => b.textContent = '🌙');
+    }
+    if (!localStorage.getItem('theme')) {
+      localStorage.setItem('theme', 'light');
     }
 
     function setLanguage(lang) {

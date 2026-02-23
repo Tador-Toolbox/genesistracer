@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -414,8 +414,8 @@
       <div id="loginError" class="error-msg" style="display: none; margin-top: 12px;"></div>
       
       <div class="lang-switch" style="margin-top: 24px; justify-content: center;">
-        <button class="lang-btn active" data-lang="en">English</button>
-        <button class="lang-btn" data-lang="he">עברית</button>
+        <button class="lang-btn" data-lang="en">English</button>
+        <button class="lang-btn active" data-lang="he">עברית</button>
       </div>
       <div style="text-align: center; margin-top: 12px;">
         <button class="theme-btn" onclick="toggleTheme()" id="loginThemeBtn">☀️</button>
@@ -436,8 +436,8 @@
         <div style="display: flex; gap: 10px; align-items: center;">
           <button class="theme-btn" onclick="toggleTheme()" id="panelThemeBtn">☀️</button>
           <div class="lang-switch">
-            <button class="lang-btn active" data-lang="en">English</button>
-            <button class="lang-btn" data-lang="he">עברית</button>
+            <button class="lang-btn" data-lang="en">English</button>
+            <button class="lang-btn active" data-lang="he">עברית</button>
           </div>
         </div>
       </div>
@@ -642,7 +642,7 @@
       }
     };
 
-    let currentLang = 'en';
+    let currentLang = 'he';
 
     function toggleTheme() {
       document.body.classList.toggle('light');
@@ -652,10 +652,13 @@
       localStorage.setItem('theme', isLight ? 'light' : 'dark');
     }
 
-    // Apply saved theme on load
-    if (localStorage.getItem('theme') === 'light') {
+    // Default to light theme
+    if (localStorage.getItem('theme') !== 'dark') {
       document.body.classList.add('light');
       document.querySelectorAll('.theme-btn').forEach(b => b.textContent = '🌙');
+    }
+    if (!localStorage.getItem('theme')) {
+      localStorage.setItem('theme', 'light');
     }
 
     function setLanguage(lang) {
