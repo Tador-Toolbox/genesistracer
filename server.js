@@ -363,6 +363,7 @@ app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
       purchaseDate = '',
       startDate = '',
       technicianName = '',
+      supplierName = '',
       description = '',
       annualFee = '',
       licensePaid = false,
@@ -379,6 +380,7 @@ app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
       purchaseDate,
       startDate,
       technicianName,
+      supplierName,
       description,
       annualFee,
       licensePaid
@@ -458,7 +460,10 @@ app.post('/api/installer/description', async (req, res) => {
       existing.purchaseDate || '',
       existing.startDate || '',
       existing.technicianName || '',
-      description || ''
+      existing.supplierName || '',
+      description || '',
+      existing.annualFee || '',
+      existing.licensePaid || false
     );
 
     res.json({ success: true });
