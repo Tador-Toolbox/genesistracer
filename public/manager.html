@@ -837,7 +837,7 @@
       await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ macAddress: mac, address, notes, purchaseDate, startDate, technicianName, annualFee })
+        body: JSON.stringify({ macAddress: mac, address, notes, purchaseDate, startDate, technicianName, supplierName, annualFee })
       });
 
       closeModal();
