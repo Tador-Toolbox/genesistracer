@@ -499,6 +499,11 @@
       </div>
 
       <div class="modal-field">
+        <label id="labelSupplier">🏢 Supplier Name</label>
+        <input type="text" id="modalSupplier" placeholder="Supplier name" />
+      </div>
+
+      <div class="modal-field">
         <label id="labelAnnualFee">💰 Annual License Fee</label>
         <input type="text" id="modalAnnualFee" placeholder="e.g. 250" />
       </div>
@@ -1005,6 +1010,12 @@
                     <span class="mac-detail-label">👷 ${translations[currentLang].technicianName}:</span>
                     <span class="mac-detail-value">${macObj.technicianName || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "technicianName")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">🏢 ${translations[currentLang].supplierName}:</span>
+                    <span class="mac-detail-value">${macObj.supplierName || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "supplierName")'>✏️</button>
                   </div>
 
                   <div class="mac-detail-field">
