@@ -470,7 +470,7 @@
 
       <div class="modal-field" id="macFieldWrap">
         <label id="labelMac">MAC Address</label>
-        <input type="text" id="modalMac" placeholder="2875D8C16B0F" />
+        <input type="text" id="modalMac" placeholder="2875D8C16B0F" readonly style="background-color: var(--surface2); cursor: not-allowed;" />
       </div>
 
       <div class="modal-field">
@@ -963,7 +963,12 @@
         const row = document.createElement('tr');
 
         row.innerHTML = `
-          <td>${installer.phoneNumber}</td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>${installer.phoneNumber}</span>
+              <button class="field-edit-btn" onclick='editPhoneNumber("${installer.phoneNumber}")' title="${translations[currentLang].editPhone}">✏️</button>
+            </div>
+          </td>
           <td>
             <div class="password-display">
               ${details.installer.password || 'N/A'}
@@ -1115,6 +1120,40 @@
 
     // initial labels
     setLanguage('he');
+
+    async function editPhoneNumber(oldPhoneNumber) {
+      const t = translations[currentLang];
+      const newPhoneNumber = prompt(t.newPhoneNumber + ':', oldPhoneNumber);
+      
+      if (!newPhoneNumber || newPhoneNumber === oldPhoneNumber) return;
+      
+      // Validate phone number (basic check)
+      if (newPhoneNumber.trim().length < 3) {
+        return showMessage('❌ ' + (currentLang === 'he' ? 'מספר טלפון לא תקין' : 'Invalid phone number'), 'error');
+      }
+      
+      try {
+        showMessage(currentLang === 'he' ? 'מעדכן...' : 'Updating...', 'info');
+        
+        const res = await fetch(`/api/manager/installers/${oldPhoneNumber}/change-phone`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newPhoneNumber: newPhoneNumber.trim() })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          showMessage('✅ ' + t.phoneChanged, 'success');
+          loadData();
+        } else {
+          showMessage('❌ ' + data.error, 'error');
+        }
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+      }
+    }
+
   </script>
 </body>
 </html>
