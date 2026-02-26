@@ -244,6 +244,31 @@ async function getFullDatabaseBackup() {
   };
 }
 
+
+async function changeInstallerPhone(oldPhoneNumber, newPhoneNumber) {
+  await connectDB();
+
+  // Check if new phone number already exists
+  const existing = await db.collection("installers").findOne({ phoneNumber: newPhoneNumber });
+  if (existing) {
+    throw new Error("Phone number already exists");
+  }
+
+  // Get the installer
+  const installer = await db.collection("installers").findOne({ phoneNumber: oldPhoneNumber });
+  if (!installer) {
+    throw new Error("Installer not found");
+  }
+
+  // Update phone number
+  await db.collection("installers").updateOne(
+    { phoneNumber: oldPhoneNumber },
+    { $set: { phoneNumber: newPhoneNumber } }
+  );
+
+  return newPhoneNumber;
+}
+
 module.exports = {
   connectDB,
   createInstaller,
@@ -257,4 +282,5 @@ module.exports = {
   deleteInstaller,
   resetPassword,
   getFullDatabaseBackup,
+  changeInstallerPhone,
 };

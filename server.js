@@ -472,6 +472,24 @@ app.post('/api/installer/description', async (req, res) => {
   }
 });
 
+
+// Change installer phone number
+app.post('/api/manager/installers/:phoneNumber/change-phone', async (req, res) => {
+  try {
+    const { newPhoneNumber } = req.body;
+    const oldPhoneNumber = req.params.phoneNumber;
+    
+    if (!newPhoneNumber) {
+      return res.status(400).json({ success: false, error: 'New phone number required' });
+    }
+    
+    await db.changeInstallerPhone(oldPhoneNumber, newPhoneNumber);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 // Installer login
 app.post('/api/installer/login', async (req, res) => {
   const { phoneNumber, password } = req.body;
