@@ -70,7 +70,9 @@ async function createInstaller(phoneNumber, macAddresses = []) {
       startDate: macData.startDate || "",
       technicianName: macData.technicianName || "",
       supplierName: macData.supplierName || "",
+      committeeName: macData.committeeName || "",
       description: macData.description || "",
+      licensesPurchased: macData.licensesPurchased || "",
     };
   });
 
@@ -95,8 +97,10 @@ async function assignMacToInstaller(
   startDate = "",
   technicianName = "",
   supplierName = "",
+  committeeName = "",
   description = "",
   annualFee = "",
+  licensesPurchased = "",
   licensePaid = false
 ) {
   await connectDB();
@@ -106,7 +110,7 @@ async function assignMacToInstaller(
 
   const existingMacIndex = (installer.macAddresses || []).findIndex((m) => m.mac === macAddress);
 
-  const updatedMac = { mac: macAddress, address, notes, purchaseDate, startDate, technicianName, supplierName, description, annualFee, licensePaid };
+  const updatedMac = { mac: macAddress, address, notes, purchaseDate, startDate, technicianName, supplierName, committeeName, description, annualFee, licensesPurchased, licensePaid };
 
   if (existingMacIndex >= 0) installer.macAddresses[existingMacIndex] = updatedMac;
   else installer.macAddresses = [...(installer.macAddresses || []), updatedMac];
