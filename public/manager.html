@@ -994,7 +994,9 @@
           <td>
             <div class="password-display">
               ${details.installer.password || 'N/A'}
-              <button class="copy-btn" data-copy="${details.installer.password || ''}">${translations[currentLang].copy}</button>
+              <button class="copy-btn" onclick="copyPassword(this)" data-copy="${details.installer.password || ''}">
+                ${currentLang === 'he' ? '📋 העתק' : '📋 Copy'}
+              </button>
             </div>
           </td>
           <td>
@@ -1132,6 +1134,7 @@
           <td>${new Date(installer.createdAt).toLocaleString()}</td>
           <td>${installer.lastLogin ? new Date(installer.lastLogin).toLocaleString() : translations[currentLang].never}</td>
           <td>
+            <button class="small" onclick="remoteLogin('${installer.phoneNumber}')" style="margin-right: 8px; background: linear-gradient(135deg, #667eea, #764ba2); color: white;">🔐 ${translations[currentLang].remoteLogin}</button>
             <button class="small success" onclick="resetPassword('${installer.phoneNumber}')" style="margin-right: 8px;">${translations[currentLang].resetPassword}</button>
             <button class="small danger" onclick="deleteInstaller('${installer.phoneNumber}')">${translations[currentLang].delete}</button>
           </td>
@@ -1154,6 +1157,67 @@
 
     // initial labels
     setLanguage('he');
+
+
+    function copyPassword(btn) {
+      const password = btn.getAttribute('data-copy');
+      navigator.clipboard.writeText(password).then(() => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = currentLang === 'he' ? '✅ הועתק!' : '✅ Copied!';
+        btn.style.background = '#10b981';
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.style.background = '';
+        }, 2000);
+      }).catch(err => {
+        console.error('Copy failed:', err);
+      });
+    }
+
+
+    async function remoteLogin(phoneNumber) {
+      const t = translations[currentLang];
+      
+      try {
+        showMessage(t.loggingIn, 'info');
+        
+        // Get installer details
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        
+        if (!details.success || !details.installer) {
+          return showMessage('❌ ' + (currentLang === 'he' ? 'מתקין לא נמצא' : 'Installer not found'), 'error');
+        }
+        
+        const password = details.installer.password;
+        
+        if (!password) {
+          return showMessage('❌ ' + (currentLang === 'he' ? 'סיסמה לא נמצאה' : 'Password not found'), 'error');
+        }
+        
+        // Auto-login: POST to installer login API
+        const loginRes = await fetch('/api/installer/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber, password })
+        });
+        
+        const loginData = await loginRes.json();
+        
+        if (loginData.success) {
+          // Store login data in sessionStorage
+          sessionStorage.setItem('installerData', JSON.stringify(loginData.data));
+          
+          // Open installer panel in new tab
+          window.open('/installer.html', '_blank');
+          
+          showMessage('✅ ' + (currentLang === 'he' ? 'נפתח בחלון חדש' : 'Opened in new tab'), 'success');
+        } else {
+          showMessage('❌ ' + (loginData.error || 'Login failed'), 'error');
+        }
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+      }
+    }
 
     async function editPhoneNumber(oldPhoneNumber) {
       const t = translations[currentLang];

@@ -533,6 +533,25 @@
       document.getElementById('loginError').textContent = '';
       document.getElementById('result').innerHTML = '';
     }
+    // Auto-login from manager remote access
+    window.addEventListener('DOMContentLoaded', () => {
+      const storedData = sessionStorage.getItem('installerData');
+      if (storedData) {
+        try {
+          installerData = JSON.parse(storedData);
+          selectedMac = installerData.macAddresses.length > 0 ? installerData.macAddresses[0].mac : null;
+          document.getElementById('loginScreen').style.display = 'none';
+          document.getElementById('installerPanel').style.display = 'block';
+          renderMacList();
+          // Clear sessionStorage after use
+          sessionStorage.removeItem('installerData');
+        } catch (err) {
+          console.error('Auto-login failed:', err);
+        }
+      }
+    });
+
+
 
     async function lookup() {
       if (!selectedMac) return alert('Please select a MAC address');
