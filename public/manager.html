@@ -504,8 +504,18 @@
       </div>
 
       <div class="modal-field">
+        <label id="labelCommittee">👥 Committee Name</label>
+        <input type="text" id="modalCommittee" placeholder="Committee name" />
+      </div>
+
+      <div class="modal-field">
         <label id="labelAnnualFee">💰 Annual License Fee</label>
         <input type="text" id="modalAnnualFee" placeholder="e.g. 250" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelLicensesPurchased">📊 Licenses Purchased</label>
+        <input type="number" id="modalLicensesPurchased" placeholder="e.g. 5" min="0" />
       </div>
 
       <div class="modal-buttons">
@@ -564,6 +574,8 @@
         technicianName: "Technician Name",
         supplierName: "Supplier Name",
         annualFee: "Annual License Fee",
+        licensesPurchased: "Licenses Purchased",
+        committeeName: "Committee Name",
         licenseQuestion: "Has the annual license been paid?",
         oneYear: "1 year since installation",
         yearsCount: "years since installation",
@@ -613,6 +625,8 @@
         technicianName: "שם טכנאי",
         supplierName: "שם ספק",
         annualFee: "דמי רישיון שנתיים",
+        licensesPurchased: "כמה רשיונות נרכשו",
+        committeeName: "שם ועד",
         licenseQuestion: "האם שולם רישיון שנתי?",
         oneYear: "שנה מאז התקנה",
         yearsCount: "שנים מאז התקנה",
@@ -805,6 +819,8 @@
             technicianName: 'modalTechnicianName',
             supplierName: 'modalSupplier',
             annualFee: 'modalAnnualFee',
+            licensesPurchased: 'modalLicensesPurchased',
+            committeeName: 'modalCommittee',
           };
           const el = document.getElementById(fieldMap[focusField]);
           if (el) { el.focus(); el.select && el.select(); }
@@ -826,7 +842,9 @@
       const notes = document.getElementById('modalNotes').value;
       const technicianName = document.getElementById('modalTechnicianName').value;
       const supplierName = document.getElementById('modalSupplier').value;
+      const committeeName = document.getElementById('modalCommittee').value;
       const annualFee = document.getElementById('modalAnnualFee').value;
+      const licensesPurchased = document.getElementById('modalLicensesPurchased').value;
 
       if (!mac) return alert('MAC address is required');
 
@@ -837,7 +855,7 @@
       await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ macAddress: mac, address, notes, purchaseDate, startDate, technicianName, supplierName, annualFee })
+        body: JSON.stringify({ macAddress: mac, address, notes, purchaseDate, startDate, technicianName, supplierName, committeeName, annualFee, licensesPurchased })
       });
 
       closeModal();
@@ -882,7 +900,9 @@
             notes: macObj.notes || '',
             technicianName: macObj.technicianName || '',
             supplierName: macObj.supplierName || '',
+            committeeName: macObj.committeeName || '',
             annualFee: macObj.annualFee || '',
+            licensesPurchased: macObj.licensesPurchased || '',
             licensePaid: true,
           }),
         });
@@ -915,7 +935,9 @@
             notes: macObj.notes || '',
             technicianName: macObj.technicianName || '',
             supplierName: macObj.supplierName || '',
+            committeeName: macObj.committeeName || '',
             annualFee: macObj.annualFee || '',
+            licensesPurchased: macObj.licensesPurchased || '',
             licensePaid: false,
           }),
         });
@@ -966,7 +988,7 @@
           <td>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span>${installer.phoneNumber}</span>
-              <button class="field-edit-btn" onclick='editPhoneNumber("${installer.phoneNumber}")' title="${translations[currentLang].editPhone}">✏️</button>
+              <button class="field-edit-btn" onclick='editPhoneNumber("${installer.phoneNumber}")' title="${translations[currentLang].editPhone}" style="opacity: 1;">✏️</button>
             </div>
           </td>
           <td>
@@ -1024,9 +1046,21 @@
                   </div>
 
                   <div class="mac-detail-field">
+                    <span class="mac-detail-label">👥 ${translations[currentLang].committeeName}:</span>
+                    <span class="mac-detail-value">${macObj.committeeName || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "committeeName")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
                     <span class="mac-detail-label">💰 ${translations[currentLang].annualFee}:</span>
                     <span class="mac-detail-value">${macObj.annualFee || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "annualFee")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📊 ${translations[currentLang].licensesPurchased}:</span>
+                    <span class="mac-detail-value">${macObj.licensesPurchased || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "licensesPurchased")'>✏️</button>
                   </div>
 
                   <div class="mac-detail-field" style="border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px;">
