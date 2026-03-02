@@ -411,6 +411,10 @@
             <span>📥</span>
             <span data-i18n="downloadBackup">Download Database Backup</span>
           </a>
+          <a href="https://eu1.voipbell.net/index.php?lang=en_gb" target="_blank" class="installer-link">
+            <span>☎️</span>
+            <span data-i18n="voipbellServer">Voipbell Server Login</span>
+          </a>
         </div>
       </div>
 
@@ -543,6 +547,7 @@
         installerPanelLink: "Open Installer Panel",
         deviceLookupLink: "Open Device Lookup",
         downloadBackup: "Download Database Backup",
+        voipbellServer: "Voipbell Server Login",
         createInstaller: "➕ Create Installer Account",
         phoneNumber: "Phone Number (e.g., +972501234567)",
         macAddresses: "MAC Addresses (comma separated, optional)",
@@ -594,6 +599,7 @@
         installerPanelLink: "פתח פאנל מתקין",
         deviceLookupLink: "פתח חיפוש מכשיר",
         downloadBackup: "הורד גיבוי מסד נתונים",
+        voipbellServer: "התחברות לשרת Voipbell",
         createInstaller: "➕ צור חשבון מתקין",
         phoneNumber: "מספר טלפון (לדוגמה: +972501234567)",
         macAddresses: "כתובות MAC (מופרדות בפסיקים, אופציונלי)",
@@ -995,7 +1001,7 @@
             <div class="password-display">
               ${details.installer.password || 'N/A'}
               <button class="copy-btn" onclick="copyPassword(this)" data-copy="${details.installer.password || ''}">
-                ${currentLang === 'he' ? '📋 העתק' : '📋 Copy'}
+                ${currentLang === 'he' ? 'העתק 📋' : 'Copy 📋'}
               </button>
             </div>
           </td>
