@@ -1082,7 +1082,7 @@
                     </span>
                   </div>
 
-                  <div style="margin-top: 10px; text-align: left;">
+                  <div style="margin-top: 10px; text-align: right;">
                     <button class="small reboot-btn" onclick="rebootDevice('${macObj.mac}', this)">🔄 ${currentLang === 'he' ? 'אתחול' : 'Reboot'}</button>
                   </div>
                 </div>
@@ -1149,6 +1149,7 @@
           <td>${installer.lastLogin ? new Date(installer.lastLogin).toLocaleString() : translations[currentLang].never}</td>
           <td>
             <button class="small" onclick="remoteLogin('${installer.phoneNumber}')" style="margin-right: 8px; background: linear-gradient(135deg, #667eea, #764ba2); color: white;">🔐 ${translations[currentLang].remoteLogin}</button>
+            <button class="small reboot-btn" onclick="rebootInstallerDevices('${installer.phoneNumber}', this)" style="margin-right: 8px;">🔄 ${currentLang === 'he' ? 'אתחול' : 'Reboot'}</button>
             <button class="small success" onclick="resetPassword('${installer.phoneNumber}')" style="margin-right: 8px;">${translations[currentLang].resetPassword}</button>
             <button class="small danger" onclick="deleteInstaller('${installer.phoneNumber}')">${translations[currentLang].delete}</button>
           </td>
@@ -1230,6 +1231,51 @@
         }
       } catch (err) {
         showMessage('❌ ' + err.message, 'error');
+      }
+    }
+
+    async function rebootInstallerDevices(phoneNumber, btnEl) {
+      const confirmMsg = currentLang === 'he'
+        ? 'האם לאתחל את כל המכשירים של מתקין זה?'
+        : 'Reboot all devices for this installer?';
+      if (!confirm(confirmMsg)) return;
+
+      const origText = btnEl.innerHTML;
+      btnEl.disabled = true;
+      btnEl.innerHTML = '⏳';
+
+      try {
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        if (!details.success || !details.installer) {
+          showMessage('❌ ' + (currentLang === 'he' ? 'מתקין לא נמצא' : 'Installer not found'), 'error');
+          btnEl.innerHTML = origText; btnEl.disabled = false;
+          return;
+        }
+
+        const macs = details.installer.macAddresses || [];
+        if (macs.length === 0) {
+          showMessage('⚠️ ' + (currentLang === 'he' ? 'אין MACs למתקין זה' : 'No MACs for this installer'), 'error');
+          btnEl.innerHTML = origText; btnEl.disabled = false;
+          return;
+        }
+
+        let successCount = 0, failCount = 0;
+        for (const macObj of macs) {
+          const res = await fetch('/api/manager/reboot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mac: macObj.mac })
+          });
+          const data = await res.json();
+          data.success ? successCount++ : failCount++;
+        }
+
+        showMessage(`✅ ${successCount} ${currentLang === 'he' ? 'מכשירים אותחלו' : 'devices rebooted'}${failCount ? ` ❌ ${failCount} ${currentLang === 'he' ? 'נכשלו' : 'failed'}` : ''}`, successCount > 0 ? 'success' : 'error');
+        btnEl.innerHTML = '✅';
+        setTimeout(() => { btnEl.innerHTML = origText; btnEl.disabled = false; }, 3000);
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+        btnEl.innerHTML = origText; btnEl.disabled = false;
       }
     }
 
