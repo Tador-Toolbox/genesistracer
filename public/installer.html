@@ -213,6 +213,19 @@
     }
     
     .edit-desc-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .reboot-mac-btn {
+      padding: 4px 10px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      border: none;
+      color: white;
+      font-size: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      width: auto;
+      margin-top: 0;
+    }
+    .reboot-mac-btn:hover { background: linear-gradient(135deg, #d97706, #b45309); }
     
     .desc-input-wrap {
       display: none;
@@ -359,6 +372,7 @@
         addDescription: "Add description...",
         editDescription: "✏️ Edit",
         saveDescription: "Save",
+        reboot: "Reboot",
         descriptionLabel: "📝 Description",
         noDescription: "No description yet — click Edit to add one",
       },
@@ -384,6 +398,7 @@
         addDescription: "הוסף תיאור...",
         editDescription: "✏️ ערוך",
         saveDescription: "שמור",
+        reboot: "אתחול",
         descriptionLabel: "📝 תיאור",
         noDescription: "אין תיאור עדיין — לחץ ערוך להוספה",
       }
@@ -451,9 +466,14 @@
              id="card-${macObj.mac}" onclick="selectMac('${macObj.mac}')">
           <div class="mac-card-header">
             <span class="mac-address">${macObj.mac}</span>
-            <button class="edit-desc-btn" onclick="event.stopPropagation(); toggleDescEdit('${macObj.mac}')">
-              ${t.editDescription}
-            </button>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <button class="reboot-mac-btn" id="reboot-btn-${macObj.mac}" onclick="event.stopPropagation(); rebootDevice('${macObj.mac}')">
+                🔄 ${t.reboot || (currentLang === 'he' ? 'אתחול' : 'Reboot')}
+              </button>
+              <button class="edit-desc-btn" onclick="event.stopPropagation(); toggleDescEdit('${macObj.mac}')">
+                ${t.editDescription}
+              </button>
+            </div>
           </div>
           <div class="mac-description ${macObj.description ? 'has-value' : ''}">
             ${macObj.description ? '📝 ' + macObj.description : t.noDescription}
@@ -469,6 +489,36 @@
           </div>
         </div>
       `).join('');
+    }
+
+    async function rebootDevice(mac) {
+      const t = translations[currentLang];
+      const confirmMsg = currentLang === 'he' ? `האם לאתחל את המכשיר ${mac}?` : `Reboot device ${mac}?`;
+      if (!confirm(confirmMsg)) return;
+
+      const btn = document.getElementById(`reboot-btn-${mac}`);
+      const origText = btn ? btn.innerHTML : '';
+      if (btn) { btn.disabled = true; btn.innerHTML = '⏳'; }
+
+      try {
+        const res = await fetch('/api/manager/reboot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mac })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert(currentLang === 'he' ? `✅ המכשיר ${mac} מאותחל` : `✅ Device ${mac} is rebooting`);
+          if (btn) { btn.innerHTML = '✅'; setTimeout(() => { btn.innerHTML = origText; btn.disabled = false; }, 3000); }
+        } else {
+          alert('❌ ' + (data.error || 'Reboot failed'));
+          if (btn) { btn.innerHTML = origText; btn.disabled = false; }
+        }
+      } catch (err) {
+        alert('❌ ' + err.message);
+        if (btn) { btn.innerHTML = origText; btn.disabled = false; }
+      }
     }
 
     function selectMac(mac) {
