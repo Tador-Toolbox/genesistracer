@@ -129,6 +129,8 @@
     button:hover { opacity: 0.9; }
     button.danger { background: var(--red); }
     button.small { padding: 6px 12px; font-size: 13px; }
+    button.small.reboot-btn { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; }
+    button.small.reboot-btn:hover { background: linear-gradient(135deg, #d97706, #b45309); }
     button.success { background: var(--green); }
 
     table { width: 100%; border-collapse: collapse; }
@@ -1013,6 +1015,7 @@
                     <span class="mac-detail-mac">${macObj.mac}</span>
                     <div class="mac-actions">
                       <button class="small" onclick='editMac("${installer.phoneNumber}", ${JSON.stringify(macObj)})'>${translations[currentLang].edit}</button>
+                      <button class="small reboot-btn" onclick="rebootDevice('${macObj.mac}', this)" title="${currentLang === 'he' ? 'אתחול מכשיר' : 'Reboot Device'}">🔄 ${currentLang === 'he' ? 'אתחול' : 'Reboot'}</button>
                       <button class="small danger" onclick="removeMac('${installer.phoneNumber}', '${macObj.mac}')">×</button>
                     </div>
                   </div>
@@ -1222,6 +1225,44 @@
         }
       } catch (err) {
         showMessage('❌ ' + err.message, 'error');
+      }
+    }
+
+    async function rebootDevice(mac, btnEl) {
+      const t = translations[currentLang];
+      const confirmMsg = currentLang === 'he'
+        ? `האם לאתחל את המכשיר ${mac}?`
+        : `Reboot device ${mac}?`;
+      if (!confirm(confirmMsg)) return;
+
+      const origText = btnEl.innerHTML;
+      btnEl.disabled = true;
+      btnEl.innerHTML = '⏳';
+
+      try {
+        showMessage(currentLang === 'he' ? '⏳ שולח פקודת אתחול...' : '⏳ Sending reboot command...', 'info');
+
+        const res = await fetch('/api/manager/reboot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mac })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          showMessage('✅ ' + (currentLang === 'he' ? `המכשיר ${mac} מאותחל` : `Device ${mac} is rebooting`), 'success');
+          btnEl.innerHTML = '✅';
+          setTimeout(() => { btnEl.innerHTML = origText; btnEl.disabled = false; }, 3000);
+        } else {
+          showMessage('❌ ' + (data.error || 'Reboot failed'), 'error');
+          btnEl.innerHTML = origText;
+          btnEl.disabled = false;
+        }
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+        btnEl.innerHTML = origText;
+        btnEl.disabled = false;
       }
     }
 
