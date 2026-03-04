@@ -479,6 +479,73 @@ app.post('/api/installer/description', async (req, res) => {
 });
 
 
+// ==================== REBOOT ENDPOINT ====================
+app.post('/api/manager/reboot', async (req, res) => {
+  const { mac } = req.body;
+  if (!mac) return res.status(400).json({ success: false, error: 'MAC required' });
+
+  const cleanMac = mac.replace(/[:\-\s]/g, '').toUpperCase();
+
+  try {
+    const auth = await getAuthToken();
+
+    // Step 1: Find communityId from MAC library
+    const macData = await searchMac(auth, cleanMac);
+    const macList = macData?.result?.elements || macData?.result?.list || [];
+    const macEntry = macList[0] || null;
+
+    if (!macEntry) {
+      return res.json({ success: false, error: 'Device not found in MAC library' });
+    }
+
+    const communityId = macEntry.usedCommunityId || macEntry.communityId;
+
+    // Step 2: Get device internal ID
+    const deviceData = await getDeviceByMac(auth, cleanMac, communityId);
+    const deviceList = deviceData?.result?.elements || deviceData?.result?.list || [];
+    const deviceEntry = deviceList[0] || null;
+
+    if (!deviceEntry) {
+      return res.json({ success: false, error: 'Device not found in device list' });
+    }
+
+    const deviceId = deviceEntry.id;
+
+    // Step 3: Send reboot command
+    const headers = {
+      Authorization: auth.token,
+      AppId: APP_ID,
+      Version: '1.0',
+      Apiversion: '1.0',
+      Language: 'en',
+      'Community-Id': communityId,
+      'Customer-Id': auth.customerId,
+      EmployeeAccountId: auth.employeeAccountId,
+      RequestId: crypto.randomUUID(),
+      'User-Agent': 'Mozilla/5.0',
+      Accept: 'application/json',
+      'Content-Type': 'application/json; charset=UTF-8',
+    };
+
+    const rebootRes = await axios.post(
+      `${NEXHOME_BASE}/api/employees/publics/devices/${deviceId}:reboot`,
+      {},
+      { headers, timeout: 15000 }
+    );
+
+    const code = rebootRes.data?.code;
+    if (code === '0' || code === 0) {
+      return res.json({ success: true, message: 'Reboot command sent successfully' });
+    } else {
+      return res.json({ success: false, error: rebootRes.data?.message || `Unexpected response code: ${code}` });
+    }
+
+  } catch (err) {
+    console.error('Reboot error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Change installer phone number
 app.post('/api/manager/installers/:phoneNumber/change-phone', async (req, res) => {
   try {
