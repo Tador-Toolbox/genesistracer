@@ -550,6 +550,7 @@
         deviceLookupLink: "Open Device Lookup",
         downloadBackup: "Download Database Backup",
         voipbellServer: "Voipbell Server Login",
+        remoteLogin: "Remote Login",
         createInstaller: "➕ Create Installer Account",
         phoneNumber: "Phone Number (e.g., +972501234567)",
         macAddresses: "MAC Addresses (comma separated, optional)",
@@ -602,6 +603,7 @@
         deviceLookupLink: "פתח חיפוש מכשיר",
         downloadBackup: "הורד גיבוי מסד נתונים",
         voipbellServer: "התחברות לשרת Voipbell",
+        remoteLogin: "התחברות מרחוק",
         createInstaller: "➕ צור חשבון מתקין",
         phoneNumber: "מספר טלפון (לדוגמה: +972501234567)",
         macAddresses: "כתובות MAC (מופרדות בפסיקים, אופציונלי)",
@@ -1015,7 +1017,6 @@
                     <span class="mac-detail-mac">${macObj.mac}</span>
                     <div class="mac-actions">
                       <button class="small" onclick='editMac("${installer.phoneNumber}", ${JSON.stringify(macObj)})'>${translations[currentLang].edit}</button>
-                      <button class="small reboot-btn" onclick="rebootDevice('${macObj.mac}', this)" title="${currentLang === 'he' ? 'אתחול מכשיר' : 'Reboot Device'}">🔄 ${currentLang === 'he' ? 'אתחול' : 'Reboot'}</button>
                       <button class="small danger" onclick="removeMac('${installer.phoneNumber}', '${macObj.mac}')">×</button>
                     </div>
                   </div>
@@ -1079,6 +1080,10 @@
                     <span class="mac-detail-value" style="color: var(--green); font-style: italic;">
                       ${macObj.description || '—'}
                     </span>
+                  </div>
+
+                  <div style="margin-top: 10px; text-align: left;">
+                    <button class="small reboot-btn" onclick="rebootDevice('${macObj.mac}', this)">🔄 ${currentLang === 'he' ? 'אתחול' : 'Reboot'}</button>
                   </div>
                 </div>
               `).join('')}
