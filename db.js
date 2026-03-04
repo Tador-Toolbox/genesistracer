@@ -92,6 +92,7 @@ async function assignMacToInstaller(
   phoneNumber,
   macAddress,
   address = "",
+  city = "",
   notes = "",
   purchaseDate = "",
   startDate = "",
@@ -110,7 +111,7 @@ async function assignMacToInstaller(
 
   const existingMacIndex = (installer.macAddresses || []).findIndex((m) => m.mac === macAddress);
 
-  const updatedMac = { mac: macAddress, address, notes, purchaseDate, startDate, technicianName, supplierName, committeeName, description, annualFee, licensesPurchased, licensePaid };
+  const updatedMac = { mac: macAddress, address, city, notes, purchaseDate, startDate, technicianName, supplierName, committeeName, description, annualFee, licensesPurchased, licensePaid };
 
   if (existingMacIndex >= 0) installer.macAddresses[existingMacIndex] = updatedMac;
   else installer.macAddresses = [...(installer.macAddresses || []), updatedMac];

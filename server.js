@@ -359,6 +359,7 @@ app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
     const {
       macAddress,
       address = '',
+      city = '',
       notes = '',
       purchaseDate = '',
       startDate = '',
@@ -378,6 +379,7 @@ app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
       req.params.phoneNumber,
       cleanMac,
       address,
+      city,
       notes,
       purchaseDate,
       startDate,
@@ -460,6 +462,7 @@ app.post('/api/installer/description', async (req, res) => {
       phoneNumber,
       cleanMac,
       existing.address || '',
+      existing.city || '',
       existing.notes || '',
       existing.purchaseDate || '',
       existing.startDate || '',
