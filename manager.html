@@ -129,6 +129,8 @@
     button:hover { opacity: 0.9; }
     button.danger { background: var(--red); }
     button.small { padding: 6px 12px; font-size: 13px; }
+    button.small.reboot-btn { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; }
+    button.small.reboot-btn:hover { background: linear-gradient(135deg, #d97706, #b45309); }
     button.success { background: var(--green); }
 
     table { width: 100%; border-collapse: collapse; }
@@ -411,6 +413,10 @@
             <span>📥</span>
             <span data-i18n="downloadBackup">Download Database Backup</span>
           </a>
+          <a href="https://eu1.voipbell.net/index.php?lang=en_gb" target="_blank" class="installer-link">
+            <span>☎️</span>
+            <span data-i18n="voipbellServer">Voipbell Server Login</span>
+          </a>
         </div>
       </div>
 
@@ -504,8 +510,18 @@
       </div>
 
       <div class="modal-field">
+        <label id="labelCommittee">👥 Committee Name</label>
+        <input type="text" id="modalCommittee" placeholder="Committee name" />
+      </div>
+
+      <div class="modal-field">
         <label id="labelAnnualFee">💰 Annual License Fee</label>
         <input type="text" id="modalAnnualFee" placeholder="e.g. 250" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelLicensesPurchased">📊 Licenses Purchased</label>
+        <input type="number" id="modalLicensesPurchased" placeholder="e.g. 5" min="0" />
       </div>
 
       <div class="modal-buttons">
@@ -533,6 +549,8 @@
         installerPanelLink: "Open Installer Panel",
         deviceLookupLink: "Open Device Lookup",
         downloadBackup: "Download Database Backup",
+        voipbellServer: "Voipbell Server Login",
+        remoteLogin: "Remote Login",
         createInstaller: "➕ Create Installer Account",
         phoneNumber: "Phone Number (e.g., +972501234567)",
         macAddresses: "MAC Addresses (comma separated, optional)",
@@ -564,6 +582,8 @@
         technicianName: "Technician Name",
         supplierName: "Supplier Name",
         annualFee: "Annual License Fee",
+        licensesPurchased: "Licenses Purchased",
+        committeeName: "Committee Name",
         licenseQuestion: "Has the annual license been paid?",
         oneYear: "1 year since installation",
         yearsCount: "years since installation",
@@ -582,6 +602,8 @@
         installerPanelLink: "פתח פאנל מתקין",
         deviceLookupLink: "פתח חיפוש מכשיר",
         downloadBackup: "הורד גיבוי מסד נתונים",
+        voipbellServer: "התחברות לשרת Voipbell",
+        remoteLogin: "התחברות מרחוק",
         createInstaller: "➕ צור חשבון מתקין",
         phoneNumber: "מספר טלפון (לדוגמה: +972501234567)",
         macAddresses: "כתובות MAC (מופרדות בפסיקים, אופציונלי)",
@@ -613,6 +635,8 @@
         technicianName: "שם טכנאי",
         supplierName: "שם ספק",
         annualFee: "דמי רישיון שנתיים",
+        licensesPurchased: "כמה רשיונות נרכשו",
+        committeeName: "שם ועד",
         licenseQuestion: "האם שולם רישיון שנתי?",
         oneYear: "שנה מאז התקנה",
         yearsCount: "שנים מאז התקנה",
@@ -805,6 +829,8 @@
             technicianName: 'modalTechnicianName',
             supplierName: 'modalSupplier',
             annualFee: 'modalAnnualFee',
+            licensesPurchased: 'modalLicensesPurchased',
+            committeeName: 'modalCommittee',
           };
           const el = document.getElementById(fieldMap[focusField]);
           if (el) { el.focus(); el.select && el.select(); }
@@ -826,7 +852,9 @@
       const notes = document.getElementById('modalNotes').value;
       const technicianName = document.getElementById('modalTechnicianName').value;
       const supplierName = document.getElementById('modalSupplier').value;
+      const committeeName = document.getElementById('modalCommittee').value;
       const annualFee = document.getElementById('modalAnnualFee').value;
+      const licensesPurchased = document.getElementById('modalLicensesPurchased').value;
 
       if (!mac) return alert('MAC address is required');
 
@@ -837,7 +865,7 @@
       await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ macAddress: mac, address, notes, purchaseDate, startDate, technicianName, supplierName, annualFee })
+        body: JSON.stringify({ macAddress: mac, address, notes, purchaseDate, startDate, technicianName, supplierName, committeeName, annualFee, licensesPurchased })
       });
 
       closeModal();
@@ -882,7 +910,9 @@
             notes: macObj.notes || '',
             technicianName: macObj.technicianName || '',
             supplierName: macObj.supplierName || '',
+            committeeName: macObj.committeeName || '',
             annualFee: macObj.annualFee || '',
+            licensesPurchased: macObj.licensesPurchased || '',
             licensePaid: true,
           }),
         });
@@ -915,7 +945,9 @@
             notes: macObj.notes || '',
             technicianName: macObj.technicianName || '',
             supplierName: macObj.supplierName || '',
+            committeeName: macObj.committeeName || '',
             annualFee: macObj.annualFee || '',
+            licensesPurchased: macObj.licensesPurchased || '',
             licensePaid: false,
           }),
         });
@@ -966,13 +998,15 @@
           <td>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span>${installer.phoneNumber}</span>
-              <button class="field-edit-btn" onclick='editPhoneNumber("${installer.phoneNumber}")' title="${translations[currentLang].editPhone}">✏️</button>
+              <button class="field-edit-btn" onclick='editPhoneNumber("${installer.phoneNumber}")' title="${translations[currentLang].editPhone}" style="opacity: 1;">✏️</button>
             </div>
           </td>
           <td>
             <div class="password-display">
               ${details.installer.password || 'N/A'}
-              <button class="copy-btn" data-copy="${details.installer.password || ''}">${translations[currentLang].copy}</button>
+              <button class="copy-btn" onclick="copyPassword(this)" data-copy="${details.installer.password || ''}">
+                ${currentLang === 'he' ? 'העתק 📋' : 'Copy 📋'}
+              </button>
             </div>
           </td>
           <td>
@@ -1024,9 +1058,21 @@
                   </div>
 
                   <div class="mac-detail-field">
+                    <span class="mac-detail-label">👥 ${translations[currentLang].committeeName}:</span>
+                    <span class="mac-detail-value">${macObj.committeeName || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "committeeName")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
                     <span class="mac-detail-label">💰 ${translations[currentLang].annualFee}:</span>
                     <span class="mac-detail-value">${macObj.annualFee || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "annualFee")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📊 ${translations[currentLang].licensesPurchased}:</span>
+                    <span class="mac-detail-value">${macObj.licensesPurchased || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "licensesPurchased")'>✏️</button>
                   </div>
 
                   <div class="mac-detail-field" style="border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px;">
@@ -1034,6 +1080,10 @@
                     <span class="mac-detail-value" style="color: var(--green); font-style: italic;">
                       ${macObj.description || '—'}
                     </span>
+                  </div>
+
+                  <div style="margin-top: 10px; text-align: left;">
+                    <button class="small reboot-btn" onclick="rebootDevice('${macObj.mac}', this)">🔄 ${currentLang === 'he' ? 'אתחול' : 'Reboot'}</button>
                   </div>
                 </div>
               `).join('')}
@@ -1098,6 +1148,7 @@
           <td>${new Date(installer.createdAt).toLocaleString()}</td>
           <td>${installer.lastLogin ? new Date(installer.lastLogin).toLocaleString() : translations[currentLang].never}</td>
           <td>
+            <button class="small" onclick="remoteLogin('${installer.phoneNumber}')" style="margin-right: 8px; background: linear-gradient(135deg, #667eea, #764ba2); color: white;">🔐 ${translations[currentLang].remoteLogin}</button>
             <button class="small success" onclick="resetPassword('${installer.phoneNumber}')" style="margin-right: 8px;">${translations[currentLang].resetPassword}</button>
             <button class="small danger" onclick="deleteInstaller('${installer.phoneNumber}')">${translations[currentLang].delete}</button>
           </td>
@@ -1120,6 +1171,105 @@
 
     // initial labels
     setLanguage('he');
+
+
+    function copyPassword(btn) {
+      const password = btn.getAttribute('data-copy');
+      navigator.clipboard.writeText(password).then(() => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = currentLang === 'he' ? '✅ הועתק!' : '✅ Copied!';
+        btn.style.background = '#10b981';
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.style.background = '';
+        }, 2000);
+      }).catch(err => {
+        console.error('Copy failed:', err);
+      });
+    }
+
+
+    async function remoteLogin(phoneNumber) {
+      const t = translations[currentLang];
+      
+      try {
+        showMessage(t.loggingIn, 'info');
+        
+        // Get installer details
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        
+        if (!details.success || !details.installer) {
+          return showMessage('❌ ' + (currentLang === 'he' ? 'מתקין לא נמצא' : 'Installer not found'), 'error');
+        }
+        
+        const password = details.installer.password;
+        
+        if (!password) {
+          return showMessage('❌ ' + (currentLang === 'he' ? 'סיסמה לא נמצאה' : 'Password not found'), 'error');
+        }
+        
+        // Auto-login: POST to installer login API
+        const loginRes = await fetch('/api/installer/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber, password })
+        });
+        
+        const loginData = await loginRes.json();
+        
+        if (loginData.success) {
+          // Store login data in sessionStorage
+          sessionStorage.setItem('installerData', JSON.stringify(loginData.data));
+          
+          // Open installer panel in new tab
+          window.open('/installer.html', '_blank');
+          
+          showMessage('✅ ' + (currentLang === 'he' ? 'נפתח בחלון חדש' : 'Opened in new tab'), 'success');
+        } else {
+          showMessage('❌ ' + (loginData.error || 'Login failed'), 'error');
+        }
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+      }
+    }
+
+    async function rebootDevice(mac, btnEl) {
+      const t = translations[currentLang];
+      const confirmMsg = currentLang === 'he'
+        ? `האם לאתחל את המכשיר ${mac}?`
+        : `Reboot device ${mac}?`;
+      if (!confirm(confirmMsg)) return;
+
+      const origText = btnEl.innerHTML;
+      btnEl.disabled = true;
+      btnEl.innerHTML = '⏳';
+
+      try {
+        showMessage(currentLang === 'he' ? '⏳ שולח פקודת אתחול...' : '⏳ Sending reboot command...', 'info');
+
+        const res = await fetch('/api/manager/reboot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mac })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          showMessage('✅ ' + (currentLang === 'he' ? `המכשיר ${mac} מאותחל` : `Device ${mac} is rebooting`), 'success');
+          btnEl.innerHTML = '✅';
+          setTimeout(() => { btnEl.innerHTML = origText; btnEl.disabled = false; }, 3000);
+        } else {
+          showMessage('❌ ' + (data.error || 'Reboot failed'), 'error');
+          btnEl.innerHTML = origText;
+          btnEl.disabled = false;
+        }
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+        btnEl.innerHTML = origText;
+        btnEl.disabled = false;
+      }
+    }
 
     async function editPhoneNumber(oldPhoneNumber) {
       const t = translations[currentLang];
