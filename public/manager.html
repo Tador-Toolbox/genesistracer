@@ -485,6 +485,11 @@
       </div>
 
       <div class="modal-field">
+        <label id="labelCity">🏙️ City</label>
+        <input type="text" id="modalCity" placeholder="Tel Aviv" />
+      </div>
+
+      <div class="modal-field">
         <label id="labelPurchase">🛒 Date of Purchase</label>
         <input type="date" id="modalPurchaseDate" />
       </div>
@@ -576,6 +581,7 @@
         passwordReset: "Password reset!",
         newPassword: "New password",
         address: "Address",
+        city: "City",
         notes: "Additional Info",
         purchaseDate: "Date of Purchase",
         startDate: "Date of Start Working",
@@ -629,6 +635,7 @@
         passwordReset: "הסיסמה אופסה!",
         newPassword: "סיסמה חדשה",
         address: "כתובת",
+        city: "עיר",
         notes: "מידע נוסף",
         purchaseDate: "תאריך רכישה",
         startDate: "תאריך תחילת עבודה",
@@ -800,6 +807,7 @@
 
       document.getElementById('modalMac').value = macObj ? (macObj.mac || '') : '';
       document.getElementById('modalAddress').value = macObj ? (macObj.address || '') : '';
+      document.getElementById('modalCity').value = macObj ? (macObj.city || '') : '';
       document.getElementById('modalPurchaseDate').value = macObj ? (macObj.purchaseDate || '') : '';
       document.getElementById('modalStartDate').value = macObj ? (macObj.startDate || '') : '';
       document.getElementById('modalNotes').value = macObj ? (macObj.notes || '') : '';
@@ -809,6 +817,7 @@
 
       document.getElementById('modalTitle').textContent = macObj ? (t.edit + ' MAC') : ('+ ' + t.addMac);
       document.getElementById('labelAddress').textContent = '📍 ' + t.address;
+      document.getElementById('labelCity').textContent = '🏙️ ' + t.city;
       document.getElementById('labelPurchase').textContent = '🛒 ' + t.purchaseDate;
       document.getElementById('labelStart').textContent = '🟢 ' + t.startDate;
       document.getElementById('labelNotes').textContent = '📝 ' + t.notes;
@@ -823,6 +832,7 @@
         setTimeout(() => {
           const fieldMap = {
             address: 'modalAddress',
+            city: 'modalCity',
             purchaseDate: 'modalPurchaseDate',
             startDate: 'modalStartDate',
             notes: 'modalNotes',
@@ -847,6 +857,7 @@
       const mac = rawMac.replace(/[:\s-]/g, '').toUpperCase();
 
       const address = document.getElementById('modalAddress').value;
+      const city = document.getElementById('modalCity').value;
       const purchaseDate = document.getElementById('modalPurchaseDate').value;
       const startDate = document.getElementById('modalStartDate').value;
       const notes = document.getElementById('modalNotes').value;
@@ -865,7 +876,7 @@
       await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ macAddress: mac, address, notes, purchaseDate, startDate, technicianName, supplierName, committeeName, annualFee, licensesPurchased })
+        body: JSON.stringify({ macAddress: mac, address, city, notes, purchaseDate, startDate, technicianName, supplierName, committeeName, annualFee, licensesPurchased })
       });
 
       closeModal();
@@ -1025,6 +1036,12 @@
                     <span class="mac-detail-label">📍 ${translations[currentLang].address}:</span>
                     <span class="mac-detail-value">${macObj.address || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "address")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">🏙️ ${translations[currentLang].city}:</span>
+                    <span class="mac-detail-value">${macObj.city || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "city")'>✏️</button>
                   </div>
 
                   <div class="mac-detail-field">
