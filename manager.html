@@ -485,6 +485,11 @@
       </div>
 
       <div class="modal-field">
+        <label id="labelCity">🏙️ City</label>
+        <input type="text" id="modalCity" placeholder="Tel Aviv" />
+      </div>
+
+      <div class="modal-field">
         <label id="labelPurchase">🛒 Date of Purchase</label>
         <input type="date" id="modalPurchaseDate" />
       </div>
@@ -576,6 +581,7 @@
         passwordReset: "Password reset!",
         newPassword: "New password",
         address: "Address",
+        city: "City",
         notes: "Additional Info",
         purchaseDate: "Date of Purchase",
         startDate: "Date of Start Working",
@@ -629,6 +635,7 @@
         passwordReset: "הסיסמה אופסה!",
         newPassword: "סיסמה חדשה",
         address: "כתובת",
+        city: "עיר",
         notes: "מידע נוסף",
         purchaseDate: "תאריך רכישה",
         startDate: "תאריך תחילת עבודה",
@@ -800,6 +807,7 @@
 
       document.getElementById('modalMac').value = macObj ? (macObj.mac || '') : '';
       document.getElementById('modalAddress').value = macObj ? (macObj.address || '') : '';
+      document.getElementById('modalCity').value = macObj ? (macObj.city || '') : '';
       document.getElementById('modalPurchaseDate').value = macObj ? (macObj.purchaseDate || '') : '';
       document.getElementById('modalStartDate').value = macObj ? (macObj.startDate || '') : '';
       document.getElementById('modalNotes').value = macObj ? (macObj.notes || '') : '';
@@ -809,6 +817,7 @@
 
       document.getElementById('modalTitle').textContent = macObj ? (t.edit + ' MAC') : ('+ ' + t.addMac);
       document.getElementById('labelAddress').textContent = '📍 ' + t.address;
+      document.getElementById('labelCity').textContent = '🏙️ ' + t.city;
       document.getElementById('labelPurchase').textContent = '🛒 ' + t.purchaseDate;
       document.getElementById('labelStart').textContent = '🟢 ' + t.startDate;
       document.getElementById('labelNotes').textContent = '📝 ' + t.notes;
@@ -823,6 +832,7 @@
         setTimeout(() => {
           const fieldMap = {
             address: 'modalAddress',
+            city: 'modalCity',
             purchaseDate: 'modalPurchaseDate',
             startDate: 'modalStartDate',
             notes: 'modalNotes',
@@ -847,6 +857,7 @@
       const mac = rawMac.replace(/[:\s-]/g, '').toUpperCase();
 
       const address = document.getElementById('modalAddress').value;
+      const city = document.getElementById('modalCity').value;
       const purchaseDate = document.getElementById('modalPurchaseDate').value;
       const startDate = document.getElementById('modalStartDate').value;
       const notes = document.getElementById('modalNotes').value;
@@ -865,7 +876,7 @@
       await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ macAddress: mac, address, notes, purchaseDate, startDate, technicianName, supplierName, committeeName, annualFee, licensesPurchased })
+        body: JSON.stringify({ macAddress: mac, address, city, notes, purchaseDate, startDate, technicianName, supplierName, committeeName, annualFee, licensesPurchased })
       });
 
       closeModal();
@@ -984,6 +995,7 @@
     }
 
     async function loadData() {
+      await loadAutoRebootSchedules();
       const installersRes = await fetch('/api/manager/installers');
       const installersData = await installersRes.json();
 
@@ -1017,6 +1029,7 @@
                     <span class="mac-detail-mac">${macObj.mac}</span>
                     <div class="mac-actions">
                       <button class="small" onclick='editMac("${installer.phoneNumber}", ${JSON.stringify(macObj)})'>${translations[currentLang].edit}</button>
+                      <button class="small" onclick="openAutoRebootModal('${macObj.mac}')" title="${currentLang === 'he' ? 'אתחול אוטומטי' : 'Auto Reboot'}" style="background:${autoRebootSchedules[macObj.mac]?.enabled ? 'linear-gradient(135deg,#10b981,#059669)' : 'var(--surface2)'};color:${autoRebootSchedules[macObj.mac]?.enabled ? 'white' : 'var(--text-dim)'};border:1px solid var(--border);">⏰</button>
                       <button class="small danger" onclick="removeMac('${installer.phoneNumber}', '${macObj.mac}')">×</button>
                     </div>
                   </div>
@@ -1025,6 +1038,12 @@
                     <span class="mac-detail-label">📍 ${translations[currentLang].address}:</span>
                     <span class="mac-detail-value">${macObj.address || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "address")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">🏙️ ${translations[currentLang].city}:</span>
+                    <span class="mac-detail-value">${macObj.city || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "city")'>✏️</button>
                   </div>
 
                   <div class="mac-detail-field">
@@ -1080,10 +1099,6 @@
                     <span class="mac-detail-value" style="color: var(--green); font-style: italic;">
                       ${macObj.description || '—'}
                     </span>
-                  </div>
-
-                  <div style="margin-top: 10px; text-align: right;">
-                    <button class="small reboot-btn" onclick="rebootDevice('${macObj.mac}', this)">🔄 ${currentLang === 'he' ? 'אתחול' : 'Reboot'}</button>
                   </div>
                 </div>
               `).join('')}
@@ -1350,6 +1365,108 @@
       }
     }
 
+    // ==================== AUTO REBOOT ====================
+    let autoRebootSchedules = {};
+
+    async function loadAutoRebootSchedules() {
+      try {
+        const res = await fetch('/api/manager/auto-reboot');
+        const data = await res.json();
+        if (data.success) autoRebootSchedules = data.schedules || {};
+      } catch (e) {}
+    }
+
+    function openAutoRebootModal(mac) {
+      const sched = autoRebootSchedules[mac] || {};
+      document.getElementById('arMac').value = mac;
+      document.getElementById('arMacLabel').textContent = mac;
+      document.getElementById('arInterval').value = sched.intervalDays || 1;
+      document.getElementById('arHour').value = sched.hour ?? 3;
+      document.getElementById('arEnabled').checked = sched.enabled !== false;
+      document.getElementById('arLastReboot').textContent = sched.lastReboot
+        ? new Date(sched.lastReboot).toLocaleString()
+        : (currentLang === 'he' ? 'טרם בוצע' : 'Never');
+      document.getElementById('autoRebootModal').classList.add('open');
+    }
+
+    function closeAutoRebootModal() {
+      document.getElementById('autoRebootModal').classList.remove('open');
+    }
+
+    async function saveAutoReboot() {
+      const mac = document.getElementById('arMac').value;
+      const intervalDays = parseInt(document.getElementById('arInterval').value);
+      const hour = parseInt(document.getElementById('arHour').value);
+      const enabled = document.getElementById('arEnabled').checked;
+
+      const res = await fetch('/api/manager/auto-reboot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mac, intervalDays, hour, enabled })
+      });
+      const data = await res.json();
+      if (data.success) {
+        autoRebootSchedules[mac] = { intervalDays, hour, enabled, lastReboot: autoRebootSchedules[mac]?.lastReboot || null };
+        showMessage('✅ ' + (currentLang === 'he' ? 'לוח זמנים נשמר' : 'Schedule saved'), 'success');
+        closeAutoRebootModal();
+        loadData();
+      } else {
+        showMessage('❌ ' + data.error, 'error');
+      }
+    }
+
+    async function deleteAutoReboot(mac) {
+      await fetch(`/api/manager/auto-reboot/${mac}`, { method: 'DELETE' });
+      delete autoRebootSchedules[mac];
+      showMessage('✅ ' + (currentLang === 'he' ? 'לוח זמנים נמחק' : 'Schedule removed'), 'success');
+      closeAutoRebootModal();
+      loadData();
+    }
+
   </script>
+
+  <!-- Auto Reboot Modal -->
+  <div class="modal-overlay" id="autoRebootModal" onclick="if(event.target===this)closeAutoRebootModal()">
+    <div class="modal-box" style="max-width:420px">
+      <h3 style="margin-bottom:16px">⏰ <span id="arMacLabel"></span></h3>
+      <input type="hidden" id="arMac" />
+
+      <div class="modal-field">
+        <label style="font-weight:600">🔄 ${currentLang === 'he' ? 'תדירות אתחול' : 'Reboot every'}</label>
+        <select id="arInterval" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;">
+          <option value="1">יום 1 / Every 1 day</option>
+          <option value="2">יומיים / Every 2 days</option>
+          <option value="3">3 ימים / Every 3 days</option>
+          <option value="4">4 ימים / Every 4 days</option>
+          <option value="5">5 ימים / Every 5 days</option>
+          <option value="6">6 ימים / Every 6 days</option>
+          <option value="7">שבוע / Every 7 days</option>
+        </select>
+      </div>
+
+      <div class="modal-field">
+        <label style="font-weight:600">🕐 שעת אתחול (UTC) / Reboot hour (UTC)</label>
+        <select id="arHour" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;">
+          ${Array.from({length:24},(_,i)=>`<option value="${i}">${String(i).padStart(2,'0')}:00</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="modal-field" style="display:flex;align-items:center;gap:10px;">
+        <input type="checkbox" id="arEnabled" style="width:18px;height:18px;cursor:pointer;" />
+        <label for="arEnabled" style="font-weight:600;cursor:pointer;">✅ ${currentLang === 'he' ? 'פעיל' : 'Enabled'}</label>
+      </div>
+
+      <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">
+        🕒 ${currentLang === 'he' ? 'אתחול אחרון:' : 'Last reboot:'} <span id="arLastReboot"></span>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
+        <button class="small danger" onclick="deleteAutoReboot(document.getElementById('arMac').value)" style="margin-right:auto;">🗑️ ${currentLang === 'he' ? 'מחק לוח זמנים' : 'Remove schedule'}</button>
+        <button class="btn-cancel small" onclick="closeAutoRebootModal()">${currentLang === 'he' ? 'ביטול' : 'Cancel'}</button>
+        <button class="small success" onclick="saveAutoReboot()">💾 ${currentLang === 'he' ? 'שמור' : 'Save'}</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

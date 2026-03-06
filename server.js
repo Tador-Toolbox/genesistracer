@@ -566,6 +566,113 @@ app.post('/api/manager/installers/:phoneNumber/change-phone', async (req, res) =
   }
 });
 
+// ==================== AUTO REBOOT SCHEDULER ====================
+
+// In-memory schedules: { mac: { intervalDays, hour, lastReboot, enabled } }
+let autoRebootSchedules = {};
+
+// Load schedules from DB on startup
+async function loadSchedules() {
+  try {
+    const db = require('./db');
+    await db.connectDB();
+    const saved = await db.getAutoRebootSchedules();
+    if (saved) autoRebootSchedules = saved;
+    console.log(`✅ Auto-reboot schedules loaded (${Object.keys(autoRebootSchedules).length})`);
+  } catch (err) {
+    console.error('Failed to load schedules:', err.message);
+  }
+}
+
+// Check and run due reboots every minute
+setInterval(async () => {
+  const now = new Date();
+  const nowHour = now.getUTCHours(); // use UTC for consistency
+  const nowMin = now.getUTCMinutes();
+
+  if (nowMin !== 0) return; // only run at the top of each hour
+
+  for (const [mac, sched] of Object.entries(autoRebootSchedules)) {
+    if (!sched.enabled) continue;
+    if (sched.hour !== nowHour) continue;
+
+    const lastReboot = sched.lastReboot ? new Date(sched.lastReboot) : null;
+    const daysSinceLast = lastReboot
+      ? (now - lastReboot) / (1000 * 60 * 60 * 24)
+      : Infinity;
+
+    if (daysSinceLast >= sched.intervalDays) {
+      try {
+        console.log(`🔄 Auto-reboot: ${mac}`);
+        const auth = await getAuthToken();
+        const macData = await searchMac(auth, mac);
+        const macList = macData?.result?.elements || macData?.result?.list || [];
+        const macEntry = macList[0];
+        if (!macEntry) { console.log(`⚠️ Auto-reboot: ${mac} not found`); continue; }
+
+        const communityId = macEntry.usedCommunityId || macEntry.communityId;
+        const deviceData = await getDeviceByMac(auth, mac, communityId);
+        const deviceList = deviceData?.result?.elements || deviceData?.result?.list || [];
+        const deviceEntry = deviceList[0];
+        if (!deviceEntry) { console.log(`⚠️ Auto-reboot: device not found for ${mac}`); continue; }
+
+        const headers = {
+          Authorization: auth.token, AppId: APP_ID, Version: '1.0', Apiversion: '1.0',
+          Language: 'en', 'Community-Id': communityId, 'Customer-Id': auth.customerId,
+          EmployeeAccountId: auth.employeeAccountId, RequestId: crypto.randomUUID(),
+          'User-Agent': 'Mozilla/5.0', Accept: 'application/json',
+          'Content-Type': 'application/json; charset=UTF-8',
+        };
+        await axios.post(`${NEXHOME_BASE}/api/employees/publics/devices/${deviceEntry.id}:reboot`, {}, { headers, timeout: 15000 });
+
+        autoRebootSchedules[mac].lastReboot = now.toISOString();
+        await require('./db').saveAutoRebootSchedules(autoRebootSchedules);
+        console.log(`✅ Auto-reboot success: ${mac}`);
+      } catch (err) {
+        console.error(`❌ Auto-reboot failed for ${mac}:`, err.message);
+      }
+    }
+  }
+}, 60 * 1000);
+
+// GET all schedules
+app.get('/api/manager/auto-reboot', async (req, res) => {
+  res.json({ success: true, schedules: autoRebootSchedules });
+});
+
+// SET schedule for a MAC
+app.post('/api/manager/auto-reboot', async (req, res) => {
+  const { mac, intervalDays, hour, enabled } = req.body;
+  if (!mac) return res.status(400).json({ success: false, error: 'MAC required' });
+
+  const cleanMac = mac.replace(/[:\-\s]/g, '').toUpperCase();
+  autoRebootSchedules[cleanMac] = {
+    intervalDays: parseInt(intervalDays) || 1,
+    hour: parseInt(hour) || 3,
+    enabled: enabled !== false,
+    lastReboot: autoRebootSchedules[cleanMac]?.lastReboot || null,
+  };
+
+  try {
+    await require('./db').saveAutoRebootSchedules(autoRebootSchedules);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE schedule for a MAC
+app.delete('/api/manager/auto-reboot/:mac', async (req, res) => {
+  const cleanMac = req.params.mac.replace(/[:\-\s]/g, '').toUpperCase();
+  delete autoRebootSchedules[cleanMac];
+  try {
+    await require('./db').saveAutoRebootSchedules(autoRebootSchedules);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Installer login
 app.post('/api/installer/login', async (req, res) => {
   const { phoneNumber, password } = req.body;
@@ -585,4 +692,5 @@ app.listen(PORT, () => {
     console.log('🔒 IP Restriction: Israel only');
   }
   console.log('Powered by Tador Technologies LTD');
+  loadSchedules();
 });

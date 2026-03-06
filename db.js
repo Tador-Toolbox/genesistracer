@@ -274,6 +274,21 @@ async function changeInstallerPhone(oldPhoneNumber, newPhoneNumber) {
   return newPhoneNumber;
 }
 
+async function getAutoRebootSchedules() {
+  await connectDB();
+  const doc = await db.collection("settings").findOne({ key: "autoRebootSchedules" });
+  return doc ? doc.value : {};
+}
+
+async function saveAutoRebootSchedules(schedules) {
+  await connectDB();
+  await db.collection("settings").updateOne(
+    { key: "autoRebootSchedules" },
+    { $set: { key: "autoRebootSchedules", value: schedules, updatedAt: new Date() } },
+    { upsert: true }
+  );
+}
+
 module.exports = {
   connectDB,
   createInstaller,
@@ -288,4 +303,6 @@ module.exports = {
   resetPassword,
   getFullDatabaseBackup,
   changeInstallerPhone,
+  getAutoRebootSchedules,
+  saveAutoRebootSchedules,
 };
