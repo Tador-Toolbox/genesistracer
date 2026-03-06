@@ -1367,6 +1367,17 @@
 
     // ==================== AUTO REBOOT ====================
     let autoRebootSchedules = {};
+    let arCurrentTab = 'recurring';
+
+    function switchArTab(tab) {
+      arCurrentTab = tab;
+      document.getElementById('arPanelRecurring').style.display = tab === 'recurring' ? 'block' : 'none';
+      document.getElementById('arPanelOnce').style.display = tab === 'once' ? 'block' : 'none';
+      document.getElementById('arTabRecurring').style.background = tab === 'recurring' ? 'var(--accent)' : 'var(--surface2)';
+      document.getElementById('arTabRecurring').style.color = tab === 'recurring' ? 'white' : 'var(--text-dim)';
+      document.getElementById('arTabOnce').style.background = tab === 'once' ? 'var(--accent)' : 'var(--surface2)';
+      document.getElementById('arTabOnce').style.color = tab === 'once' ? 'white' : 'var(--text-dim)';
+    }
 
     async function loadAutoRebootSchedules() {
       try {
@@ -1379,13 +1390,23 @@
     function openAutoRebootModal(mac) {
       const sched = autoRebootSchedules[mac] || {};
       document.getElementById('arMac').value = mac;
-      document.getElementById('arMacLabel').textContent = mac;
+      document.getElementById('arMacLabel').textContent = 'MAC: ' + mac;
       document.getElementById('arInterval').value = sched.intervalDays || 1;
       document.getElementById('arHour').value = sched.hour ?? 3;
       document.getElementById('arEnabled').checked = sched.enabled !== false;
       document.getElementById('arLastReboot').textContent = sched.lastReboot
-        ? new Date(sched.lastReboot).toLocaleString()
-        : (currentLang === 'he' ? 'טרם בוצע' : 'Never');
+        ? new Date(sched.lastReboot).toLocaleString('he-IL', {timeZone:'Asia/Jerusalem'})
+        : 'טרם בוצע';
+
+      // אם יש תאריך ספציפי שמור
+      if (sched.onceDate) {
+        switchArTab('once');
+        document.getElementById('arOnceDate').value = sched.onceDate;
+        document.getElementById('arOnceHour').value = sched.onceHour ?? 3;
+      } else {
+        switchArTab('recurring');
+      }
+
       document.getElementById('autoRebootModal').classList.add('open');
     }
 
@@ -1395,19 +1416,38 @@
 
     async function saveAutoReboot() {
       const mac = document.getElementById('arMac').value;
-      const intervalDays = parseInt(document.getElementById('arInterval').value);
-      const hour = parseInt(document.getElementById('arHour').value);
-      const enabled = document.getElementById('arEnabled').checked;
+      let payload = { mac };
+
+      if (arCurrentTab === 'recurring') {
+        const intervalDays = parseInt(document.getElementById('arInterval').value);
+        // המר שעון ישראל ל-UTC
+        const israelHour = parseInt(document.getElementById('arHour').value);
+        const now = new Date();
+        const isDST = now.getTimezoneOffset() < new Date(now.getFullYear(), 0, 1).getTimezoneOffset();
+        const israelOffset = isDST ? 3 : 2; // UTC+3 קיץ, UTC+2 חורף
+        const utcHour = (israelHour - israelOffset + 24) % 24;
+        const enabled = document.getElementById('arEnabled').checked;
+        payload = { ...payload, intervalDays, hour: utcHour, israelHour, enabled, type: 'recurring' };
+      } else {
+        const onceDate = document.getElementById('arOnceDate').value;
+        const israelHour = parseInt(document.getElementById('arOnceHour').value);
+        if (!onceDate) return showMessage('❌ בחר תאריך', 'error');
+        const now = new Date();
+        const isDST = now.getTimezoneOffset() < new Date(now.getFullYear(), 0, 1).getTimezoneOffset();
+        const israelOffset = isDST ? 3 : 2;
+        const utcHour = (israelHour - israelOffset + 24) % 24;
+        payload = { ...payload, onceDate, onceHour: israelHour, hour: utcHour, enabled: true, type: 'once' };
+      }
 
       const res = await fetch('/api/manager/auto-reboot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mac, intervalDays, hour, enabled })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.success) {
-        autoRebootSchedules[mac] = { intervalDays, hour, enabled, lastReboot: autoRebootSchedules[mac]?.lastReboot || null };
-        showMessage('✅ ' + (currentLang === 'he' ? 'לוח זמנים נשמר' : 'Schedule saved'), 'success');
+        autoRebootSchedules[mac] = { ...payload, lastReboot: autoRebootSchedules[mac]?.lastReboot || null };
+        showMessage('✅ תזמון נשמר', 'success');
         closeAutoRebootModal();
         loadData();
       } else {
@@ -1418,52 +1458,103 @@
     async function deleteAutoReboot(mac) {
       await fetch(`/api/manager/auto-reboot/${mac}`, { method: 'DELETE' });
       delete autoRebootSchedules[mac];
-      showMessage('✅ ' + (currentLang === 'he' ? 'לוח זמנים נמחק' : 'Schedule removed'), 'success');
+      showMessage('✅ תזמון נמחק', 'success');
       closeAutoRebootModal();
       loadData();
     }
+
 
   </script>
 
   <!-- Auto Reboot Modal -->
   <div class="modal-overlay" id="autoRebootModal" onclick="if(event.target===this)closeAutoRebootModal()">
-    <div class="modal-box" style="max-width:420px">
-      <h3 style="margin-bottom:16px">⏰ <span id="arMacLabel"></span></h3>
+    <div class="modal-box" style="max-width:460px">
+      <h3 style="margin-bottom:4px">⏰ אתחול אוטומטי</h3>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;" id="arMacLabel"></div>
       <input type="hidden" id="arMac" />
 
-      <div class="modal-field">
-        <label style="font-weight:600">🔄 ${currentLang === 'he' ? 'תדירות אתחול' : 'Reboot every'}</label>
-        <select id="arInterval" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;">
-          <option value="1">יום 1 / Every 1 day</option>
-          <option value="2">יומיים / Every 2 days</option>
-          <option value="3">3 ימים / Every 3 days</option>
-          <option value="4">4 ימים / Every 4 days</option>
-          <option value="5">5 ימים / Every 5 days</option>
-          <option value="6">6 ימים / Every 6 days</option>
-          <option value="7">שבוע / Every 7 days</option>
-        </select>
+      <!-- טאבים: חוזר / תאריך ספציפי -->
+      <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <button id="arTabRecurring" onclick="switchArTab('recurring')"
+          style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:var(--accent);color:white;">
+          🔁 חוזר
+        </button>
+        <button id="arTabOnce" onclick="switchArTab('once')"
+          style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:var(--surface2);color:var(--text-dim);">
+          📅 תאריך ספציפי
+        </button>
       </div>
 
-      <div class="modal-field">
-        <label style="font-weight:600">🕐 שעת אתחול (UTC) / Reboot hour (UTC)</label>
-        <select id="arHour" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;">
-          ${Array.from({length:24},(_,i)=>`<option value="${i}">${String(i).padStart(2,'0')}:00</option>`).join('')}
-        </select>
+      <!-- חוזר -->
+      <div id="arPanelRecurring">
+        <div class="modal-field">
+          <label style="font-weight:600">🔄 כל כמה זמן לאתחל</label>
+          <select id="arInterval" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;">
+            <option value="1">כל יום</option>
+            <option value="2">כל יומיים</option>
+            <option value="3">כל 3 ימים</option>
+            <option value="4">כל 4 ימים</option>
+            <option value="5">כל 5 ימים</option>
+            <option value="6">כל 6 ימים</option>
+            <option value="7">כל שבוע</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label style="font-weight:600">🕐 שעת ביצוע (שעון ישראל)</label>
+          <select id="arHour" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;">
+            <option value="0">00:00</option><option value="1">01:00</option>
+            <option value="2">02:00</option><option value="3">03:00</option>
+            <option value="4">04:00</option><option value="5">05:00</option>
+            <option value="6">06:00</option><option value="7">07:00</option>
+            <option value="8">08:00</option><option value="9">09:00</option>
+            <option value="10">10:00</option><option value="11">11:00</option>
+            <option value="12">12:00</option><option value="13">13:00</option>
+            <option value="14">14:00</option><option value="15">15:00</option>
+            <option value="16">16:00</option><option value="17">17:00</option>
+            <option value="18">18:00</option><option value="19">19:00</option>
+            <option value="20">20:00</option><option value="21">21:00</option>
+            <option value="22">22:00</option><option value="23">23:00</option>
+          </select>
+        </div>
+        <div class="modal-field" style="display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" id="arEnabled" style="width:18px;height:18px;cursor:pointer;" />
+          <label for="arEnabled" style="font-weight:600;cursor:pointer;">פעיל</label>
+        </div>
       </div>
 
-      <div class="modal-field" style="display:flex;align-items:center;gap:10px;">
-        <input type="checkbox" id="arEnabled" style="width:18px;height:18px;cursor:pointer;" />
-        <label for="arEnabled" style="font-weight:600;cursor:pointer;">✅ ${currentLang === 'he' ? 'פעיל' : 'Enabled'}</label>
+      <!-- תאריך ספציפי -->
+      <div id="arPanelOnce" style="display:none;">
+        <div class="modal-field">
+          <label style="font-weight:600">📅 תאריך</label>
+          <input type="date" id="arOnceDate" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;" />
+        </div>
+        <div class="modal-field">
+          <label style="font-weight:600">🕐 שעה (שעון ישראל)</label>
+          <select id="arOnceHour" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;">
+            <option value="0">00:00</option><option value="1">01:00</option>
+            <option value="2">02:00</option><option value="3">03:00</option>
+            <option value="4">04:00</option><option value="5">05:00</option>
+            <option value="6">06:00</option><option value="7">07:00</option>
+            <option value="8">08:00</option><option value="9">09:00</option>
+            <option value="10">10:00</option><option value="11">11:00</option>
+            <option value="12">12:00</option><option value="13">13:00</option>
+            <option value="14">14:00</option><option value="15">15:00</option>
+            <option value="16">16:00</option><option value="17">17:00</option>
+            <option value="18">18:00</option><option value="19">19:00</option>
+            <option value="20">20:00</option><option value="21">21:00</option>
+            <option value="22">22:00</option><option value="23">23:00</option>
+          </select>
+        </div>
       </div>
 
       <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">
-        🕒 ${currentLang === 'he' ? 'אתחול אחרון:' : 'Last reboot:'} <span id="arLastReboot"></span>
+        🕒 אתחול אחרון: <span id="arLastReboot">—</span>
       </div>
 
       <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
-        <button class="small danger" onclick="deleteAutoReboot(document.getElementById('arMac').value)" style="margin-right:auto;">🗑️ ${currentLang === 'he' ? 'מחק לוח זמנים' : 'Remove schedule'}</button>
-        <button class="btn-cancel small" onclick="closeAutoRebootModal()">${currentLang === 'he' ? 'ביטול' : 'Cancel'}</button>
-        <button class="small success" onclick="saveAutoReboot()">💾 ${currentLang === 'he' ? 'שמור' : 'Save'}</button>
+        <button class="small danger" onclick="deleteAutoReboot(document.getElementById('arMac').value)" style="margin-right:auto;">🗑️ מחק תזמון</button>
+        <button class="btn-cancel small" onclick="closeAutoRebootModal()">ביטול</button>
+        <button class="small success" onclick="saveAutoReboot()">💾 שמור</button>
       </div>
     </div>
   </div>

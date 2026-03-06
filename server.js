@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -587,50 +588,65 @@ async function loadSchedules() {
 // Check and run due reboots every minute
 setInterval(async () => {
   const now = new Date();
-  const nowHour = now.getUTCHours(); // use UTC for consistency
-  const nowMin = now.getUTCMinutes();
+  // שעון ישראל
+  const israelTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
+  const israelHour = israelTime.getHours();
+  const israelMin = israelTime.getMinutes();
+  const israelDateStr = israelTime.toISOString().split('T')[0];
 
-  if (nowMin !== 0) return; // only run at the top of each hour
+  if (israelMin !== 0) return; // רץ רק בשעה עגולה
 
   for (const [mac, sched] of Object.entries(autoRebootSchedules)) {
     if (!sched.enabled) continue;
-    if (sched.hour !== nowHour) continue;
 
-    const lastReboot = sched.lastReboot ? new Date(sched.lastReboot) : null;
-    const daysSinceLast = lastReboot
-      ? (now - lastReboot) / (1000 * 60 * 60 * 24)
-      : Infinity;
+    let shouldReboot = false;
 
-    if (daysSinceLast >= sched.intervalDays) {
-      try {
-        console.log(`🔄 Auto-reboot: ${mac}`);
-        const auth = await getAuthToken();
-        const macData = await searchMac(auth, mac);
-        const macList = macData?.result?.elements || macData?.result?.list || [];
-        const macEntry = macList[0];
-        if (!macEntry) { console.log(`⚠️ Auto-reboot: ${mac} not found`); continue; }
-
-        const communityId = macEntry.usedCommunityId || macEntry.communityId;
-        const deviceData = await getDeviceByMac(auth, mac, communityId);
-        const deviceList = deviceData?.result?.elements || deviceData?.result?.list || [];
-        const deviceEntry = deviceList[0];
-        if (!deviceEntry) { console.log(`⚠️ Auto-reboot: device not found for ${mac}`); continue; }
-
-        const headers = {
-          Authorization: auth.token, AppId: APP_ID, Version: '1.0', Apiversion: '1.0',
-          Language: 'en', 'Community-Id': communityId, 'Customer-Id': auth.customerId,
-          EmployeeAccountId: auth.employeeAccountId, RequestId: crypto.randomUUID(),
-          'User-Agent': 'Mozilla/5.0', Accept: 'application/json',
-          'Content-Type': 'application/json; charset=UTF-8',
-        };
-        await axios.post(`${NEXHOME_BASE}/api/employees/publics/devices/${deviceEntry.id}:reboot`, {}, { headers, timeout: 15000 });
-
-        autoRebootSchedules[mac].lastReboot = now.toISOString();
-        await require('./db').saveAutoRebootSchedules(autoRebootSchedules);
-        console.log(`✅ Auto-reboot success: ${mac}`);
-      } catch (err) {
-        console.error(`❌ Auto-reboot failed for ${mac}:`, err.message);
+    if (sched.type === 'once') {
+      // תאריך ספציפי
+      if (sched.onceDate === israelDateStr && sched.onceHour === israelHour) {
+        shouldReboot = true;
       }
+    } else {
+      // חוזר — בדוק שעה ותדירות
+      if (sched.israelHour !== undefined ? sched.israelHour === israelHour : sched.hour === israelHour) {
+        const lastReboot = sched.lastReboot ? new Date(sched.lastReboot) : null;
+        const daysSinceLast = lastReboot ? (now - lastReboot) / (1000 * 60 * 60 * 24) : Infinity;
+        if (daysSinceLast >= sched.intervalDays) shouldReboot = true;
+      }
+    }
+
+    if (!shouldReboot) continue;
+
+    try {
+      console.log(`🔄 Auto-reboot: ${mac}`);
+      const auth = await getAuthToken();
+      const macData = await searchMac(auth, mac);
+      const macList = macData?.result?.elements || macData?.result?.list || [];
+      const macEntry = macList[0];
+      if (!macEntry) { console.log(`⚠️ Auto-reboot: ${mac} not found`); continue; }
+
+      const communityId = macEntry.usedCommunityId || macEntry.communityId;
+      const deviceData = await getDeviceByMac(auth, mac, communityId);
+      const deviceList = deviceData?.result?.elements || deviceData?.result?.list || [];
+      const deviceEntry = deviceList[0];
+      if (!deviceEntry) { console.log(`⚠️ Auto-reboot: device not found for ${mac}`); continue; }
+
+      const headers = {
+        Authorization: auth.token, AppId: APP_ID, Version: '1.0', Apiversion: '1.0',
+        Language: 'en', 'Community-Id': communityId, 'Customer-Id': auth.customerId,
+        EmployeeAccountId: auth.employeeAccountId, RequestId: crypto.randomUUID(),
+        'User-Agent': 'Mozilla/5.0', Accept: 'application/json',
+        'Content-Type': 'application/json; charset=UTF-8',
+      };
+      await axios.post(`${NEXHOME_BASE}/api/employees/publics/devices/${deviceEntry.id}:reboot`, {}, { headers, timeout: 15000 });
+
+      autoRebootSchedules[mac].lastReboot = now.toISOString();
+      // אם תאריך ספציפי — כבה אחרי ביצוע
+      if (sched.type === 'once') autoRebootSchedules[mac].enabled = false;
+      await require('./db').saveAutoRebootSchedules(autoRebootSchedules);
+      console.log(`✅ Auto-reboot success: ${mac}`);
+    } catch (err) {
+      console.error(`❌ Auto-reboot failed for ${mac}:`, err.message);
     }
   }
 }, 60 * 1000);
