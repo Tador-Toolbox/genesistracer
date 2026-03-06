@@ -631,9 +631,9 @@ setInterval(async () => {
     } else {
       const [schedH, schedM] = (sched.israelTime || `${sched.israelHour || 3}:00`).split(':').map(Number);
       if (schedH === ilHour && schedM === ilMin) {
-        const lastReboot = sched.lastReboot ? new Date(sched.lastReboot) : null;
-        const daysSinceLast = lastReboot ? (now - lastReboot) / (1000 * 60 * 60 * 24) : Infinity;
-        if (daysSinceLast >= sched.intervalDays) shouldReboot = true;
+        const days = Array.isArray(sched.days) ? sched.days : [];
+        const todayDOW = il.getUTCDay(); // 0=Sun
+        if (days.length === 0 || days.includes(todayDOW)) shouldReboot = true;
       }
     }
 
@@ -693,9 +693,10 @@ app.post('/api/manager/auto-reboot', async (req, res) => {
       lastReboot: autoRebootSchedules[cleanMac]?.lastReboot || null,
     };
   } else {
+    const { days } = req.body;
     autoRebootSchedules[cleanMac] = {
       type: 'recurring',
-      intervalDays: parseInt(intervalDays) || 1,
+      days: Array.isArray(days) ? days : [],
       hour: parseInt(hour) || 3,
       minute: parseInt(minute) || 0,
       israelTime: israelTime || '03:00',
