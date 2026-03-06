@@ -1407,6 +1407,33 @@
       } catch (e) {}
     }
 
+    function updateNextReboot() {
+      const days = Array.from(document.querySelectorAll('.arDay:checked')).map(cb => parseInt(cb.value));
+      const timeVal = document.getElementById('arHour').value;
+      const el = document.getElementById('arNextReboot');
+      if (!el) return;
+      if (days.length === 0 || !timeVal) { el.textContent = ''; return; }
+      const [h, m] = timeVal.split(':').map(Number);
+      const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+      // find next occurrence from now (Israel time)
+      const nowIL = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
+      let best = null;
+      for (let offset = 0; offset <= 7; offset++) {
+        const candidate = new Date(nowIL);
+        candidate.setDate(candidate.getDate() + offset);
+        candidate.setHours(h, m, 0, 0);
+        if (candidate <= nowIL) continue;
+        if (days.includes(candidate.getDay())) { best = candidate; break; }
+      }
+      if (best) {
+        const dayName = dayNames[best.getDay()];
+        const dateStr = best.toLocaleDateString('he-IL');
+        el.textContent = `⏭️ אתחול הבא: יום ${dayName} ${dateStr} בשעה ${timeVal}`;
+      } else {
+        el.textContent = '';
+      }
+    }
+
     function openAutoRebootModal(mac) {
       const sched = autoRebootSchedules[mac] || {};
       document.getElementById('arMac').value = mac;
@@ -1416,13 +1443,21 @@
         ? new Date(sched.lastReboot).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })
         : 'טרם בוצע';
 
+      // reset day checkboxes
+      document.querySelectorAll('.arDay').forEach(cb => cb.checked = false);
+
       if (sched.type === 'once' && sched.onceDateTime) {
         switchArTab('once');
         document.getElementById('arOnceDateTime').value = sched.onceDateTime;
       } else {
         switchArTab('recurring');
-        document.getElementById('arInterval').value = sched.intervalDays || 1;
+        const days = sched.days || [];
+        days.forEach(d => {
+          const cb = document.querySelector(`.arDay[value="${d}"]`);
+          if (cb) cb.checked = true;
+        });
         document.getElementById('arHour').value = sched.israelTime || '03:00';
+        updateNextReboot();
       }
 
       document.getElementById('autoRebootModal').classList.add('open');
@@ -1447,11 +1482,12 @@
       let payload = { mac };
 
       if (arCurrentTab === 'recurring') {
-        const intervalDays = parseInt(document.getElementById('arInterval').value);
+        const days = Array.from(document.querySelectorAll('.arDay:checked')).map(cb => parseInt(cb.value));
+        if (days.length === 0) return showMessage('❌ בחר לפחות יום אחד', 'error');
         const israelTime = document.getElementById('arHour').value; // "HH:MM"
         const { utcHour, utcMin } = israelTimeToUTC(israelTime);
         const enabled = document.getElementById('arEnabled').checked;
-        payload = { ...payload, type: 'recurring', intervalDays, israelTime, hour: utcHour, minute: utcMin, enabled };
+        payload = { ...payload, type: 'recurring', days, israelTime, hour: utcHour, minute: utcMin, enabled };
       } else {
         const onceDateTime = document.getElementById('arOnceDateTime').value; // "YYYY-MM-DDTHH:MM"
         if (!onceDateTime) return showMessage('❌ בחר תאריך ושעה', 'error');
@@ -1491,7 +1527,7 @@
 
   <!-- Auto Reboot Modal -->
   <div class="modal-overlay" id="autoRebootModal" onclick="if(event.target===this)closeAutoRebootModal()">
-    <div class="modal-box" style="max-width:460px">
+    <div class="modal-box" style="max-width:460px;border:2px solid var(--accent);box-shadow:0 0 0 4px rgba(99,102,241,0.15);">
       <h3 style="margin-bottom:4px">⏰ אתחול אוטומטי</h3>
       <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;" id="arMacLabel"></div>
       <input type="hidden" id="arMac" />
@@ -1511,22 +1547,23 @@
       <!-- חוזר -->
       <div id="arPanelRecurring">
         <div class="modal-field">
-          <label style="font-weight:600">🔄 כל כמה זמן לאתחל</label>
-          <select id="arInterval" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;">
-            <option value="1">כל יום</option>
-            <option value="2">כל יומיים</option>
-            <option value="3">כל 3 ימים</option>
-            <option value="4">כל 4 ימים</option>
-            <option value="5">כל 5 ימים</option>
-            <option value="6">כל 6 ימים</option>
-            <option value="7">כל שבוע</option>
-          </select>
+          <label style="font-weight:600;display:block;margin-bottom:8px;">📅 ימים לאתחול</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;">
+            <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" class="arDay" value="0" style="width:16px;height:16px;" onchange="updateNextReboot()"> <span style="font-size:12px;">א'</span></label>
+            <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" class="arDay" value="1" style="width:16px;height:16px;" onchange="updateNextReboot()"> <span style="font-size:12px;">ב'</span></label>
+            <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" class="arDay" value="2" style="width:16px;height:16px;" onchange="updateNextReboot()"> <span style="font-size:12px;">ג'</span></label>
+            <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" class="arDay" value="3" style="width:16px;height:16px;" onchange="updateNextReboot()"> <span style="font-size:12px;">ד'</span></label>
+            <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" class="arDay" value="4" style="width:16px;height:16px;" onchange="updateNextReboot()"> <span style="font-size:12px;">ה'</span></label>
+            <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" class="arDay" value="5" style="width:16px;height:16px;" onchange="updateNextReboot()"> <span style="font-size:12px;">ו'</span></label>
+            <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" class="arDay" value="6" style="width:16px;height:16px;" onchange="updateNextReboot()"> <span style="font-size:12px;">ש'</span></label>
+          </div>
         </div>
         <div class="modal-field">
           <label style="font-weight:600">🕐 שעת ביצוע (שעון ישראל)</label>
-          <input type="time" id="arHour" value="03:00" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;" />
+          <input type="time" id="arHour" value="03:00" onchange="updateNextReboot()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;" />
         </div>
-        <div class="modal-field" style="display:flex;align-items:center;gap:10px;">
+        <div id="arNextReboot" style="font-size:12px;color:#10b981;margin-top:4px;min-height:18px;"></div>
+        <div class="modal-field" style="display:flex;align-items:center;gap:10px;margin-top:8px;">
           <input type="checkbox" id="arEnabled" style="width:18px;height:18px;cursor:pointer;" />
           <label for="arEnabled" style="font-weight:600;cursor:pointer;">פעיל</label>
         </div>
