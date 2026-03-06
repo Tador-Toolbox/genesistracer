@@ -679,16 +679,30 @@ app.get('/api/manager/auto-reboot', async (req, res) => {
 
 // SET schedule for a MAC
 app.post('/api/manager/auto-reboot', async (req, res) => {
-  const { mac, intervalDays, hour, enabled } = req.body;
+  const { mac, type, intervalDays, hour, minute, israelTime, enabled, onceDateTime } = req.body;
   if (!mac) return res.status(400).json({ success: false, error: 'MAC required' });
 
   const cleanMac = mac.replace(/[:\-\s]/g, '').toUpperCase();
-  autoRebootSchedules[cleanMac] = {
-    intervalDays: parseInt(intervalDays) || 1,
-    hour: parseInt(hour) || 3,
-    enabled: enabled !== false,
-    lastReboot: autoRebootSchedules[cleanMac]?.lastReboot || null,
-  };
+
+  if (type === 'once') {
+    autoRebootSchedules[cleanMac] = {
+      type: 'once',
+      onceDateTime,
+      hour: parseInt(hour) || 0,
+      enabled: true,
+      lastReboot: autoRebootSchedules[cleanMac]?.lastReboot || null,
+    };
+  } else {
+    autoRebootSchedules[cleanMac] = {
+      type: 'recurring',
+      intervalDays: parseInt(intervalDays) || 1,
+      hour: parseInt(hour) || 3,
+      minute: parseInt(minute) || 0,
+      israelTime: israelTime || '03:00',
+      enabled: enabled !== false,
+      lastReboot: autoRebootSchedules[cleanMac]?.lastReboot || null,
+    };
+  }
 
   try {
     await require('./db').saveAutoRebootSchedules(autoRebootSchedules);
