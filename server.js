@@ -588,13 +588,10 @@ async function loadSchedules() {
 // Check and run due reboots every minute
 setInterval(async () => {
   const now = new Date();
-  // שעון ישראל
   const israelTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
   const israelHour = israelTime.getHours();
   const israelMin = israelTime.getMinutes();
-  const israelDateStr = israelTime.toISOString().split('T')[0];
-
-  if (israelMin !== 0) return; // רץ רק בשעה עגולה
+  const israelDateTimeStr = `${israelTime.getFullYear()}-${String(israelTime.getMonth()+1).padStart(2,'0')}-${String(israelTime.getDate()).padStart(2,'0')}T${String(israelHour).padStart(2,'0')}:${String(israelMin).padStart(2,'0')}`;
 
   for (const [mac, sched] of Object.entries(autoRebootSchedules)) {
     if (!sched.enabled) continue;
@@ -602,13 +599,14 @@ setInterval(async () => {
     let shouldReboot = false;
 
     if (sched.type === 'once') {
-      // תאריך ספציפי
-      if (sched.onceDate === israelDateStr && sched.onceHour === israelHour) {
+      // השווה datetime ללא שניות
+      if (sched.onceDateTime && israelDateTimeStr === sched.onceDateTime.slice(0,16)) {
         shouldReboot = true;
       }
     } else {
-      // חוזר — בדוק שעה ותדירות
-      if (sched.israelHour !== undefined ? sched.israelHour === israelHour : sched.hour === israelHour) {
+      // חוזר — בדוק שעה:דקות ותדירות
+      const [schedH, schedM] = (sched.israelTime || `${sched.israelHour || 3}:00`).split(':').map(Number);
+      if (schedH === israelHour && schedM === israelMin) {
         const lastReboot = sched.lastReboot ? new Date(sched.lastReboot) : null;
         const daysSinceLast = lastReboot ? (now - lastReboot) / (1000 * 60 * 60 * 24) : Infinity;
         if (daysSinceLast >= sched.intervalDays) shouldReboot = true;
@@ -641,7 +639,6 @@ setInterval(async () => {
       await axios.post(`${NEXHOME_BASE}/api/employees/publics/devices/${deviceEntry.id}:reboot`, {}, { headers, timeout: 15000 });
 
       autoRebootSchedules[mac].lastReboot = now.toISOString();
-      // אם תאריך ספציפי — כבה אחרי ביצוע
       if (sched.type === 'once') autoRebootSchedules[mac].enabled = false;
       await require('./db').saveAutoRebootSchedules(autoRebootSchedules);
       console.log(`✅ Auto-reboot success: ${mac}`);
