@@ -1393,10 +1393,14 @@
       arCurrentTab = tab;
       document.getElementById('arPanelRecurring').style.display = tab === 'recurring' ? 'block' : 'none';
       document.getElementById('arPanelOnce').style.display = tab === 'once' ? 'block' : 'none';
-      document.getElementById('arTabRecurring').style.background = tab === 'recurring' ? 'var(--accent)' : 'var(--surface2)';
-      document.getElementById('arTabRecurring').style.color = tab === 'recurring' ? 'white' : 'var(--text-dim)';
-      document.getElementById('arTabOnce').style.background = tab === 'once' ? 'var(--accent)' : 'var(--surface2)';
-      document.getElementById('arTabOnce').style.color = tab === 'once' ? 'white' : 'var(--text-dim)';
+      const rBtn = document.getElementById('arTabRecurring');
+      const oBtn = document.getElementById('arTabOnce');
+      rBtn.style.background = tab === 'recurring' ? 'var(--accent)' : 'transparent';
+      rBtn.style.color = tab === 'recurring' ? 'white' : 'var(--text-dim)';
+      rBtn.style.boxShadow = tab === 'recurring' ? '0 2px 8px rgba(99,102,241,0.4)' : 'none';
+      oBtn.style.background = tab === 'once' ? 'var(--accent)' : 'transparent';
+      oBtn.style.color = tab === 'once' ? 'white' : 'var(--text-dim)';
+      oBtn.style.boxShadow = tab === 'once' ? '0 2px 8px rgba(99,102,241,0.4)' : 'none';
     }
 
     async function loadAutoRebootSchedules() {
@@ -1405,6 +1409,19 @@
         const data = await res.json();
         if (data.success) autoRebootSchedules = data.schedules || {};
       } catch (e) {}
+    }
+
+    function toggleDayBtn(cb) {
+      cb.closest('label').classList.toggle('active', cb.checked);
+    }
+
+    function updateToggleStyle() {
+      const cb = document.getElementById('arEnabled');
+      const track = document.getElementById('arToggleTrack');
+      const thumb = document.getElementById('arToggleThumb');
+      if (!track || !thumb) return;
+      track.style.background = cb.checked ? '#6366f1' : '#374151';
+      thumb.style.transform = cb.checked ? 'translateX(-18px)' : 'translateX(0)';
     }
 
     function updateNextReboot() {
@@ -1429,8 +1446,10 @@
         const dayName = dayNames[best.getDay()];
         const dateStr = best.toLocaleDateString('he-IL');
         el.textContent = `⏭️ אתחול הבא: יום ${dayName} ${dateStr} בשעה ${timeVal}`;
+        el.style.display = 'block';
       } else {
         el.textContent = '';
+        el.style.display = 'none';
       }
     }
 
@@ -1444,7 +1463,7 @@
         : 'טרם בוצע';
 
       // reset day checkboxes
-      document.querySelectorAll('.arDay').forEach(cb => cb.checked = false);
+      document.querySelectorAll('.arDay').forEach(cb => { cb.checked = false; cb.closest('label').classList.remove('active'); });
 
       if (sched.type === 'once' && sched.onceDateTime) {
         switchArTab('once');
@@ -1454,12 +1473,13 @@
         const days = sched.days || [];
         days.forEach(d => {
           const cb = document.querySelector(`.arDay[value="${d}"]`);
-          if (cb) cb.checked = true;
+          if (cb) { cb.checked = true; cb.closest('label').classList.add('active'); }
         });
         document.getElementById('arHour').value = sched.israelTime || '03:00';
         updateNextReboot();
       }
 
+      updateToggleStyle();
       document.getElementById('autoRebootModal').classList.add('open');
     }
 
@@ -1527,70 +1547,119 @@
 
   <!-- Auto Reboot Modal -->
   <div class="modal-overlay" id="autoRebootModal" onclick="if(event.target===this)closeAutoRebootModal()">
-    <div class="modal-box" style="max-width:460px;border:2px solid var(--accent);box-shadow:0 0 0 4px rgba(99,102,241,0.15);">
-      <h3 style="margin-bottom:4px">⏰ אתחול אוטומטי</h3>
-      <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;" id="arMacLabel"></div>
-      <input type="hidden" id="arMac" />
-
-      <!-- טאבים: חוזר / תאריך ספציפי -->
-      <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
-        <button id="arTabRecurring" onclick="switchArTab('recurring')"
-          style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:var(--accent);color:white;">
-          🔁 חוזר
-        </button>
-        <button id="arTabOnce" onclick="switchArTab('once')"
-          style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:var(--surface2);color:var(--text-dim);">
-          📅 תאריך ספציפי
-        </button>
-      </div>
-
-      <!-- חוזר -->
-      <div id="arPanelRecurring">
-        <div class="modal-field">
-          <label style="font-weight:600;display:block;margin-bottom:8px;">📅 ימים לאתחול</label>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;">
-            <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" class="arDay" value="0" style="width:16px;height:16px;" onchange="updateNextReboot()"> <span style="font-size:12px;">א'</span></label>
-            <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" class="arDay" value="1" style="width:16px;height:16px;" onchange="updateNextReboot()"> <span style="font-size:12px;">ב'</span></label>
-            <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" class="arDay" value="2" style="width:16px;height:16px;" onchange="updateNextReboot()"> <span style="font-size:12px;">ג'</span></label>
-            <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" class="arDay" value="3" style="width:16px;height:16px;" onchange="updateNextReboot()"> <span style="font-size:12px;">ד'</span></label>
-            <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" class="arDay" value="4" style="width:16px;height:16px;" onchange="updateNextReboot()"> <span style="font-size:12px;">ה'</span></label>
-            <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" class="arDay" value="5" style="width:16px;height:16px;" onchange="updateNextReboot()"> <span style="font-size:12px;">ו'</span></label>
-            <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" class="arDay" value="6" style="width:16px;height:16px;" onchange="updateNextReboot()"> <span style="font-size:12px;">ש'</span></label>
+    <div style="
+      background:var(--surface);
+      border-radius:20px;
+      width:100%;
+      max-width:420px;
+      padding:0;
+      overflow:hidden;
+      box-shadow:0 25px 60px rgba(0,0,0,0.4);
+      border:1px solid rgba(255,255,255,0.08);
+      direction:rtl;
+    ">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:20px 24px 16px;position:relative;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;">⏰</div>
+          <div>
+            <div style="color:white;font-size:16px;font-weight:700;letter-spacing:0.3px;">אתחול אוטומטי</div>
+            <div style="color:rgba(255,255,255,0.7);font-size:12px;" id="arMacLabel"></div>
           </div>
         </div>
-        <div class="modal-field">
-          <label style="font-weight:600">🕐 שעת ביצוע (שעון ישראל)</label>
-          <input type="time" id="arHour" value="03:00" onchange="updateNextReboot()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;" />
-        </div>
-        <div id="arNextReboot" style="font-size:12px;color:#10b981;margin-top:4px;min-height:18px;"></div>
-        <div class="modal-field" style="display:flex;align-items:center;gap:10px;margin-top:8px;">
-          <input type="checkbox" id="arEnabled" style="width:18px;height:18px;cursor:pointer;" />
-          <label for="arEnabled" style="font-weight:600;cursor:pointer;">פעיל</label>
-        </div>
+        <button onclick="closeAutoRebootModal()" style="position:absolute;top:14px;left:16px;background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
       </div>
+      <input type="hidden" id="arMac" />
 
-      <!-- תאריך ספציפי -->
-      <div id="arPanelOnce" style="display:none;">
-        <div class="modal-field">
-          <label style="font-weight:600">📅 תאריך ושעה (שעון ישראל)</label>
-          <input type="datetime-local" id="arOnceDateTime" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;" />
+      <div style="padding:20px 24px;">
+        <!-- Tabs -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:20px;background:var(--surface2);border-radius:12px;padding:4px;">
+          <button id="arTabRecurring" onclick="switchArTab('recurring')"
+            style="padding:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;border-radius:9px;transition:all 0.2s;background:var(--accent);color:white;box-shadow:0 2px 8px rgba(99,102,241,0.4);">
+            🔁 חוזר
+          </button>
+          <button id="arTabOnce" onclick="switchArTab('once')"
+            style="padding:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;border-radius:9px;transition:all 0.2s;background:transparent;color:var(--text-dim);">
+            📅 תאריך ספציפי
+          </button>
         </div>
-        <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">
-          ℹ️ האתחול יתבצע פעם אחת בתאריך ובשעה שנבחרו
+
+        <!-- חוזר -->
+        <div id="arPanelRecurring">
+          <div style="margin-bottom:16px;">
+            <div style="font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">ימים לאתחול</div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;">
+              <label class="ar-day-btn"><input type="checkbox" class="arDay" value="0" onchange="updateNextReboot();toggleDayBtn(this)"><span>א'</span></label>
+              <label class="ar-day-btn"><input type="checkbox" class="arDay" value="1" onchange="updateNextReboot();toggleDayBtn(this)"><span>ב'</span></label>
+              <label class="ar-day-btn"><input type="checkbox" class="arDay" value="2" onchange="updateNextReboot();toggleDayBtn(this)"><span>ג'</span></label>
+              <label class="ar-day-btn"><input type="checkbox" class="arDay" value="3" onchange="updateNextReboot();toggleDayBtn(this)"><span>ד'</span></label>
+              <label class="ar-day-btn"><input type="checkbox" class="arDay" value="4" onchange="updateNextReboot();toggleDayBtn(this)"><span>ה'</span></label>
+              <label class="ar-day-btn"><input type="checkbox" class="arDay" value="5" onchange="updateNextReboot();toggleDayBtn(this)"><span>ו'</span></label>
+              <label class="ar-day-btn"><input type="checkbox" class="arDay" value="6" onchange="updateNextReboot();toggleDayBtn(this)"><span>ש'</span></label>
+            </div>
+          </div>
+
+          <div style="margin-bottom:12px;">
+            <div style="font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">שעת ביצוע (ישראל)</div>
+            <input type="time" id="arHour" value="03:00" onchange="updateNextReboot()" style="width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:18px;font-weight:600;text-align:center;" />
+          </div>
+
+          <div id="arNextReboot" style="font-size:12px;color:#10b981;min-height:20px;padding:8px 12px;background:rgba(16,185,129,0.08);border-radius:8px;border:1px solid rgba(16,185,129,0.2);display:none;"></div>
+
+          <div style="display:flex;align-items:center;gap:10px;margin-top:14px;">
+            <label style="position:relative;display:inline-block;width:42px;height:24px;cursor:pointer;">
+              <input type="checkbox" id="arEnabled" style="opacity:0;width:0;height:0;position:absolute;" onchange="updateToggleStyle()">
+              <span id="arToggleTrack" style="position:absolute;inset:0;border-radius:12px;background:#374151;transition:background 0.2s;"></span>
+              <span id="arToggleThumb" style="position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:white;transition:transform 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></span>
+            </label>
+            <span style="font-size:13px;font-weight:600;color:var(--text);">פעיל</span>
+          </div>
         </div>
-      </div>
 
-      <div style="font-size:12px;color:var(--text-dim);margin-top:12px;">
-        🕒 אתחול אחרון: <span id="arLastReboot">—</span>
-      </div>
+        <!-- תאריך ספציפי -->
+        <div id="arPanelOnce" style="display:none;">
+          <div style="margin-bottom:8px;">
+            <div style="font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">תאריך ושעה (שעון ישראל)</div>
+            <input type="datetime-local" id="arOnceDateTime" style="width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:15px;" />
+          </div>
+          <div style="font-size:12px;color:var(--text-dim);padding:8px 12px;background:var(--surface2);border-radius:8px;margin-top:8px;">
+            ℹ️ האתחול יתבצע פעם אחת בלבד
+          </div>
+        </div>
 
-      <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
-        <button class="small danger" onclick="deleteAutoReboot(document.getElementById('arMac').value)" style="margin-right:auto;">🗑️ מחק תזמון</button>
-        <button class="btn-cancel small" onclick="closeAutoRebootModal()">ביטול</button>
-        <button class="small success" onclick="saveAutoReboot()">💾 שמור</button>
+        <!-- Last reboot -->
+        <div style="display:flex;align-items:center;gap:6px;margin-top:16px;padding:10px 12px;background:var(--surface2);border-radius:10px;">
+          <span style="font-size:13px;color:var(--text-dim);">🕒 אתחול אחרון:</span>
+          <span id="arLastReboot" style="font-size:13px;font-weight:600;color:var(--text);">—</span>
+        </div>
+
+        <!-- Buttons -->
+        <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;margin-top:16px;align-items:center;">
+          <button onclick="deleteAutoReboot(document.getElementById('arMac').value)" style="padding:10px 12px;border-radius:10px;border:1.5px solid rgba(239,68,68,0.4);background:rgba(239,68,68,0.08);color:#ef4444;font-size:13px;font-weight:600;cursor:pointer;">🗑️</button>
+          <button onclick="closeAutoRebootModal()" style="padding:10px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text-dim);font-size:13px;font-weight:600;cursor:pointer;">ביטול</button>
+          <button onclick="saveAutoReboot()" style="padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(99,102,241,0.35);">💾 שמור</button>
+        </div>
       </div>
     </div>
   </div>
+
+  <style>
+    .ar-day-btn {
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      height:38px;border-radius:10px;cursor:pointer;
+      border:1.5px solid var(--border);background:var(--surface2);
+      font-size:13px;font-weight:700;color:var(--text-dim);
+      transition:all 0.15s;user-select:none;
+    }
+    .ar-day-btn input { display:none; }
+    .ar-day-btn span { pointer-events:none; }
+    .ar-day-btn.active {
+      background:linear-gradient(135deg,#6366f1,#8b5cf6);
+      border-color:#6366f1;color:white;
+      box-shadow:0 2px 8px rgba(99,102,241,0.4);
+    }
+    #arEnabled:checked ~ #arToggleTrack { background:#6366f1 !important; }
+  </style>
 
 </body>
 </html>
