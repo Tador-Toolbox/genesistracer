@@ -483,6 +483,9 @@ app.post('/api/installer/description', async (req, res) => {
 });
 
 
+// Keep-alive ping endpoint
+app.get('/api/ping', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+
 // ==================== REBOOT ENDPOINT ====================
 app.post('/api/manager/reboot', async (req, res) => {
   const { mac } = req.body;
@@ -588,10 +591,33 @@ async function loadSchedules() {
 // Check and run due reboots every minute
 setInterval(async () => {
   const now = new Date();
-  const israelTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
-  const israelHour = israelTime.getHours();
-  const israelMin = israelTime.getMinutes();
-  const israelDateTimeStr = `${israelTime.getFullYear()}-${String(israelTime.getMonth()+1).padStart(2,'0')}-${String(israelTime.getDate()).padStart(2,'0')}T${String(israelHour).padStart(2,'0')}:${String(israelMin).padStart(2,'0')}`;
+
+  // חישוב שעון ישראל אמין — UTC + offset
+  const israelOffset = 2; // UTC+2 חורף, נשנה לקיץ בהמשך
+  // בדיקת שעון קיץ ישראל: אחרון שישי מרץ עד אחרון ראשון באוקטובר
+  function getIsraelOffset(d) {
+    const year = d.getUTCFullYear();
+    // אחרון שישי במרץ
+    const marchEnd = new Date(Date.UTC(year, 2, 31));
+    while (marchEnd.getUTCDay() !== 5) marchEnd.setUTCDate(marchEnd.getUTCDate() - 1);
+    // אחרון ראשון באוקטובר
+    const octEnd = new Date(Date.UTC(year, 9, 31));
+    while (octEnd.getUTCDay() !== 0) octEnd.setUTCDate(octEnd.getUTCDate() - 1);
+    return (d >= marchEnd && d < octEnd) ? 3 : 2;
+  }
+
+  const offset = getIsraelOffset(now);
+  const israelMs = now.getTime() + offset * 60 * 60 * 1000;
+  const il = new Date(israelMs);
+
+  const ilYear  = il.getUTCFullYear();
+  const ilMonth = String(il.getUTCMonth() + 1).padStart(2, '0');
+  const ilDay   = String(il.getUTCDate()).padStart(2, '0');
+  const ilHour  = il.getUTCHours();
+  const ilMin   = il.getUTCMinutes();
+  const israelDateTimeStr = `${ilYear}-${ilMonth}-${ilDay}T${String(ilHour).padStart(2,'0')}:${String(ilMin).padStart(2,'0')}`;
+
+  console.log(`⏱️ Scheduler tick — Israel time: ${israelDateTimeStr}`);
 
   for (const [mac, sched] of Object.entries(autoRebootSchedules)) {
     if (!sched.enabled) continue;
@@ -599,14 +625,12 @@ setInterval(async () => {
     let shouldReboot = false;
 
     if (sched.type === 'once') {
-      // השווה datetime ללא שניות
-      if (sched.onceDateTime && israelDateTimeStr === sched.onceDateTime.slice(0,16)) {
-        shouldReboot = true;
-      }
+      const schedDT = (sched.onceDateTime || '').slice(0, 16);
+      console.log(`🔍 Once check: sched=${schedDT} now=${israelDateTimeStr}`);
+      if (schedDT && israelDateTimeStr === schedDT) shouldReboot = true;
     } else {
-      // חוזר — בדוק שעה:דקות ותדירות
       const [schedH, schedM] = (sched.israelTime || `${sched.israelHour || 3}:00`).split(':').map(Number);
-      if (schedH === israelHour && schedM === israelMin) {
+      if (schedH === ilHour && schedM === ilMin) {
         const lastReboot = sched.lastReboot ? new Date(sched.lastReboot) : null;
         const daysSinceLast = lastReboot ? (now - lastReboot) / (1000 * 60 * 60 * 24) : Infinity;
         if (daysSinceLast >= sched.intervalDays) shouldReboot = true;
@@ -706,4 +730,15 @@ app.listen(PORT, () => {
   }
   console.log('Powered by Tador Technologies LTD');
   loadSchedules();
+
+  // Keep-alive: ping עצמי כל 10 דקות כדי למנוע שינה ב-Render Free
+  const APP_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  setInterval(async () => {
+    try {
+      await axios.get(`${APP_URL}/api/ping`, { timeout: 10000 });
+      console.log('💓 Keep-alive ping sent');
+    } catch (err) {
+      // שקט — לא קריטי
+    }
+  }, 10 * 60 * 1000); // כל 10 דקות
 });
