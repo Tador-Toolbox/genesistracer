@@ -388,6 +388,11 @@
           <h1 data-i18n="panelTitle">Manager Panel</h1>
           <p class="subtitle" data-i18n="panelSubtitle">Manage installer accounts and MAC assignments</p>
         </div>
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 16px;min-width:120px;">
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:2px;">🇮🇱 שעון ישראל</div>
+          <div id="israelClock" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--accent);letter-spacing:2px;">--:--:--</div>
+          <div id="israelDate" style="font-size:11px;color:var(--text-dim);margin-top:2px;"></div>
+        </div>
         <div style="display: flex; gap: 10px; align-items: center;">
           <button class="theme-btn" onclick="toggleTheme()">🌙</button>
           <div class="lang-switch">
@@ -1365,6 +1370,21 @@
       }
     }
 
+    // ==================== שעון ישראל חי ====================
+    function updateIsraelClock() {
+      const now = new Date();
+      const israelTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
+      const h = String(israelTime.getHours()).padStart(2,'0');
+      const m = String(israelTime.getMinutes()).padStart(2,'0');
+      const s = String(israelTime.getSeconds()).padStart(2,'0');
+      const el = document.getElementById('israelClock');
+      const elDate = document.getElementById('israelDate');
+      if (el) el.textContent = `${h}:${m}:${s}`;
+      if (elDate) elDate.textContent = israelTime.toLocaleDateString('he-IL', { weekday:'short', day:'numeric', month:'short' });
+    }
+    updateIsraelClock();
+    setInterval(updateIsraelClock, 1000);
+
     // ==================== AUTO REBOOT ====================
     let autoRebootSchedules = {};
     let arCurrentTab = 'recurring';
@@ -1391,20 +1411,18 @@
       const sched = autoRebootSchedules[mac] || {};
       document.getElementById('arMac').value = mac;
       document.getElementById('arMacLabel').textContent = 'MAC: ' + mac;
-      document.getElementById('arInterval').value = sched.intervalDays || 1;
-      document.getElementById('arHour').value = sched.hour ?? 3;
       document.getElementById('arEnabled').checked = sched.enabled !== false;
       document.getElementById('arLastReboot').textContent = sched.lastReboot
-        ? new Date(sched.lastReboot).toLocaleString('he-IL', {timeZone:'Asia/Jerusalem'})
+        ? new Date(sched.lastReboot).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })
         : 'טרם בוצע';
 
-      // אם יש תאריך ספציפי שמור
-      if (sched.onceDate) {
+      if (sched.type === 'once' && sched.onceDateTime) {
         switchArTab('once');
-        document.getElementById('arOnceDate').value = sched.onceDate;
-        document.getElementById('arOnceHour').value = sched.onceHour ?? 3;
+        document.getElementById('arOnceDateTime').value = sched.onceDateTime;
       } else {
         switchArTab('recurring');
+        document.getElementById('arInterval').value = sched.intervalDays || 1;
+        document.getElementById('arHour').value = sched.israelTime || '03:00';
       }
 
       document.getElementById('autoRebootModal').classList.add('open');
@@ -1414,29 +1432,33 @@
       document.getElementById('autoRebootModal').classList.remove('open');
     }
 
+    function israelTimeToUTC(timeStr) {
+      // timeStr = "HH:MM"
+      const [h, m] = timeStr.split(':').map(Number);
+      const now = new Date();
+      const israelNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
+      const utcOffset = (now - israelNow) / (1000 * 60 * 60); // hours
+      const utcH = ((h + utcOffset) % 24 + 24) % 24;
+      return { utcHour: Math.floor(utcH), utcMin: m };
+    }
+
     async function saveAutoReboot() {
       const mac = document.getElementById('arMac').value;
       let payload = { mac };
 
       if (arCurrentTab === 'recurring') {
         const intervalDays = parseInt(document.getElementById('arInterval').value);
-        // המר שעון ישראל ל-UTC
-        const israelHour = parseInt(document.getElementById('arHour').value);
-        const now = new Date();
-        const isDST = now.getTimezoneOffset() < new Date(now.getFullYear(), 0, 1).getTimezoneOffset();
-        const israelOffset = isDST ? 3 : 2; // UTC+3 קיץ, UTC+2 חורף
-        const utcHour = (israelHour - israelOffset + 24) % 24;
+        const israelTime = document.getElementById('arHour').value; // "HH:MM"
+        const { utcHour, utcMin } = israelTimeToUTC(israelTime);
         const enabled = document.getElementById('arEnabled').checked;
-        payload = { ...payload, intervalDays, hour: utcHour, israelHour, enabled, type: 'recurring' };
+        payload = { ...payload, type: 'recurring', intervalDays, israelTime, hour: utcHour, minute: utcMin, enabled };
       } else {
-        const onceDate = document.getElementById('arOnceDate').value;
-        const israelHour = parseInt(document.getElementById('arOnceHour').value);
-        if (!onceDate) return showMessage('❌ בחר תאריך', 'error');
-        const now = new Date();
-        const isDST = now.getTimezoneOffset() < new Date(now.getFullYear(), 0, 1).getTimezoneOffset();
-        const israelOffset = isDST ? 3 : 2;
-        const utcHour = (israelHour - israelOffset + 24) % 24;
-        payload = { ...payload, onceDate, onceHour: israelHour, hour: utcHour, enabled: true, type: 'once' };
+        const onceDateTime = document.getElementById('arOnceDateTime').value; // "YYYY-MM-DDTHH:MM"
+        if (!onceDateTime) return showMessage('❌ בחר תאריך ושעה', 'error');
+        const localDate = new Date(onceDateTime);
+        // המר לשעון ישראל → UTC
+        const israelStr = localDate.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' });
+        payload = { ...payload, type: 'once', onceDateTime, enabled: true };
       }
 
       const res = await fetch('/api/manager/auto-reboot', {
@@ -1462,6 +1484,7 @@
       closeAutoRebootModal();
       loadData();
     }
+
 
 
   </script>
@@ -1501,20 +1524,7 @@
         </div>
         <div class="modal-field">
           <label style="font-weight:600">🕐 שעת ביצוע (שעון ישראל)</label>
-          <select id="arHour" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;">
-            <option value="0">00:00</option><option value="1">01:00</option>
-            <option value="2">02:00</option><option value="3">03:00</option>
-            <option value="4">04:00</option><option value="5">05:00</option>
-            <option value="6">06:00</option><option value="7">07:00</option>
-            <option value="8">08:00</option><option value="9">09:00</option>
-            <option value="10">10:00</option><option value="11">11:00</option>
-            <option value="12">12:00</option><option value="13">13:00</option>
-            <option value="14">14:00</option><option value="15">15:00</option>
-            <option value="16">16:00</option><option value="17">17:00</option>
-            <option value="18">18:00</option><option value="19">19:00</option>
-            <option value="20">20:00</option><option value="21">21:00</option>
-            <option value="22">22:00</option><option value="23">23:00</option>
-          </select>
+          <input type="time" id="arHour" value="03:00" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;" />
         </div>
         <div class="modal-field" style="display:flex;align-items:center;gap:10px;">
           <input type="checkbox" id="arEnabled" style="width:18px;height:18px;cursor:pointer;" />
@@ -1525,29 +1535,15 @@
       <!-- תאריך ספציפי -->
       <div id="arPanelOnce" style="display:none;">
         <div class="modal-field">
-          <label style="font-weight:600">📅 תאריך</label>
-          <input type="date" id="arOnceDate" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;" />
+          <label style="font-weight:600">📅 תאריך ושעה (שעון ישראל)</label>
+          <input type="datetime-local" id="arOnceDateTime" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;" />
         </div>
-        <div class="modal-field">
-          <label style="font-weight:600">🕐 שעה (שעון ישראל)</label>
-          <select id="arOnceHour" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;">
-            <option value="0">00:00</option><option value="1">01:00</option>
-            <option value="2">02:00</option><option value="3">03:00</option>
-            <option value="4">04:00</option><option value="5">05:00</option>
-            <option value="6">06:00</option><option value="7">07:00</option>
-            <option value="8">08:00</option><option value="9">09:00</option>
-            <option value="10">10:00</option><option value="11">11:00</option>
-            <option value="12">12:00</option><option value="13">13:00</option>
-            <option value="14">14:00</option><option value="15">15:00</option>
-            <option value="16">16:00</option><option value="17">17:00</option>
-            <option value="18">18:00</option><option value="19">19:00</option>
-            <option value="20">20:00</option><option value="21">21:00</option>
-            <option value="22">22:00</option><option value="23">23:00</option>
-          </select>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">
+          ℹ️ האתחול יתבצע פעם אחת בתאריך ובשעה שנבחרו
         </div>
       </div>
 
-      <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">
+      <div style="font-size:12px;color:var(--text-dim);margin-top:12px;">
         🕒 אתחול אחרון: <span id="arLastReboot">—</span>
       </div>
 
