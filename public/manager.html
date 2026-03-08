@@ -515,6 +515,11 @@
       </div>
 
       <div class="modal-field">
+        <label id="labelTechnicianPhone">📞 Technician Phone</label>
+        <input type="text" id="modalTechnicianPhone" placeholder="05x-xxxxxxx" />
+      </div>
+
+      <div class="modal-field">
         <label id="labelSupplier">🏢 Supplier Name</label>
         <input type="text" id="modalSupplier" placeholder="Supplier name" />
       </div>
@@ -522,6 +527,11 @@
       <div class="modal-field">
         <label id="labelCommittee">👥 Committee Name</label>
         <input type="text" id="modalCommittee" placeholder="Committee name" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelCommitteePhone">📞 Committee Phone</label>
+        <input type="text" id="modalCommitteePhone" placeholder="05x-xxxxxxx" />
       </div>
 
       <div class="modal-field">
@@ -591,10 +601,12 @@
         purchaseDate: "Date of Purchase",
         startDate: "Date of Start Working",
         technicianName: "Technician Name",
+        technicianPhone: "Technician Phone",
         supplierName: "Supplier Name",
         annualFee: "Annual License Fee",
         licensesPurchased: "Licenses Purchased",
         committeeName: "Committee Name",
+        committeePhone: "Committee Phone",
         licenseQuestion: "Has the annual license been paid?",
         oneYear: "1 year since installation",
         yearsCount: "years since installation",
@@ -645,10 +657,12 @@
         purchaseDate: "תאריך רכישה",
         startDate: "תאריך תחילת עבודה",
         technicianName: "שם טכנאי",
+        technicianPhone: "טלפון טכנאי",
         supplierName: "שם ספק",
         annualFee: "דמי רישיון שנתיים",
         licensesPurchased: "כמה רשיונות נרכשו",
         committeeName: "שם ועד",
+        committeePhone: "טלפון ועד",
         licenseQuestion: "האם שולם רישיון שנתי?",
         oneYear: "שנה מאז התקנה",
         yearsCount: "שנים מאז התקנה",
@@ -817,7 +831,10 @@
       document.getElementById('modalStartDate').value = macObj ? (macObj.startDate || '') : '';
       document.getElementById('modalNotes').value = macObj ? (macObj.notes || '') : '';
       document.getElementById('modalTechnicianName').value = macObj ? (macObj.technicianName || '') : '';
+      document.getElementById('modalTechnicianPhone').value = macObj ? (macObj.technicianPhone || '') : '';
       document.getElementById('modalSupplier').value = macObj ? (macObj.supplierName || '') : '';
+      document.getElementById('modalCommittee').value = macObj ? (macObj.committeeName || '') : '';
+      document.getElementById('modalCommitteePhone').value = macObj ? (macObj.committeePhone || '') : '';
       document.getElementById('modalAnnualFee').value = macObj ? (macObj.annualFee || '') : '';
 
       document.getElementById('modalTitle').textContent = macObj ? (t.edit + ' MAC') : ('+ ' + t.addMac);
@@ -827,7 +844,10 @@
       document.getElementById('labelStart').textContent = '🟢 ' + t.startDate;
       document.getElementById('labelNotes').textContent = '📝 ' + t.notes;
       document.getElementById('labelTechnician').textContent = '👷 ' + t.technicianName;
+      document.getElementById('labelTechnicianPhone').textContent = '📞 ' + t.technicianPhone;
+      document.getElementById('labelCommitteePhone').textContent = '📞 ' + t.committeePhone;
       document.getElementById('labelSupplier').textContent = '🏢 ' + t.supplierName;
+      document.getElementById('labelCommittee').textContent = '👥 ' + t.committeeName;
       document.getElementById('labelAnnualFee').textContent = '💰 ' + t.annualFee;
 
       document.getElementById('modalCancelBtn').textContent = currentLang === 'he' ? 'ביטול' : 'Cancel';
@@ -846,6 +866,8 @@
             annualFee: 'modalAnnualFee',
             licensesPurchased: 'modalLicensesPurchased',
             committeeName: 'modalCommittee',
+            technicianPhone: 'modalTechnicianPhone',
+            committeePhone: 'modalCommitteePhone',
           };
           const el = document.getElementById(fieldMap[focusField]);
           if (el) { el.focus(); el.select && el.select(); }
@@ -867,8 +889,10 @@
       const startDate = document.getElementById('modalStartDate').value;
       const notes = document.getElementById('modalNotes').value;
       const technicianName = document.getElementById('modalTechnicianName').value;
+      const technicianPhone = document.getElementById('modalTechnicianPhone').value;
       const supplierName = document.getElementById('modalSupplier').value;
       const committeeName = document.getElementById('modalCommittee').value;
+      const committeePhone = document.getElementById('modalCommitteePhone').value;
       const annualFee = document.getElementById('modalAnnualFee').value;
       const licensesPurchased = document.getElementById('modalLicensesPurchased').value;
 
@@ -881,7 +905,7 @@
       await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ macAddress: mac, address, city, notes, purchaseDate, startDate, technicianName, supplierName, committeeName, annualFee, licensesPurchased })
+        body: JSON.stringify({ macAddress: mac, address, city, notes, purchaseDate, startDate, technicianName, technicianPhone, supplierName, committeeName, committeePhone, annualFee, licensesPurchased })
       });
 
       closeModal();
@@ -925,8 +949,10 @@
             startDate: macObj.startDate || '',
             notes: macObj.notes || '',
             technicianName: macObj.technicianName || '',
+            technicianPhone: macObj.technicianPhone || '',
             supplierName: macObj.supplierName || '',
             committeeName: macObj.committeeName || '',
+            committeePhone: macObj.committeePhone || '',
             annualFee: macObj.annualFee || '',
             licensesPurchased: macObj.licensesPurchased || '',
             licensePaid: true,
@@ -960,8 +986,10 @@
             startDate: macObj.startDate || '',
             notes: macObj.notes || '',
             technicianName: macObj.technicianName || '',
+            technicianPhone: macObj.technicianPhone || '',
             supplierName: macObj.supplierName || '',
             committeeName: macObj.committeeName || '',
+            committeePhone: macObj.committeePhone || '',
             annualFee: macObj.annualFee || '',
             licensesPurchased: macObj.licensesPurchased || '',
             licensePaid: false,
@@ -1076,6 +1104,12 @@
                   </div>
 
                   <div class="mac-detail-field">
+                    <span class="mac-detail-label">📞 ${translations[currentLang].technicianPhone}:</span>
+                    <span class="mac-detail-value">${macObj.technicianPhone || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "technicianPhone")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
                     <span class="mac-detail-label">🏢 ${translations[currentLang].supplierName}:</span>
                     <span class="mac-detail-value">${macObj.supplierName || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "supplierName")'>✏️</button>
@@ -1085,6 +1119,12 @@
                     <span class="mac-detail-label">👥 ${translations[currentLang].committeeName}:</span>
                     <span class="mac-detail-value">${macObj.committeeName || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "committeeName")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📞 ${translations[currentLang].committeePhone}:</span>
+                    <span class="mac-detail-value">${macObj.committeePhone || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "committeePhone")'>✏️</button>
                   </div>
 
                   <div class="mac-detail-field">
