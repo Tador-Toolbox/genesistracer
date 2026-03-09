@@ -431,15 +431,9 @@
         <div class="form-row">
           <input type="text" id="newPhone" data-i18n-placeholder="phoneNumber" placeholder="Phone Number (e.g., +972501234567)" />
           <input type="text" id="newMacs" data-i18n-placeholder="macAddresses" placeholder="MAC Addresses (comma separated, optional)" />
-          <div style="display:flex;border-radius:8px;overflow:hidden;border:2px solid var(--accent);flex-shrink:0;direction:ltr;">
-            <button type="button" id="panelBtn7" data-selected="true" onclick="selectPanel('genesis7')"
-              style="padding:10px 16px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:var(--accent);color:white;transition:all 0.2s;">
-              Genesis 7
-            </button>
-            <button type="button" id="panelBtn5" onclick="selectPanel('genesis5')"
-              style="padding:10px 16px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:transparent;color:var(--text-dim);transition:all 0.2s;">
-              Genesis 5
-            </button>
+          <div style="display:flex;gap:0;border-radius:8px;overflow:hidden;border:2px solid var(--accent);direction:ltr;flex-shrink:0;">
+            <button type="button" id="pt7" onclick="setPT('genesis7')" style="padding:9px 15px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:var(--accent);color:white;">Genesis 7</button>
+            <button type="button" id="pt5" onclick="setPT('genesis5')" style="padding:9px 15px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:#888;">Genesis 5</button>
           </div>
           <button type="button" onclick="createInstaller()" data-i18n="createBtn">Create</button>
         </div>
@@ -768,6 +762,15 @@
       document.getElementById('loginError').style.display = 'none';
     }
 
+    var selectedPT = 'genesis7';
+    function setPT(v) {
+      selectedPT = v;
+      document.getElementById('pt7').style.background = v==='genesis7' ? 'var(--accent)' : 'transparent';
+      document.getElementById('pt7').style.color      = v==='genesis7' ? 'white' : '#888';
+      document.getElementById('pt5').style.background = v==='genesis5' ? 'var(--accent)' : 'transparent';
+      document.getElementById('pt5').style.color      = v==='genesis5' ? 'white' : '#888';
+    }
+
     async function createInstaller() {
       const phoneNumber = document.getElementById('newPhone').value;
       const macs = document.getElementById('newMacs').value;
@@ -776,7 +779,7 @@
       const res = await fetch('/api/manager/installers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: (() => { const pt = getPanelType(); console.log('PANEL TYPE SENDING:', pt); return JSON.stringify({ phoneNumber, macAddresses, panelType: pt }); })()
+        body: JSON.stringify({ phoneNumber, macAddresses, panelType: selectedPT })
       });
 
       const data = await res.json();
@@ -795,7 +798,7 @@
         `;
         document.getElementById('newPhone').value = '';
         document.getElementById('newMacs').value = '';
-        selectPanel('genesis7');
+        setPT('genesis7');
         loadData();
       } else {
         resultDiv.innerHTML = `<div class="error-msg">${data.error || 'Error'}</div>`;
@@ -811,40 +814,7 @@
       setTimeout(() => btn.textContent = translations[currentLang].copy, 2000);
     });
 
-    function getPanelType() {
-      const btn5 = document.getElementById('panelBtn5');
-      if (!btn5) return 'genesis7';
-      return btn5.getAttribute('data-selected') === 'true' ? 'genesis5' : 'genesis7';
-    }
 
-    function selectPanel(type) {
-      const btn7 = document.getElementById('panelBtn7');
-      const btn5 = document.getElementById('panelBtn5');
-      if (!btn7 || !btn5) return;
-      btn7.setAttribute('data-selected', type === 'genesis7' ? 'true' : 'false');
-      btn5.setAttribute('data-selected', type === 'genesis5' ? 'true' : 'false');
-      if (type === 'genesis7') {
-        btn7.style.background = 'var(--accent)'; btn7.style.color = 'white';
-        btn5.style.background = 'transparent';   btn5.style.color = '#888';
-      } else {
-        btn5.style.background = 'var(--accent)'; btn5.style.color = 'white';
-        btn7.style.background = 'transparent';   btn7.style.color = '#888';
-      }
-    }
-
-    async function changePanelType(phoneNumber, currentType) {
-      const newType = currentType === 'genesis5' ? 'genesis7' : 'genesis5';
-      const label = newType === 'genesis5' ? 'Genesis 5' : 'Genesis 7';
-      if (!confirm(`לשנות פנל ל-${label}?`)) return;
-      const res = await fetch(`/api/manager/installers/${phoneNumber}/panel-type`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ panelType: newType })
-      });
-      const data = await res.json();
-      if (data.success) { showMessage(`✅ פנל שונה ל-${label}`, 'success'); loadData(); }
-      else showMessage('❌ ' + data.error, 'error');
-    }
 
     async function deleteInstaller(phoneNumber) {
       if (!confirm(`Delete installer ${phoneNumber}?`)) return;
@@ -1088,11 +1058,9 @@
         row.innerHTML = `
           <td>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap:wrap;">
+              <span style="padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;background:${details.installer.panelType==='genesis5'?'linear-gradient(135deg,#f59e0b,#d97706)':'linear-gradient(135deg,#6366f1,#8b5cf6)'};color:white;">${details.installer.panelType==='genesis5'?'Genesis 5':'Genesis 7'}</span>
               <span>${installer.phoneNumber}</span>
               <button class="field-edit-btn" onclick='editPhoneNumber("${installer.phoneNumber}")' title="${translations[currentLang].editPhone}" style="opacity: 1;">✏️</button>
-              <span onclick="changePanelType('${installer.phoneNumber}', '${details.installer.panelType || 'genesis7'}')" title="לחץ לשינוי פנל" style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;cursor:pointer;background:${details.installer.panelType === 'genesis5' ? 'linear-gradient(135deg,#f59e0b,#d97706)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)'};color:white;" title="לחץ לשינוי">
-                ${details.installer.panelType === 'genesis5' ? 'Genesis 5 ▾' : 'Genesis 7 ▾'}
-              </span>
             </div>
           </td>
           <td>
