@@ -294,6 +294,11 @@ async function saveAutoRebootSchedules(schedules) {
   );
 }
 
+async function updateInstallerPanelType(phoneNumber, panelType) {
+  await connectDB();
+  await db.collection('installers').updateOne({ phoneNumber }, { $set: { panelType } });
+}
+
 module.exports = {
   connectDB,
   createInstaller,
@@ -310,4 +315,5 @@ module.exports = {
   changeInstallerPhone,
   getAutoRebootSchedules,
   saveAutoRebootSchedules,
+  updateInstallerPanelType,
 };

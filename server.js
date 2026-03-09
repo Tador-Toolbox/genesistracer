@@ -329,7 +329,6 @@ app.post('/api/manager/login', async (req, res) => {
 app.post('/api/manager/installers', async (req, res) => {
   try {
     const { phoneNumber, macAddresses, panelType } = req.body;
-    console.log('📋 createInstaller:', { phoneNumber, panelType });
     if (!phoneNumber) {
       return res.status(400).json({ success: false, error: 'Phone number required' });
     }
@@ -421,6 +420,18 @@ app.delete('/api/manager/installers/:phoneNumber', async (req, res) => {
   res.json({ success: true });
 });
 
+
+app.post('/api/manager/installers/:phoneNumber/panel-type', async (req, res) => {
+  try {
+    const { phoneNumber } = req.params;
+    const { panelType } = req.body;
+    if (!['genesis7', 'genesis5'].includes(panelType)) return res.status(400).json({ success: false, error: 'Invalid panel type' });
+    await require('./db').updateInstallerPanelType(phoneNumber, panelType);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 // Reset installer password
 app.post('/api/manager/installers/:phoneNumber/reset-password', async (req, res) => {
   try {
