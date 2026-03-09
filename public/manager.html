@@ -441,7 +441,7 @@
               Genesis 5
             </button>
           </div>
-          <button onclick="createInstaller()" data-i18n="createBtn">Create</button>
+          <button type="button" onclick="createInstaller()" data-i18n="createBtn">Create</button>
         </div>
         <div id="createResult"></div>
         <div id="globalMessage"></div>
@@ -776,7 +776,7 @@
       const res = await fetch('/api/manager/installers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, macAddresses, panelType: getPanelType() })
+        body: (() => { const pt = getPanelType(); console.log('PANEL TYPE SENDING:', pt); return JSON.stringify({ phoneNumber, macAddresses, panelType: pt }); })()
       });
 
       const data = await res.json();
