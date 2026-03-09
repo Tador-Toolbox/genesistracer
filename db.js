@@ -54,7 +54,7 @@ async function initDatabase() {
   }
 }
 
-async function createInstaller(phoneNumber, macAddresses = []) {
+async function createInstaller(phoneNumber, macAddresses = [], panelType = "genesis7") {
   await connectDB();
 
   const password = Math.random().toString(36).slice(-8);
@@ -83,6 +83,7 @@ async function createInstaller(phoneNumber, macAddresses = []) {
     password: hashedPassword,
     plainPassword: password,
     macAddresses: macDocs,
+    panelType: panelType || "genesis7",
     createdAt: new Date(),
     lastLogin: null,
   });

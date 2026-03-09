@@ -328,11 +328,11 @@ app.post('/api/manager/login', async (req, res) => {
 // Create installer account
 app.post('/api/manager/installers', async (req, res) => {
   try {
-    const { phoneNumber, macAddresses } = req.body;
+    const { phoneNumber, macAddresses, panelType } = req.body;
     if (!phoneNumber) {
       return res.status(400).json({ success: false, error: 'Phone number required' });
     }
-    const password = await db.createInstaller(phoneNumber, macAddresses || []);
+    const password = await db.createInstaller(phoneNumber, macAddresses || [], panelType || "genesis7");
     res.json({ success: true, phoneNumber, password });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
