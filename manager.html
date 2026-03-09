@@ -802,29 +802,17 @@
 
 
 
-    async function saveModel(phoneNumber, panelType) {
-      await fetch(`/api/manager/installers/${phoneNumber}/panel-type`, {
+    async function editModelInline(phoneNumber, current) {
+      const newVal = current === 'genesis7' ? 'genesis5' : 'genesis7';
+      const label = newVal === 'genesis5' ? 'Genesis 5' : 'Genesis 7';
+      if (!confirm('לשנות דגם ל-' + label + '?')) return;
+      const res = await fetch('/api/manager/installers/' + phoneNumber + '/panel-type', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ panelType })
+        body: JSON.stringify({ panelType: newVal })
       });
-      loadData();
-    }
-
-    async function editModel(phoneNumber, current) {
-      const options = current === 'genesis5' ? ['genesis5','genesis7'] : ['genesis7','genesis5'];
-      const labels = { genesis7: 'Genesis 7', genesis5: 'Genesis 5' };
-      const choice = confirm(`דגם נוכחי: ${labels[current]}\nלחץ אישור למעבר ל-${labels[options[1]]}\nלחץ ביטול להשאיר`);
-      if (!choice) return;
-      const newType = options[1];
-      const res = await fetch(`/api/manager/installers/${phoneNumber}/panel-type`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ panelType: newType })
-      });
-      const data = await res.json();
-      if (data.success) loadData();
-      else alert('שגיאה: ' + data.error);
+      const d = await res.json();
+      if (d.success) loadData();
     }
 
     async function deleteInstaller(phoneNumber) {
@@ -1072,12 +1060,7 @@
               <span>${installer.phoneNumber}</span>
               <button class="field-edit-btn" onclick='editPhoneNumber("${installer.phoneNumber}")' title="${translations[currentLang].editPhone}" style="opacity: 1;">✏️</button>
             </div>
-            <div style="margin-top:4px;display:flex;align-items:center;gap:6px;">
-              <span id="modelBadge_${installer.phoneNumber}" style="padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;background:${details.installer.panelType==='genesis5'?'linear-gradient(135deg,#f59e0b,#d97706)':'linear-gradient(135deg,#6366f1,#8b5cf6)'};color:white;">
-                ${details.installer.panelType==='genesis5'?'Genesis 5':'Genesis 7'}
-              </span>
-              <button class="field-edit-btn" onclick="editModel('${installer.phoneNumber}','${details.installer.panelType||'genesis7'}')" title="שנה דגם" style="opacity:1;">✏️</button>
-            </div>
+
           </td>
 
           <td>
@@ -1103,12 +1086,8 @@
 
                   <div class="mac-detail-field">
                     <span class="mac-detail-label">📟 דגם:</span>
-                    <span class="mac-detail-value">
-                      <select onchange="saveModel('${installer.phoneNumber}', this.value)" style="padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;direction:ltr;">
-                        <option value="genesis7" ${(details.installer.panelType||'genesis7')==='genesis7'?'selected':''}>Genesis 7</option>
-                        <option value="genesis5" ${(details.installer.panelType||'genesis7')==='genesis5'?'selected':''}>Genesis 5</option>
-                      </select>
-                    </span>
+                    <span class="mac-detail-value">${details.installer.panelType==='genesis5'?'Genesis 5':'Genesis 7'}</span>
+                    <button class="field-edit-btn" onclick="editModelInline('${installer.phoneNumber}', '${details.installer.panelType||'genesis7'}')" style="opacity:1;">✏️</button>
                   </div>
 
                   <div class="mac-detail-field">
