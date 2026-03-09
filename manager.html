@@ -226,9 +226,11 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 32px;
-      width: 520px;
+      padding: 24px 28px;
+      width: 420px;
       max-width: 95vw;
+      max-height: 80vh;
+      overflow-y: auto;
     }
 
     .modal h3 {
@@ -482,6 +484,14 @@
       <div class="modal-field" id="macFieldWrap">
         <label id="labelMac">MAC Address</label>
         <input type="text" id="modalMac" placeholder="2875D8C16B0F" readonly style="background-color: var(--surface2); cursor: not-allowed;" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelModel">📟 דגם</label>
+        <select id="modalModel" style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;direction:ltr;">
+          <option value="genesis7">Genesis 7</option>
+          <option value="genesis5">Genesis 5</option>
+        </select>
       </div>
 
       <div class="modal-field">
@@ -851,6 +861,7 @@
       document.getElementById('modalCommittee').value = macObj ? (macObj.committeeName || '') : '';
       document.getElementById('modalCommitteePhone').value = macObj ? (macObj.committeePhone || '') : '';
       document.getElementById('modalAnnualFee').value = macObj ? (macObj.annualFee || '') : '';
+      document.getElementById('modalModel').value = macObj ? (macObj.panelType || 'genesis7') : 'genesis7';
 
       document.getElementById('modalTitle').textContent = macObj ? (t.edit + ' MAC') : ('+ ' + t.addMac);
       document.getElementById('labelAddress').textContent = '📍 ' + t.address;
@@ -883,6 +894,7 @@
             committeeName: 'modalCommittee',
             technicianPhone: 'modalTechnicianPhone',
             committeePhone: 'modalCommitteePhone',
+            panelType: 'modalModel',
           };
           const el = document.getElementById(fieldMap[focusField]);
           if (el) { el.focus(); el.select && el.select(); }
@@ -910,6 +922,7 @@
       const committeePhone = document.getElementById('modalCommitteePhone').value;
       const annualFee = document.getElementById('modalAnnualFee').value;
       const licensesPurchased = document.getElementById('modalLicensesPurchased').value;
+      const panelType = document.getElementById('modalModel').value;
 
       if (!mac) return alert('MAC address is required');
 
@@ -920,7 +933,7 @@
       await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ macAddress: mac, address, city, notes, purchaseDate, startDate, technicianName, technicianPhone, supplierName, committeeName, committeePhone, annualFee, licensesPurchased })
+        body: JSON.stringify({ macAddress: mac, address, city, notes, purchaseDate, startDate, technicianName, technicianPhone, supplierName, committeeName, committeePhone, annualFee, licensesPurchased, panelType })
       });
 
       closeModal();
@@ -1086,8 +1099,8 @@
 
                   <div class="mac-detail-field">
                     <span class="mac-detail-label">📟 דגם:</span>
-                    <span class="mac-detail-value">${details.installer.panelType==='genesis5'?'Genesis 5':'Genesis 7'}</span>
-                    <button class="field-edit-btn" onclick="editModelInline('${installer.phoneNumber}', '${details.installer.panelType||'genesis7'}')" style="opacity:1;">✏️</button>
+                    <span class="mac-detail-value">${(macObj.panelType||'genesis7')==='genesis5'?'Genesis 5':'Genesis 7'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "panelType")'>✏️</button>
                   </div>
 
                   <div class="mac-detail-field">

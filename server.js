@@ -373,6 +373,7 @@ app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
       annualFee = '',
       licensesPurchased = '',
       licensePaid = false,
+      panelType = 'genesis7',
     } = req.body;
 
     const cleanMac = (macAddress || '').replace(/[:\s-]/g, '').toUpperCase();
@@ -394,7 +395,8 @@ app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
       description,
       annualFee,
       licensesPurchased,
-      licensePaid
+      licensePaid,
+      panelType
     );
 
     res.json({ success: true });
