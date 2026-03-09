@@ -802,6 +802,15 @@
 
 
 
+    async function saveModel(phoneNumber, panelType) {
+      await fetch(`/api/manager/installers/${phoneNumber}/panel-type`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ panelType })
+      });
+      loadData();
+    }
+
     async function editModel(phoneNumber, current) {
       const options = current === 'genesis5' ? ['genesis5','genesis7'] : ['genesis7','genesis5'];
       const labels = { genesis7: 'Genesis 7', genesis5: 'Genesis 5' };
@@ -1090,6 +1099,16 @@
                       <button class="small" onclick="openAutoRebootModal('${macObj.mac}')" title="${currentLang === 'he' ? 'אתחול אוטומטי' : 'Auto Reboot'}" style="background:${autoRebootSchedules[macObj.mac]?.enabled ? 'linear-gradient(135deg,#10b981,#059669)' : 'var(--surface2)'};color:${autoRebootSchedules[macObj.mac]?.enabled ? 'white' : 'var(--text-dim)'};border:1px solid var(--border);">⏰</button>
                       <button class="small danger" onclick="removeMac('${installer.phoneNumber}', '${macObj.mac}')">×</button>
                     </div>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📟 דגם:</span>
+                    <span class="mac-detail-value">
+                      <select onchange="saveModel('${installer.phoneNumber}', this.value)" style="padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;direction:ltr;">
+                        <option value="genesis7" ${(details.installer.panelType||'genesis7')==='genesis7'?'selected':''}>Genesis 7</option>
+                        <option value="genesis5" ${(details.installer.panelType||'genesis7')==='genesis5'?'selected':''}>Genesis 5</option>
+                      </select>
+                    </span>
                   </div>
 
                   <div class="mac-detail-field">
