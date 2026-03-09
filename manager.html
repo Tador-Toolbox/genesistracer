@@ -430,12 +430,10 @@
         <h2 data-i18n="createInstaller">➕ Create Installer Account</h2>
         <div class="form-row">
           <input type="text" id="newPhone" data-i18n-placeholder="phoneNumber" placeholder="Phone Number (e.g., +972501234567)" />
-          <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;">
-            <input type="radio" name="modelSelect" value="genesis7" checked> Genesis 7
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;">
-            <input type="radio" name="modelSelect" value="genesis5"> Genesis 5
-          </label>
+          <select id="installerModel" style="padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;font-weight:600;direction:ltr;">
+            <option value="genesis7">Genesis 7</option>
+            <option value="genesis5">Genesis 5</option>
+          </select>
           <input type="text" id="newMacs" data-i18n-placeholder="macAddresses" placeholder="MAC Addresses (comma separated, optional)" />
           <button type="button" onclick="createInstaller()" data-i18n="createBtn">Create</button>
         </div>
@@ -772,7 +770,7 @@
       const res = await fetch('/api/manager/installers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, macAddresses, panelType: document.querySelector('input[name="modelSelect"]:checked').value })
+        body: JSON.stringify({ phoneNumber, macAddresses, panelType: document.getElementById('installerModel').value })
       });
 
       const data = await res.json();
