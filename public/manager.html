@@ -444,7 +444,6 @@
           <thead>
             <tr>
               <th data-i18n="thPhone">Phone Number</th>
-              <th>דגם</th>
               <th data-i18n="thPassword">Password</th>
               <th data-i18n="thMacs">MAC Addresses</th>
               <th data-i18n="thCreated">Created</th>
@@ -767,7 +766,7 @@
       const res = await fetch('/api/manager/installers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, macAddresses, panelType: document.getElementById('newModel').value })
+        body: JSON.stringify({ phoneNumber, macAddresses })
       });
 
       const data = await res.json();
@@ -1049,11 +1048,7 @@
               <button class="field-edit-btn" onclick='editPhoneNumber("${installer.phoneNumber}")' title="${translations[currentLang].editPhone}" style="opacity: 1;">✏️</button>
             </div>
           </td>
-          <td>
-            <span style="padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:${details.installer.panelType==='genesis5'?'linear-gradient(135deg,#f59e0b,#d97706)':'linear-gradient(135deg,#6366f1,#8b5cf6)'};color:white;">
-              ${details.installer.panelType==='genesis5'?'Genesis 5':'Genesis 7'}
-            </span>
-          </td>
+
           <td>
             <div class="password-display">
               ${details.installer.password || 'N/A'}
