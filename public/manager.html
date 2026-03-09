@@ -431,7 +431,10 @@
         <div class="form-row">
           <input type="text" id="newPhone" data-i18n-placeholder="phoneNumber" placeholder="Phone Number (e.g., +972501234567)" />
           <input type="text" id="newMacs" data-i18n-placeholder="macAddresses" placeholder="MAC Addresses (comma separated, optional)" />
-
+          <div style="display:flex;gap:0;border-radius:8px;overflow:hidden;border:2px solid var(--accent);direction:ltr;flex-shrink:0;">
+            <button type="button" id="pt7" onclick="setPT('genesis7')" style="padding:9px 15px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:var(--accent);color:white;">Genesis 7</button>
+            <button type="button" id="pt5" onclick="setPT('genesis5')" style="padding:9px 15px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:#888;">Genesis 5</button>
+          </div>
           <button type="button" onclick="createInstaller()" data-i18n="createBtn">Create</button>
         </div>
         <div id="createResult"></div>
@@ -759,6 +762,15 @@
       document.getElementById('loginError').style.display = 'none';
     }
 
+    var selectedPT = 'genesis7';
+    function setPT(v) {
+      selectedPT = v;
+      document.getElementById('pt7').style.background = v==='genesis7' ? 'var(--accent)' : 'transparent';
+      document.getElementById('pt7').style.color      = v==='genesis7' ? 'white' : '#888';
+      document.getElementById('pt5').style.background = v==='genesis5' ? 'var(--accent)' : 'transparent';
+      document.getElementById('pt5').style.color      = v==='genesis5' ? 'white' : '#888';
+    }
+
     async function createInstaller() {
       const phoneNumber = document.getElementById('newPhone').value;
       const macs = document.getElementById('newMacs').value;
@@ -767,7 +779,7 @@
       const res = await fetch('/api/manager/installers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, macAddresses })
+        body: JSON.stringify({ phoneNumber, macAddresses, panelType: selectedPT })
       });
 
       const data = await res.json();
@@ -786,6 +798,7 @@
         `;
         document.getElementById('newPhone').value = '';
         document.getElementById('newMacs').value = '';
+        setPT('genesis7');
         loadData();
       } else {
         resultDiv.innerHTML = `<div class="error-msg">${data.error || 'Error'}</div>`;
@@ -1045,9 +1058,9 @@
         row.innerHTML = `
           <td>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap:wrap;">
+              <span style="padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;background:${details.installer.panelType==='genesis5'?'linear-gradient(135deg,#f59e0b,#d97706)':'linear-gradient(135deg,#6366f1,#8b5cf6)'};color:white;">${details.installer.panelType==='genesis5'?'Genesis 5':'Genesis 7'}</span>
               <span>${installer.phoneNumber}</span>
               <button class="field-edit-btn" onclick='editPhoneNumber("${installer.phoneNumber}")' title="${translations[currentLang].editPhone}" style="opacity: 1;">✏️</button>
-
             </div>
           </td>
           <td>
