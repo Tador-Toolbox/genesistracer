@@ -566,12 +566,7 @@
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
           <h2 data-i18n="installersList" style="margin-bottom:0;">👥 Installer Accounts</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <input type="text" id="searchText" placeholder="🔍 חיפוש לפי טלפון / שם טכנאי..." oninput="filterInstallers()" style="flex:unset;width:260px;font-size:13px;padding:8px 12px;" />
-            <select id="searchPanel" onchange="filterInstallers()" style="flex:unset;width:150px;font-size:13px;padding:8px 12px;">
-              <option value="">כל הדגמים</option>
-              <option value="genesis7">Genesis 7</option>
-              <option value="genesis5">Genesis 5</option>
-            </select>
+            <input type="text" id="searchText" placeholder="🔍 חיפוש לפי טלפון / שם טכנאי..." oninput="filterInstallers()" style="flex:unset;width:280px;font-size:13px;padding:8px 12px;" />
           </div>
         </div>
         <table id="installersTable">
@@ -1189,13 +1184,10 @@
 
     function filterInstallers() {
       const text = document.getElementById('searchText').value.trim().toLowerCase();
-      const panel = document.getElementById('searchPanel').value;
       const rows = document.querySelectorAll('#installersBody tr');
       rows.forEach(row => {
         const html = row.innerText.toLowerCase();
-        const matchText = !text || html.includes(text);
-        const matchPanel = !panel || row.dataset.panel === panel;
-        row.style.display = (matchText && matchPanel) ? '' : 'none';
+        row.style.display = (!text || html.includes(text)) ? '' : 'none';
       });
     }
 
