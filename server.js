@@ -329,6 +329,7 @@ app.post('/api/manager/login', async (req, res) => {
 app.post('/api/manager/installers', async (req, res) => {
   try {
     const { phoneNumber, macAddresses, panelType } = req.body;
+    console.log('📋 createInstaller:', { phoneNumber, panelType });
     if (!phoneNumber) {
       return res.status(400).json({ success: false, error: 'Phone number required' });
     }
