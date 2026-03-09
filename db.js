@@ -34,9 +34,9 @@ async function initDatabase() {
     const adminPass = process.env.ADMIN_PASS || "admin123";
 
     const adminExists = await installersCollection.findOne({ phoneNumber: adminUser });
+    const adminPasswordHash = crypto.createHash("md5").update(adminPass).digest("hex");
 
     if (!adminExists) {
-      const adminPasswordHash = crypto.createHash("md5").update(adminPass).digest("hex");
       await installersCollection.insertOne({
         phoneNumber: adminUser,
         password: adminPasswordHash,
@@ -46,6 +46,13 @@ async function initDatabase() {
         lastLogin: null,
       });
       console.log("✅ Admin user created");
+    } else {
+      // Always sync password from environment variable
+      await installersCollection.updateOne(
+        { phoneNumber: adminUser },
+        { $set: { password: adminPasswordHash, plainPassword: adminPass } }
+      );
+      console.log("✅ Admin password synced from env");
     }
 
     console.log("✅ Database initialized");
