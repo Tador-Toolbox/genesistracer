@@ -777,7 +777,7 @@
       const res = await fetch('/api/manager/installers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, macAddresses, panelType: document.getElementById('newPanelType').value })
+        body: JSON.stringify({ phoneNumber, macAddresses, panelType: window._selectedPanelType || 'genesis7' })
       });
 
       const data = await res.json();
@@ -811,8 +811,9 @@
       setTimeout(() => btn.textContent = translations[currentLang].copy, 2000);
     });
 
+    window._selectedPanelType = 'genesis7';
     function selectPanel(type) {
-      document.getElementById('newPanelType').value = type;
+      window._selectedPanelType = type;
       document.getElementById('panelBtn7').style.background = type === 'genesis7' ? 'var(--accent)' : 'transparent';
       document.getElementById('panelBtn7').style.color = type === 'genesis7' ? 'white' : 'var(--text-dim)';
       document.getElementById('panelBtn5').style.background = type === 'genesis5' ? 'var(--accent)' : 'transparent';
