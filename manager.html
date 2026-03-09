@@ -441,7 +441,6 @@
               Genesis 5
             </button>
           </div>
-          <input type="hidden" id="newPanelType" value="genesis7" />
           <button onclick="createInstaller()" data-i18n="createBtn">Create</button>
         </div>
         <div id="createResult"></div>
@@ -777,7 +776,7 @@
       const res = await fetch('/api/manager/installers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, macAddresses, panelType: window._selectedPanelType || 'genesis7' })
+        body: JSON.stringify({ phoneNumber, macAddresses, panelType: getPanelType() })
       });
 
       const data = await res.json();
@@ -796,6 +795,7 @@
         `;
         document.getElementById('newPhone').value = '';
         document.getElementById('newMacs').value = '';
+        selectPanel('genesis7');
         loadData();
       } else {
         resultDiv.innerHTML = `<div class="error-msg">${data.error || 'Error'}</div>`;
@@ -811,13 +811,24 @@
       setTimeout(() => btn.textContent = translations[currentLang].copy, 2000);
     });
 
-    window._selectedPanelType = 'genesis7';
+    function getPanelType() {
+      const btn5 = document.getElementById('panelBtn5');
+      if (!btn5) return 'genesis7';
+      // if panelBtn5 has white text = it's selected
+      return btn5.style.color === 'white' ? 'genesis5' : 'genesis7';
+    }
+
     function selectPanel(type) {
-      window._selectedPanelType = type;
-      document.getElementById('panelBtn7').style.background = type === 'genesis7' ? 'var(--accent)' : 'transparent';
-      document.getElementById('panelBtn7').style.color = type === 'genesis7' ? 'white' : 'var(--text-dim)';
-      document.getElementById('panelBtn5').style.background = type === 'genesis5' ? 'var(--accent)' : 'transparent';
-      document.getElementById('panelBtn5').style.color = type === 'genesis5' ? 'white' : 'var(--text-dim)';
+      const btn7 = document.getElementById('panelBtn7');
+      const btn5 = document.getElementById('panelBtn5');
+      if (!btn7 || !btn5) return;
+      if (type === 'genesis7') {
+        btn7.style.background = 'var(--accent)'; btn7.style.color = 'white';
+        btn5.style.background = 'transparent';   btn5.style.color = 'var(--text-dim)';
+      } else {
+        btn5.style.background = 'var(--accent)'; btn5.style.color = 'white';
+        btn7.style.background = 'transparent';   btn7.style.color = 'var(--text-dim)';
+      }
     }
 
     async function changePanelType(phoneNumber, currentType) {
