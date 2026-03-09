@@ -4,218 +4,312 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Manager Panel - Tador</title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0a0d14;
-      --surface: #111520;
-      --surface2: #161c2e;
-      --border: #1e2840;
-      --accent: #2563eb;
-      --green: #10b981;
-      --red: #ef4444;
-      --text: #f1f5f9;
-      --text-dim: #64748b;
+      --bg: #f4f6f9;
+      --surface: #ffffff;
+      --surface2: #f0f2f7;
+      --surface3: #e8ebf2;
+      --border: #dde1ea;
+      --accent: #3b6fd4;
+      --accent-light: #eef2fb;
+      --green: #1a9e6e;
+      --green-light: #e6f7f2;
+      --red: #d63b3b;
+      --red-light: #fdf0f0;
+      --amber: #c47c12;
+      --amber-light: #fdf6e6;
+      --text: #1a1e2e;
+      --text-dim: #7a82a0;
+      --text-light: #a8b0c8;
+      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 8px 32px rgba(0,0,0,0.06);
+      --radius: 10px;
+      --radius-sm: 6px;
+      --radius-lg: 14px;
     }
 
-    body.light {
-      --bg: #f1f5f9;
-      --surface: #ffffff;
-      --surface2: #e8edf5;
-      --border: #cbd5e1;
-      --accent: #2563eb;
-      --green: #059669;
-      --red: #dc2626;
-      --text: #0f172a;
-      --text-dim: #64748b;
+    body.dark {
+      --bg: #0f1117;
+      --surface: #181b24;
+      --surface2: #1e2230;
+      --surface3: #242838;
+      --border: #2a2f42;
+      --accent: #4d7de8;
+      --accent-light: #1a2240;
+      --green: #22c78c;
+      --green-light: #0f2820;
+      --red: #e85555;
+      --red-light: #2a1515;
+      --amber: #e8a530;
+      --amber-light: #2a2010;
+      --text: #e8ecf8;
+      --text-dim: #6870a0;
+      --text-light: #404870;
+      --shadow: 0 1px 3px rgba(0,0,0,0.2), 0 4px 16px rgba(0,0,0,0.15);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.25), 0 8px 32px rgba(0,0,0,0.2);
     }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'Syne', sans-serif;
-      padding: 20px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      padding: 28px 24px;
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
     }
 
-    .container { max-width: 1400px; margin: 0 auto; }
+    .container { max-width: 1380px; margin: 0 auto; }
 
+    /* ── Header ── */
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 32px;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
     }
 
-    h1 { font-size: 32px; margin-bottom: 4px; }
-    .subtitle { color: var(--text-dim); font-size: 14px; }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--text);
+    }
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 13px;
+      margin-top: 2px;
+    }
+
+    .header-controls { display: flex; align-items: center; gap: 10px; }
 
     .theme-btn {
-      padding: 8px 14px;
-      background: var(--surface2);
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-size: 18px;
+      border-radius: var(--radius-sm);
+      color: var(--text-dim);
+      font-size: 16px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.15s;
     }
-    .theme-btn:hover { border-color: var(--accent); }
+    .theme-btn:hover { border-color: var(--accent); color: var(--accent); }
 
     .lang-switch {
       display: flex;
-      gap: 8px;
-      background: var(--surface);
+      background: var(--surface2);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 4px;
+      border-radius: var(--radius-sm);
+      padding: 3px;
+      gap: 2px;
     }
-
     .lang-btn {
-      padding: 8px 16px;
+      padding: 6px 14px;
       background: transparent;
       color: var(--text-dim);
       border: none;
-      border-radius: 6px;
-      font-family: 'Syne', sans-serif;
+      border-radius: 4px;
+      font-family: 'IBM Plex Sans', sans-serif;
       font-weight: 600;
-      font-size: 14px;
+      font-size: 13px;
       cursor: pointer;
+      transition: all 0.15s;
     }
-    .lang-btn.active { background: var(--accent); color: white; }
+    .lang-btn.active {
+      background: var(--surface);
+      color: var(--accent);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
 
+    /* ── Cards ── */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 24px;
+      border-radius: var(--radius-lg);
+      padding: 22px 24px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
     }
 
     .card h2 {
-      font-size: 18px;
-      margin-bottom: 16px;
-      color: var(--accent);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .form-row { display: flex; gap: 12px; margin-bottom: 16px; }
+    /* ── Forms ── */
+    .form-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
 
     input, select {
       flex: 1;
-      padding: 12px;
+      padding: 9px 12px;
       background: var(--surface2);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
       color: var(--text);
-      font-family: 'JetBrains Mono', monospace;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 14px;
+      transition: border-color 0.15s;
     }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--surface);
+    }
+    input::placeholder { color: var(--text-light); }
 
+    /* ── Buttons ── */
     button {
-      padding: 12px 24px;
+      padding: 9px 20px;
       background: var(--accent);
       color: white;
       border: none;
-      border-radius: 8px;
-      font-family: 'Syne', sans-serif;
+      border-radius: var(--radius-sm);
+      font-family: 'IBM Plex Sans', sans-serif;
       font-weight: 600;
+      font-size: 13px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.15s;
       white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
-
-    button:hover { opacity: 0.9; }
+    button:hover { opacity: 0.88; transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
     button.danger { background: var(--red); }
-    button.small { padding: 6px 12px; font-size: 13px; }
-    button.small.reboot-btn { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; }
-    button.small.reboot-btn:hover { background: linear-gradient(135deg, #d97706, #b45309); }
     button.success { background: var(--green); }
+    button.small { padding: 5px 11px; font-size: 12px; border-radius: 5px; }
+    button.small.reboot-btn { background: var(--amber); color: white; }
 
+    /* ── Table ── */
     table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
     th {
       background: var(--surface2);
+      padding: 10px 14px;
+      text-align: right;
       font-size: 11px;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 0.6px;
       color: var(--text-dim);
-      font-weight: 600;
+      border-bottom: 2px solid var(--border);
     }
-    td { font-family: 'JetBrains Mono', monospace; font-size: 14px; }
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
 
-    .logout-btn { position: fixed; top: 20px; right: 20px; z-index: 100; }
+    /* ── Login ── */
+    .logout-btn { position: fixed; top: 20px; left: 20px; z-index: 100; }
 
     #loginScreen {
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      background: var(--bg);
     }
     #managerPanel { display: none; }
 
     .login-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 48px;
-      width: 400px;
+      border-radius: var(--radius-lg);
+      padding: 44px 40px;
+      width: 380px;
+      box-shadow: var(--shadow-md);
     }
+    .login-card h1 { font-size: 20px; margin-bottom: 6px; }
+    .login-card .subtitle { margin-bottom: 28px; }
 
+    /* ── MAC Card ── */
     .mac-detail {
-      background: var(--bg);
-      padding: 14px;
-      border-radius: 8px;
+      background: var(--surface2);
+      padding: 14px 16px;
+      border-radius: var(--radius);
       margin-bottom: 8px;
-      border-left: 3px solid var(--accent);
+      border: 1px solid var(--border);
+      border-right: 3px solid var(--accent);
     }
 
     .mac-detail-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
 
     .mac-detail-mac {
-      font-family: 'JetBrains Mono', monospace;
-      font-weight: 700;
-      font-size: 16px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 600;
+      font-size: 14px;
       color: var(--accent);
+      letter-spacing: 0.5px;
     }
 
     .mac-detail-field {
-      margin-top: 8px;
-      font-size: 14px;
+      padding: 6px 0;
+      font-size: 13px;
       display: flex;
       align-items: center;
       gap: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .mac-detail-field:last-child { border-bottom: none; }
+
+    .mac-detail-label {
+      color: var(--text-dim);
+      min-width: 180px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .mac-detail-value {
+      color: var(--text);
+      font-size: 13px;
+      flex: 1;
     }
 
-    .mac-detail-label { color: var(--text-dim); min-width: 220px; font-size: 13px; }
-    .mac-detail-value { color: var(--text); font-size: 14px; flex: 1; }
-
     .field-edit-btn {
-      padding: 3px 10px !important;
+      padding: 3px 8px !important;
       font-size: 11px !important;
-      background: var(--surface) !important;
+      background: var(--surface3) !important;
       border: 1px solid var(--border) !important;
       color: var(--text-dim) !important;
       cursor: pointer;
       border-radius: 4px;
       opacity: 0;
-      transition: opacity 0.2s;
+      transition: opacity 0.15s;
+      transform: none !important;
     }
     .mac-detail-field:hover .field-edit-btn { opacity: 1; }
-    .mac-actions { display: flex; gap: 4px; }
+    .mac-actions { display: flex; gap: 5px; }
 
-    /* Modal */
+    /* ── Modal ── */
     .modal-overlay {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.7);
+      background: rgba(10,12,20,0.55);
+      backdrop-filter: blur(3px);
       z-index: 1000;
       align-items: center;
       justify-content: center;
@@ -225,61 +319,77 @@
     .modal {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 24px 28px;
-      width: 420px;
+      border-radius: var(--radius-lg);
+      padding: 24px 26px;
+      width: 400px;
       max-width: 95vw;
-      max-height: 80vh;
+      max-height: 82vh;
       overflow-y: auto;
+      box-shadow: var(--shadow-md);
     }
 
     .modal h3 {
-      font-size: 18px;
+      font-size: 15px;
+      font-weight: 700;
       margin-bottom: 20px;
-      color: var(--accent);
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      color: var(--text);
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
     }
 
-    .modal-field { margin-bottom: 16px; }
+    .modal-field { margin-bottom: 14px; }
     .modal-field label {
       display: block;
-      font-size: 12px;
-      font-weight: 600;
+      font-size: 11px;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 0.6px;
       color: var(--text-dim);
-      margin-bottom: 6px;
+      margin-bottom: 5px;
     }
-
-    .modal-field input {
+    .modal-field input, .modal-field select {
       width: 100%;
-      padding: 10px 12px;
+      padding: 9px 11px;
       background: var(--surface2);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
       color: var(--text);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 14px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+    }
+    .modal-field input:focus, .modal-field select:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--surface);
     }
 
-    .modal-field input:focus { outline: none; border-color: var(--accent); }
-
-    .modal-buttons { display: flex; gap: 12px; margin-top: 24px; }
-    .modal-buttons button { flex: 1; }
+    .modal-buttons { display: flex; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .modal-buttons button { flex: 1; justify-content: center; }
 
     .btn-cancel {
-      background: transparent;
+      background: transparent !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text-dim) !important;
+    }
+    .btn-cancel:hover { border-color: var(--text-dim) !important; transform: none !important; }
+
+    /* ── Misc ── */
+    .copy-btn {
+      padding: 3px 8px;
+      background: var(--surface2);
       border: 1px solid var(--border);
       color: var(--text-dim);
-    }
-
-    .copy-btn {
-      padding: 4px 8px;
-      background: var(--surface);
-      border: 1px solid var(--border);
       font-size: 11px;
       cursor: pointer;
+      border-radius: 4px;
+      transform: none !important;
+    }
+    .copy-btn:hover { opacity: 0.8; }
+
+    .password-display {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .installer-link {
@@ -289,75 +399,91 @@
       display: inline-flex;
       align-items: center;
       gap: 4px;
+      font-weight: 500;
     }
     .installer-link:hover { text-decoration: underline; }
 
     .success-msg {
-      background: rgba(16, 185, 129, 0.1);
+      background: var(--green-light);
       border: 1px solid var(--green);
       color: var(--green);
-      padding: 12px;
-      border-radius: 8px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
       margin-top: 12px;
+      font-size: 13px;
     }
-
     .error-msg {
-      background: rgba(239, 68, 68, 0.1);
+      background: var(--red-light);
       border: 1px solid var(--red);
       color: var(--red);
-      padding: 12px;
-      border-radius: 8px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
       margin-top: 12px;
+      font-size: 13px;
     }
-
     .info-msg {
-      background: rgba(37, 99, 235, 0.12);
+      background: var(--accent-light);
       border: 1px solid var(--accent);
       color: var(--accent);
-      padding: 12px;
-      border-radius: 8px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
       margin-top: 12px;
+      font-size: 13px;
     }
 
     .license-warning-btn {
-      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+      background: var(--red);
       color: white;
       border: none;
-      padding: 6px 12px;
+      padding: 5px 11px;
       border-radius: 20px;
-      font-size: 16px;
+      font-size: 13px;
       cursor: pointer;
-      transition: all 0.3s;
-      box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+      transition: all 0.2s;
       animation: pulse 2s infinite;
     }
-    .license-warning-btn:hover {
-      transform: scale(1.1);
-      box-shadow: 0 4px 12px rgba(255, 107, 107, 0.5);
-    }
-
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.75; } }
+    .license-warning-btn:hover { opacity: 0.85; transform: none; }
 
     .license-paid-btn {
-      background: linear-gradient(135deg, #10b981, #059669);
+      background: var(--green);
       color: white;
       border: none;
-      padding: 6px 12px;
+      padding: 5px 11px;
       border-radius: 20px;
-      font-size: 16px;
+      font-size: 13px;
       cursor: pointer;
-      transition: all 0.3s;
-      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
-      margin-left: 4px;
+      transition: all 0.2s;
     }
-    .license-paid-btn:hover {
-      transform: scale(1.1);
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
+    .license-paid-btn:hover { opacity: 0.85; transform: none; }
+
+    /* ── Quick access links ── */
+    .quick-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
     }
+    .quick-link:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
   </style>
 </head>
 
-<body class="light">
+<body>
   <!-- Login Screen -->
   <div id="loginScreen">
     <div class="login-card">
@@ -407,22 +533,18 @@
       <!-- Quick Link -->
       <div class="card">
         <h2 data-i18n="quickAccess">🔗 Quick Access</h2>
-        <div style="display: flex; gap: 24px; flex-wrap: wrap;">
-          <a href="/installer.html" target="_blank" class="installer-link">
-            <span>🔧</span>
-            <span data-i18n="installerPanelLink">Open Installer Panel</span>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <a href="/installer.html" target="_blank" class="quick-link">
+            🔧 <span data-i18n="installerPanelLink">פתח פאנל מתקין</span>
           </a>
-          <a href="/index.html" target="_blank" class="installer-link">
-            <span>🔍</span>
-            <span data-i18n="deviceLookupLink">Open Device Lookup</span>
+          <a href="/index.html" target="_blank" class="quick-link">
+            🔍 <span data-i18n="deviceLookupLink">פתח חיפוש מכשיר</span>
           </a>
-          <a href="#" onclick="downloadBackup(); return false;" class="installer-link">
-            <span>📥</span>
-            <span data-i18n="downloadBackup">Download Database Backup</span>
+          <a href="#" onclick="downloadBackup(); return false;" class="quick-link">
+            📥 <span data-i18n="downloadBackup">הורד גיבוי מסד נתונים</span>
           </a>
-          <a href="https://eu1.voipbell.net/index.php?lang=en_gb" target="_blank" class="installer-link">
-            <span>☎️</span>
-            <span data-i18n="voipbellServer">Voipbell Server Login</span>
+          <a href="https://eu1.voipbell.net/index.php?lang=en_gb" target="_blank" class="quick-link">
+            ☎️ <span data-i18n="voipbellServer">Voipbell</span>
           </a>
         </div>
       </div>
