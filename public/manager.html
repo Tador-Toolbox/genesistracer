@@ -430,6 +430,12 @@
         <h2 data-i18n="createInstaller">➕ Create Installer Account</h2>
         <div class="form-row">
           <input type="text" id="newPhone" data-i18n-placeholder="phoneNumber" placeholder="Phone Number (e.g., +972501234567)" />
+          <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;">
+            <input type="radio" name="modelSelect" value="genesis7" checked> Genesis 7
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;">
+            <input type="radio" name="modelSelect" value="genesis5"> Genesis 5
+          </label>
           <input type="text" id="newMacs" data-i18n-placeholder="macAddresses" placeholder="MAC Addresses (comma separated, optional)" />
           <button type="button" onclick="createInstaller()" data-i18n="createBtn">Create</button>
         </div>
@@ -766,7 +772,7 @@
       const res = await fetch('/api/manager/installers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, macAddresses })
+        body: JSON.stringify({ phoneNumber, macAddresses, panelType: document.querySelector('input[name="modelSelect"]:checked').value })
       });
 
       const data = await res.json();
@@ -1046,6 +1052,11 @@
             <div style="display: flex; align-items: center; gap: 8px;">
               <span>${installer.phoneNumber}</span>
               <button class="field-edit-btn" onclick='editPhoneNumber("${installer.phoneNumber}")' title="${translations[currentLang].editPhone}" style="opacity: 1;">✏️</button>
+            </div>
+            <div style="margin-top:4px;">
+              <span style="padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;background:${details.installer.panelType==='genesis5'?'linear-gradient(135deg,#f59e0b,#d97706)':'linear-gradient(135deg,#6366f1,#8b5cf6)'};color:white;">
+                ${details.installer.panelType==='genesis5'?'Genesis 5':'Genesis 7'}
+              </span>
             </div>
           </td>
 
