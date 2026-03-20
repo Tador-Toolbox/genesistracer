@@ -324,7 +324,7 @@
       
       <button class="logout-btn" onclick="logout()" data-i18n="logoutBtn">Logout</button>
 
-      <div id="catalogSection" style="display:none;margin-top:10px;">
+      <div id="catalogSection" style="display:block;margin-top:10px;">
         <a id="catalogLink" href="#" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;padding:11px;border-radius:10px;background:linear-gradient(135deg,#e8572a,#c43b12);color:white;font-weight:600;font-size:14px;text-decoration:none;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           הורדת קטלוג מוצרים
@@ -639,8 +639,10 @@
         const data = await res.json();
         if (data.url) {
           document.getElementById('catalogLink').href = data.url;
-          document.getElementById('catalogSection').style.display = 'block';
+        } else {
+          document.getElementById('catalogLink').href = 'https://tador.co.il';
         }
+        document.getElementById('catalogSection').style.display = 'block';
       } catch(e) {}
     }
 
