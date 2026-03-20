@@ -213,19 +213,6 @@
     }
     
     .edit-desc-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-    .reboot-mac-btn {
-      padding: 4px 10px;
-      background: linear-gradient(135deg, #f59e0b, #d97706);
-      border: none;
-      color: white;
-      font-size: 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      width: auto;
-      margin-top: 0;
-    }
-    .reboot-mac-btn:hover { background: linear-gradient(135deg, #d97706, #b45309); }
     
     .desc-input-wrap {
       display: none;
@@ -296,7 +283,7 @@
       
       <div class="form-group">
         <label data-i18n="phoneLabel">מספר טלפון</label>
-        <input type="text" id="loginPhone" data-i18n-placeholder="phonePlaceholder" placeholder="0501234567" />
+        <input type="text" id="loginPhone" data-i18n-placeholder="phonePlaceholder" placeholder="0501234567+972" />
       </div>
       
       <div class="form-group">
@@ -336,6 +323,29 @@
       <div id="result"></div>
       
       <button class="logout-btn" onclick="logout()" data-i18n="logoutBtn">Logout</button>
+
+      <div id="catalogSection" style="display:none;margin-top:10px;">
+        <a id="catalogLink" href="#" target="_blank" style="display:block;text-align:center;padding:11px;border-radius:10px;background:linear-gradient(135deg,#e8572a,#c43b12);color:white;font-weight:600;font-size:14px;text-decoration:none;">📄 הורדת קטלוג מוצרים</a>
+      </div>
+
+      <button onclick="openSubscribeModal()" style="margin-top:10px;width:100%;padding:11px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-weight:600;font-size:14px;cursor:pointer;">📧 הרשמה לרשימת תפוצה תדאור</button>
+
+      <!-- Subscribe Modal -->
+      <div id="subscribeOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;align-items:center;justify-content:center;">
+        <div style="background:var(--surface);border-radius:14px;padding:28px 24px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.18);direction:rtl;">
+          <h3 style="margin:0 0 6px;font-size:17px;">📧 הרשמה לרשימת תפוצה</h3>
+          <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;">קבל עדכונים ומבצעים מתדאור ישירות למייל</p>
+          <label style="font-size:13px;font-weight:600;color:var(--text-dim);">שם מלא</label>
+          <input id="subName" type="text" placeholder="ישראל ישראלי" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;margin:6px 0 12px;box-sizing:border-box;" />
+          <label style="font-size:13px;font-weight:600;color:var(--text-dim);">אימייל</label>
+          <input id="subEmail" type="email" placeholder="example@gmail.com" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;margin:6px 0 16px;box-sizing:border-box;" />
+          <div id="subMsg" style="font-size:13px;min-height:18px;margin-bottom:10px;"></div>
+          <div style="display:flex;gap:10px;">
+            <button onclick="submitSubscribe()" style="flex:1;padding:11px;border-radius:8px;background:var(--accent);color:white;font-weight:700;border:none;cursor:pointer;font-size:14px;">הרשם</button>
+            <button onclick="closeSubscribeModal()" style="flex:1;padding:11px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-weight:600;cursor:pointer;font-size:14px;">ביטול</button>
+          </div>
+        </div>
+      </div>
       
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
         <div class="lang-switch" style="margin-top: 0;">
@@ -353,7 +363,7 @@
       en: {
         loginTitle: "Installer Login",
         phoneLabel: "Phone Number",
-        phonePlaceholder: "0501234567",
+        phonePlaceholder: "+972501234567",
         passwordLabel: "Password",
         passwordPlaceholder: "Password",
         loginBtn: "Login",
@@ -372,14 +382,13 @@
         addDescription: "Add description...",
         editDescription: "✏️ Edit",
         saveDescription: "Save",
-        reboot: "Reboot",
         descriptionLabel: "📝 Description",
         noDescription: "No description yet — click Edit to add one",
       },
       he: {
         loginTitle: "כניסת מתקין",
         phoneLabel: "מספר טלפון",
-        phonePlaceholder: "0501234567",
+        phonePlaceholder: "0501234567+972",
         passwordLabel: "סיסמה",
         passwordPlaceholder: "סיסמה",
         loginBtn: "התחבר",
@@ -398,7 +407,6 @@
         addDescription: "הוסף תיאור...",
         editDescription: "✏️ ערוך",
         saveDescription: "שמור",
-        reboot: "אתחול",
         descriptionLabel: "📝 תיאור",
         noDescription: "אין תיאור עדיין — לחץ ערוך להוספה",
       }
@@ -466,14 +474,9 @@
              id="card-${macObj.mac}" onclick="selectMac('${macObj.mac}')">
           <div class="mac-card-header">
             <span class="mac-address">${macObj.mac}</span>
-            <div style="display:flex; gap:6px; align-items:center;">
-              <button class="reboot-mac-btn" id="reboot-btn-${macObj.mac}" onclick="event.stopPropagation(); rebootDevice('${macObj.mac}')">
-                🔄 ${t.reboot || (currentLang === 'he' ? 'אתחול' : 'Reboot')}
-              </button>
-              <button class="edit-desc-btn" onclick="event.stopPropagation(); toggleDescEdit('${macObj.mac}')">
-                ${t.editDescription}
-              </button>
-            </div>
+            <button class="edit-desc-btn" onclick="event.stopPropagation(); toggleDescEdit('${macObj.mac}')">
+              ${t.editDescription}
+            </button>
           </div>
           <div class="mac-description ${macObj.description ? 'has-value' : ''}">
             ${macObj.description ? '📝 ' + macObj.description : t.noDescription}
@@ -489,36 +492,6 @@
           </div>
         </div>
       `).join('');
-    }
-
-    async function rebootDevice(mac) {
-      const t = translations[currentLang];
-      const confirmMsg = currentLang === 'he' ? `האם לאתחל את המכשיר ${mac}?` : `Reboot device ${mac}?`;
-      if (!confirm(confirmMsg)) return;
-
-      const btn = document.getElementById(`reboot-btn-${mac}`);
-      const origText = btn ? btn.innerHTML : '';
-      if (btn) { btn.disabled = true; btn.innerHTML = '⏳'; }
-
-      try {
-        const res = await fetch('/api/manager/reboot', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mac })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          alert(currentLang === 'he' ? `✅ המכשיר ${mac} מאותחל` : `✅ Device ${mac} is rebooting`);
-          if (btn) { btn.innerHTML = '✅'; setTimeout(() => { btn.innerHTML = origText; btn.disabled = false; }, 3000); }
-        } else {
-          alert('❌ ' + (data.error || 'Reboot failed'));
-          if (btn) { btn.innerHTML = origText; btn.disabled = false; }
-        }
-      } catch (err) {
-        alert('❌ ' + err.message);
-        if (btn) { btn.innerHTML = origText; btn.disabled = false; }
-      }
     }
 
     function selectMac(mac) {
@@ -655,6 +628,53 @@
         `;
       }
     }
+
+    // ==================== CATALOG ====================
+    async function loadCatalog() {
+      try {
+        const res = await fetch('/api/catalog');
+        const data = await res.json();
+        if (data.url) {
+          document.getElementById('catalogLink').href = data.url;
+          document.getElementById('catalogSection').style.display = 'block';
+        }
+      } catch(e) {}
+    }
+
+    // ==================== SUBSCRIBE ====================
+    function openSubscribeModal() {
+      document.getElementById('subName').value = '';
+      document.getElementById('subEmail').value = '';
+      document.getElementById('subMsg').textContent = '';
+      const overlay = document.getElementById('subscribeOverlay');
+      overlay.style.display = 'flex';
+    }
+
+    function closeSubscribeModal() {
+      document.getElementById('subscribeOverlay').style.display = 'none';
+    }
+
+    async function submitSubscribe() {
+      const name = document.getElementById('subName').value.trim();
+      const email = document.getElementById('subEmail').value.trim();
+      const msg = document.getElementById('subMsg');
+      if (!name || !email) { msg.style.color = 'var(--red)'; msg.textContent = 'נא למלא שם ואימייל'; return; }
+      msg.style.color = 'var(--text-dim)'; msg.textContent = 'שולח...';
+      try {
+        const res = await fetch('/api/mailing-list/subscribe', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ name, email })
+        });
+        const data = await res.json();
+        if (data.success) {
+          msg.style.color = 'var(--green)'; msg.textContent = '✅ נרשמת בהצלחה!';
+          setTimeout(closeSubscribeModal, 1800);
+        } else {
+          msg.style.color = 'var(--red)'; msg.textContent = data.error || 'שגיאה';
+        }
+      } catch(e) { msg.style.color = 'var(--red)'; msg.textContent = 'שגיאת תקשורת'; }
+    }
+
   </script>
 </body>
 </html>
