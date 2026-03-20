@@ -753,6 +753,46 @@ app.post('/api/installer/login', async (req, res) => {
   res.json(result);
 });
 
+// ==================== CATALOG ====================
+app.get('/api/catalog', async (req, res) => {
+  try {
+    const url = await db.getCatalogUrl();
+    res.json({ success: true, url });
+  } catch (e) { res.status(500).json({ success: false }); }
+});
+
+app.post('/api/manager/catalog', async (req, res) => {
+  try {
+    const { url } = req.body;
+    await db.setCatalogUrl(url || null);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false }); }
+});
+
+// ==================== MAILING LIST ====================
+app.get('/api/manager/mailing-list', async (req, res) => {
+  try {
+    const list = await db.getMailingList();
+    res.json({ success: true, list });
+  } catch (e) { res.status(500).json({ success: false }); }
+});
+
+app.post('/api/mailing-list/subscribe', async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    if (!name || !email) return res.status(400).json({ success: false, error: 'שם ומייל חובה' });
+    const result = await db.subscribeToMailingList(name, email);
+    res.json(result);
+  } catch (e) { res.status(500).json({ success: false }); }
+});
+
+app.delete('/api/manager/mailing-list/:email', async (req, res) => {
+  try {
+    await db.removeFromMailingList(decodeURIComponent(req.params.email));
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false }); }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');

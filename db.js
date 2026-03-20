@@ -1,12 +1,14 @@
 const crypto = require("crypto");
 const { MongoClient } = require("mongodb");
+const dns = require("dns");
+dns.setDefaultResultOrder("ipv4first");
 
 const uri = process.env.MONGODB_URI;
 if (!uri) {
   throw new Error("❌ Missing MONGODB_URI env var (set it in Render Environment Variables)");
 }
 
-const client = new MongoClient(uri);
+const client = new MongoClient(uri, { family: 4 });
 let db;
 
 async function connectDB() {
@@ -34,9 +36,9 @@ async function initDatabase() {
     const adminPass = process.env.ADMIN_PASS || "admin123";
 
     const adminExists = await installersCollection.findOne({ phoneNumber: adminUser });
-    const adminPasswordHash = crypto.createHash("md5").update(adminPass).digest("hex");
 
     if (!adminExists) {
+      const adminPasswordHash = crypto.createHash("md5").update(adminPass).digest("hex");
       await installersCollection.insertOne({
         phoneNumber: adminUser,
         password: adminPasswordHash,
@@ -46,13 +48,6 @@ async function initDatabase() {
         lastLogin: null,
       });
       console.log("✅ Admin user created");
-    } else {
-      // Always sync password from environment variable
-      await installersCollection.updateOne(
-        { phoneNumber: adminUser },
-        { $set: { password: adminPasswordHash, plainPassword: adminPass } }
-      );
-      console.log("✅ Admin password synced from env");
     }
 
     console.log("✅ Database initialized");
@@ -307,6 +302,41 @@ async function updateInstallerPanelType(phoneNumber, panelType) {
   await db.collection('installers').updateOne({ phoneNumber }, { $set: { panelType } });
 }
 
+// ==================== CATALOG ====================
+async function getCatalogUrl() {
+  await connectDB();
+  const doc = await db.collection("settings").findOne({ key: "catalogUrl" });
+  return doc ? doc.value : null;
+}
+
+async function setCatalogUrl(url) {
+  await connectDB();
+  await db.collection("settings").updateOne(
+    { key: "catalogUrl" },
+    { $set: { key: "catalogUrl", value: url, updatedAt: new Date() } },
+    { upsert: true }
+  );
+}
+
+// ==================== MAILING LIST ====================
+async function subscribeToMailingList(name, email) {
+  await connectDB();
+  const existing = await db.collection("mailingList").findOne({ email });
+  if (existing) return { success: false, error: "כבר רשום" };
+  await db.collection("mailingList").insertOne({ name, email, subscribedAt: new Date() });
+  return { success: true };
+}
+
+async function getMailingList() {
+  await connectDB();
+  return await db.collection("mailingList").find().sort({ subscribedAt: -1 }).toArray();
+}
+
+async function removeFromMailingList(email) {
+  await connectDB();
+  await db.collection("mailingList").deleteOne({ email });
+}
+
 module.exports = {
   connectDB,
   createInstaller,
@@ -324,4 +354,9 @@ module.exports = {
   getAutoRebootSchedules,
   saveAutoRebootSchedules,
   updateInstallerPanelType,
+  getCatalogUrl,
+  setCatalogUrl,
+  subscribeToMailingList,
+  getMailingList,
+  removeFromMailingList,
 };
