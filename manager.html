@@ -4,313 +4,216 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Manager Panel - Tador</title>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #f4f6f9;
-      --surface: #ffffff;
-      --surface2: #f0f2f7;
-      --surface3: #e8ebf2;
-      --border: #dde1ea;
-      --accent: #3b6fd4;
-      --accent-light: #eef2fb;
-      --green: #1a9e6e;
-      --green-light: #e6f7f2;
-      --red: #d63b3b;
-      --red-light: #fdf0f0;
-      --amber: #c47c12;
-      --amber-light: #fdf6e6;
-      --text: #1a1e2e;
-      --text-dim: #7a82a0;
-      --text-light: #a8b0c8;
-      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
-      --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 8px 32px rgba(0,0,0,0.06);
-      --radius: 10px;
-      --radius-sm: 6px;
-      --radius-lg: 14px;
+      --bg: #0a0d14;
+      --surface: #111520;
+      --surface2: #161c2e;
+      --border: #1e2840;
+      --accent: #2563eb;
+      --green: #10b981;
+      --red: #ef4444;
+      --text: #f1f5f9;
+      --text-dim: #64748b;
     }
 
-    body.dark {
-      --bg: #0f1117;
-      --surface: #181b24;
-      --surface2: #1e2230;
-      --surface3: #242838;
-      --border: #2a2f42;
-      --accent: #4d7de8;
-      --accent-light: #1a2240;
-      --green: #22c78c;
-      --green-light: #0f2820;
-      --red: #e85555;
-      --red-light: #2a1515;
-      --amber: #e8a530;
-      --amber-light: #2a2010;
-      --text: #e8ecf8;
-      --text-dim: #6870a0;
-      --text-light: #404870;
-      --shadow: 0 1px 3px rgba(0,0,0,0.2), 0 4px 16px rgba(0,0,0,0.15);
-      --shadow-md: 0 4px 12px rgba(0,0,0,0.25), 0 8px 32px rgba(0,0,0,0.2);
+    body.light {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --surface2: #e8edf5;
+      --border: #cbd5e1;
+      --accent: #2563eb;
+      --green: #059669;
+      --red: #dc2626;
+      --text: #0f172a;
+      --text-dim: #64748b;
     }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'IBM Plex Sans', sans-serif;
-      padding: 28px 24px;
-      min-height: 100vh;
-      font-size: 14px;
-      line-height: 1.5;
+      font-family: 'Syne', sans-serif;
+      padding: 20px;
     }
 
-    .container { max-width: 1380px; margin: 0 auto; }
+    .container { max-width: 1400px; margin: 0 auto; }
 
-    /* ── Header ── */
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 28px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
     }
 
-    h1 {
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-      color: var(--text);
-    }
-    .subtitle {
-      color: var(--text-dim);
-      font-size: 13px;
-      margin-top: 2px;
-    }
-
-    .header-controls { display: flex; align-items: center; gap: 10px; }
+    h1 { font-size: 32px; margin-bottom: 4px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; }
 
     .theme-btn {
-      width: 36px; height: 36px;
-      display: flex; align-items: center; justify-content: center;
-      background: var(--surface);
+      padding: 8px 14px;
+      background: var(--surface2);
       border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text-dim);
-      font-size: 16px;
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 18px;
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.2s;
     }
-    .theme-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .theme-btn:hover { border-color: var(--accent); }
 
     .lang-switch {
       display: flex;
-      background: var(--surface2);
+      gap: 8px;
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 3px;
-      gap: 2px;
+      border-radius: 8px;
+      padding: 4px;
     }
+
     .lang-btn {
-      padding: 6px 14px;
+      padding: 8px 16px;
       background: transparent;
       color: var(--text-dim);
       border: none;
-      border-radius: 4px;
-      font-family: 'IBM Plex Sans', sans-serif;
+      border-radius: 6px;
+      font-family: 'Syne', sans-serif;
       font-weight: 600;
-      font-size: 13px;
+      font-size: 14px;
       cursor: pointer;
-      transition: all 0.15s;
     }
-    .lang-btn.active {
-      background: var(--surface);
-      color: var(--accent);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
+    .lang-btn.active { background: var(--accent); color: white; }
 
-    /* ── Cards ── */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 22px 24px;
-      margin-bottom: 20px;
-      box-shadow: var(--shadow);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
     }
 
     .card h2 {
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.6px;
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: var(--accent);
       text-transform: uppercase;
-      color: var(--text-dim);
-      margin-bottom: 18px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      letter-spacing: 1px;
     }
 
-    /* ── Forms ── */
-    .form-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
+    .form-row { display: flex; gap: 12px; margin-bottom: 16px; }
 
     input, select {
       flex: 1;
-      padding: 9px 12px;
+      padding: 12px;
       background: var(--surface2);
       border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
+      border-radius: 8px;
       color: var(--text);
-      font-family: 'IBM Plex Sans', sans-serif;
-      font-size: 14px;
-      transition: border-color 0.15s;
+      font-family: 'JetBrains Mono', monospace;
     }
-    input:focus, select:focus {
-      outline: none;
-      border-color: var(--accent);
-      background: var(--surface);
-    }
-    input::placeholder { color: var(--text-light); }
 
-    /* ── Buttons ── */
     button {
-      padding: 9px 20px;
+      padding: 12px 24px;
       background: var(--accent);
       color: white;
       border: none;
-      border-radius: var(--radius-sm);
-      font-family: 'IBM Plex Sans', sans-serif;
+      border-radius: 8px;
+      font-family: 'Syne', sans-serif;
       font-weight: 600;
-      font-size: 13px;
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.2s;
       white-space: nowrap;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
     }
-    button:hover { opacity: 0.88; transform: translateY(-1px); }
-    button:active { transform: translateY(0); }
-    button.danger { background: var(--red); }
-    button.success { background: var(--green); }
-    button.small { padding: 5px 11px; font-size: 12px; border-radius: 5px; }
-    button.small.reboot-btn { background: var(--amber); color: white; }
 
-    /* ── Table ── */
+    button:hover { opacity: 0.9; }
+    button.danger { background: var(--red); }
+    button.small { padding: 6px 12px; font-size: 13px; }
+    button.success { background: var(--green); }
+
     table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
     th {
       background: var(--surface2);
-      padding: 10px 14px;
-      text-align: right;
       font-size: 11px;
-      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.6px;
+      letter-spacing: 1px;
       color: var(--text-dim);
-      border-bottom: 2px solid var(--border);
+      font-weight: 600;
     }
-    td {
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 13px;
-      vertical-align: middle;
-    }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: var(--surface2); }
+    td { font-family: 'JetBrains Mono', monospace; font-size: 14px; }
 
-    /* ── Login ── */
-    .logout-btn { position: fixed; top: 20px; left: 20px; z-index: 100; }
+    .logout-btn { position: fixed; top: 20px; right: 20px; z-index: 100; }
 
     #loginScreen {
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--bg);
     }
     #managerPanel { display: none; }
 
-
     .login-card {
-      width: 400px;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 44px 40px;
-      box-shadow: var(--shadow-md);
+      border-radius: 16px;
+      padding: 48px;
+      width: 400px;
     }
-    .login-card h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; text-align: center; }
-    .login-card .subtitle { margin-bottom: 32px; font-size: 13px; color: var(--text-dim); text-align: center; }
 
-    /* ── MAC Card ── */
     .mac-detail {
-      background: var(--surface2);
-      padding: 14px 16px;
-      border-radius: var(--radius);
+      background: var(--bg);
+      padding: 14px;
+      border-radius: 8px;
       margin-bottom: 8px;
-      border: 1px solid var(--border);
-      border-right: 3px solid var(--accent);
+      border-left: 3px solid var(--accent);
     }
 
     .mac-detail-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
     .mac-detail-mac {
-      font-family: 'IBM Plex Mono', monospace;
-      font-weight: 600;
-      font-size: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 16px;
       color: var(--accent);
-      letter-spacing: 0.5px;
     }
 
     .mac-detail-field {
-      padding: 6px 0;
-      font-size: 13px;
+      margin-top: 8px;
+      font-size: 14px;
       display: flex;
       align-items: center;
       gap: 8px;
-      border-bottom: 1px solid var(--border);
     }
-    .mac-detail-field:last-child { border-bottom: none; }
 
-    .mac-detail-label {
-      color: var(--text-dim);
-      min-width: 180px;
-      font-size: 12px;
-      font-weight: 500;
-    }
-    .mac-detail-value {
-      color: var(--text);
-      font-size: 13px;
-      flex: 1;
-    }
+    .mac-detail-label { color: var(--text-dim); min-width: 220px; font-size: 13px; }
+    .mac-detail-value { color: var(--text); font-size: 14px; flex: 1; }
 
     .field-edit-btn {
-      padding: 3px 8px !important;
+      padding: 3px 10px !important;
       font-size: 11px !important;
-      background: var(--surface3) !important;
+      background: var(--surface) !important;
       border: 1px solid var(--border) !important;
       color: var(--text-dim) !important;
       cursor: pointer;
       border-radius: 4px;
       opacity: 0;
-      transition: opacity 0.15s;
-      transform: none !important;
+      transition: opacity 0.2s;
     }
     .mac-detail-field:hover .field-edit-btn { opacity: 1; }
-    .mac-actions { display: flex; gap: 5px; }
+    .mac-actions { display: flex; gap: 4px; }
 
-    /* ── Modal ── */
+    /* Modal */
     .modal-overlay {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(10,12,20,0.55);
-      backdrop-filter: blur(3px);
+      background: rgba(0,0,0,0.7);
       z-index: 1000;
       align-items: center;
       justify-content: center;
@@ -320,77 +223,59 @@
     .modal {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 24px 26px;
-      width: 400px;
+      border-radius: 16px;
+      padding: 32px;
+      width: 520px;
       max-width: 95vw;
-      max-height: 82vh;
-      overflow-y: auto;
-      box-shadow: var(--shadow-md);
     }
 
     .modal h3 {
-      font-size: 15px;
-      font-weight: 700;
+      font-size: 18px;
       margin-bottom: 20px;
-      color: var(--text);
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--border);
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
-    .modal-field { margin-bottom: 14px; }
+    .modal-field { margin-bottom: 16px; }
     .modal-field label {
       display: block;
-      font-size: 11px;
-      font-weight: 700;
+      font-size: 12px;
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.6px;
+      letter-spacing: 1px;
       color: var(--text-dim);
-      margin-bottom: 5px;
-    }
-    .modal-field input, .modal-field select {
-      width: 100%;
-      padding: 9px 11px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text);
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 13px;
-    }
-    .modal-field input:focus, .modal-field select:focus {
-      outline: none;
-      border-color: var(--accent);
-      background: var(--surface);
+      margin-bottom: 6px;
     }
 
-    .modal-buttons { display: flex; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
-    .modal-buttons button { flex: 1; justify-content: center; }
+    .modal-field input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+    }
+
+    .modal-field input:focus { outline: none; border-color: var(--accent); }
+
+    .modal-buttons { display: flex; gap: 12px; margin-top: 24px; }
+    .modal-buttons button { flex: 1; }
 
     .btn-cancel {
-      background: transparent !important;
-      border: 1px solid var(--border) !important;
-      color: var(--text-dim) !important;
-    }
-    .btn-cancel:hover { border-color: var(--text-dim) !important; transform: none !important; }
-
-    /* ── Misc ── */
-    .copy-btn {
-      padding: 3px 8px;
-      background: var(--surface2);
+      background: transparent;
       border: 1px solid var(--border);
       color: var(--text-dim);
+    }
+
+    .copy-btn {
+      padding: 4px 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
       font-size: 11px;
       cursor: pointer;
-      border-radius: 4px;
-      transform: none !important;
-    }
-    .copy-btn:hover { opacity: 0.8; }
-
-    .password-display {
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
 
     .installer-link {
@@ -400,108 +285,93 @@
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      font-weight: 500;
     }
     .installer-link:hover { text-decoration: underline; }
 
     .success-msg {
-      background: var(--green-light);
+      background: rgba(16, 185, 129, 0.1);
       border: 1px solid var(--green);
       color: var(--green);
-      padding: 12px 14px;
-      border-radius: var(--radius-sm);
+      padding: 12px;
+      border-radius: 8px;
       margin-top: 12px;
-      font-size: 13px;
     }
+
     .error-msg {
-      background: var(--red-light);
+      background: rgba(239, 68, 68, 0.1);
       border: 1px solid var(--red);
       color: var(--red);
-      padding: 12px 14px;
-      border-radius: var(--radius-sm);
+      padding: 12px;
+      border-radius: 8px;
       margin-top: 12px;
-      font-size: 13px;
     }
+
     .info-msg {
-      background: var(--accent-light);
+      background: rgba(37, 99, 235, 0.12);
       border: 1px solid var(--accent);
       color: var(--accent);
-      padding: 12px 14px;
-      border-radius: var(--radius-sm);
+      padding: 12px;
+      border-radius: 8px;
       margin-top: 12px;
-      font-size: 13px;
     }
 
     .license-warning-btn {
-      background: var(--red);
+      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
       color: white;
       border: none;
-      padding: 5px 11px;
+      padding: 6px 12px;
       border-radius: 20px;
-      font-size: 13px;
+      font-size: 16px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.3s;
+      box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
       animation: pulse 2s infinite;
     }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.75; } }
-    .license-warning-btn:hover { opacity: 0.85; transform: none; }
+    .license-warning-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(255, 107, 107, 0.5);
+    }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
 
     .license-paid-btn {
-      background: var(--green);
+      background: linear-gradient(135deg, #10b981, #059669);
       color: white;
       border: none;
-      padding: 5px 11px;
+      padding: 6px 12px;
       border-radius: 20px;
-      font-size: 13px;
+      font-size: 16px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.3s;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+      margin-left: 4px;
     }
-    .license-paid-btn:hover { opacity: 0.85; transform: none; }
-
-    /* ── Quick access links ── */
-    .quick-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 8px 14px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text);
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.15s;
+    .license-paid-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
     }
-    .quick-link:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
   </style>
 </head>
 
-<body>
+<body class="light">
   <!-- Login Screen -->
   <div id="loginScreen">
     <div class="login-card">
       <h1 data-i18n="loginTitle">כניסת מנהל</h1>
       <p class="subtitle">Tador Technologies LTD</p>
-      <div class="form-row" style="flex-direction: column; gap: 12px; margin-bottom: 0;">
-        <input type="text" id="loginUsername" data-i18n-placeholder="username" placeholder="שם משתמש" style="flex:unset;"/>
-        <input type="password" id="loginPassword" data-i18n-placeholder="password" placeholder="סיסמה" style="flex:unset;"/>
-        <button type="button" onclick="login()" data-i18n="loginBtn" style="width:100%;justify-content:center;padding:12px;">התחבר</button>
+      <div class="form-row" style="flex-direction: column; margin-top: 24px;">
+        <input type="text" id="loginUsername" data-i18n-placeholder="username" placeholder="שם משתמש" />
+        <input type="password" id="loginPassword" data-i18n-placeholder="password" placeholder="סיסמה" />
+        <button onclick="login()" data-i18n="loginBtn">התחבר</button>
       </div>
       <div id="loginError" class="error-msg" style="display: none; margin-top: 12px;"></div>
-      <div class="lang-switch" style="margin-top: 28px; justify-content: center;">
+
+      <div class="lang-switch" style="margin-top: 24px; justify-content: center;">
         <button class="lang-btn" data-lang="en">English</button>
         <button class="lang-btn active" data-lang="he">עברית</button>
       </div>
       <div style="text-align: center; margin-top: 12px;">
-        <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
+        <button class="theme-btn" onclick="toggleTheme()">🌙</button>
       </div>
     </div>
   </div>
@@ -516,11 +386,6 @@
           <h1 data-i18n="panelTitle">Manager Panel</h1>
           <p class="subtitle" data-i18n="panelSubtitle">Manage installer accounts and MAC assignments</p>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 16px;min-width:120px;">
-          <div style="font-size:11px;color:var(--text-dim);margin-bottom:2px;">🇮🇱 שעון ישראל</div>
-          <div id="israelClock" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--accent);letter-spacing:2px;">--:--:--</div>
-          <div id="israelDate" style="font-size:11px;color:var(--text-dim);margin-top:2px;"></div>
-        </div>
         <div style="display: flex; gap: 10px; align-items: center;">
           <button class="theme-btn" onclick="toggleTheme()">🌙</button>
           <div class="lang-switch">
@@ -533,18 +398,22 @@
       <!-- Quick Link -->
       <div class="card">
         <h2 data-i18n="quickAccess">🔗 Quick Access</h2>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <a href="/installer.html" target="_blank" class="quick-link">
-            🔧 <span data-i18n="installerPanelLink">פתח פאנל מתקין</span>
+        <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+          <a href="/installer.html" target="_blank" class="installer-link">
+            <span>🔧</span>
+            <span data-i18n="installerPanelLink">Open Installer Panel</span>
           </a>
-          <a href="/index.html" target="_blank" class="quick-link">
-            🔍 <span data-i18n="deviceLookupLink">פתח חיפוש מכשיר</span>
+          <a href="/index.html" target="_blank" class="installer-link">
+            <span>🔍</span>
+            <span data-i18n="deviceLookupLink">Open Device Lookup</span>
           </a>
-          <a href="#" onclick="downloadBackup(); return false;" class="quick-link">
-            📥 <span data-i18n="downloadBackup">הורד גיבוי מסד נתונים</span>
+          <a href="#" onclick="downloadBackup(); return false;" class="installer-link">
+            <span>📥</span>
+            <span data-i18n="downloadBackup">Download Database Backup</span>
           </a>
-          <a href="https://eu1.voipbell.net/index.php?lang=en_gb" target="_blank" class="quick-link">
-            ☎️ <span data-i18n="voipbellServer">Voipbell</span>
+          <a href="https://eu1.voipbell.net/index.php?lang=en_gb" target="_blank" class="installer-link">
+            <span>☎️</span>
+            <span data-i18n="voipbellServer">Voipbell Server Login</span>
           </a>
         </div>
       </div>
@@ -555,7 +424,7 @@
         <div class="form-row">
           <input type="text" id="newPhone" data-i18n-placeholder="phoneNumber" placeholder="Phone Number (e.g., +972501234567)" />
           <input type="text" id="newMacs" data-i18n-placeholder="macAddresses" placeholder="MAC Addresses (comma separated, optional)" />
-          <button type="button" onclick="createInstaller()" data-i18n="createBtn">Create</button>
+          <button onclick="createInstaller()" data-i18n="createBtn">Create</button>
         </div>
         <div id="createResult"></div>
         <div id="globalMessage"></div>
@@ -563,24 +432,51 @@
 
       <!-- Installers List -->
       <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-          <h2 data-i18n="installersList" style="margin-bottom:0;">👥 Installer Accounts</h2>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <input type="text" id="searchText" placeholder="🔍 חיפוש לפי טלפון / שם טכנאי..." oninput="filterInstallers()" style="flex:unset;width:280px;font-size:13px;padding:8px 12px;" />
-          </div>
-        </div>
+        <h2 data-i18n="installersList">👥 Installer Accounts</h2>
         <table id="installersTable">
           <thead>
             <tr>
-              <th data-i18n="thPhone" style="min-width:120px;">מספר טלפון</th>
-              <th data-i18n="thPassword" style="min-width:110px;">סיסמה</th>
-              <th data-i18n="thMacs" style="min-width:220px;">כתובות MAC</th>
-              <th style="min-width:120px;">התראה תשלום</th>
-              <th style="min-width:120px;">פעולה אחרונה</th>
-              <th style="min-width:150px; text-align:center;">ביצוע פעולות</th>
+              <th data-i18n="thPhone">Phone Number</th>
+              <th data-i18n="thPassword">Password</th>
+              <th data-i18n="thMacs">MAC Addresses</th>
+              <th data-i18n="thCreated">Created</th>
+              <th data-i18n="thLastLogin">Last Login</th>
+              <th data-i18n="thActions">Actions</th>
             </tr>
           </thead>
           <tbody id="installersBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Catalog -->
+      <div class="card">
+        <h2>📄 קטלוג מוצרים</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">הקישור יופיע אצל כל הטכנאים כפתור הורדה.</p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="catalogUrlInput" placeholder="https://example.com/catalog.pdf" style="flex:1;min-width:280px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;" />
+          <button class="btn" onclick="saveCatalogUrl()" style="white-space:nowrap;">💾 שמור קישור</button>
+          <button class="btn" onclick="clearCatalogUrl()" style="background:var(--red);white-space:nowrap;">🗑 הסר</button>
+        </div>
+        <div id="catalogStatus" style="margin-top:8px;font-size:13px;"></div>
+      </div>
+
+      <!-- Mailing List -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <h2 style="margin:0;">📧 רשימת תפוצה</h2>
+          <button class="btn" onclick="exportMailingList()" style="background:var(--green);font-size:13px;">⬇ ייצוא CSV</button>
+        </div>
+        <div id="mailingListEmpty" style="display:none;color:var(--text-dim);font-size:14px;text-align:center;padding:20px;">אין נרשמים עדיין</div>
+        <table id="mailingTable" style="display:none;">
+          <thead>
+            <tr>
+              <th>שם</th>
+              <th>אימייל</th>
+              <th>תאריך הרשמה</th>
+              <th>הסר</th>
+            </tr>
+          </thead>
+          <tbody id="mailingBody"></tbody>
         </table>
       </div>
 
@@ -614,21 +510,8 @@
       </div>
 
       <div class="modal-field">
-        <label id="labelModel">📟 דגם</label>
-        <select id="modalModel" style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;direction:ltr;">
-          <option value="genesis7">Genesis 7</option>
-          <option value="genesis5">Genesis 5</option>
-        </select>
-      </div>
-
-      <div class="modal-field">
         <label id="labelAddress">📍 Address</label>
         <input type="text" id="modalAddress" placeholder="123 Main St, Apt 5B" />
-      </div>
-
-      <div class="modal-field">
-        <label id="labelCity">🏙️ City</label>
-        <input type="text" id="modalCity" placeholder="Tel Aviv" />
       </div>
 
       <div class="modal-field">
@@ -652,11 +535,6 @@
       </div>
 
       <div class="modal-field">
-        <label id="labelTechnicianPhone">📞 Technician Phone</label>
-        <input type="text" id="modalTechnicianPhone" placeholder="05x-xxxxxxx" />
-      </div>
-
-      <div class="modal-field">
         <label id="labelSupplier">🏢 Supplier Name</label>
         <input type="text" id="modalSupplier" placeholder="Supplier name" />
       </div>
@@ -664,11 +542,6 @@
       <div class="modal-field">
         <label id="labelCommittee">👥 Committee Name</label>
         <input type="text" id="modalCommittee" placeholder="Committee name" />
-      </div>
-
-      <div class="modal-field">
-        <label id="labelCommitteePhone">📞 Committee Phone</label>
-        <input type="text" id="modalCommitteePhone" placeholder="05x-xxxxxxx" />
       </div>
 
       <div class="modal-field">
@@ -707,7 +580,6 @@
         deviceLookupLink: "Open Device Lookup",
         downloadBackup: "Download Database Backup",
         voipbellServer: "Voipbell Server Login",
-        remoteLogin: "Remote Login",
         createInstaller: "➕ Create Installer Account",
         phoneNumber: "Phone Number (e.g., +972501234567)",
         macAddresses: "MAC Addresses (comma separated, optional)",
@@ -733,17 +605,14 @@
         passwordReset: "Password reset!",
         newPassword: "New password",
         address: "Address",
-        city: "City",
         notes: "Additional Info",
         purchaseDate: "Date of Purchase",
         startDate: "Date of Start Working",
         technicianName: "Technician Name",
-        technicianPhone: "Technician Phone",
         supplierName: "Supplier Name",
         annualFee: "Annual License Fee",
         licensesPurchased: "Licenses Purchased",
         committeeName: "Committee Name",
-        committeePhone: "Committee Phone",
         licenseQuestion: "Has the annual license been paid?",
         oneYear: "1 year since installation",
         yearsCount: "years since installation",
@@ -763,7 +632,6 @@
         deviceLookupLink: "פתח חיפוש מכשיר",
         downloadBackup: "הורד גיבוי מסד נתונים",
         voipbellServer: "התחברות לשרת Voipbell",
-        remoteLogin: "התחברות מרחוק",
         createInstaller: "➕ צור חשבון מתקין",
         phoneNumber: "מספר טלפון (לדוגמה: +972501234567)",
         macAddresses: "כתובות MAC (מופרדות בפסיקים, אופציונלי)",
@@ -789,17 +657,14 @@
         passwordReset: "הסיסמה אופסה!",
         newPassword: "סיסמה חדשה",
         address: "כתובת",
-        city: "עיר",
         notes: "מידע נוסף",
         purchaseDate: "תאריך רכישה",
         startDate: "תאריך תחילת עבודה",
         technicianName: "שם טכנאי",
-        technicianPhone: "טלפון טכנאי",
         supplierName: "שם ספק",
         annualFee: "דמי רישיון שנתיים",
         licensesPurchased: "כמה רשיונות נרכשו",
         committeeName: "שם ועד",
-        committeePhone: "טלפון ועד",
         licenseQuestion: "האם שולם רישיון שנתי?",
         oneYear: "שנה מאז התקנה",
         yearsCount: "שנים מאז התקנה",
@@ -877,6 +742,8 @@
           document.getElementById('loginScreen').style.display = 'none';
           document.getElementById('managerPanel').style.display = 'block';
           loadData();
+          loadCatalog();
+          loadMailingList();
         } else {
           errorDiv.textContent = data.error || 'Login failed';
           errorDiv.style.display = 'block';
@@ -937,21 +804,6 @@
       setTimeout(() => btn.textContent = translations[currentLang].copy, 2000);
     });
 
-
-
-    async function editModelInline(phoneNumber, current) {
-      const newVal = current === 'genesis7' ? 'genesis5' : 'genesis7';
-      const label = newVal === 'genesis5' ? 'Genesis 5' : 'Genesis 7';
-      if (!confirm('לשנות דגם ל-' + label + '?')) return;
-      const res = await fetch('/api/manager/installers/' + phoneNumber + '/panel-type', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ panelType: newVal })
-      });
-      const d = await res.json();
-      if (d.success) loadData();
-    }
-
     async function deleteInstaller(phoneNumber) {
       if (!confirm(`Delete installer ${phoneNumber}?`)) return;
       await fetch(`/api/manager/installers/${phoneNumber}`, { method: 'DELETE' });
@@ -978,29 +830,20 @@
 
       document.getElementById('modalMac').value = macObj ? (macObj.mac || '') : '';
       document.getElementById('modalAddress').value = macObj ? (macObj.address || '') : '';
-      document.getElementById('modalCity').value = macObj ? (macObj.city || '') : '';
       document.getElementById('modalPurchaseDate').value = macObj ? (macObj.purchaseDate || '') : '';
       document.getElementById('modalStartDate').value = macObj ? (macObj.startDate || '') : '';
       document.getElementById('modalNotes').value = macObj ? (macObj.notes || '') : '';
       document.getElementById('modalTechnicianName').value = macObj ? (macObj.technicianName || '') : '';
-      document.getElementById('modalTechnicianPhone').value = macObj ? (macObj.technicianPhone || '') : '';
       document.getElementById('modalSupplier').value = macObj ? (macObj.supplierName || '') : '';
-      document.getElementById('modalCommittee').value = macObj ? (macObj.committeeName || '') : '';
-      document.getElementById('modalCommitteePhone').value = macObj ? (macObj.committeePhone || '') : '';
       document.getElementById('modalAnnualFee').value = macObj ? (macObj.annualFee || '') : '';
-      document.getElementById('modalModel').value = macObj ? (macObj.panelType || 'genesis7') : 'genesis7';
 
       document.getElementById('modalTitle').textContent = macObj ? (t.edit + ' MAC') : ('+ ' + t.addMac);
       document.getElementById('labelAddress').textContent = '📍 ' + t.address;
-      document.getElementById('labelCity').textContent = '🏙️ ' + t.city;
       document.getElementById('labelPurchase').textContent = '🛒 ' + t.purchaseDate;
       document.getElementById('labelStart').textContent = '🟢 ' + t.startDate;
       document.getElementById('labelNotes').textContent = '📝 ' + t.notes;
       document.getElementById('labelTechnician').textContent = '👷 ' + t.technicianName;
-      document.getElementById('labelTechnicianPhone').textContent = '📞 ' + t.technicianPhone;
-      document.getElementById('labelCommitteePhone').textContent = '📞 ' + t.committeePhone;
       document.getElementById('labelSupplier').textContent = '🏢 ' + t.supplierName;
-      document.getElementById('labelCommittee').textContent = '👥 ' + t.committeeName;
       document.getElementById('labelAnnualFee').textContent = '💰 ' + t.annualFee;
 
       document.getElementById('modalCancelBtn').textContent = currentLang === 'he' ? 'ביטול' : 'Cancel';
@@ -1010,7 +853,6 @@
         setTimeout(() => {
           const fieldMap = {
             address: 'modalAddress',
-            city: 'modalCity',
             purchaseDate: 'modalPurchaseDate',
             startDate: 'modalStartDate',
             notes: 'modalNotes',
@@ -1019,9 +861,6 @@
             annualFee: 'modalAnnualFee',
             licensesPurchased: 'modalLicensesPurchased',
             committeeName: 'modalCommittee',
-            technicianPhone: 'modalTechnicianPhone',
-            committeePhone: 'modalCommitteePhone',
-            panelType: 'modalModel',
           };
           const el = document.getElementById(fieldMap[focusField]);
           if (el) { el.focus(); el.select && el.select(); }
@@ -1038,18 +877,14 @@
       const mac = rawMac.replace(/[:\s-]/g, '').toUpperCase();
 
       const address = document.getElementById('modalAddress').value;
-      const city = document.getElementById('modalCity').value;
       const purchaseDate = document.getElementById('modalPurchaseDate').value;
       const startDate = document.getElementById('modalStartDate').value;
       const notes = document.getElementById('modalNotes').value;
       const technicianName = document.getElementById('modalTechnicianName').value;
-      const technicianPhone = document.getElementById('modalTechnicianPhone').value;
       const supplierName = document.getElementById('modalSupplier').value;
       const committeeName = document.getElementById('modalCommittee').value;
-      const committeePhone = document.getElementById('modalCommitteePhone').value;
       const annualFee = document.getElementById('modalAnnualFee').value;
       const licensesPurchased = document.getElementById('modalLicensesPurchased').value;
-      const panelType = document.getElementById('modalModel').value;
 
       if (!mac) return alert('MAC address is required');
 
@@ -1060,7 +895,7 @@
       await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ macAddress: mac, address, city, notes, purchaseDate, startDate, technicianName, technicianPhone, supplierName, committeeName, committeePhone, annualFee, licensesPurchased, panelType })
+        body: JSON.stringify({ macAddress: mac, address, notes, purchaseDate, startDate, technicianName, supplierName, committeeName, annualFee, licensesPurchased })
       });
 
       closeModal();
@@ -1104,10 +939,8 @@
             startDate: macObj.startDate || '',
             notes: macObj.notes || '',
             technicianName: macObj.technicianName || '',
-            technicianPhone: macObj.technicianPhone || '',
             supplierName: macObj.supplierName || '',
             committeeName: macObj.committeeName || '',
-            committeePhone: macObj.committeePhone || '',
             annualFee: macObj.annualFee || '',
             licensesPurchased: macObj.licensesPurchased || '',
             licensePaid: true,
@@ -1141,10 +974,8 @@
             startDate: macObj.startDate || '',
             notes: macObj.notes || '',
             technicianName: macObj.technicianName || '',
-            technicianPhone: macObj.technicianPhone || '',
             supplierName: macObj.supplierName || '',
             committeeName: macObj.committeeName || '',
-            committeePhone: macObj.committeePhone || '',
             annualFee: macObj.annualFee || '',
             licensesPurchased: macObj.licensesPurchased || '',
             licensePaid: false,
@@ -1182,17 +1013,7 @@
       }
     }
 
-    function filterInstallers() {
-      const text = document.getElementById('searchText').value.trim().toLowerCase();
-      const rows = document.querySelectorAll('#installersBody tr');
-      rows.forEach(row => {
-        const html = row.innerText.toLowerCase();
-        row.style.display = (!text || html.includes(text)) ? '' : 'none';
-      });
-    }
-
     async function loadData() {
-      await loadAutoRebootSchedules();
       const installersRes = await fetch('/api/manager/installers');
       const installersData = await installersRes.json();
 
@@ -1202,7 +1023,6 @@
       for (const installer of installersData.installers) {
         const details = await fetch(`/api/manager/installers/${installer.phoneNumber}`).then(r => r.json());
         const row = document.createElement('tr');
-        row.dataset.panel = details.installer.panelType || 'genesis7';
 
         row.innerHTML = `
           <td>
@@ -1210,9 +1030,7 @@
               <span>${installer.phoneNumber}</span>
               <button class="field-edit-btn" onclick='editPhoneNumber("${installer.phoneNumber}")' title="${translations[currentLang].editPhone}" style="opacity: 1;">✏️</button>
             </div>
-
           </td>
-
           <td>
             <div class="password-display">
               ${details.installer.password || 'N/A'}
@@ -1229,27 +1047,14 @@
                     <span class="mac-detail-mac">${macObj.mac}</span>
                     <div class="mac-actions">
                       <button class="small" onclick='editMac("${installer.phoneNumber}", ${JSON.stringify(macObj)})'>${translations[currentLang].edit}</button>
-                      <button class="small" onclick="openAutoRebootModal('${macObj.mac}')" title="${currentLang === 'he' ? 'אתחול אוטומטי' : 'Auto Reboot'}" style="background:${autoRebootSchedules[macObj.mac]?.enabled ? 'linear-gradient(135deg,#10b981,#059669)' : 'var(--surface2)'};color:${autoRebootSchedules[macObj.mac]?.enabled ? 'white' : 'var(--text-dim)'};border:1px solid var(--border);">⏰</button>
                       <button class="small danger" onclick="removeMac('${installer.phoneNumber}', '${macObj.mac}')">×</button>
                     </div>
-                  </div>
-
-                  <div class="mac-detail-field">
-                    <span class="mac-detail-label">📟 דגם:</span>
-                    <span class="mac-detail-value">${(macObj.panelType||'genesis7')==='genesis5'?'Genesis 5':'Genesis 7'}</span>
-                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "panelType")'>✏️</button>
                   </div>
 
                   <div class="mac-detail-field">
                     <span class="mac-detail-label">📍 ${translations[currentLang].address}:</span>
                     <span class="mac-detail-value">${macObj.address || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "address")'>✏️</button>
-                  </div>
-
-                  <div class="mac-detail-field">
-                    <span class="mac-detail-label">🏙️ ${translations[currentLang].city}:</span>
-                    <span class="mac-detail-value">${macObj.city || '—'}</span>
-                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "city")'>✏️</button>
                   </div>
 
                   <div class="mac-detail-field">
@@ -1277,12 +1082,6 @@
                   </div>
 
                   <div class="mac-detail-field">
-                    <span class="mac-detail-label">📞 ${translations[currentLang].technicianPhone}:</span>
-                    <span class="mac-detail-value">${macObj.technicianPhone || '—'}</span>
-                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "technicianPhone")'>✏️</button>
-                  </div>
-
-                  <div class="mac-detail-field">
                     <span class="mac-detail-label">🏢 ${translations[currentLang].supplierName}:</span>
                     <span class="mac-detail-value">${macObj.supplierName || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "supplierName")'>✏️</button>
@@ -1295,19 +1094,13 @@
                   </div>
 
                   <div class="mac-detail-field">
-                    <span class="mac-detail-label">📞 ${translations[currentLang].committeePhone}:</span>
-                    <span class="mac-detail-value">${macObj.committeePhone || '—'}</span>
-                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "committeePhone")'>✏️</button>
-                  </div>
-
-                  <div class="mac-detail-field">
                     <span class="mac-detail-label">💰 ${translations[currentLang].annualFee}:</span>
                     <span class="mac-detail-value">${macObj.annualFee || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "annualFee")'>✏️</button>
                   </div>
 
                   <div class="mac-detail-field">
-                    <span class="mac-detail-label">📊 כמה רשיונות נרכשו:</span>
+                    <span class="mac-detail-label">📊 ${translations[currentLang].licensesPurchased}:</span>
                     <span class="mac-detail-value">${macObj.licensesPurchased || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "licensesPurchased")'>✏️</button>
                   </div>
@@ -1380,13 +1173,10 @@
 
           <td>${new Date(installer.createdAt).toLocaleString()}</td>
           <td>${installer.lastLogin ? new Date(installer.lastLogin).toLocaleString() : translations[currentLang].never}</td>
-          <td style="text-align:center;">
-            <div style="display:flex;flex-direction:column;gap:6px;width:150px;margin:0 auto;">
-              <button class="small" onclick="remoteLogin('${installer.phoneNumber}')" style="background:#5b6abf;color:white;justify-content:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>כניסה מרחוק</button>
-              <button class="small reboot-btn" onclick="rebootInstallerDevices('${installer.phoneNumber}', this)" style="justify-content:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>אתחול</button>
-              <button class="small success" onclick="resetPassword('${installer.phoneNumber}')" style="justify-content:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>איפוס סיסמה</button>
-              <button class="small danger" onclick="deleteInstaller('${installer.phoneNumber}')" style="justify-content:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>מחק</button>
-            </div>
+          <td>
+            <button class="small" onclick="remoteLogin('${installer.phoneNumber}')" style="margin-right: 8px; background: linear-gradient(135deg, #667eea, #764ba2); color: white;">🔐 ${translations[currentLang].remoteLogin}</button>
+            <button class="small success" onclick="resetPassword('${installer.phoneNumber}')" style="margin-right: 8px;">${translations[currentLang].resetPassword}</button>
+            <button class="small danger" onclick="deleteInstaller('${installer.phoneNumber}')">${translations[currentLang].delete}</button>
           </td>
         `;
 
@@ -1469,89 +1259,6 @@
       }
     }
 
-    async function rebootInstallerDevices(phoneNumber, btnEl) {
-      const confirmMsg = currentLang === 'he'
-        ? 'האם לאתחל את כל המכשירים של מתקין זה?'
-        : 'Reboot all devices for this installer?';
-      if (!confirm(confirmMsg)) return;
-
-      const origText = btnEl.innerHTML;
-      btnEl.disabled = true;
-      btnEl.innerHTML = '⏳';
-
-      try {
-        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
-        if (!details.success || !details.installer) {
-          showMessage('❌ ' + (currentLang === 'he' ? 'מתקין לא נמצא' : 'Installer not found'), 'error');
-          btnEl.innerHTML = origText; btnEl.disabled = false;
-          return;
-        }
-
-        const macs = details.installer.macAddresses || [];
-        if (macs.length === 0) {
-          showMessage('⚠️ ' + (currentLang === 'he' ? 'אין MACs למתקין זה' : 'No MACs for this installer'), 'error');
-          btnEl.innerHTML = origText; btnEl.disabled = false;
-          return;
-        }
-
-        let successCount = 0, failCount = 0;
-        for (const macObj of macs) {
-          const res = await fetch('/api/manager/reboot', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mac: macObj.mac })
-          });
-          const data = await res.json();
-          data.success ? successCount++ : failCount++;
-        }
-
-        showMessage(`✅ ${successCount} ${currentLang === 'he' ? 'מכשירים אותחלו' : 'devices rebooted'}${failCount ? ` ❌ ${failCount} ${currentLang === 'he' ? 'נכשלו' : 'failed'}` : ''}`, successCount > 0 ? 'success' : 'error');
-        btnEl.innerHTML = '✅';
-        setTimeout(() => { btnEl.innerHTML = origText; btnEl.disabled = false; }, 3000);
-      } catch (err) {
-        showMessage('❌ ' + err.message, 'error');
-        btnEl.innerHTML = origText; btnEl.disabled = false;
-      }
-    }
-
-    async function rebootDevice(mac, btnEl) {
-      const t = translations[currentLang];
-      const confirmMsg = currentLang === 'he'
-        ? `האם לאתחל את המכשיר ${mac}?`
-        : `Reboot device ${mac}?`;
-      if (!confirm(confirmMsg)) return;
-
-      const origText = btnEl.innerHTML;
-      btnEl.disabled = true;
-      btnEl.innerHTML = '⏳';
-
-      try {
-        showMessage(currentLang === 'he' ? '⏳ שולח פקודת אתחול...' : '⏳ Sending reboot command...', 'info');
-
-        const res = await fetch('/api/manager/reboot', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mac })
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          showMessage('✅ ' + (currentLang === 'he' ? `המכשיר ${mac} מאותחל` : `Device ${mac} is rebooting`), 'success');
-          btnEl.innerHTML = '✅';
-          setTimeout(() => { btnEl.innerHTML = origText; btnEl.disabled = false; }, 3000);
-        } else {
-          showMessage('❌ ' + (data.error || 'Reboot failed'), 'error');
-          btnEl.innerHTML = origText;
-          btnEl.disabled = false;
-        }
-      } catch (err) {
-        showMessage('❌ ' + err.message, 'error');
-        btnEl.innerHTML = origText;
-        btnEl.disabled = false;
-      }
-    }
-
     async function editPhoneNumber(oldPhoneNumber) {
       const t = translations[currentLang];
       const newPhoneNumber = prompt(t.newPhoneNumber + ':', oldPhoneNumber);
@@ -1585,296 +1292,88 @@
       }
     }
 
-    // ==================== שעון ישראל חי ====================
-    function updateIsraelClock() {
-      const now = new Date();
-      const israelTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
-      const h = String(israelTime.getHours()).padStart(2,'0');
-      const m = String(israelTime.getMinutes()).padStart(2,'0');
-      const s = String(israelTime.getSeconds()).padStart(2,'0');
-      const el = document.getElementById('israelClock');
-      const elDate = document.getElementById('israelDate');
-      if (el) el.textContent = `${h}:${m}:${s}`;
-      if (elDate) elDate.textContent = israelTime.toLocaleDateString('he-IL', { weekday:'short', day:'numeric', month:'short' });
-    }
-    updateIsraelClock();
-    setInterval(updateIsraelClock, 1000);
 
-    // ==================== AUTO REBOOT ====================
-    let autoRebootSchedules = {};
-    let arCurrentTab = 'recurring';
-
-    function switchArTab(tab) {
-      arCurrentTab = tab;
-      document.getElementById('arPanelRecurring').style.display = tab === 'recurring' ? 'block' : 'none';
-      document.getElementById('arPanelOnce').style.display = tab === 'once' ? 'block' : 'none';
-      const rBtn = document.getElementById('arTabRecurring');
-      const oBtn = document.getElementById('arTabOnce');
-      rBtn.style.background = tab === 'recurring' ? 'var(--accent)' : 'transparent';
-      rBtn.style.color = tab === 'recurring' ? 'white' : 'var(--text-dim)';
-      rBtn.style.boxShadow = tab === 'recurring' ? '0 2px 8px rgba(99,102,241,0.4)' : 'none';
-      oBtn.style.background = tab === 'once' ? 'var(--accent)' : 'transparent';
-      oBtn.style.color = tab === 'once' ? 'white' : 'var(--text-dim)';
-      oBtn.style.boxShadow = tab === 'once' ? '0 2px 8px rgba(99,102,241,0.4)' : 'none';
-    }
-
-    async function loadAutoRebootSchedules() {
+    // ==================== CATALOG ====================
+    async function loadCatalog() {
       try {
-        const res = await fetch('/api/manager/auto-reboot');
+        const res = await fetch('/api/catalog');
         const data = await res.json();
-        if (data.success) autoRebootSchedules = data.schedules || {};
-      } catch (e) {}
+        const input = document.getElementById('catalogUrlInput');
+        const status = document.getElementById('catalogStatus');
+        if (data.url) {
+          input.value = data.url;
+          status.innerHTML = `<span style="color:var(--green);">✅ קטלוג פעיל: <a href="${data.url}" target="_blank" style="color:var(--accent);">${data.url}</a></span>`;
+        } else {
+          status.innerHTML = '<span style="color:var(--text-dim);">אין קטלוג מוגדר</span>';
+        }
+      } catch(e) {}
     }
 
-    function toggleDayBtn(cb) {
-      cb.closest('label').classList.toggle('active', cb.checked);
-    }
-
-    function updateToggleStyle() {
-      const cb = document.getElementById('arEnabled');
-      const track = document.getElementById('arToggleTrack');
-      const thumb = document.getElementById('arToggleThumb');
-      if (!track || !thumb) return;
-      track.style.background = cb.checked ? '#6366f1' : '#374151';
-      thumb.style.transform = cb.checked ? 'translateX(-18px)' : 'translateX(0)';
-    }
-
-    function updateNextReboot() {
-      const days = Array.from(document.querySelectorAll('.arDay:checked')).map(cb => parseInt(cb.value));
-      const timeVal = document.getElementById('arHour').value;
-      const el = document.getElementById('arNextReboot');
-      if (!el) return;
-      if (days.length === 0 || !timeVal) { el.textContent = ''; return; }
-      const [h, m] = timeVal.split(':').map(Number);
-      const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-      // find next occurrence from now (Israel time)
-      const nowIL = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
-      let best = null;
-      for (let offset = 0; offset <= 7; offset++) {
-        const candidate = new Date(nowIL);
-        candidate.setDate(candidate.getDate() + offset);
-        candidate.setHours(h, m, 0, 0);
-        if (candidate <= nowIL) continue;
-        if (days.includes(candidate.getDay())) { best = candidate; break; }
-      }
-      if (best) {
-        const dayName = dayNames[best.getDay()];
-        const dateStr = best.toLocaleDateString('he-IL');
-        el.textContent = `⏭️ אתחול הבא: יום ${dayName} ${dateStr} בשעה ${timeVal}`;
-        el.style.display = 'block';
-      } else {
-        el.textContent = '';
-        el.style.display = 'none';
-      }
-    }
-
-    function openAutoRebootModal(mac) {
-      const sched = autoRebootSchedules[mac] || {};
-      document.getElementById('arMac').value = mac;
-      document.getElementById('arMacLabel').textContent = 'MAC: ' + mac;
-      document.getElementById('arEnabled').checked = sched.enabled !== false;
-      document.getElementById('arLastReboot').textContent = sched.lastReboot
-        ? new Date(sched.lastReboot).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })
-        : 'טרם בוצע';
-
-      // reset day checkboxes
-      document.querySelectorAll('.arDay').forEach(cb => { cb.checked = false; cb.closest('label').classList.remove('active'); });
-
-      if (sched.type === 'once' && sched.onceDateTime) {
-        switchArTab('once');
-        document.getElementById('arOnceDateTime').value = sched.onceDateTime;
-      } else {
-        switchArTab('recurring');
-        const days = sched.days || [];
-        days.forEach(d => {
-          const cb = document.querySelector(`.arDay[value="${d}"]`);
-          if (cb) { cb.checked = true; cb.closest('label').classList.add('active'); }
-        });
-        document.getElementById('arHour').value = sched.israelTime || '03:00';
-        updateNextReboot();
-      }
-
-      updateToggleStyle();
-      document.getElementById('autoRebootModal').classList.add('open');
-    }
-
-    function closeAutoRebootModal() {
-      document.getElementById('autoRebootModal').classList.remove('open');
-    }
-
-    function israelTimeToUTC(timeStr) {
-      // timeStr = "HH:MM"
-      const [h, m] = timeStr.split(':').map(Number);
-      const now = new Date();
-      const israelNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
-      const utcOffset = (now - israelNow) / (1000 * 60 * 60); // hours
-      const utcH = ((h + utcOffset) % 24 + 24) % 24;
-      return { utcHour: Math.floor(utcH), utcMin: m };
-    }
-
-    async function saveAutoReboot() {
-      const mac = document.getElementById('arMac').value;
-      let payload = { mac };
-
-      if (arCurrentTab === 'recurring') {
-        const days = Array.from(document.querySelectorAll('.arDay:checked')).map(cb => parseInt(cb.value));
-        if (days.length === 0) return showMessage('❌ בחר לפחות יום אחד', 'error');
-        const israelTime = document.getElementById('arHour').value; // "HH:MM"
-        const { utcHour, utcMin } = israelTimeToUTC(israelTime);
-        const enabled = document.getElementById('arEnabled').checked;
-        payload = { ...payload, type: 'recurring', days, israelTime, hour: utcHour, minute: utcMin, enabled };
-      } else {
-        const onceDateTime = document.getElementById('arOnceDateTime').value; // "YYYY-MM-DDTHH:MM"
-        if (!onceDateTime) return showMessage('❌ בחר תאריך ושעה', 'error');
-        const localDate = new Date(onceDateTime);
-        // המר לשעון ישראל → UTC
-        const israelStr = localDate.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' });
-        payload = { ...payload, type: 'once', onceDateTime, enabled: true };
-      }
-
-      const res = await fetch('/api/manager/auto-reboot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+    async function saveCatalogUrl() {
+      const url = document.getElementById('catalogUrlInput').value.trim();
+      if (!url) return clearCatalogUrl();
+      const res = await fetch('/api/manager/catalog', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url }) });
       const data = await res.json();
+      const status = document.getElementById('catalogStatus');
       if (data.success) {
-        autoRebootSchedules[mac] = { ...payload, lastReboot: autoRebootSchedules[mac]?.lastReboot || null };
-        showMessage('✅ תזמון נשמר', 'success');
-        closeAutoRebootModal();
-        loadData();
+        status.innerHTML = `<span style="color:var(--green);">✅ נשמר בהצלחה: <a href="${url}" target="_blank" style="color:var(--accent);">${url}</a></span>`;
       } else {
-        showMessage('❌ ' + data.error, 'error');
+        status.innerHTML = '<span style="color:var(--red);">❌ שגיאה בשמירה</span>';
       }
     }
 
-    async function deleteAutoReboot(mac) {
-      await fetch(`/api/manager/auto-reboot/${mac}`, { method: 'DELETE' });
-      delete autoRebootSchedules[mac];
-      showMessage('✅ תזמון נמחק', 'success');
-      closeAutoRebootModal();
-      loadData();
+    async function clearCatalogUrl() {
+      await fetch('/api/manager/catalog', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: null }) });
+      document.getElementById('catalogUrlInput').value = '';
+      document.getElementById('catalogStatus').innerHTML = '<span style="color:var(--text-dim);">הקטלוג הוסר</span>';
     }
 
+    // ==================== MAILING LIST ====================
+    async function loadMailingList() {
+      try {
+        const res = await fetch('/api/manager/mailing-list');
+        const data = await res.json();
+        const tbody = document.getElementById('mailingBody');
+        const table = document.getElementById('mailingTable');
+        const empty = document.getElementById('mailingListEmpty');
+        tbody.innerHTML = '';
+        if (!data.list || data.list.length === 0) {
+          table.style.display = 'none';
+          empty.style.display = 'block';
+          return;
+        }
+        table.style.display = '';
+        empty.style.display = 'none';
+        data.list.forEach(sub => {
+          const date = sub.subscribedAt ? new Date(sub.subscribedAt).toLocaleDateString('he-IL') : '-';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${sub.name}</td><td>${sub.email}</td><td>${date}</td>
+            <td><button class="small danger" onclick="removeSubscriber('${sub.email}')">🗑</button></td>`;
+          tbody.appendChild(tr);
+        });
+      } catch(e) {}
+    }
 
+    async function removeSubscriber(email) {
+      if (!confirm('להסיר ' + email + ' מרשימת התפוצה?')) return;
+      await fetch('/api/manager/mailing-list/' + encodeURIComponent(email), { method: 'DELETE' });
+      loadMailingList();
+    }
+
+    function exportMailingList() {
+      const rows = document.querySelectorAll('#mailingBody tr');
+      if (!rows.length) return alert('אין נרשמים לייצוא');
+      let csv = 'שם,אימייל,תאריך הרשמה\n';
+      rows.forEach(r => {
+        const cells = r.querySelectorAll('td');
+        csv += `"${cells[0].textContent}","${cells[1].textContent}","${cells[2].textContent}"\n`;
+      });
+      const a = document.createElement('a');
+      a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+      a.download = 'mailing-list.csv';
+      a.click();
+    }
 
   </script>
-
-  <!-- Auto Reboot Modal -->
-  <div class="modal-overlay" id="autoRebootModal" onclick="if(event.target===this)closeAutoRebootModal()">
-    <div style="
-      background:var(--surface);
-      border-radius:20px;
-      width:100%;
-      max-width:420px;
-      padding:0;
-      overflow:hidden;
-      box-shadow:0 25px 60px rgba(0,0,0,0.4);
-      border:1px solid rgba(255,255,255,0.08);
-      direction:rtl;
-    ">
-      <!-- Header -->
-      <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:20px 24px 16px;position:relative;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;">⏰</div>
-          <div>
-            <div style="color:white;font-size:16px;font-weight:700;letter-spacing:0.3px;">אתחול אוטומטי</div>
-            <div style="color:rgba(255,255,255,0.7);font-size:12px;" id="arMacLabel"></div>
-          </div>
-        </div>
-        <button onclick="closeAutoRebootModal()" style="position:absolute;top:14px;left:16px;background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
-      </div>
-      <input type="hidden" id="arMac" />
-
-      <div style="padding:20px 24px;">
-        <!-- Tabs -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:20px;background:var(--surface2);border-radius:12px;padding:4px;">
-          <button id="arTabRecurring" onclick="switchArTab('recurring')"
-            style="padding:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;border-radius:9px;transition:all 0.2s;background:var(--accent);color:white;box-shadow:0 2px 8px rgba(99,102,241,0.4);">
-            🔁 חוזר
-          </button>
-          <button id="arTabOnce" onclick="switchArTab('once')"
-            style="padding:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;border-radius:9px;transition:all 0.2s;background:transparent;color:var(--text-dim);">
-            📅 תאריך ספציפי
-          </button>
-        </div>
-
-        <!-- חוזר -->
-        <div id="arPanelRecurring">
-          <div style="margin-bottom:16px;">
-            <div style="font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">ימים לאתחול</div>
-            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;">
-              <label class="ar-day-btn"><input type="checkbox" class="arDay" value="0" onchange="updateNextReboot();toggleDayBtn(this)"><span>א'</span></label>
-              <label class="ar-day-btn"><input type="checkbox" class="arDay" value="1" onchange="updateNextReboot();toggleDayBtn(this)"><span>ב'</span></label>
-              <label class="ar-day-btn"><input type="checkbox" class="arDay" value="2" onchange="updateNextReboot();toggleDayBtn(this)"><span>ג'</span></label>
-              <label class="ar-day-btn"><input type="checkbox" class="arDay" value="3" onchange="updateNextReboot();toggleDayBtn(this)"><span>ד'</span></label>
-              <label class="ar-day-btn"><input type="checkbox" class="arDay" value="4" onchange="updateNextReboot();toggleDayBtn(this)"><span>ה'</span></label>
-              <label class="ar-day-btn"><input type="checkbox" class="arDay" value="5" onchange="updateNextReboot();toggleDayBtn(this)"><span>ו'</span></label>
-              <label class="ar-day-btn"><input type="checkbox" class="arDay" value="6" onchange="updateNextReboot();toggleDayBtn(this)"><span>ש'</span></label>
-            </div>
-          </div>
-
-          <div style="margin-bottom:12px;">
-            <div style="font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">שעת ביצוע (ישראל)</div>
-            <input type="time" id="arHour" value="03:00" onchange="updateNextReboot()" style="width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:18px;font-weight:600;text-align:center;" />
-          </div>
-
-          <div id="arNextReboot" style="font-size:12px;color:#10b981;min-height:20px;padding:8px 12px;background:rgba(16,185,129,0.08);border-radius:8px;border:1px solid rgba(16,185,129,0.2);display:none;"></div>
-
-          <div style="display:flex;align-items:center;gap:10px;margin-top:14px;">
-            <label style="position:relative;display:inline-block;width:42px;height:24px;cursor:pointer;">
-              <input type="checkbox" id="arEnabled" style="opacity:0;width:0;height:0;position:absolute;" onchange="updateToggleStyle()">
-              <span id="arToggleTrack" style="position:absolute;inset:0;border-radius:12px;background:#374151;transition:background 0.2s;"></span>
-              <span id="arToggleThumb" style="position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:white;transition:transform 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></span>
-            </label>
-            <span style="font-size:13px;font-weight:600;color:var(--text);">פעיל</span>
-          </div>
-        </div>
-
-        <!-- תאריך ספציפי -->
-        <div id="arPanelOnce" style="display:none;">
-          <div style="margin-bottom:8px;">
-            <div style="font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">תאריך ושעה (שעון ישראל)</div>
-            <input type="datetime-local" id="arOnceDateTime" style="width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:15px;" />
-          </div>
-          <div style="font-size:12px;color:var(--text-dim);padding:8px 12px;background:var(--surface2);border-radius:8px;margin-top:8px;">
-            ℹ️ האתחול יתבצע פעם אחת בלבד
-          </div>
-        </div>
-
-        <!-- Last reboot -->
-        <div style="display:flex;align-items:center;gap:6px;margin-top:16px;padding:10px 12px;background:var(--surface2);border-radius:10px;">
-          <span style="font-size:13px;color:var(--text-dim);">🕒 אתחול אחרון:</span>
-          <span id="arLastReboot" style="font-size:13px;font-weight:600;color:var(--text);">—</span>
-        </div>
-
-        <!-- Buttons -->
-        <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;margin-top:16px;align-items:center;">
-          <button onclick="deleteAutoReboot(document.getElementById('arMac').value)" style="padding:10px 12px;border-radius:10px;border:1.5px solid rgba(239,68,68,0.4);background:rgba(239,68,68,0.08);color:#ef4444;font-size:13px;font-weight:600;cursor:pointer;">🗑️</button>
-          <button onclick="closeAutoRebootModal()" style="padding:10px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text-dim);font-size:13px;font-weight:600;cursor:pointer;">ביטול</button>
-          <button onclick="saveAutoReboot()" style="padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(99,102,241,0.35);">💾 שמור</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <style>
-    .ar-day-btn {
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-      height:38px;border-radius:10px;cursor:pointer;
-      border:1.5px solid var(--border);background:var(--surface2);
-      font-size:13px;font-weight:700;color:var(--text-dim);
-      transition:all 0.15s;user-select:none;
-    }
-    .ar-day-btn input { display:none; }
-    .ar-day-btn span { pointer-events:none; }
-    .ar-day-btn.active {
-      background:linear-gradient(135deg,#6366f1,#8b5cf6);
-      border-color:#6366f1;color:white;
-      box-shadow:0 2px 8px rgba(99,102,241,0.4);
-    }
-    #arEnabled:checked ~ #arToggleTrack { background:#6366f1 !important; }
-  </style>
-
 </body>
 </html>
