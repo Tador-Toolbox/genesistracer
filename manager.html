@@ -1419,13 +1419,26 @@
           <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:10px;">
             <div style="font-family:monospace;font-weight:700;color:var(--accent);margin-bottom:8px;">${mac}</div>
             ${hasSchedule ? `<div style="font-size:12px;color:var(--green);margin-bottom:8px;">✅ מתוזמן: ${sched.type==='once' ? sched.onceDateTime : sched.israelTime + ' כל ' + (sched.days||[]).length + ' ימים'}</div>` : '<div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">אין תזמון</div>'}
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
               <label style="font-size:12px;">שעה (ישראל):</label>
               <input type="time" id="stime-${cleanMac}" value="${sched?.israelTime||'03:00'}" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;" />
-              <select id="stype-${cleanMac}" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;">
-                <option value="recurring" ${sched?.type!=='once'?'selected':''}>כל יום</option>
+              <select id="stype-${cleanMac}" onchange="toggleDays('${cleanMac}')" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;">
+                <option value="recurring" ${sched?.type!=='once'?'selected':''}>חוזר</option>
                 <option value="once" ${sched?.type==='once'?'selected':''}>חד פעמי</option>
               </select>
+            </div>
+            <div id="sdays-${cleanMac}" style="display:${sched?.type==='once'?'none':'flex'};gap:5px;flex-wrap:wrap;margin-bottom:8px;">
+              ${['א','ב','ג','ד','ה','ו','ש'].map((d,i) => `
+                <label style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;cursor:pointer;">
+                  <input type="checkbox" id="sday-${cleanMac}-${i}" ${(sched?.days||[0,1,2,3,4,5,6]).includes(i)?'checked':''} style="cursor:pointer;" />
+                  ${d}
+                </label>`).join('')}
+            </div>
+            <div id="sonce-${cleanMac}" style="display:${sched?.type==='once'?'flex':'none'};gap:8px;align-items:center;margin-bottom:8px;">
+              <label style="font-size:12px;">תאריך:</label>
+              <input type="date" id="sdate-${cleanMac}" value="${sched?.onceDateTime?.slice(0,10)||new Date().toISOString().slice(0,10)}" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;" />
+            </div>
+            <div style="display:flex;gap:8px;">
               <button onclick="saveSchedule('${mac}')" style="padding:5px 10px;background:var(--green);color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;">שמור</button>
               ${hasSchedule ? `<button onclick="deleteSchedule('${mac}')" style="padding:5px 10px;background:var(--red);color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;">מחק</button>` : ''}
             </div>
@@ -1439,16 +1452,26 @@
       document.getElementById('scheduleOverlay').style.display = 'none';
     }
 
+    function toggleDays(cleanMac) {
+      const type = document.getElementById(`stype-${cleanMac}`).value;
+      document.getElementById(`sdays-${cleanMac}`).style.display = type === 'once' ? 'none' : 'flex';
+      document.getElementById(`sonce-${cleanMac}`).style.display = type === 'once' ? 'flex' : 'none';
+    }
+
     async function saveSchedule(mac) {
       const cleanMac = mac.replace(/[:\-\s]/g,'').toUpperCase();
       const time = document.getElementById(`stime-${cleanMac}`).value || '03:00';
       const type = document.getElementById(`stype-${cleanMac}`).value;
       const [hh, mm] = time.split(':').map(Number);
-      // Convert Israel time to UTC (Israel is UTC+2 or UTC+3 DST — use +2 as base)
       const utcHour = (hh - 2 + 24) % 24;
-      const body = type === 'once'
-        ? { mac, type:'once', hour: utcHour, minute: mm, israelTime: time, enabled: true, onceDateTime: new Date().toISOString().slice(0,10) + 'T' + time }
-        : { mac, type:'recurring', hour: utcHour, minute: mm, israelTime: time, days:[0,1,2,3,4,5,6], enabled: true };
+      let body;
+      if (type === 'once') {
+        const date = document.getElementById(`sdate-${cleanMac}`).value || new Date().toISOString().slice(0,10);
+        body = { mac, type:'once', hour: utcHour, minute: mm, israelTime: time, enabled: true, onceDateTime: date + 'T' + time };
+      } else {
+        const days = [0,1,2,3,4,5,6].filter(i => document.getElementById(`sday-${cleanMac}-${i}`)?.checked);
+        body = { mac, type:'recurring', hour: utcHour, minute: mm, israelTime: time, days: days.length ? days : [0,1,2,3,4,5,6], enabled: true };
+      }
       await fetch('/api/manager/auto-reboot', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
       openScheduleModal(schedulePhone);
     }
