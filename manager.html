@@ -601,8 +601,12 @@
         notes: "Additional Info",
         purchaseDate: "Date of Purchase",
         startDate: "Date of Start Working",
+        city: "City",
         technicianName: "Technician Name",
+        technicianPhone: "Technician Phone",
         supplierName: "Supplier Name",
+        committeePhone: "Committee Phone",
+        panelModel: "Model",
         annualFee: "Annual License Fee",
         licensesPurchased: "Licenses Purchased",
         committeeName: "Committee Name",
@@ -653,8 +657,12 @@
         notes: "מידע נוסף",
         purchaseDate: "תאריך רכישה",
         startDate: "תאריך תחילת עבודה",
+        city: "עיר",
         technicianName: "שם טכנאי",
+        technicianPhone: "טלפון טכנאי",
         supplierName: "שם ספק",
+        committeePhone: "טלפון ועד",
+        panelModel: "דגם",
         annualFee: "דמי רישיון שנתיים",
         licensesPurchased: "כמה רשיונות נרכשו",
         committeeName: "שם ועד",
@@ -1045,9 +1053,21 @@
                   </div>
 
                   <div class="mac-detail-field">
+                    <span class="mac-detail-label">🖥️ ${translations[currentLang].panelModel}:</span>
+                    <span class="mac-detail-value">${(macObj.panelType||'genesis7')==='genesis5'?'Genesis 5':'Genesis 7'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "panelType")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
                     <span class="mac-detail-label">📍 ${translations[currentLang].address}:</span>
                     <span class="mac-detail-value">${macObj.address || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "address")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">🏙️ ${translations[currentLang].city}:</span>
+                    <span class="mac-detail-value">${macObj.city || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "city")'>✏️</button>
                   </div>
 
                   <div class="mac-detail-field">
@@ -1075,6 +1095,12 @@
                   </div>
 
                   <div class="mac-detail-field">
+                    <span class="mac-detail-label">📞 ${translations[currentLang].technicianPhone}:</span>
+                    <span class="mac-detail-value">${macObj.technicianPhone || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "technicianPhone")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
                     <span class="mac-detail-label">🏢 ${translations[currentLang].supplierName}:</span>
                     <span class="mac-detail-value">${macObj.supplierName || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "supplierName")'>✏️</button>
@@ -1084,6 +1110,12 @@
                     <span class="mac-detail-label">👥 ${translations[currentLang].committeeName}:</span>
                     <span class="mac-detail-value">${macObj.committeeName || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "committeeName")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📞 ${translations[currentLang].committeePhone}:</span>
+                    <span class="mac-detail-value">${macObj.committeePhone || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "committeePhone")'>✏️</button>
                   </div>
 
                   <div class="mac-detail-field">
