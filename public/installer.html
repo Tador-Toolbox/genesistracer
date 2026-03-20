@@ -544,6 +544,7 @@
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('installerPanel').style.display = 'block';
         renderMacList();
+        loadCatalog();
       } else {
         document.getElementById('loginError').textContent = data.error || 'Login failed';
       }
@@ -569,6 +570,7 @@
           document.getElementById('loginScreen').style.display = 'none';
           document.getElementById('installerPanel').style.display = 'block';
           renderMacList();
+          loadCatalog();
           // Clear sessionStorage after use
           sessionStorage.removeItem('installerData');
         } catch (err) {
