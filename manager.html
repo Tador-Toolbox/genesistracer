@@ -430,24 +430,6 @@
         <div id="globalMessage"></div>
       </div>
 
-      <!-- Installers List -->
-      <div class="card">
-        <h2 data-i18n="installersList">👥 Installer Accounts</h2>
-        <table id="installersTable">
-          <thead>
-            <tr>
-              <th style="min-width:120px;">מספר טלפון</th>
-              <th style="min-width:110px;">סיסמה</th>
-              <th style="min-width:220px;">כתובות MAC</th>
-              <th style="min-width:100px;">נוצר</th>
-              <th style="min-width:120px;">פעולה אחרונה</th>
-              <th style="min-width:150px;text-align:center;">ביצוע פעולות</th>
-            </tr>
-          </thead>
-          <tbody id="installersBody"></tbody>
-        </table>
-      </div>
-
       <!-- Catalog -->
       <div class="card">
         <h2>📄 קטלוג מוצרים</h2>
@@ -470,6 +452,24 @@
         <table id="mailingTable" style="display:none;">
           <thead><tr><th>שם</th><th>אימייל</th><th>תאריך הרשמה</th><th>הסר</th></tr></thead>
           <tbody id="mailingBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Installers List -->
+      <div class="card">
+        <h2 data-i18n="installersList">👥 Installer Accounts</h2>
+        <table id="installersTable">
+          <thead>
+            <tr>
+              <th style="min-width:120px;">מספר טלפון</th>
+              <th style="min-width:110px;">סיסמה</th>
+              <th style="min-width:220px;">כתובות MAC</th>
+              <th style="min-width:100px;">נוצר</th>
+              <th style="min-width:120px;">פעולה אחרונה</th>
+              <th style="min-width:150px;text-align:center;">ביצוע פעולות</th>
+            </tr>
+          </thead>
+          <tbody id="installersBody"></tbody>
         </table>
       </div>
 
@@ -835,7 +835,11 @@
       document.getElementById('modalStartDate').value = macObj ? (macObj.startDate || '') : '';
       document.getElementById('modalNotes').value = macObj ? (macObj.notes || '') : '';
       document.getElementById('modalTechnicianName').value = macObj ? (macObj.technicianName || '') : '';
+      document.getElementById('modalTechnicianPhone').value = macObj ? (macObj.technicianPhone || '') : '';
       document.getElementById('modalSupplier').value = macObj ? (macObj.supplierName || '') : '';
+      document.getElementById('modalCommitteePhone').value = macObj ? (macObj.committeePhone || '') : '';
+      document.getElementById('modalCity').value = macObj ? (macObj.city || '') : '';
+      document.getElementById('modalModel').value = macObj ? (macObj.panelType || 'genesis7') : 'genesis7';
       document.getElementById('modalAnnualFee').value = macObj ? (macObj.annualFee || '') : '';
 
       document.getElementById('modalTitle').textContent = macObj ? (t.edit + ' MAC') : ('+ ' + t.addMac);
@@ -862,6 +866,10 @@
             annualFee: 'modalAnnualFee',
             licensesPurchased: 'modalLicensesPurchased',
             committeeName: 'modalCommittee',
+            committeePhone: 'modalCommitteePhone',
+            technicianPhone: 'modalTechnicianPhone',
+            city: 'modalCity',
+            panelType: 'modalModel',
           };
           const el = document.getElementById(fieldMap[focusField]);
           if (el) { el.focus(); el.select && el.select(); }
@@ -882,8 +890,12 @@
       const startDate = document.getElementById('modalStartDate').value;
       const notes = document.getElementById('modalNotes').value;
       const technicianName = document.getElementById('modalTechnicianName').value;
+      const technicianPhone = document.getElementById('modalTechnicianPhone').value;
       const supplierName = document.getElementById('modalSupplier').value;
       const committeeName = document.getElementById('modalCommittee').value;
+      const committeePhone = document.getElementById('modalCommitteePhone').value;
+      const city = document.getElementById('modalCity').value;
+      const panelType = document.getElementById('modalModel').value;
       const annualFee = document.getElementById('modalAnnualFee').value;
       const licensesPurchased = document.getElementById('modalLicensesPurchased').value;
 
@@ -896,7 +908,7 @@
       await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ macAddress: mac, address, notes, purchaseDate, startDate, technicianName, supplierName, committeeName, annualFee, licensesPurchased })
+        body: JSON.stringify({ macAddress: mac, address, city, notes, purchaseDate, startDate, technicianName, technicianPhone, supplierName, committeeName, committeePhone, annualFee, licensesPurchased, panelType })
       });
 
       closeModal();
