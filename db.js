@@ -1,12 +1,14 @@
 const crypto = require("crypto");
 const { MongoClient } = require("mongodb");
+const dns = require("dns");
+dns.setDefaultResultOrder("ipv4first");
 
 const uri = process.env.MONGODB_URI;
 if (!uri) {
   throw new Error("❌ Missing MONGODB_URI env var (set it in Render Environment Variables)");
 }
 
-const client = new MongoClient(uri);
+const client = new MongoClient(uri, { family: 4 });
 let db;
 
 async function connectDB() {
