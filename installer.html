@@ -321,6 +321,12 @@
       </button>
       
       <div id="result"></div>
+
+      <button id="rebootBtn" onclick="rebootDevice()" style="margin-top:8px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;">
+        <span>🔄</span>
+        <span data-i18n="rebootBtn">אתחול מכשיר</span>
+      </button>
+      <div id="rebootResult" style="margin-top:8px;font-size:13px;text-align:center;"></div>
       
       <button class="logout-btn" onclick="logout()" data-i18n="logoutBtn">Logout</button>
 
@@ -375,6 +381,7 @@
         macLabel: "Your MAC Addresses",
         lookupBtn: "Find Device IP",
         logoutBtn: "Logout",
+        rebootBtn: "Reboot Device",
         deviceFound: "DEVICE FOUND",
         error: "ERROR",
         mac: "MAC",
@@ -632,6 +639,37 @@
           </div>
         `;
       }
+    }
+
+    // ==================== REBOOT ====================
+    async function rebootDevice() {
+      if (!selectedMac) return alert('בחר MAC תחילה');
+      const btn = document.getElementById('rebootBtn');
+      const res = document.getElementById('rebootResult');
+      btn.disabled = true;
+      btn.querySelector('span:last-child').textContent = 'מאתחל...';
+      res.textContent = '';
+      try {
+        const r = await fetch('/api/installer/reboot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mac: selectedMac })
+        });
+        const data = await r.json();
+        if (data.success) {
+          res.style.color = 'var(--green, #1a9e6e)';
+          res.textContent = '✅ פקודת אתחול נשלחה בהצלחה';
+        } else {
+          res.style.color = 'var(--red, #d63b3b)';
+          res.textContent = '❌ ' + (data.error || 'שגיאה');
+        }
+      } catch(e) {
+        res.style.color = 'var(--red, #d63b3b)';
+        res.textContent = '❌ שגיאת תקשורת';
+      }
+      btn.disabled = false;
+      const t = translations[currentLang];
+      btn.querySelector('span:last-child').textContent = t?.rebootBtn || 'אתחול מכשיר';
     }
 
     // ==================== CATALOG ====================
