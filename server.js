@@ -753,6 +753,36 @@ app.post('/api/installer/login', async (req, res) => {
   res.json(result);
 });
 
+// ==================== INSTALLER REBOOT ====================
+app.post('/api/installer/reboot', async (req, res) => {
+  const { mac } = req.body;
+  if (!mac) return res.status(400).json({ success: false, error: 'MAC required' });
+  const cleanMac = mac.replace(/[:\-\s]/g, '').toUpperCase();
+  try {
+    const auth = await getAuthToken();
+    const macData = await searchMac(auth, cleanMac);
+    const macList = macData?.result?.elements || macData?.result?.list || [];
+    const macEntry = macList[0];
+    if (!macEntry) return res.json({ success: false, error: 'MAC not found in NEXhome' });
+    const communityId = macEntry.usedCommunityId || macEntry.communityId;
+    const deviceData = await getDeviceByMac(auth, cleanMac, communityId);
+    const deviceList = deviceData?.result?.elements || deviceData?.result?.list || [];
+    const deviceEntry = deviceList[0];
+    if (!deviceEntry) return res.json({ success: false, error: 'Device not found' });
+    const headers = {
+      Authorization: auth.token, AppId: APP_ID, Version: '1.0', Apiversion: '1.0',
+      Language: 'en', 'Community-Id': communityId, 'Customer-Id': auth.customerId,
+      EmployeeAccountId: auth.employeeAccountId, RequestId: crypto.randomUUID(),
+      'User-Agent': 'Mozilla/5.0', Accept: 'application/json',
+      'Content-Type': 'application/json; charset=UTF-8',
+    };
+    await axios.post(`${NEXHOME_BASE}/api/employees/publics/devices/${deviceEntry.id}:reboot`, {}, { headers, timeout: 15000 });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== CATALOG ====================
 app.get('/api/catalog', async (req, res) => {
   try {
