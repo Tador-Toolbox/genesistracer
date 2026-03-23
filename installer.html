@@ -309,6 +309,9 @@
     <div class="card">
       <h1 data-i18n="panelTitle">Device Lookup</h1>
       <p class="subtitle" data-i18n="panelSubtitle">Select a MAC address to find device IP</p>
+      <div id="managerNoteBanner" style="display:none;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:right;">
+        <span style="font-size:16px;">📝 </span><span id="managerNoteText"></span>
+      </div>
       
       <div class="form-group">
         <label data-i18n="macLabel">Your MAC Addresses</label>
@@ -317,27 +320,27 @@
       
       <button onclick="lookup()">
         <span>🔍</span>
-        <span data-i18n="lookupBtn">Find Device IP</span>
+        <span data-i18n="lookupBtn">חפש IP מכשיר</span>
       </button>
       
       <div id="result"></div>
 
-      <button id="rebootBtn" onclick="rebootDevice()" style="margin-top:8px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;">
+      <button id="rebootBtn" onclick="rebootDevice()" style="margin-top:8px;width:100%;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;">
         <span>🔄</span>
         <span data-i18n="rebootBtn">אתחול מכשיר</span>
       </button>
       <div id="rebootResult" style="margin-top:8px;font-size:13px;text-align:center;"></div>
-      
-      <button class="logout-btn" onclick="logout()" data-i18n="logoutBtn">Logout</button>
 
-      <div id="catalogSection" style="display:block;margin-top:10px;">
+      <div id="catalogSection" style="display:block;margin-top:8px;">
         <button id="catalogLink" onclick="openCatalog()" style="display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;padding:11px;border-radius:10px;background:linear-gradient(135deg,#e8572a,#c43b12);color:white;font-weight:600;font-size:14px;cursor:pointer;border:none;width:100%;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          הורדת קטלוג מוצרים
+          <span data-i18n="catalogBtn">הורדת קטלוג מוצרים</span>
         </button>
       </div>
 
-      <button onclick="openSubscribeModal()" style="margin-top:10px;width:100%;padding:11px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-weight:600;font-size:14px;cursor:pointer;">📧 הירשמו לקבלת עדכונים ראשונים על מוצרים חדשים, כלים והטבות</button>
+      <button onclick="openSubscribeModal()" style="margin-top:8px;width:100%;padding:11px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-weight:600;font-size:14px;cursor:pointer;">📧 הירשמו לקבלת עדכונים ראשונים על מוצרים חדשים, כלים והטבות</button>
+
+      <button class="logout-btn" onclick="logout()" data-i18n="logoutBtn" style="margin-top:8px;">התנתק</button>
 
       <!-- Subscribe Modal -->
       <div id="subscribeOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;align-items:center;justify-content:center;">
@@ -379,16 +382,17 @@
         panelTitle: "Device Lookup",
         panelSubtitle: "Select a MAC address to find device IP",
         macLabel: "Your MAC Addresses",
-        lookupBtn: "Find Device IP",
+        lookupBtn: "Remote Access",
         logoutBtn: "Logout",
         rebootBtn: "Reboot Device",
+        catalogBtn: "Download Product Catalog",
         deviceFound: "DEVICE FOUND",
         error: "ERROR",
         mac: "MAC",
         serial: "SERIAL",
         project: "PROJECT",
         status: "STATUS",
-        openBackend: "Open Device Backend",
+        openBackend: "Connect",
         addDescription: "Add description...",
         editDescription: "✏️ Edit",
         saveDescription: "Save",
@@ -413,7 +417,7 @@
         serial: "מספר סידורי",
         project: "פרויקט",
         status: "סטטוס",
-        openBackend: "פתח ממשק מכשיר",
+        openBackend: "התחבר",
         addDescription: "הוסף תיאור...",
         editDescription: "✏️ ערוך",
         saveDescription: "שמור",
@@ -422,7 +426,7 @@
       }
     };
 
-    let currentLang = 'he';
+    let currentLang = 'he'; // default Hebrew
 
     function toggleTheme() {
       document.body.classList.toggle('light');
@@ -552,6 +556,7 @@
         document.getElementById('installerPanel').style.display = 'block';
         renderMacList();
         loadCatalog();
+        loadManagerNote(installerData.phoneNumber);
       } else {
         document.getElementById('loginError').textContent = data.error || 'Login failed';
       }
@@ -569,6 +574,7 @@
     }
     // Auto-login from manager remote access
     window.addEventListener('DOMContentLoaded', () => {
+      setLanguage('he');
       const storedData = sessionStorage.getItem('installerData');
       if (storedData) {
         try {
@@ -578,6 +584,7 @@
           document.getElementById('installerPanel').style.display = 'block';
           renderMacList();
           loadCatalog();
+          loadManagerNote(installerData.phoneNumber);
           // Clear sessionStorage after use
           sessionStorage.removeItem('installerData');
         } catch (err) {
@@ -670,6 +677,22 @@
       btn.disabled = false;
       const t = translations[currentLang];
       btn.querySelector('span:last-child').textContent = t?.rebootBtn || 'אתחול מכשיר';
+    }
+
+    // ==================== MANAGER NOTE ====================
+    async function loadManagerNote(phoneNumber) {
+      try {
+        const res = await fetch(`/api/installer/note?phoneNumber=${encodeURIComponent(phoneNumber)}`);
+        const data = await res.json();
+        const banner = document.getElementById('managerNoteBanner');
+        const text = document.getElementById('managerNoteText');
+        if (data.note) {
+          text.textContent = data.note;
+          banner.style.display = 'block';
+        } else {
+          banner.style.display = 'none';
+        }
+      } catch(e) {}
     }
 
     // ==================== CATALOG ====================
