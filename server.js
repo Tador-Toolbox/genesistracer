@@ -504,6 +504,38 @@ app.get('/api/manager/export-excel', async (req, res) => {
   }
 });
 
+// ==================== CHAT ====================
+app.get('/api/chat/:phoneNumber', async (req, res) => {
+  try {
+    const messages = await db.getChatMessages(req.params.phoneNumber);
+    res.json({ success: true, messages });
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.post('/api/chat/:phoneNumber', async (req, res) => {
+  try {
+    const { from, text } = req.body;
+    if (!text || !from) return res.status(400).json({ success: false, error: 'missing fields' });
+    const msg = await db.sendChatMessage(req.params.phoneNumber, from, text);
+    res.json({ success: true, message: msg });
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.post('/api/chat/:phoneNumber/read', async (req, res) => {
+  try {
+    const { from } = req.body;
+    await db.markMessagesRead(req.params.phoneNumber, from);
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.get('/api/chat/unread/all', async (req, res) => {
+  try {
+    const counts = await db.getAllUnreadCounts();
+    res.json({ success: true, counts });
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // ==================== MANAGER NOTES ====================
 app.post('/api/manager/installers/:phoneNumber/note', async (req, res) => {
   try {

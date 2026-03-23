@@ -338,6 +338,51 @@ async function removeFromMailingList(email) {
   await db.collection("mailingList").deleteOne({ email });
 }
 
+// ==================== CHAT ====================
+async function getChatMessages(phoneNumber) {
+  await connectDB();
+  return await db.collection('chat')
+    .find({ phoneNumber })
+    .sort({ timestamp: 1 })
+    .limit(100)
+    .toArray();
+}
+
+async function sendChatMessage(phoneNumber, from, text) {
+  await connectDB();
+  const msg = { phoneNumber, from, text: text.trim(), timestamp: new Date(), read: false };
+  await db.collection('chat').insertOne(msg);
+  return msg;
+}
+
+async function markMessagesRead(phoneNumber, from) {
+  await connectDB();
+  // mark messages NOT from this sender as read
+  await db.collection('chat').updateMany(
+    { phoneNumber, from: { $ne: from }, read: false },
+    { $set: { read: true } }
+  );
+}
+
+async function getUnreadCount(phoneNumber, from) {
+  await connectDB();
+  return await db.collection('chat').countDocuments({ phoneNumber, from: { $ne: from }, read: false });
+}
+
+async function getAllUnreadCounts() {
+  await connectDB();
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  // count unread messages FROM installer (not read by manager)
+  const pipeline = [
+    { $match: { from: 'installer', read: false } },
+    { $group: { _id: '$phoneNumber', count: { $sum: 1 } } }
+  ];
+  const results = await db.collection('chat').aggregate(pipeline).toArray();
+  const map = {};
+  results.forEach(r => { map[r._id] = r.count; });
+  return map;
+}
+
 async function getAllInstallersWithMacs() {
   await connectDB();
   const adminUser = process.env.ADMIN_USER || 'admin';
