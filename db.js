@@ -422,4 +422,12 @@ module.exports = {
   subscribeToMailingList,
   getMailingList,
   removeFromMailingList,
+  getAllInstallersWithMacs,
+  setManagerNote,
+  getManagerNote,
+  getChatMessages,
+  sendChatMessage,
+  markMessagesRead,
+  getUnreadCount,
+  getAllUnreadCounts,
 };
