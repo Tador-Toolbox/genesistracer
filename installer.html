@@ -309,8 +309,25 @@
     <div class="card">
       <h1 data-i18n="panelTitle">Device Lookup</h1>
       <p class="subtitle" data-i18n="panelSubtitle">Select a MAC address to find device IP</p>
-      <div id="managerNoteBanner" style="display:none;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:right;">
-        <span style="font-size:16px;">📝 </span><span id="managerNoteText"></span>
+      <button onclick="openInstallerChat()" style="width:100%;padding:10px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;font-weight:600;font-size:14px;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        צ'אט תמיכה עם מנהל
+        <span id="installerUnreadBadge" style="display:none;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:18px;text-align:center;"></span>
+      </button>
+
+      <!-- Chat Modal -->
+      <div id="installerChatOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+        <div style="background:var(--surface);border-radius:14px;width:360px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.2);direction:rtl;overflow:hidden;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);">
+            <h3 style="margin:0;font-size:16px;display:flex;align-items:center;gap:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> צ'אט תמיכה</h3>
+            <button onclick="closeInstallerChat()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-dim);">✕</button>
+          </div>
+          <div id="installerChatMessages" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;min-height:260px;max-height:380px;"></div>
+          <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;">
+            <input id="installerChatInput" type="text" placeholder="הקלד הודעה..." style="flex:1;padding:9px 13px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;" onkeydown="if(event.key==='Enter')sendInstallerMessage()" />
+            <button onclick="sendInstallerMessage()" style="padding:9px 16px;background:#7c3aed;color:white;border:none;border-radius:20px;cursor:pointer;font-weight:600;">שלח</button>
+          </div>
+        </div>
       </div>
       
       <div class="form-group">
@@ -679,20 +696,73 @@
       btn.querySelector('span:last-child').textContent = t?.rebootBtn || 'אתחול מכשיר';
     }
 
-    // ==================== MANAGER NOTE ====================
-    async function loadManagerNote(phoneNumber) {
+    // ==================== INSTALLER CHAT ====================
+    let installerChatPoll = null;
+
+    function openInstallerChat() {
+      document.getElementById('installerChatOverlay').style.display = 'flex';
+      loadInstallerChatMessages();
+      fetch(`/api/chat/${installerData.phoneNumber}/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from:'installer' }) });
+      document.getElementById('installerUnreadBadge').style.display = 'none';
+      installerChatPoll = setInterval(loadInstallerChatMessages, 3000);
+    }
+
+    function closeInstallerChat() {
+      document.getElementById('installerChatOverlay').style.display = 'none';
+      clearInterval(installerChatPoll);
+      installerChatPoll = null;
+    }
+
+    async function loadInstallerChatMessages() {
+      if (!installerData?.phoneNumber) return;
       try {
-        const res = await fetch(`/api/installer/note?phoneNumber=${encodeURIComponent(phoneNumber)}`);
+        const res = await fetch(`/api/chat/${installerData.phoneNumber}`);
         const data = await res.json();
-        const banner = document.getElementById('managerNoteBanner');
-        const text = document.getElementById('managerNoteText');
-        if (data.note) {
-          text.textContent = data.note;
-          banner.style.display = 'block';
-        } else {
-          banner.style.display = 'none';
-        }
+        const container = document.getElementById('installerChatMessages');
+        const wasAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 40;
+        container.innerHTML = data.messages.length === 0
+          ? '<div style="text-align:center;color:var(--text-dim);font-size:13px;margin-top:40px;">אין הודעות עדיין</div>'
+          : data.messages.map(m => {
+              const isInstaller = m.from === 'installer';
+              const time = new Date(m.timestamp).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'});
+              return `<div style="display:flex;flex-direction:column;align-items:${isInstaller?'flex-start':'flex-end'};">
+                <div style="max-width:75%;padding:8px 12px;border-radius:${isInstaller?'4px 16px 16px 16px':'16px 4px 16px 16px'};background:${isInstaller?'#7c3aed':'var(--surface2)'};color:${isInstaller?'white':'var(--text)'};font-size:14px;">${m.text}</div>
+                <span style="font-size:10px;color:var(--text-dim);margin-top:2px;">${isInstaller?'אתה':'מנהל'} · ${time}</span>
+              </div>`;
+            }).join('');
+        if (wasAtBottom) container.scrollTop = container.scrollHeight;
       } catch(e) {}
+    }
+
+    async function sendInstallerMessage() {
+      const input = document.getElementById('installerChatInput');
+      const text = input.value.trim();
+      if (!text || !installerData?.phoneNumber) return;
+      input.value = '';
+      await fetch(`/api/chat/${installerData.phoneNumber}`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ from:'installer', text })
+      });
+      loadInstallerChatMessages();
+    }
+
+    async function checkInstallerUnread() {
+      if (!installerData?.phoneNumber) return;
+      try {
+        const res = await fetch(`/api/chat/${installerData.phoneNumber}`);
+        const data = await res.json();
+        const unread = data.messages.filter(m => m.from === 'manager' && !m.read).length;
+        const badge = document.getElementById('installerUnreadBadge');
+        if (unread > 0) { badge.textContent = unread; badge.style.display = 'inline-block'; }
+        else { badge.style.display = 'none'; }
+      } catch(e) {}
+    }
+
+    async function loadManagerNote(phoneNumber) {
+      // check for unread messages
+      await checkInstallerUnread();
+      setInterval(checkInstallerUnread, 30000);
     }
 
     // ==================== CATALOG ====================
