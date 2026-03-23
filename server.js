@@ -494,8 +494,8 @@ app.get('/api/manager/export-excel', async (req, res) => {
       }
     }
     const escape = v => '"' + String(v||'').replace(/"/g,'""') + '"';
-    const csv = bom + [headers, ...rows].map(r => r.map(escape).join(',')).join('
-');
+    const csv = bom + [headers, ...rows].map(r => r.map(escape).join(',')).join('\r\n');
+
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="genesistracer-export-${new Date().toISOString().slice(0,10)}.csv"`);
     res.send(csv);
