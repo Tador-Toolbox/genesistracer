@@ -465,6 +465,66 @@ app.get('/api/manager/backup', async (req, res) => {
   }
 });
 
+// ==================== EXCEL EXPORT ====================
+app.get('/api/manager/export-excel', async (req, res) => {
+  try {
+    const installers = await db.getAllInstallersWithMacs();
+    // Build CSV with BOM for Excel Hebrew support
+    const bom = '﻿';
+    const headers = ['מספר טלפון','סיסמה','דגם','כתובת MAC','עיר','כתובת','שם טכנאי','טלפון טכנאי','שם ועד','טלפון ועד','שם ספק','תאריך רכישה','תאריך תחילת עבודה','דמי רישיון','כמה רשיונות','שולם','הערות מנהל','תאריך יצירה'];
+    const rows = [];
+    for (const inst of installers) {
+      if (!inst.macAddresses || inst.macAddresses.length === 0) {
+        rows.push([inst.phoneNumber, inst.plainPassword || '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', inst.managerNote || '', inst.createdAt ? new Date(inst.createdAt).toLocaleDateString('he-IL') : '']);
+      } else {
+        for (const mac of inst.macAddresses) {
+          rows.push([
+            inst.phoneNumber, inst.plainPassword || '',
+            (mac.panelType||'genesis7')==='genesis5'?'Genesis 5':'Genesis 7',
+            mac.mac||'', mac.city||'', mac.address||'',
+            mac.technicianName||'', mac.technicianPhone||'',
+            mac.committeeName||'', mac.committeePhone||'',
+            mac.supplierName||'', mac.purchaseDate||'', mac.startDate||'',
+            mac.annualFee||'', mac.licensesPurchased||'',
+            mac.licensePaid?'כן':'לא',
+            inst.managerNote||'',
+            inst.createdAt ? new Date(inst.createdAt).toLocaleDateString('he-IL') : ''
+          ]);
+        }
+      }
+    }
+    const escape = v => '"' + String(v||'').replace(/"/g,'""') + '"';
+    const csv = bom + [headers, ...rows].map(r => r.map(escape).join(',')).join('
+');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="genesistracer-export-${new Date().toISOString().slice(0,10)}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== MANAGER NOTES ====================
+app.post('/api/manager/installers/:phoneNumber/note', async (req, res) => {
+  try {
+    const { note } = req.body;
+    await db.setManagerNote(req.params.phoneNumber, note || '');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/installer/note', async (req, res) => {
+  try {
+    const { phoneNumber } = req.query;
+    const note = await db.getManagerNote(phoneNumber);
+    res.json({ success: true, note });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Installer saves description
 app.post('/api/installer/description', async (req, res) => {
   try {

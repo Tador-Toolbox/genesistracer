@@ -201,6 +201,7 @@ async function getInstallerDetails(phoneNumber) {
     macAddresses: installer.macAddresses || [],
     createdAt: installer.createdAt,
     lastLogin: installer.lastLogin,
+    managerNote: installer.managerNote || '',
   };
 }
 
@@ -335,6 +336,23 @@ async function getMailingList() {
 async function removeFromMailingList(email) {
   await connectDB();
   await db.collection("mailingList").deleteOne({ email });
+}
+
+async function getAllInstallersWithMacs() {
+  await connectDB();
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  return await db.collection('installers').find({ phoneNumber: { $ne: adminUser } }).sort({ createdAt: -1 }).toArray();
+}
+
+async function setManagerNote(phoneNumber, note) {
+  await connectDB();
+  await db.collection('installers').updateOne({ phoneNumber }, { $set: { managerNote: note } });
+}
+
+async function getManagerNote(phoneNumber) {
+  await connectDB();
+  const inst = await db.collection('installers').findOne({ phoneNumber });
+  return inst ? (inst.managerNote || '') : '';
 }
 
 module.exports = {
