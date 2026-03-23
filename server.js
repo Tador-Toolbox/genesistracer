@@ -516,8 +516,12 @@ app.get('/api/chat/unread/all', async (req, res) => {
 app.get('/api/chat/:phoneNumber', async (req, res) => {
   try {
     const messages = await db.getChatMessages(req.params.phoneNumber);
+    console.log(`💬 Chat GET: phone=${req.params.phoneNumber} count=${messages.length}`);
     res.json({ success: true, messages });
-  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+  } catch(e) {
+    console.error(`❌ Chat GET error:`, e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
 app.post('/api/chat/:phoneNumber/read', async (req, res) => {
@@ -531,10 +535,15 @@ app.post('/api/chat/:phoneNumber/read', async (req, res) => {
 app.post('/api/chat/:phoneNumber', async (req, res) => {
   try {
     const { from, text } = req.body;
+    console.log(`💬 Chat POST: phone=${req.params.phoneNumber} from=${from} text=${text}`);
     if (!text || !from) return res.status(400).json({ success: false, error: 'missing fields' });
     const msg = await db.sendChatMessage(req.params.phoneNumber, from, text);
+    console.log(`✅ Chat message saved`);
     res.json({ success: true, message: msg });
-  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+  } catch(e) {
+    console.error(`❌ Chat POST error:`, e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
 // ==================== MANAGER NOTES ====================
