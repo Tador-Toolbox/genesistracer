@@ -400,6 +400,23 @@ async function getManagerNote(phoneNumber) {
   return inst ? (inst.managerNote || '') : '';
 }
 
+
+// ==================== TUTORIALS ====================
+async function getTutorials() {
+  await connectDB();
+  const doc = await db.collection("settings").findOne({ key: "tutorials" });
+  return doc ? (doc.value || []) : [];
+}
+
+async function saveTutorials(tutorials) {
+  await connectDB();
+  await db.collection("settings").updateOne(
+    { key: "tutorials" },
+    { $set: { key: "tutorials", value: tutorials, updatedAt: new Date() } },
+    { upsert: true }
+  );
+}
+
 module.exports = {
   connectDB,
   createInstaller,
@@ -419,6 +436,8 @@ module.exports = {
   updateInstallerPanelType,
   getCatalogUrl,
   setCatalogUrl,
+  getTutorials,
+  saveTutorials,
   subscribeToMailingList,
   getMailingList,
   removeFromMailingList,

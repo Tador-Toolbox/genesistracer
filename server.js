@@ -926,6 +926,24 @@ app.delete('/api/manager/mailing-list/:email', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false }); }
 });
 
+
+// ==================== TUTORIALS ====================
+app.get('/api/tutorials', async (req, res) => {
+  try {
+    const tutorials = await db.getTutorials();
+    res.json({ success: true, tutorials });
+  } catch (e) { res.status(500).json({ success: false }); }
+});
+
+app.post('/api/manager/tutorials', async (req, res) => {
+  try {
+    const { tutorials } = req.body;
+    if (!Array.isArray(tutorials)) return res.status(400).json({ success: false, error: 'tutorials must be array' });
+    await db.saveTutorials(tutorials);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false }); }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
