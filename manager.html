@@ -542,6 +542,14 @@
       </div>
 
       <div class="modal-field">
+        <label id="labelModel">💻 דגם מכשיר</label>
+        <select id="modalModel" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;direction:rtl;">
+          <option value="genesis7">Genesis 7</option>
+          <option value="genesis5">Genesis 5</option>
+        </select>
+      </div>
+
+      <div class="modal-field">
         <label id="labelAnnualFee">💰 Annual License Fee</label>
         <input type="text" id="modalAnnualFee" placeholder="e.g. 250" />
       </div>
@@ -555,7 +563,6 @@
       <input type="hidden" id="modalTechnicianPhone" />
       <input type="hidden" id="modalCommitteePhone" />
       <input type="hidden" id="modalCity" />
-      <input type="hidden" id="modalModel" value="genesis7" />
 
       <div class="modal-buttons">
         <button class="btn-cancel" onclick="closeModal()" id="modalCancelBtn">Cancel</button>
