@@ -595,7 +595,8 @@ app.post('/api/installer/description', async (req, res) => {
       description || '',
       existing.annualFee || '',
       existing.licensesPurchased || '',
-      existing.licensePaid || false
+      existing.licensePaid || false,
+      existing.panelType || 'genesis7'
     );
 
     res.json({ success: true });
