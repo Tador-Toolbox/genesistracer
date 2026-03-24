@@ -551,6 +551,12 @@
         <input type="number" id="modalLicensesPurchased" placeholder="e.g. 5" min="0" />
       </div>
 
+      <!-- Hidden fields for values not shown in UI but needed by submitMac -->
+      <input type="hidden" id="modalTechnicianPhone" />
+      <input type="hidden" id="modalCommitteePhone" />
+      <input type="hidden" id="modalCity" />
+      <input type="hidden" id="modalModel" value="genesis7" />
+
       <div class="modal-buttons">
         <button class="btn-cancel" onclick="closeModal()" id="modalCancelBtn">Cancel</button>
         <button onclick="submitMac()" id="modalSaveBtn">Save</button>
