@@ -503,7 +503,7 @@
 
       <div class="modal-field" id="macFieldWrap">
         <label id="labelMac">MAC Address</label>
-        <input type="text" id="modalMac" placeholder="2875D8C16B0F" readonly style="background-color: var(--surface2); cursor: not-allowed;" />
+        <input type="text" id="modalMac" placeholder="2875D8C16B0F" />
       </div>
 
       <div class="modal-field">
@@ -837,6 +837,10 @@
       document.getElementById('macModal').classList.add('open');
 
       document.getElementById('macFieldWrap').style.display = macObj ? 'none' : 'block';
+      const macInput = document.getElementById('modalMac');
+      macInput.readOnly = false;
+      macInput.style.background = '';
+      macInput.style.cursor = '';
       document.getElementById('modalOriginalMac').value = macObj ? macObj.mac : '';
 
       document.getElementById('modalMac').value = macObj ? (macObj.mac || '') : '';
