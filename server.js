@@ -895,14 +895,29 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
   if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
 
   try {
-    const panelBase = `http://${panelAddress}`;
-    const getHeaders  = { Accept: 'application/json, text/plain, */*' };
-    const postHeaders = { Accept: 'application/json, text/plain, */*', 'Content-Type': 'application/json;charset=UTF-8' };
+    const panelBase   = `http://${panelAddress}`;
+    const panelOrigin = `http://${panelAddress}`;
 
-    // Step 1: GET current full relay config (all relays) — no auth needed
+    // Headers matching exactly what the browser sends (from HAR capture)
+    const getHeaders = {
+      'Accept': 'application/json, text/plain, */*',
+      'Host': panelAddress,
+      'Referer': `${panelOrigin}/`,
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    };
+    const postHeaders = {
+      'Accept': 'application/json, text/plain, */*',
+      'Content-Type': 'application/json;charset=UTF-8',
+      'Host': panelAddress,
+      'Origin': panelOrigin,
+      'Referer': `${panelOrigin}/`,
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    };
+
+    // Step 1: GET current relay config
     const getRes = await axios.get(
       `${panelBase}/api/v1/configurations/relayfunction/relay1`,
-      { headers: getHeaders, timeout: 8000 }
+      { headers: getHeaders, timeout: 10000 }
     );
     const relayData = getRes.data?.data;
     if (!relayData) return res.json({ success: false, error: `Could not read relay config. Raw: ${JSON.stringify(getRes.data).slice(0,200)}` });
@@ -914,7 +929,7 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
     const currentMode = relay1.relay_mode;
     const newMode     = currentMode === 'alwayson' ? 'normal' : 'alwayson';
 
-    // Step 2: POST full relay config to /relayfunction (not /relay1), all relays included
+    // Step 2: POST full relay config to /relayfunction (all relays, not /relay1)
     const updatedRelayList = relayList.map(r =>
       r.relay_id === 'relay1' ? { ...r, relay_mode: newMode } : r
     );
@@ -923,7 +938,7 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
     const postRes = await axios.post(
       `${panelBase}/api/v1/configurations/relayfunction`,
       postBody,
-      { headers: postHeaders, timeout: 8000 }
+      { headers: postHeaders, timeout: 10000 }
     );
 
     const postStatus = postRes.data?.status;
