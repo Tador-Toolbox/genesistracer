@@ -896,51 +896,40 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
 
   try {
     const panelBase = `http://${panelAddress}`;
-    const panelHeaders = { 'Content-Type': 'application/json;charset=UTF-8', Accept: 'application/json, text/plain, */*' };
+    const getHeaders  = { Accept: 'application/json, text/plain, */*' };
+    const postHeaders = { Accept: 'application/json, text/plain, */*', 'Content-Type': 'application/json;charset=UTF-8' };
 
-    // Step 1: Login to panel to get session token
-    let token = null;
-    try {
-      const loginRes = await axios.post(
-        `${panelBase}/api/v1/accounts/tokens`,
-        { username: 'admin', password: '123456' },
-        { headers: panelHeaders, timeout: 6000 }
-      );
-      token = loginRes.data?.data?.token || null;
-    } catch(e) { /* panel may not require auth — continue without token */ }
-
-    const authHeaders = {
-      ...panelHeaders,
-      ...(token ? { Authorization: token } : {}),
-    };
-
-    // Step 2: GET current full relay config (all relays)
+    // Step 1: GET current full relay config (all relays) — no auth needed
     const getRes = await axios.get(
       `${panelBase}/api/v1/configurations/relayfunction/relay1`,
-      { headers: authHeaders, timeout: 8000 }
+      { headers: getHeaders, timeout: 8000 }
     );
     const relayData = getRes.data?.data;
-    if (!relayData) return res.json({ success: false, error: 'Could not read relay config' });
+    if (!relayData) return res.json({ success: false, error: `Could not read relay config. Raw: ${JSON.stringify(getRes.data).slice(0,200)}` });
 
     const relayList = relayData.relay_list || [];
     const relay1    = relayList.find(r => r.relay_id === 'relay1');
-    if (!relay1) return res.json({ success: false, error: 'relay1 not found' });
+    if (!relay1) return res.json({ success: false, error: 'relay1 not found in list' });
 
     const currentMode = relay1.relay_mode;
     const newMode     = currentMode === 'alwayson' ? 'normal' : 'alwayson';
 
-    // Step 3: POST full relay config with updated relay_mode
-    // Must send ALL relays to /relayfunction (not /relayfunction/relay1)
+    // Step 2: POST full relay config to /relayfunction (not /relay1), all relays included
     const updatedRelayList = relayList.map(r =>
       r.relay_id === 'relay1' ? { ...r, relay_mode: newMode } : r
     );
     const postBody = { relay_count: relayData.relay_count, relay_list: updatedRelayList };
 
-    await axios.post(
+    const postRes = await axios.post(
       `${panelBase}/api/v1/configurations/relayfunction`,
       postBody,
-      { headers: authHeaders, timeout: 8000 }
+      { headers: postHeaders, timeout: 8000 }
     );
+
+    const postStatus = postRes.data?.status;
+    if (postStatus && postStatus !== 'OK') {
+      return res.json({ success: false, error: `Panel rejected: ${postStatus}` });
+    }
 
     res.json({ success: true, previousMode: currentMode, newMode });
   } catch (err) {
