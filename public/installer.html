@@ -867,7 +867,7 @@
   }
 
 
-  // ── Relay Toggle (Always On) — direct browser→panel call ──
+  // ── Relay Toggle (Always On) — via server proxy ──
   let lastPanelAddress = null; // set after successful lookup
 
   function resetRelayBadge() {
@@ -882,10 +882,9 @@
     const badge = document.getElementById('relayBadge');
     badge.textContent = '...';
     try {
-      const r = await fetch(`http://${panelAddress}/api/v1/configurations/relayfunction/relay1`, { timeout: 6000 });
+      const r = await fetch('/api/installer/relay-status?panelAddress=' + encodeURIComponent(panelAddress));
       const data = await r.json();
-      const relay1 = data?.data?.relay_list?.find(r => r.relay_id === 'relay1');
-      if (relay1) updateRelayBadge(relay1.relay_mode);
+      if (data.success) updateRelayBadge(data.mode);
       else badge.textContent = '—';
     } catch(e) {
       badge.textContent = '—';
@@ -908,63 +907,33 @@
 
   async function toggleRelay() {
     if (!selectedMac) return alert('בחר כתובת MAC תחילה');
-    const btn  = document.getElementById('relayBtn');
+    const btn   = document.getElementById('relayBtn');
     const badge = document.getElementById('relayBadge');
-    const msg  = document.getElementById('relayResult');
+    const msg   = document.getElementById('relayResult');
     msg.textContent = '';
-
-    // If we don't have the panel address yet, do a lookup first
-    if (!lastPanelAddress) {
-      msg.style.color = 'var(--text-dim)';
-      msg.textContent = 'מחפש כתובת פנל...';
-      try {
-        const lr = await fetch('/api/lookup', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mac: selectedMac })
-        });
-        const ld = await lr.json();
-        if (!ld.success || !ld.fullAddress) {
-          msg.style.color = 'var(--red)';
-          msg.textContent = '❌ לא נמצאה כתובת פנל. לחץ "התחברות מרחוק" תחילה.';
-          return;
-        }
-        lastPanelAddress = ld.fullAddress;
-      } catch(e) {
-        msg.style.color = 'var(--red)';
-        msg.textContent = '❌ שגיאת תקשורת בחיפוש';
-        return;
-      }
-      msg.textContent = '';
-    }
-
-    btn.disabled = true;
+    btn.disabled    = true;
     badge.textContent = '...';
 
     try {
-      const panelBase = `http://${lastPanelAddress}`;
-      // GET current state
-      const getRes = await fetch(`${panelBase}/api/v1/configurations/relayfunction/relay1`);
-      const getData = await getRes.json();
-      const relay1 = getData?.data?.relay_list?.find(r => r.relay_id === 'relay1');
-      if (!relay1) throw new Error('relay1 not found');
-
-      const newMode = relay1.relay_mode === 'alwayson' ? 'normal' : 'alwayson';
-      const putBody = { ...relay1, relay_mode: newMode };
-
-      // PUT new mode
-      await fetch(`${panelBase}/api/v1/configurations/relayfunction/relay1`, {
-        method: 'PUT',
+      const r = await fetch('/api/installer/relay-toggle', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(putBody)
+        body: JSON.stringify({ mac: selectedMac, panelAddress: lastPanelAddress || null })
       });
-
-      updateRelayBadge(newMode);
-      msg.style.color = 'var(--green)';
-      msg.textContent = newMode === 'alwayson' ? '✅ Always On הופעל' : '✅ Always On כובה';
+      const data = await r.json();
+      if (data.success) {
+        updateRelayBadge(data.newMode);
+        msg.style.color = 'var(--green)';
+        msg.textContent = data.newMode === 'alwayson' ? '✅ Always On הופעל' : '✅ Always On כובה';
+      } else {
+        badge.textContent = '⚠';
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
     } catch(e) {
       badge.textContent = '⚠';
       msg.style.color = 'var(--red)';
-      msg.textContent = '❌ ' + (e.message || 'שגיאת תקשורת');
+      msg.textContent = '❌ שגיאת תקשורת';
     }
     btn.disabled = false;
   }
