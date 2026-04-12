@@ -901,9 +901,12 @@ function panelHttpGet(host, port, path) {
       method: 'GET',
       headers: {
         'Accept': 'application/json, text/plain, */*',
-        'Connection': 'close',
+        'Accept-Encoding': 'gzip, deflate',
+        'Host': `${host}:${port}`,
+        'Referer': `http://${host}:${port}/`,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
+        'Connection': 'keep-alive',
       },
-      agent: false,
     };
     const req = http.request(options, (panelRes) => {
       let data = '';
@@ -929,23 +932,28 @@ function panelHttpPost(host, port, path, body) {
       method: 'POST',
       headers: {
         'Accept': 'application/json, text/plain, */*',
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
         'Content-Type': 'application/json;charset=UTF-8',
         'Content-Length': bodyBuf.length,
+        'Host': `${host}:${port}`,
         'Origin': `http://${host}:${port}`,
         'Referer': `http://${host}:${port}/`,
-        'Connection': 'close',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
+        'Connection': 'keep-alive',
       },
-      agent: false,
     };
     const req = http.request(options, (panelRes) => {
-      let data = '';
-      panelRes.on('data', chunk => data += chunk);
+      // Handle gzip if needed
+      let chunks = [];
+      panelRes.on('data', chunk => chunks.push(chunk));
       panelRes.on('end', () => {
+        const data = Buffer.concat(chunks).toString('utf8');
         try { resolve(JSON.parse(data)); } catch(e) { resolve({ status: 'OK' }); }
       });
     });
     req.on('error', reject);
-    req.setTimeout(10000, () => { req.destroy(new Error('timeout')); });
+    req.setTimeout(12000, () => { req.destroy(new Error('timeout')); });
     req.write(bodyBuf);
     req.end();
   });
