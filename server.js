@@ -886,6 +886,92 @@ app.post('/api/installer/reboot', async (req, res) => {
   }
 });
 
+
+// ==================== RELAY TOGGLE (Always On) ====================
+app.post('/api/installer/relay-toggle', async (req, res) => {
+  const { mac } = req.body;
+  if (!mac) return res.status(400).json({ success: false, error: 'MAC required' });
+  const cleanMac = mac.replace(/[:\-\s]/g, '').toUpperCase();
+
+  try {
+    // 1. Get panel IP via Nexhome lookup
+    const auth = await getAuthToken();
+    const macData = await searchMac(auth, cleanMac);
+    const macList = macData?.result?.elements || macData?.result?.list || [];
+    const macEntry = macList[0];
+    if (!macEntry) return res.json({ success: false, error: 'MAC not found in NEXhome' });
+
+    const communityId = macEntry.usedCommunityId || macEntry.communityId;
+    const deviceData = await getDeviceByMac(auth, cleanMac, communityId);
+    const deviceList = deviceData?.result?.elements || deviceData?.result?.list || [];
+    const deviceEntry = deviceList[0];
+    if (!deviceEntry) return res.json({ success: false, error: 'Device not found' });
+
+    const reverseLoginData = await getReverseLoginInfo(auth, deviceEntry.id, communityId);
+    const panelIp   = reverseLoginData?.result?.targetHost;
+    const panelPort = reverseLoginData?.result?.targetPort || 80;
+    if (!panelIp) return res.json({ success: false, error: 'Could not resolve panel IP' });
+
+    const panelBase = `http://${panelIp}:${panelPort}`;
+
+    // 2. GET current relay state
+    const getRes = await axios.get(`${panelBase}/api/v1/configurations/relayfunction/relay1`, { timeout: 8000 });
+    const relayData = getRes.data?.data;
+    if (!relayData) return res.json({ success: false, error: 'Could not read relay state' });
+
+    const currentRelay = relayData.relay_list?.find(r => r.relay_id === 'relay1');
+    if (!currentRelay) return res.json({ success: false, error: 'relay1 not found' });
+
+    const currentMode = currentRelay.relay_mode;
+    const newMode     = currentMode === 'alwayson' ? 'normal' : 'alwayson';
+
+    // 3. PUT new relay mode
+    const putBody = { ...currentRelay, relay_mode: newMode };
+    await axios.put(`${panelBase}/api/v1/configurations/relayfunction/relay1`, putBody, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 8000,
+    });
+
+    res.json({ success: true, previousMode: currentMode, newMode });
+  } catch (err) {
+    console.error('Relay toggle error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/installer/relay-status', async (req, res) => {
+  const { mac } = req.query;
+  if (!mac) return res.status(400).json({ success: false, error: 'MAC required' });
+  const cleanMac = mac.replace(/[:\-\s]/g, '').toUpperCase();
+
+  try {
+    const auth = await getAuthToken();
+    const macData = await searchMac(auth, cleanMac);
+    const macList = macData?.result?.elements || macData?.result?.list || [];
+    const macEntry = macList[0];
+    if (!macEntry) return res.json({ success: false, error: 'MAC not found' });
+
+    const communityId = macEntry.usedCommunityId || macEntry.communityId;
+    const deviceData = await getDeviceByMac(auth, cleanMac, communityId);
+    const deviceList = deviceData?.result?.elements || deviceData?.result?.list || [];
+    const deviceEntry = deviceList[0];
+    if (!deviceEntry) return res.json({ success: false, error: 'Device not found' });
+
+    const reverseLoginData = await getReverseLoginInfo(auth, deviceEntry.id, communityId);
+    const panelIp   = reverseLoginData?.result?.targetHost;
+    const panelPort = reverseLoginData?.result?.targetPort || 80;
+    if (!panelIp) return res.json({ success: false, error: 'Could not resolve panel IP' });
+
+    const getRes = await axios.get(`http://${panelIp}:${panelPort}/api/v1/configurations/relayfunction/relay1`, { timeout: 8000 });
+    const relayData = getRes.data?.data;
+    const relay1 = relayData?.relay_list?.find(r => r.relay_id === 'relay1');
+
+    res.json({ success: true, mode: relay1?.relay_mode || 'unknown' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== CATALOG ====================
 app.get('/api/catalog', async (req, res) => {
   try {
