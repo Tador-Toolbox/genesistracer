@@ -557,6 +557,17 @@
         </button>
         <div id="rebootResult" class="status-msg"></div>
 
+        <!-- Always On relay toggle -->
+        <button class="btn" id="relayBtn" onclick="toggleRelay()"
+          style="background:linear-gradient(135deg,#059669,#047857);color:#fff;justify-content:space-between;">
+          <span style="display:flex;align-items:center;gap:7px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+            <span id="relayBtnText">Always On</span>
+          </span>
+          <span id="relayBadge" style="font-size:11px;padding:2px 9px;border-radius:20px;background:rgba(255,255,255,0.2);font-weight:700;">טוען...</span>
+        </button>
+        <div id="relayResult" class="status-msg"></div>
+
         <div id="catalogSection">
           <button class="btn btn-catalog" onclick="openCatalog()">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -710,7 +721,7 @@
     `).join('') || `<p style="color:var(--text-dim);font-size:14px;padding:8px 0;">אין כתובות MAC מוקצות</p>`;
   }
 
-  function selectMac(mac) { selectedMac = mac; renderMacList(); }
+  function selectMac(mac) { selectedMac = mac; renderMacList(); loadRelayStatus(); }
 
   function toggleDescEdit(mac) {
     const w = document.getElementById(`desc-wrap-${mac}`);
@@ -770,6 +781,8 @@
     document.getElementById('loginError').textContent = '';
     document.getElementById('result').innerHTML = '';
     document.getElementById('rebootResult').textContent = '';
+    document.getElementById('relayResult').textContent = '';
+    document.getElementById('relayBadge').textContent = '—';
   }
 
   // Auto-login from manager remote access
@@ -848,6 +861,70 @@
     }
     btn.disabled = false;
     btn.querySelector('span').textContent = translations[currentLang].rebootBtn || 'אתחול מכשיר';
+  }
+
+
+  // ── Relay Toggle (Always On) ──
+  async function loadRelayStatus() {
+    if (!selectedMac) return;
+    const badge = document.getElementById('relayBadge');
+    badge.textContent = '...';
+    try {
+      const r = await fetch('/api/installer/relay-status?mac=' + encodeURIComponent(selectedMac));
+      const data = await r.json();
+      if (data.success) {
+        updateRelayBadge(data.mode);
+      } else {
+        badge.textContent = '—';
+      }
+    } catch(e) {
+      badge.textContent = '—';
+    }
+  }
+
+  function updateRelayBadge(mode) {
+    const badge = document.getElementById('relayBadge');
+    const btn   = document.getElementById('relayBtn');
+    if (mode === 'alwayson') {
+      badge.textContent = '● פעיל';
+      badge.style.background = 'rgba(255,255,255,0.3)';
+      btn.style.background = 'linear-gradient(135deg,#059669,#047857)';
+    } else {
+      badge.textContent = '○ כבוי';
+      badge.style.background = 'rgba(0,0,0,0.2)';
+      btn.style.background = 'linear-gradient(135deg,#374151,#1f2937)';
+    }
+  }
+
+  async function toggleRelay() {
+    if (!selectedMac) return alert('בחר כתובת MAC תחילה');
+    const btn    = document.getElementById('relayBtn');
+    const badge  = document.getElementById('relayBadge');
+    const msg    = document.getElementById('relayResult');
+    btn.disabled = true;
+    badge.textContent = '...';
+    msg.textContent   = '';
+    try {
+      const r    = await fetch('/api/installer/relay-toggle', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mac: selectedMac })
+      });
+      const data = await r.json();
+      if (data.success) {
+        updateRelayBadge(data.newMode);
+        msg.style.color   = 'var(--green)';
+        msg.textContent   = data.newMode === 'alwayson' ? '✅ Always On הופעל' : '✅ Always On כובה';
+      } else {
+        badge.textContent = '⚠';
+        msg.style.color   = 'var(--red)';
+        msg.textContent   = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      badge.textContent = '⚠';
+      msg.style.color   = 'var(--red)';
+      msg.textContent   = '❌ שגיאת תקשורת';
+    }
+    btn.disabled = false;
   }
 
   // ── Chat ──
