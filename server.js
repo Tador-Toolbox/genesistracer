@@ -967,7 +967,15 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
     const [host, portStr] = panelAddress.split(':');
     const port = parseInt(portStr) || 80;
 
-    // Step 1: GET current relay config
+    // Step 1: Login first (browser always does this — warms up the panel connection)
+    try {
+      await panelHttpPost(host, port, '/api/v1/accounts/tokens',
+        { username: 'admin', password: '123456' });
+    } catch(loginErr) {
+      console.log('Panel login failed (continuing anyway):', loginErr.message);
+    }
+
+    // Step 2: GET current relay config
     const getData = await panelHttpGet(host, port, '/api/v1/configurations/relayfunction/relay1');
     const relayData = getData?.data;
     if (!relayData) return res.json({ success: false, error: `Could not read relay config. Raw: ${JSON.stringify(getData).slice(0,200)}` });
@@ -979,7 +987,7 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
     const currentMode = relay1.relay_mode;
     const newMode     = currentMode === 'alwayson' ? 'normal' : 'alwayson';
 
-    // Step 2: POST full relay config (all relays) to /relayfunction
+    // Step 3: POST full relay config (all relays) to /relayfunction
     const updatedRelayList = relayList.map(r =>
       r.relay_id === 'relay1' ? { ...r, relay_mode: newMode } : r
     );
