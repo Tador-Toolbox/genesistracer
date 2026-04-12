@@ -669,11 +669,11 @@
       <!-- Action Grid -->
       <div class="action-grid">
 
-        <!-- Always On -->
+        <!-- Emergency Door Open -->
         <button class="action-card" id="relayBtn" onclick="toggleRelay()">
           <span id="relayBadge" class="action-badge badge-loading">...</span>
-          <span class="material-symbols-outlined">visibility</span>
-          <span class="action-card-label">Always On</span>
+          <span class="material-symbols-outlined">door_open</span>
+          <span class="action-card-label" data-i18n="emergencyBtn">פתיחת דלת חירום</span>
           <div id="relayResult" class="status-msg"></div>
         </button>
 
@@ -971,6 +971,8 @@
   // ── Reboot ──
   async function rebootDevice() {
     if (!selectedMac) return alert('בחר כתובת MAC תחילה');
+    const confirmed = confirm('האם אתה בטוח שברצונך לבצע הפעלה מחדש למערכת?');
+    if (!confirmed) return;
     const btn = document.getElementById('rebootBtn');
     const msg = document.getElementById('rebootResult');
     btn.disabled = true;
