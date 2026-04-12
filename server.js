@@ -891,33 +891,11 @@ app.post('/api/installer/reboot', async (req, res) => {
 
 // ==================== RELAY TOGGLE (Always On) ====================
 app.post('/api/installer/relay-toggle', async (req, res) => {
-  const { mac, panelAddress } = req.body;
-  if (!mac) return res.status(400).json({ success: false, error: 'MAC required' });
+  const { panelAddress } = req.body;
+  if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
 
   try {
-    let address = panelAddress;
-
-    // If no panelAddress provided, resolve it via Nexhome
-    if (!address) {
-      const cleanMac = mac.replace(/[:\-\s]/g, '').toUpperCase();
-      const auth = await getAuthToken();
-      const macData = await searchMac(auth, cleanMac);
-      const macList = macData?.result?.elements || macData?.result?.list || [];
-      const macEntry = macList[0];
-      if (!macEntry) return res.json({ success: false, error: 'MAC not found' });
-      const communityId = macEntry.usedCommunityId || macEntry.communityId;
-      const deviceData = await getDeviceByMac(auth, cleanMac, communityId);
-      const deviceList = deviceData?.result?.elements || deviceData?.result?.list || [];
-      const deviceEntry = deviceList[0];
-      if (!deviceEntry) return res.json({ success: false, error: 'Device not found' });
-      const revLogin = await getReverseLoginInfo(auth, deviceEntry.id, communityId);
-      const ip   = revLogin?.result?.targetHost;
-      const port = revLogin?.result?.targetPort || 80;
-      if (!ip) return res.json({ success: false, error: 'Panel IP not found' });
-      address = `${ip}:${port}`;
-    }
-
-    const panelBase = `http://${address}`;
+    const panelBase = `http://${panelAddress}`;
 
     // GET current relay config
     const getRes = await axios.get(
