@@ -891,6 +891,40 @@ app.post('/api/installer/reboot', async (req, res) => {
 
 // ==================== RELAY TOGGLE (Always On) ====================
 const http = require('http');
+const { exec } = require('child_process');
+
+function curlPost(host, port, path, body) {
+  return new Promise((resolve, reject) => {
+    const bodyStr = JSON.stringify(body);
+    // Escape single quotes in body for shell safety
+    const safeBody = bodyStr.replace(/'/g, "'\''");
+    const url = `http://${host}:${port}${path}`;
+    const cmd = [
+      'curl', '-s', '--max-time', '12',
+      '-X', 'POST',
+      '-H', `'Accept: application/json, text/plain, */*'`,
+      '-H', `'Content-Type: application/json;charset=UTF-8'`,
+      '-H', `'Origin: http://${host}:${port}'`,
+      '-H', `'Referer: http://${host}:${port}/'`,
+      '-H', `'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'`,
+      '-H', `'Connection: keep-alive'`,
+      `--data '${safeBody}'`,
+      `'${url}'`
+    ].join(' ');
+
+    exec(cmd, { timeout: 15000 }, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(error.message || stderr));
+        return;
+      }
+      try {
+        resolve(JSON.parse(stdout));
+      } catch(e) {
+        resolve({ status: 'OK' }); // panel may return non-JSON on success
+      }
+    });
+  });
+}
 
 function panelHttpGet(host, port, path) {
   return new Promise((resolve, reject) => {
@@ -989,13 +1023,13 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
     const currentMode = relay1.relay_mode;
     const newMode     = currentMode === 'alwayson' ? 'normal' : 'alwayson';
 
-    // Step 3: POST full relay config (all relays) to /relayfunction
+    // Step 3: POST full relay config (all relays) to /relayfunction via curl
     const updatedRelayList = relayList.map(r =>
       r.relay_id === 'relay1' ? { ...r, relay_mode: newMode } : r
     );
     const postBody = { relay_count: relayData.relay_count, relay_list: updatedRelayList };
 
-    const postData = await panelHttpPost(host, port, '/api/v1/configurations/relayfunction', postBody);
+    const postData = await curlPost(host, port, '/api/v1/configurations/relayfunction', postBody);
     if (postData?.status && postData.status !== 'OK') {
       return res.json({ success: false, error: `Panel rejected: ${postData.status}` });
     }
