@@ -899,6 +899,7 @@ function panelHttpGet(host, port, path) {
       port: port,
       path: path,
       method: 'GET',
+      agent: new http.Agent({ keepAlive: false }),
       headers: {
         'Accept': 'application/json, text/plain, */*',
         'Accept-Encoding': 'gzip, deflate',
@@ -930,6 +931,7 @@ function panelHttpPost(host, port, path, body) {
       port: port,
       path: path,
       method: 'POST',
+      agent: new http.Agent({ keepAlive: false }),
       headers: {
         'Accept': 'application/json, text/plain, */*',
         'Accept-Encoding': 'gzip, deflate',
