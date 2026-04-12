@@ -890,60 +890,96 @@ app.post('/api/installer/reboot', async (req, res) => {
 
 
 // ==================== RELAY TOGGLE (Always On) ====================
+const http = require('http');
+
+function panelHttpGet(host, port, path) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: host,
+      port: port,
+      path: path,
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Connection': 'close',
+      },
+      agent: false,
+    };
+    const req = http.request(options, (panelRes) => {
+      let data = '';
+      panelRes.on('data', chunk => data += chunk);
+      panelRes.on('end', () => {
+        try { resolve(JSON.parse(data)); } catch(e) { reject(new Error('Invalid JSON: ' + data.slice(0,100))); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(10000, () => { req.destroy(new Error('timeout')); });
+    req.end();
+  });
+}
+
+function panelHttpPost(host, port, path, body) {
+  return new Promise((resolve, reject) => {
+    const bodyStr = JSON.stringify(body);
+    const bodyBuf = Buffer.from(bodyStr, 'utf8');
+    const options = {
+      hostname: host,
+      port: port,
+      path: path,
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Content-Type': 'application/json;charset=UTF-8',
+        'Content-Length': bodyBuf.length,
+        'Origin': `http://${host}:${port}`,
+        'Referer': `http://${host}:${port}/`,
+        'Connection': 'close',
+      },
+      agent: false,
+    };
+    const req = http.request(options, (panelRes) => {
+      let data = '';
+      panelRes.on('data', chunk => data += chunk);
+      panelRes.on('end', () => {
+        try { resolve(JSON.parse(data)); } catch(e) { resolve({ status: 'OK' }); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(10000, () => { req.destroy(new Error('timeout')); });
+    req.write(bodyBuf);
+    req.end();
+  });
+}
+
 app.post('/api/installer/relay-toggle', async (req, res) => {
   const { panelAddress } = req.body;
   if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
 
   try {
-    const panelBase   = `http://${panelAddress}`;
-    const panelOrigin = `http://${panelAddress}`;
-
-    // Headers matching exactly what the browser sends (from HAR capture)
-    const getHeaders = {
-      'Accept': 'application/json, text/plain, */*',
-      'Host': panelAddress,
-      'Referer': `${panelOrigin}/`,
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    };
-    const postHeaders = {
-      'Accept': 'application/json, text/plain, */*',
-      'Content-Type': 'application/json;charset=UTF-8',
-      'Host': panelAddress,
-      'Origin': panelOrigin,
-      'Referer': `${panelOrigin}/`,
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    };
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
 
     // Step 1: GET current relay config
-    const getRes = await axios.get(
-      `${panelBase}/api/v1/configurations/relayfunction/relay1`,
-      { headers: getHeaders, timeout: 10000 }
-    );
-    const relayData = getRes.data?.data;
-    if (!relayData) return res.json({ success: false, error: `Could not read relay config. Raw: ${JSON.stringify(getRes.data).slice(0,200)}` });
+    const getData = await panelHttpGet(host, port, '/api/v1/configurations/relayfunction/relay1');
+    const relayData = getData?.data;
+    if (!relayData) return res.json({ success: false, error: `Could not read relay config. Raw: ${JSON.stringify(getData).slice(0,200)}` });
 
     const relayList = relayData.relay_list || [];
     const relay1    = relayList.find(r => r.relay_id === 'relay1');
-    if (!relay1) return res.json({ success: false, error: 'relay1 not found in list' });
+    if (!relay1) return res.json({ success: false, error: 'relay1 not found' });
 
     const currentMode = relay1.relay_mode;
     const newMode     = currentMode === 'alwayson' ? 'normal' : 'alwayson';
 
-    // Step 2: POST full relay config to /relayfunction (all relays, not /relay1)
+    // Step 2: POST full relay config (all relays) to /relayfunction
     const updatedRelayList = relayList.map(r =>
       r.relay_id === 'relay1' ? { ...r, relay_mode: newMode } : r
     );
     const postBody = { relay_count: relayData.relay_count, relay_list: updatedRelayList };
 
-    const postRes = await axios.post(
-      `${panelBase}/api/v1/configurations/relayfunction`,
-      postBody,
-      { headers: postHeaders, timeout: 10000 }
-    );
-
-    const postStatus = postRes.data?.status;
-    if (postStatus && postStatus !== 'OK') {
-      return res.json({ success: false, error: `Panel rejected: ${postStatus}` });
+    const postData = await panelHttpPost(host, port, '/api/v1/configurations/relayfunction', postBody);
+    if (postData?.status && postData.status !== 'OK') {
+      return res.json({ success: false, error: `Panel rejected: ${postData.status}` });
     }
 
     res.json({ success: true, previousMode: currentMode, newMode });
@@ -957,11 +993,10 @@ app.get('/api/installer/relay-status', async (req, res) => {
   const { panelAddress } = req.query;
   if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
   try {
-    const getRes = await axios.get(
-      `http://${panelAddress}/api/v1/configurations/relayfunction/relay1`,
-      { timeout: 6000 }
-    );
-    const relay1 = (getRes.data?.data?.relay_list || []).find(r => r.relay_id === 'relay1');
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+    const getData = await panelHttpGet(host, port, '/api/v1/configurations/relayfunction/relay1');
+    const relay1 = (getData?.data?.relay_list || []).find(r => r.relay_id === 'relay1');
     res.json({ success: true, mode: relay1?.relay_mode || 'unknown' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
