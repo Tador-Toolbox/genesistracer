@@ -910,15 +910,35 @@
     const btn   = document.getElementById('relayBtn');
     const badge = document.getElementById('relayBadge');
     const msg   = document.getElementById('relayResult');
-    msg.textContent = '';
-    btn.disabled    = true;
+    msg.textContent  = '';
+    btn.disabled     = true;
     badge.textContent = '...';
 
     try {
+      // Auto-lookup if we don't have panel address yet
+      if (!lastPanelAddress) {
+        msg.style.color   = 'var(--text-dim)';
+        msg.textContent   = 'מחפש כתובת פנל...';
+        const lr = await fetch('/api/lookup', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mac: selectedMac })
+        });
+        const ld = await lr.json();
+        if (!ld.success || !ld.fullAddress) {
+          badge.textContent = '⚠';
+          msg.style.color   = 'var(--red)';
+          msg.textContent   = '❌ לא נמצאה כתובת פנל';
+          btn.disabled = false;
+          return;
+        }
+        lastPanelAddress = ld.fullAddress;
+        msg.textContent  = '';
+      }
+
       const r = await fetch('/api/installer/relay-toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mac: selectedMac, panelAddress: lastPanelAddress || null })
+        body: JSON.stringify({ mac: selectedMac, panelAddress: lastPanelAddress })
       });
       const data = await r.json();
       if (data.success) {
@@ -927,13 +947,13 @@
         msg.textContent = data.newMode === 'alwayson' ? '✅ Always On הופעל' : '✅ Always On כובה';
       } else {
         badge.textContent = '⚠';
-        msg.style.color = 'var(--red)';
-        msg.textContent = '❌ ' + (data.error || 'שגיאה');
+        msg.style.color   = 'var(--red)';
+        msg.textContent   = '❌ ' + (data.error || 'שגיאה');
       }
     } catch(e) {
       badge.textContent = '⚠';
-      msg.style.color = 'var(--red)';
-      msg.textContent = '❌ שגיאת תקשורת';
+      msg.style.color   = 'var(--red)';
+      msg.textContent   = '❌ שגיאת תקשורת';
     }
     btn.disabled = false;
   }
