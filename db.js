@@ -417,6 +417,38 @@ async function saveTutorials(tutorials) {
   );
 }
 
+
+// ==================== PORTFOLIO ====================
+async function addPortfolioImage(phoneNumber, imageUrl, publicId, description) {
+  await connectDB();
+  const image = {
+    id: crypto.randomUUID ? crypto.randomUUID() : require('crypto').randomUUID(),
+    imageUrl,
+    publicId,
+    description: description || '',
+    createdAt: new Date(),
+  };
+  await db.collection('installers').updateOne(
+    { phoneNumber },
+    { $push: { portfolio: image } }
+  );
+  return image;
+}
+
+async function getPortfolio(phoneNumber) {
+  await connectDB();
+  const installer = await db.collection('installers').findOne({ phoneNumber });
+  return installer?.portfolio || [];
+}
+
+async function deletePortfolioImage(phoneNumber, imageId) {
+  await connectDB();
+  await db.collection('installers').updateOne(
+    { phoneNumber },
+    { $pull: { portfolio: { id: imageId } } }
+  );
+}
+
 module.exports = {
   connectDB,
   createInstaller,
@@ -437,6 +469,9 @@ module.exports = {
   getCatalogUrl,
   setCatalogUrl,
   getTutorials,
+  addPortfolioImage,
+  getPortfolio,
+  deletePortfolioImage,
   saveTutorials,
   subscribeToMailingList,
   getMailingList,

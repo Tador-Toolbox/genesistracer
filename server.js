@@ -1096,6 +1096,88 @@ app.delete('/api/manager/mailing-list/:email', async (req, res) => {
 });
 
 
+
+// ==================== PORTFOLIO ====================
+const cloudinary = require('cloudinary').v2;
+const multer = require('multer');
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only images allowed'));
+  }
+});
+
+// Upload image (installer)
+app.post('/api/installer/portfolio/upload', upload.single('image'), async (req, res) => {
+  try {
+    const { phoneNumber, description } = req.body;
+    if (!phoneNumber || !req.file) return res.status(400).json({ success: false, error: 'Missing data' });
+
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          folder: `tador/portfolios/${phoneNumber}`,
+          resource_type: 'image',
+          transformation: [{ quality: 'auto', fetch_format: 'auto', width: 1200, crop: 'limit' }]
+        },
+        (error, result) => error ? reject(error) : resolve(result)
+      ).end(req.file.buffer);
+    });
+
+    const image = await db.addPortfolioImage(phoneNumber, result.secure_url, result.public_id, description || '');
+    res.json({ success: true, image });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Get portfolio (installer sees own, manager sees by phoneNumber param)
+app.get('/api/installer/portfolio', async (req, res) => {
+  try {
+    const { phoneNumber } = req.query;
+    if (!phoneNumber) return res.status(400).json({ success: false, error: 'phoneNumber required' });
+    const images = await db.getPortfolio(phoneNumber);
+    res.json({ success: true, images });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Delete image (installer only — must own the image)
+app.delete('/api/installer/portfolio/:imageId', async (req, res) => {
+  try {
+    const { phoneNumber, publicId } = req.body;
+    if (!phoneNumber) return res.status(400).json({ success: false, error: 'phoneNumber required' });
+    // Delete from Cloudinary
+    if (publicId) {
+      try { await cloudinary.uploader.destroy(publicId); } catch(e) { /* ignore */ }
+    }
+    await db.deletePortfolioImage(phoneNumber, req.params.imageId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Manager: get any installer's portfolio
+app.get('/api/manager/installers/:phoneNumber/portfolio', async (req, res) => {
+  try {
+    const images = await db.getPortfolio(req.params.phoneNumber);
+    res.json({ success: true, images });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== TUTORIALS ====================
 app.get('/api/tutorials', async (req, res) => {
   try {
