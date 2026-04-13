@@ -696,6 +696,16 @@
           <span class="action-card-label">סרטוני הדרכה</span>
         </button>
 
+        <!-- Portfolio - full width -->
+        <button class="action-card" onclick="openPortfolio()" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;gap:14px;padding:16px 18px;">
+          <span class="material-symbols-outlined" style="font-size:28px;">photo_library</span>
+          <div style="text-align:right;">
+            <div class="action-card-label" style="font-size:13px;">תיק עבודות</div>
+            <div style="font-size:11px;color:var(--gray-500);font-weight:500;margin-top:2px;">תמונות מהתקנות שלי</div>
+          </div>
+          <span class="material-symbols-outlined" style="margin-right:auto;color:var(--gray-400);font-size:18px;">arrow_back_ios</span>
+        </button>
+
       </div>
 
       <hr class="divider"/>
@@ -1215,6 +1225,180 @@
   document.getElementById('tutorialsModal').addEventListener('click', function(e) {
     if (e.target === this) closeTutorials();
   });
+</script>
+
+<!-- ══ PORTFOLIO MODAL ══ -->
+<div id="portfolioModal" class="overlay">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">photo_library</span>
+        תיק עבודות
+      </h3>
+      <button class="modal-close" onclick="closePortfolio()">✕</button>
+    </div>
+
+    <!-- Upload area -->
+    <div style="padding:16px;border-bottom:1px solid var(--gray-200);">
+      <div id="uploadArea" onclick="document.getElementById('portfolioFileInput').click()"
+           style="border:2px dashed var(--gray-200);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:border-color .15s;"
+           onmouseover="this.style.borderColor='var(--black)'" onmouseout="this.style.borderColor='var(--gray-200)'">
+        <span class="material-symbols-outlined" style="font-size:32px;color:var(--gray-400);display:block;margin-bottom:6px;">add_photo_alternate</span>
+        <div style="font-size:13px;font-weight:700;color:var(--black);">לחץ להוספת תמונה</div>
+        <div style="font-size:11px;color:var(--gray-500);margin-top:2px;">JPG, PNG עד 10MB</div>
+      </div>
+      <input type="file" id="portfolioFileInput" accept="image/*" style="display:none;" onchange="previewPortfolioImage(event)" />
+
+      <!-- Preview -->
+      <div id="portfolioPreview" style="display:none;margin-top:12px;">
+        <img id="portfolioPreviewImg" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-bottom:10px;" />
+        <input type="text" id="portfolioDescription" placeholder="תיאור ההתקנה (כתובת, סוג עבודה...)"
+               style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:13px;margin-bottom:10px;" />
+        <div style="display:flex;gap:8px;">
+          <button class="btn-red" onclick="uploadPortfolioImage()" id="portfolioUploadBtn" style="flex:1;padding:12px;">
+            <span class="material-symbols-outlined" style="font-size:18px;">upload</span>
+            העלה תמונה
+          </button>
+          <button onclick="cancelPortfolioPreview()" style="padding:12px 16px;border:1.5px solid var(--gray-200);border-radius:8px;background:none;cursor:pointer;font-family:inherit;font-weight:600;">
+            ביטול
+          </button>
+        </div>
+        <div id="portfolioUploadMsg" class="status-msg" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <!-- Image grid -->
+    <div class="modal-body" id="portfolioGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px;max-height:50vh;overflow-y:auto;">
+      <div style="grid-column:1/-1;text-align:center;color:var(--gray-400);padding:24px;font-size:13px;">טוען...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LIGHTBOX ══ -->
+<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:12px;" onclick="closeLightbox()">
+  <img id="lightboxImg" style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;" />
+  <div id="lightboxCaption" style="color:white;font-size:14px;font-weight:600;text-align:center;max-width:90%;"></div>
+</div>
+
+<script>
+  // ── Portfolio ──
+  function openPortfolio() {
+    document.getElementById('portfolioModal').classList.add('open');
+    loadPortfolioImages();
+  }
+  function closePortfolio() {
+    document.getElementById('portfolioModal').classList.remove('open');
+    cancelPortfolioPreview();
+  }
+  document.getElementById('portfolioModal').addEventListener('click', function(e) {
+    if (e.target === this) closePortfolio();
+  });
+
+  function previewPortfolioImage(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('portfolioPreviewImg').src = e.target.result;
+      document.getElementById('portfolioPreview').style.display = 'block';
+      document.getElementById('uploadArea').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function cancelPortfolioPreview() {
+    document.getElementById('portfolioPreview').style.display = 'none';
+    document.getElementById('uploadArea').style.display = 'block';
+    document.getElementById('portfolioFileInput').value = '';
+    document.getElementById('portfolioDescription').value = '';
+    document.getElementById('portfolioUploadMsg').textContent = '';
+  }
+
+  async function uploadPortfolioImage() {
+    const file = document.getElementById('portfolioFileInput').files[0];
+    const description = document.getElementById('portfolioDescription').value.trim();
+    const btn = document.getElementById('portfolioUploadBtn');
+    const msg = document.getElementById('portfolioUploadMsg');
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('phoneNumber', installerData.phoneNumber);
+    formData.append('description', description);
+
+    btn.disabled = true;
+    msg.style.color = 'var(--gray-500)';
+    msg.textContent = 'מעלה תמונה...';
+
+    try {
+      const res = await fetch('/api/installer/portfolio/upload', { method:'POST', body: formData });
+      const data = await res.json();
+      if (data.success) {
+        msg.style.color = '#16a34a';
+        msg.textContent = '✅ הועלה בהצלחה!';
+        setTimeout(() => { cancelPortfolioPreview(); loadPortfolioImages(); }, 1000);
+      } else {
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      msg.style.color = 'var(--red)';
+      msg.textContent = '❌ שגיאת תקשורת';
+    }
+    btn.disabled = false;
+  }
+
+  async function loadPortfolioImages() {
+    const grid = document.getElementById('portfolioGrid');
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--gray-400);padding:24px;font-size:13px;">טוען...</div>';
+    try {
+      const res = await fetch('/api/installer/portfolio?phoneNumber=' + encodeURIComponent(installerData.phoneNumber));
+      const data = await res.json();
+      const images = (data.images || []).slice().reverse();
+      if (!images.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--gray-400);padding:32px;font-size:13px;">אין תמונות עדיין<br><span style=\"font-size:11px;\">לחץ למעלה להוספת תמונה ראשונה</span></div>';
+        return;
+      }
+      grid.innerHTML = images.map(img => `
+        <div style="position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--gray-200);aspect-ratio:1;">
+          <img src="${img.imageUrl}" alt="${img.description}"
+               style="width:100%;height:100%;object-fit:cover;cursor:pointer;"
+               onclick="openLightbox('${img.imageUrl}','${(img.description||'').replace(/'/g,'')}')"/>
+          ${img.description ? `<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;font-weight:600;padding:4px 6px;line-height:1.3;">${img.description}</div>` : ''}
+          <button onclick="deletePortfolioImage('${img.id}','${img.publicId || ''}')"
+                  style="position:absolute;top:6px;left:6px;background:rgba(227,27,35,0.9);border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:white;">
+            <span class="material-symbols-outlined" style="font-size:14px;">delete</span>
+          </button>
+        </div>
+      `).join('');
+    } catch(e) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--red);padding:24px;font-size:13px;">שגיאה בטעינה</div>';
+    }
+  }
+
+  async function deletePortfolioImage(imageId, publicId) {
+    if (!confirm('למחוק את התמונה?')) return;
+    try {
+      const res = await fetch(`/api/installer/portfolio/${imageId}`, {
+        method:'DELETE',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ phoneNumber: installerData.phoneNumber, publicId })
+      });
+      const data = await res.json();
+      if (data.success) loadPortfolioImages();
+      else alert('שגיאה במחיקה: ' + (data.error || 'unknown'));
+    } catch(e) { alert('שגיאת תקשורת'); }
+  }
+
+  function openLightbox(url, caption) {
+    const lb = document.getElementById('lightbox');
+    document.getElementById('lightboxImg').src = url;
+    document.getElementById('lightboxCaption').textContent = caption;
+    lb.style.display = 'flex';
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').style.display = 'none';
+  }
 </script>
 </body>
 </html>
