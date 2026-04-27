@@ -1200,10 +1200,6 @@ app.post('/api/manager/tutorials', async (req, res) => {
 const excelUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB max
-  fileFilter: (req, file, cb) => {
-    const ok = /\.zip$/i.test(file.originalname);
-    cb(ok ? null : new Error('Only ZIP files are allowed'), ok);
-  },
 });
 
 // Upload resident file for a specific MAC
