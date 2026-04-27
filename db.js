@@ -198,7 +198,17 @@ async function getInstallerDetails(phoneNumber) {
   return {
     phoneNumber: installer.phoneNumber,
     password: installer.plainPassword,
-    macAddresses: installer.macAddresses || [],
+    macAddresses: (installer.macAddresses || []).map(mac => {
+      const { residentFile, ...rest } = mac;
+      return {
+        ...rest,
+        residentFile: residentFile ? {
+          name: residentFile.name,
+          size: residentFile.size,
+          uploadedAt: residentFile.uploadedAt,
+        } : null,
+      };
+    }),
     createdAt: installer.createdAt,
     lastLogin: installer.lastLogin,
     managerNote: installer.managerNote || '',
