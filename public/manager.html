@@ -1252,6 +1252,25 @@
                       ${macObj.description || '—'}
                     </span>
                   </div>
+
+                  <div class="mac-detail-field resident-file-section" style="border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px; flex-direction: column; align-items: flex-start; gap: 8px;">
+                    <span class="mac-detail-label" style="color: var(--accent);">📋 ${currentLang === 'he' ? 'רשימת דיירים (גיבוי)' : 'Resident List (Backup)'}:</span>
+                    ${macObj.residentFile ? `
+                      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span style="font-size:12px; color:var(--text-muted);">📄 ${macObj.residentFile.name}</span>
+                        <span style="font-size:11px; color:var(--text-muted);">(${macObj.residentFile.size ? Math.round(macObj.residentFile.size/1024) + ' KB' : ''})</span>
+                        <button class="small" onclick="downloadResidentFile('${installer.phoneNumber}', '${macObj.mac}', '${macObj.residentFile.name}')">⬇️ ${currentLang === 'he' ? 'הורד' : 'Download'}</button>
+                        <button class="small danger" onclick="deleteResidentFile('${installer.phoneNumber}', '${macObj.mac}')">🗑️</button>
+                      </div>
+                    ` : `
+                      <div>
+                        <label class="upload-resident-btn" style="cursor:pointer; display:inline-flex; align-items:center; gap:6px; background:var(--surface2); border:1px dashed var(--border); border-radius:6px; padding:6px 12px; font-size:13px; color:var(--text-muted); transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">
+                          ⬆️ ${currentLang === 'he' ? 'העלה קובץ Excel' : 'Upload Excel File'}
+                          <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="uploadResidentFile(this, '${installer.phoneNumber}', '${macObj.mac}')">
+                        </label>
+                      </div>
+                    `}
+                  </div>
                 </div>
               `).join('')}
 
@@ -1803,6 +1822,75 @@
   document.getElementById('managerPortfolioOverlay').addEventListener('click', function(e) {
     if (e.target === this) closeManagerPortfolio();
   });
+
+  // ==================== RESIDENT FILE FUNCTIONS ====================
+
+  async function uploadResidentFile(input, phoneNumber, mac) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const label = input.closest('label');
+    label.innerHTML = `⏳ ${currentLang === 'he' ? 'מעלה...' : 'Uploading...'}`;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch(`/api/manager/installers/${phoneNumber}/macs/${mac}/resident-file`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showMessage(currentLang === 'he' ? '✅ הקובץ הועלה בהצלחה' : '✅ File uploaded successfully', 'success');
+        loadData();
+      } else {
+        showMessage('❌ ' + (data.error || 'Upload failed'), 'error');
+        loadData();
+      }
+    } catch (e) {
+      showMessage('❌ Upload error: ' + e.message, 'error');
+      loadData();
+    }
+  }
+
+  async function downloadResidentFile(phoneNumber, mac, filename) {
+    try {
+      const res = await fetch(`/api/manager/installers/${phoneNumber}/macs/${mac}/resident-file`);
+      if (!res.ok) { showMessage('❌ File not found', 'error'); return; }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'residents.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      showMessage('❌ Download error: ' + e.message, 'error');
+    }
+  }
+
+  async function deleteResidentFile(phoneNumber, mac) {
+    const confirm = window.confirm(currentLang === 'he' ? 'למחוק את קובץ הדיירים?' : 'Delete resident file?');
+    if (!confirm) return;
+
+    try {
+      const res = await fetch(`/api/manager/installers/${phoneNumber}/macs/${mac}/resident-file`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showMessage(currentLang === 'he' ? '🗑️ הקובץ נמחק' : '🗑️ File deleted', 'success');
+        loadData();
+      } else {
+        showMessage('❌ ' + (data.error || 'Delete failed'), 'error');
+      }
+    } catch (e) {
+      showMessage('❌ ' + e.message, 'error');
+    }
+  }
 </script>
 </body>
 </html>
