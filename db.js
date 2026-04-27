@@ -462,8 +462,9 @@ async function deletePortfolioImage(phoneNumber, imageId) {
 // ==================== RESIDENT FILE (per MAC) ====================
 
 async function saveResidentFile(phoneNumber, macAddress, filename, buffer) {
-  const database = await getDb();
-  const installer = await database.collection('installers').findOne({ phoneNumber });
+  await connectDB();
+
+  const installer = await db.collection('installers').findOne({ phoneNumber });
   if (!installer) throw new Error('Installer not found');
 
   const macs = installer.macAddresses || [];
@@ -472,31 +473,33 @@ async function saveResidentFile(phoneNumber, macAddress, filename, buffer) {
 
   macs[idx].residentFile = {
     name: filename,
-    data: buffer,          // stored as BSON Binary automatically by the driver
+    data: buffer,
     uploadedAt: new Date(),
     size: buffer.length,
   };
 
-  await database.collection('installers').updateOne(
+  await db.collection('installers').updateOne(
     { phoneNumber },
     { $set: { macAddresses: macs } }
   );
 }
 
 async function getResidentFile(phoneNumber, macAddress) {
-  const database = await getDb();
-  const installer = await database.collection('installers').findOne({ phoneNumber });
+  await connectDB();
+
+  const installer = await db.collection('installers').findOne({ phoneNumber });
   if (!installer) return null;
 
   const mac = (installer.macAddresses || []).find(m => m.mac === macAddress);
   if (!mac || !mac.residentFile) return null;
 
-  return mac.residentFile; // { name, data (Binary), uploadedAt, size }
+  return mac.residentFile;
 }
 
 async function deleteResidentFile(phoneNumber, macAddress) {
-  const database = await getDb();
-  const installer = await database.collection('installers').findOne({ phoneNumber });
+  await connectDB();
+
+  const installer = await db.collection('installers').findOne({ phoneNumber });
   if (!installer) throw new Error('Installer not found');
 
   const macs = installer.macAddresses || [];
@@ -505,7 +508,7 @@ async function deleteResidentFile(phoneNumber, macAddress) {
 
   delete macs[idx].residentFile;
 
-  await database.collection('installers').updateOne(
+  await db.collection('installers').updateOne(
     { phoneNumber },
     { $set: { macAddresses: macs } }
   );
