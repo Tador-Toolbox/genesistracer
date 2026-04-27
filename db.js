@@ -514,6 +514,29 @@ async function deleteResidentFile(phoneNumber, macAddress) {
   );
 }
 
+// ==================== RESIDENT EXAMPLE (global file) ====================
+
+async function saveResidentExample(filename, buffer) {
+  await connectDB();
+  await db.collection('settings').updateOne(
+    { key: 'residentExample' },
+    { $set: { key: 'residentExample', name: filename, data: buffer, size: buffer.length, updatedAt: new Date() } },
+    { upsert: true }
+  );
+}
+
+async function getResidentExample() {
+  await connectDB();
+  const doc = await db.collection('settings').findOne({ key: 'residentExample' });
+  if (!doc || !doc.data) return null;
+  return { name: doc.name, data: doc.data, size: doc.size, updatedAt: doc.updatedAt };
+}
+
+async function deleteResidentExample() {
+  await connectDB();
+  await db.collection('settings').deleteOne({ key: 'residentExample' });
+}
+
 module.exports = {
   connectDB,
   createInstaller,
@@ -525,6 +548,9 @@ module.exports = {
   saveResidentFile,
   getResidentFile,
   deleteResidentFile,
+  saveResidentExample,
+  getResidentExample,
+  deleteResidentExample,
   getInstallerDetails,
   getLoginLogs,
   deleteInstaller,

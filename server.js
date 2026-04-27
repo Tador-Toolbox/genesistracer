@@ -1259,6 +1259,55 @@ app.delete('/api/manager/installers/:phoneNumber/macs/:mac/resident-file', async
   }
 });
 
+// ==================== RESIDENT EXAMPLE ROUTES (global file) ====================
+
+// Upload (manager only)
+app.post('/api/manager/resident-example', excelUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
+    await db.saveResidentExample(req.file.originalname, req.file.buffer);
+    res.json({ success: true, name: req.file.originalname, size: req.file.size });
+  } catch (e) {
+    console.error('resident-example upload error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Get metadata (for both panels to check if file exists)
+app.get('/api/resident-example/meta', async (req, res) => {
+  try {
+    const file = await db.getResidentExample();
+    if (!file) return res.json({ exists: false });
+    res.json({ exists: true, name: file.name, size: file.size, updatedAt: file.updatedAt });
+  } catch (e) {
+    res.status(500).json({ exists: false });
+  }
+});
+
+// Download (available to all)
+app.get('/api/resident-example/download', async (req, res) => {
+  try {
+    const file = await db.getResidentExample();
+    if (!file) return res.status(404).json({ success: false, error: 'No file found' });
+    const buf = Buffer.isBuffer(file.data) ? file.data : Buffer.from(file.data.buffer || file.data);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name)}"`);
+    res.send(buf);
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Delete (manager only)
+app.delete('/api/manager/resident-example', async (req, res) => {
+  try {
+    await db.deleteResidentExample();
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
