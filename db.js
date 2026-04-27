@@ -449,6 +449,58 @@ async function deletePortfolioImage(phoneNumber, imageId) {
   );
 }
 
+// ==================== RESIDENT FILE (per MAC) ====================
+
+async function saveResidentFile(phoneNumber, macAddress, filename, buffer) {
+  const database = await getDb();
+  const installer = await database.collection('installers').findOne({ phoneNumber });
+  if (!installer) throw new Error('Installer not found');
+
+  const macs = installer.macAddresses || [];
+  const idx = macs.findIndex(m => m.mac === macAddress);
+  if (idx === -1) throw new Error('MAC not found');
+
+  macs[idx].residentFile = {
+    name: filename,
+    data: buffer,          // stored as BSON Binary automatically by the driver
+    uploadedAt: new Date(),
+    size: buffer.length,
+  };
+
+  await database.collection('installers').updateOne(
+    { phoneNumber },
+    { $set: { macAddresses: macs } }
+  );
+}
+
+async function getResidentFile(phoneNumber, macAddress) {
+  const database = await getDb();
+  const installer = await database.collection('installers').findOne({ phoneNumber });
+  if (!installer) return null;
+
+  const mac = (installer.macAddresses || []).find(m => m.mac === macAddress);
+  if (!mac || !mac.residentFile) return null;
+
+  return mac.residentFile; // { name, data (Binary), uploadedAt, size }
+}
+
+async function deleteResidentFile(phoneNumber, macAddress) {
+  const database = await getDb();
+  const installer = await database.collection('installers').findOne({ phoneNumber });
+  if (!installer) throw new Error('Installer not found');
+
+  const macs = installer.macAddresses || [];
+  const idx = macs.findIndex(m => m.mac === macAddress);
+  if (idx === -1) throw new Error('MAC not found');
+
+  delete macs[idx].residentFile;
+
+  await database.collection('installers').updateOne(
+    { phoneNumber },
+    { $set: { macAddresses: macs } }
+  );
+}
+
 module.exports = {
   connectDB,
   createInstaller,
@@ -457,6 +509,9 @@ module.exports = {
   loginInstaller,
   loginManager,
   getInstallers,
+  saveResidentFile,
+  getResidentFile,
+  deleteResidentFile,
   getInstallerDetails,
   getLoginLogs,
   deleteInstaller,

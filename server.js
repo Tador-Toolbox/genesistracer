@@ -1195,6 +1195,74 @@ app.post('/api/manager/tutorials', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false }); }
 });
 
+// ==================== RESIDENT FILE ROUTES (per MAC) ====================
+
+const excelUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB max
+  fileFilter: (req, file, cb) => {
+    const ok = /\.(xlsx|xls|csv)$/i.test(file.originalname);
+    cb(ok ? null : new Error('Only Excel/CSV files are allowed'), ok);
+  },
+});
+
+// Upload resident file for a specific MAC
+app.post(
+  '/api/manager/installers/:phoneNumber/macs/:mac/resident-file',
+  excelUpload.single('file'),
+  async (req, res) => {
+    try {
+      const { phoneNumber, mac } = req.params;
+      if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
+
+      await db.saveResidentFile(phoneNumber, mac, req.file.originalname, req.file.buffer);
+      res.json({
+        success: true,
+        name: req.file.originalname,
+        size: req.file.size,
+        uploadedAt: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.error('resident-file upload error:', e);
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+);
+
+// Download resident file for a specific MAC
+app.get('/api/manager/installers/:phoneNumber/macs/:mac/resident-file', async (req, res) => {
+  try {
+    const { phoneNumber, mac } = req.params;
+    const file = await db.getResidentFile(phoneNumber, mac);
+    if (!file) return res.status(404).json({ success: false, error: 'No file found' });
+
+    // file.data may be a MongoDB Binary object
+    const buf = Buffer.isBuffer(file.data) ? file.data : Buffer.from(file.data.buffer || file.data);
+
+    const ext = (file.name || 'residents.xlsx').split('.').pop().toLowerCase();
+    const mimeMap = { xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xls: 'application/vnd.ms-excel', csv: 'text/csv' };
+    const mime = mimeMap[ext] || 'application/octet-stream';
+
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name)}"`);
+    res.send(buf);
+  } catch (e) {
+    console.error('resident-file download error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Delete resident file for a specific MAC
+app.delete('/api/manager/installers/:phoneNumber/macs/:mac/resident-file', async (req, res) => {
+  try {
+    const { phoneNumber, mac } = req.params;
+    await db.deleteResidentFile(phoneNumber, mac);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
