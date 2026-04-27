@@ -690,6 +690,12 @@
           <span class="action-card-label" data-i18n="catalogBtn">קטלוג מוצרים</span>
         </button>
 
+        <!-- Resident Example -->
+        <button class="action-card" id="residentExampleBtn" onclick="downloadResidentExampleInstaller()" style="display:none;">
+          <span class="material-symbols-outlined">people</span>
+          <span class="action-card-label">רשימת דיירים לדוגמא</span>
+        </button>
+
         <!-- Tutorials -->
         <button class="action-card" onclick="openTutorials()">
           <span class="material-symbols-outlined">play_circle</span>
@@ -901,6 +907,7 @@
       document.getElementById('installerPanel').style.display = 'block';
       renderMacList();
       loadCatalog();
+      loadResidentExampleInstaller();
       loadManagerNote(installerData.phoneNumber);
     } else {
       document.getElementById('loginError').textContent = data.error || 'כניסה נכשלה';
@@ -1162,6 +1169,32 @@
     } catch(e) {}
   }
   function openCatalog() { window.open(catalogUrl, '_blank'); }
+
+  // ── Resident Example ──
+  async function loadResidentExampleInstaller() {
+    try {
+      const res = await fetch('/api/resident-example/meta');
+      const data = await res.json();
+      const btn = document.getElementById('residentExampleBtn');
+      if (btn) btn.style.display = data.exists ? '' : 'none';
+    } catch(e) {}
+  }
+
+  async function downloadResidentExampleInstaller() {
+    try {
+      const res = await fetch('/api/resident-example/download');
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const cd = res.headers.get('Content-Disposition') || '';
+      const match = cd.match(/filename="?([^"]+)"?/);
+      const filename = match ? decodeURIComponent(match[1]) : 'resident-example';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    } catch(e) {}
+  }
 
   // ── Subscribe ──
   async function submitSubscribe() {

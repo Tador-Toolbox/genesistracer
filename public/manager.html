@@ -446,6 +446,20 @@
         <div id="catalogStatus" style="margin-top:8px;font-size:13px;"></div>
       </div>
 
+      <!-- Resident Example File -->
+      <div class="card">
+        <h2>📋 רשימת דיירים לדוגמא</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">הקובץ יופיע אצל כל הטכנאים כפתור הורדה בפנל המתקין.</p>
+        <div id="residentExampleStatus" style="margin-bottom:12px;"></div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <label style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:600;">
+            ⬆️ העלה קובץ
+            <input type="file" id="residentExampleInput" style="display:none;" onchange="uploadResidentExample(this)">
+          </label>
+          <button class="btn" id="residentExampleDeleteBtn" onclick="deleteResidentExample()" style="background:var(--red);display:none;">🗑 מחק קובץ</button>
+        </div>
+      </div>
+
 
       <!-- Tutorials -->
       <div class="card">
@@ -782,6 +796,7 @@
           loadCatalog();
           loadMailingList();
           loadTutorialsAdmin();
+          loadResidentExample();
         } else {
           errorDiv.textContent = data.error || 'Login failed';
           errorDiv.style.display = 'block';
@@ -1853,6 +1868,73 @@
       showMessage('❌ Upload error: ' + e.message, 'error');
       loadData();
     }
+  }
+
+  // ==================== RESIDENT EXAMPLE FUNCTIONS ====================
+
+  async function loadResidentExample() {
+    try {
+      const res = await fetch('/api/resident-example/meta');
+      const data = await res.json();
+      const statusEl = document.getElementById('residentExampleStatus');
+      const deleteBtn = document.getElementById('residentExampleDeleteBtn');
+      if (data.exists) {
+        const kb = data.size ? Math.round(data.size / 1024) : '?';
+        statusEl.innerHTML = `<span style="color:var(--green);">✅ קובץ קיים: <strong>${data.name}</strong> (${kb} KB)</span>`;
+        deleteBtn.style.display = 'inline-flex';
+      } else {
+        statusEl.innerHTML = `<span style="color:var(--text-dim);">אין קובץ מועלה כרגע.</span>`;
+        deleteBtn.style.display = 'none';
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  async function uploadResidentExample(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const statusEl = document.getElementById('residentExampleStatus');
+    statusEl.innerHTML = `<span style="color:var(--text-dim);">⏳ מעלה...</span>`;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/manager/resident-example', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) {
+        showMessage('✅ הקובץ הועלה בהצלחה', 'success');
+        loadResidentExample();
+      } else {
+        showMessage('❌ ' + (data.error || 'שגיאה'), 'error');
+        loadResidentExample();
+      }
+    } catch (e) {
+      showMessage('❌ ' + e.message, 'error');
+    }
+    input.value = '';
+  }
+
+  async function deleteResidentExample() {
+    if (!confirm('למחוק את קובץ רשימת הדיירים לדוגמא?')) return;
+    try {
+      await fetch('/api/manager/resident-example', { method: 'DELETE' });
+      showMessage('🗑️ הקובץ נמחק', 'success');
+      loadResidentExample();
+    } catch (e) {
+      showMessage('❌ ' + e.message, 'error');
+    }
+  }
+
+  async function downloadResidentExample() {
+    const res = await fetch('/api/resident-example/download');
+    if (!res.ok) { showMessage('❌ הקובץ לא נמצא', 'error'); return; }
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="?([^"]+)"?/);
+    const filename = match ? decodeURIComponent(match[1]) : 'resident-example';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
   }
 
   async function downloadResidentFile(phoneNumber, mac, filename) {
