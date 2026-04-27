@@ -1201,8 +1201,8 @@ const excelUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB max
   fileFilter: (req, file, cb) => {
-    const ok = /\.(xlsx|xls|csv)$/i.test(file.originalname);
-    cb(ok ? null : new Error('Only Excel/CSV files are allowed'), ok);
+    const ok = /\.zip$/i.test(file.originalname);
+    cb(ok ? null : new Error('Only ZIP files are allowed'), ok);
   },
 });
 
@@ -1239,8 +1239,8 @@ app.get('/api/manager/installers/:phoneNumber/macs/:mac/resident-file', async (r
     // file.data may be a MongoDB Binary object
     const buf = Buffer.isBuffer(file.data) ? file.data : Buffer.from(file.data.buffer || file.data);
 
-    const ext = (file.name || 'residents.xlsx').split('.').pop().toLowerCase();
-    const mimeMap = { xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xls: 'application/vnd.ms-excel', csv: 'text/csv' };
+    const ext = (file.name || 'residents.zip').split('.').pop().toLowerCase();
+    const mimeMap = { zip: 'application/zip' };
     const mime = mimeMap[ext] || 'application/octet-stream';
 
     res.setHeader('Content-Type', mime);
