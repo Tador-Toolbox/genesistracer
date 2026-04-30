@@ -198,17 +198,7 @@ async function getInstallerDetails(phoneNumber) {
   return {
     phoneNumber: installer.phoneNumber,
     password: installer.plainPassword,
-    macAddresses: (installer.macAddresses || []).map(mac => {
-      const { residentFile, ...rest } = mac;
-      return {
-        ...rest,
-        residentFile: residentFile ? {
-          name: residentFile.name,
-          size: residentFile.size,
-          uploadedAt: residentFile.uploadedAt,
-        } : null,
-      };
-    }),
+    macAddresses: installer.macAddresses || [],
     createdAt: installer.createdAt,
     lastLogin: installer.lastLogin,
     managerNote: installer.managerNote || '',
@@ -459,82 +449,21 @@ async function deletePortfolioImage(phoneNumber, imageId) {
   );
 }
 
-// ==================== RESIDENT FILE (per MAC) ====================
 
-async function saveResidentFile(phoneNumber, macAddress, filename, buffer) {
+// ==================== MANAGER FILE STORAGE ====================
+async function addManagerFile(fileObj) {
   await connectDB();
-
-  const installer = await db.collection('installers').findOne({ phoneNumber });
-  if (!installer) throw new Error('Installer not found');
-
-  const macs = installer.macAddresses || [];
-  const idx = macs.findIndex(m => m.mac === macAddress);
-  if (idx === -1) throw new Error('MAC not found');
-
-  macs[idx].residentFile = {
-    name: filename,
-    data: buffer,
-    uploadedAt: new Date(),
-    size: buffer.length,
-  };
-
-  await db.collection('installers').updateOne(
-    { phoneNumber },
-    { $set: { macAddresses: macs } }
-  );
+  await db.collection("managerFiles").insertOne(fileObj);
 }
 
-async function getResidentFile(phoneNumber, macAddress) {
+async function getManagerFiles() {
   await connectDB();
-
-  const installer = await db.collection('installers').findOne({ phoneNumber });
-  if (!installer) return null;
-
-  const mac = (installer.macAddresses || []).find(m => m.mac === macAddress);
-  if (!mac || !mac.residentFile) return null;
-
-  return mac.residentFile;
+  return await db.collection("managerFiles").find({}).sort({ uploadedAt: -1 }).toArray();
 }
 
-async function deleteResidentFile(phoneNumber, macAddress) {
+async function deleteManagerFile(publicId) {
   await connectDB();
-
-  const installer = await db.collection('installers').findOne({ phoneNumber });
-  if (!installer) throw new Error('Installer not found');
-
-  const macs = installer.macAddresses || [];
-  const idx = macs.findIndex(m => m.mac === macAddress);
-  if (idx === -1) throw new Error('MAC not found');
-
-  delete macs[idx].residentFile;
-
-  await db.collection('installers').updateOne(
-    { phoneNumber },
-    { $set: { macAddresses: macs } }
-  );
-}
-
-// ==================== RESIDENT EXAMPLE (global file) ====================
-
-async function saveResidentExample(filename, buffer) {
-  await connectDB();
-  await db.collection('settings').updateOne(
-    { key: 'residentExample' },
-    { $set: { key: 'residentExample', name: filename, data: buffer, size: buffer.length, updatedAt: new Date() } },
-    { upsert: true }
-  );
-}
-
-async function getResidentExample() {
-  await connectDB();
-  const doc = await db.collection('settings').findOne({ key: 'residentExample' });
-  if (!doc || !doc.data) return null;
-  return { name: doc.name, data: doc.data, size: doc.size, updatedAt: doc.updatedAt };
-}
-
-async function deleteResidentExample() {
-  await connectDB();
-  await db.collection('settings').deleteOne({ key: 'residentExample' });
+  await db.collection("managerFiles").deleteOne({ publicId });
 }
 
 module.exports = {
@@ -545,12 +474,6 @@ module.exports = {
   loginInstaller,
   loginManager,
   getInstallers,
-  saveResidentFile,
-  getResidentFile,
-  deleteResidentFile,
-  saveResidentExample,
-  getResidentExample,
-  deleteResidentExample,
   getInstallerDetails,
   getLoginLogs,
   deleteInstaller,
@@ -567,6 +490,9 @@ module.exports = {
   getPortfolio,
   deletePortfolioImage,
   saveTutorials,
+  addManagerFile,
+  getManagerFiles,
+  deleteManagerFile,
   subscribeToMailingList,
   getMailingList,
   removeFromMailingList,

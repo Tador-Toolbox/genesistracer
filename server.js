@@ -1195,116 +1195,75 @@ app.post('/api/manager/tutorials', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false }); }
 });
 
-// ==================== RESIDENT FILE ROUTES (per MAC) ====================
 
-const excelUpload = multer({
+// ==================== MANAGER FILE STORAGE (XLSX) ====================
+const xlsxUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB max
-});
-
-// Upload resident file for a specific MAC
-app.post(
-  '/api/manager/installers/:phoneNumber/macs/:mac/resident-file',
-  excelUpload.single('file'),
-  async (req, res) => {
-    try {
-      const { phoneNumber, mac } = req.params;
-      if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
-
-      await db.saveResidentFile(phoneNumber, mac, req.file.originalname, req.file.buffer);
-      res.json({
-        success: true,
-        name: req.file.originalname,
-        size: req.file.size,
-        uploadedAt: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.error('resident-file upload error:', e);
-      res.status(500).json({ success: false, error: e.message });
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB max
+  fileFilter: (req, file, cb) => {
+    const allowed = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+    ];
+    if (allowed.includes(file.mimetype) || file.originalname.endsWith('.xlsx') || file.originalname.endsWith('.xls')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Excel files (.xlsx, .xls) allowed'));
     }
   }
-);
+});
 
-// Download resident file for a specific MAC
-app.get('/api/manager/installers/:phoneNumber/macs/:mac/resident-file', async (req, res) => {
+// Upload Excel file (manager only)
+app.post('/api/manager/files/upload', xlsxUpload.single('file'), async (req, res) => {
   try {
-    const { phoneNumber, mac } = req.params;
-    const file = await db.getResidentFile(phoneNumber, mac);
-    if (!file) return res.status(404).json({ success: false, error: 'No file found' });
+    if (!req.file) return res.status(400).json({ success: false, error: 'No file provided' });
 
-    // file.data may be a MongoDB Binary object
-    const buf = Buffer.isBuffer(file.data) ? file.data : Buffer.from(file.data.buffer || file.data);
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          folder: 'tador/manager-files',
+          resource_type: 'raw',
+          public_id: `${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
+          use_filename: false,
+        },
+        (error, result) => error ? reject(error) : resolve(result)
+      ).end(req.file.buffer);
+    });
 
-    const ext = (file.name || 'residents.zip').split('.').pop().toLowerCase();
-    const mimeMap = { zip: 'application/zip' };
-    const mime = mimeMap[ext] || 'application/octet-stream';
+    await db.addManagerFile({
+      name: req.file.originalname,
+      url: result.secure_url,
+      publicId: result.public_id,
+      size: req.file.size,
+      uploadedAt: new Date(),
+    });
 
-    res.setHeader('Content-Type', mime);
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name)}"`);
-    res.send(buf);
-  } catch (e) {
-    console.error('resident-file download error:', e);
-    res.status(500).json({ success: false, error: e.message });
+    res.json({ success: true, file: { name: req.file.originalname, url: result.secure_url, publicId: result.public_id } });
+  } catch (err) {
+    console.error('File upload error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Delete resident file for a specific MAC
-app.delete('/api/manager/installers/:phoneNumber/macs/:mac/resident-file', async (req, res) => {
+// Get all manager files
+app.get('/api/manager/files', async (req, res) => {
   try {
-    const { phoneNumber, mac } = req.params;
-    await db.deleteResidentFile(phoneNumber, mac);
+    const files = await db.getManagerFiles();
+    res.json({ success: true, files });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Delete a manager file
+app.delete('/api/manager/files/:publicId(*)', async (req, res) => {
+  try {
+    const publicId = req.params.publicId;
+    try { await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' }); } catch(e) {}
+    await db.deleteManagerFile(publicId);
     res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
-  }
-});
-
-// ==================== RESIDENT EXAMPLE ROUTES (global file) ====================
-
-// Upload (manager only)
-app.post('/api/manager/resident-example', excelUpload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
-    await db.saveResidentExample(req.file.originalname, req.file.buffer);
-    res.json({ success: true, name: req.file.originalname, size: req.file.size });
-  } catch (e) {
-    console.error('resident-example upload error:', e);
-    res.status(500).json({ success: false, error: e.message });
-  }
-});
-
-// Get metadata (for both panels to check if file exists)
-app.get('/api/resident-example/meta', async (req, res) => {
-  try {
-    const file = await db.getResidentExample();
-    if (!file) return res.json({ exists: false });
-    res.json({ exists: true, name: file.name, size: file.size, updatedAt: file.updatedAt });
-  } catch (e) {
-    res.status(500).json({ exists: false });
-  }
-});
-
-// Download (available to all)
-app.get('/api/resident-example/download', async (req, res) => {
-  try {
-    const file = await db.getResidentExample();
-    if (!file) return res.status(404).json({ success: false, error: 'No file found' });
-    const buf = Buffer.isBuffer(file.data) ? file.data : Buffer.from(file.data.buffer || file.data);
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name)}"`);
-    res.send(buf);
-  } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
-  }
-});
-
-// Delete (manager only)
-app.delete('/api/manager/resident-example', async (req, res) => {
-  try {
-    await db.deleteResidentExample();
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
