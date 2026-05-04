@@ -609,6 +609,7 @@
       <input type="hidden" id="modalTechnicianPhone" />
       <input type="hidden" id="modalCommitteePhone" />
       <input type="hidden" id="modalCity" />
+      <input type="hidden" id="modalVoipbellAccount" />
 
       <div class="modal-buttons">
         <button class="btn-cancel" onclick="closeModal()" id="modalCancelBtn">Cancel</button>
@@ -909,6 +910,7 @@
       document.getElementById('modalCommitteePhone').value = macObj ? (macObj.committeePhone || '') : '';
       document.getElementById('modalCity').value = macObj ? (macObj.city || '') : '';
       document.getElementById('modalModel').value = macObj ? (macObj.panelType || 'genesis7') : 'genesis7';
+      document.getElementById('modalVoipbellAccount').value = macObj ? (macObj.voipbellAccount || '') : '';
       document.getElementById('modalAnnualFee').value = macObj ? (macObj.annualFee || '') : '';
 
       document.getElementById('modalTitle').textContent = macObj ? (t.edit + ' MAC') : ('+ ' + t.addMac);
@@ -939,6 +941,7 @@
             technicianPhone: 'modalTechnicianPhone',
             city: 'modalCity',
             panelType: 'modalModel',
+            voipbellAccount: 'modalVoipbellAccount',
           };
           const el = document.getElementById(fieldMap[focusField]);
           if (el) { el.focus(); el.select && el.select(); }
@@ -974,10 +977,11 @@
         await fetch(`/api/manager/installers/${phoneNumber}/macs/${originalMac}`, { method: 'DELETE' });
       }
 
+      const voipbellAccount = document.getElementById('modalVoipbellAccount').value;
       await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ macAddress: mac, address, city, notes, purchaseDate, startDate, technicianName, technicianPhone, supplierName, committeeName, committeePhone, annualFee, licensesPurchased, panelType })
+        body: JSON.stringify({ macAddress: mac, address, city, notes, purchaseDate, startDate, technicianName, technicianPhone, supplierName, committeeName, committeePhone, annualFee, licensesPurchased, panelType, voipbellAccount })
       });
 
       closeModal();
@@ -1178,7 +1182,7 @@
             <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
               <span style="font-size:22px;flex-shrink:0;">📊</span>
               <div style="flex:1;min-width:0;text-align:right;">
-                <div style="font-weight:600;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name}</div>
+                <div style="font-weight:700;font-size:14px;color:var(--text);">${f.title || f.name}</div>
                 <div style="font-size:11px;color:var(--text-dim);">${sizeKB} KB · ${date}</div>
               </div>
               <a href="${f.url}" download="${f.name}" target="_blank"
@@ -1188,6 +1192,15 @@
               <button onclick="deleteManagerFile('${encId}')"
                 style="background:var(--red);color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;">
                 🗑 מחק
+              </button>
+            </div>
+            <div style="padding:8px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+              <input type="text" value="${f.title || ''}" placeholder="הוסף כותרת..."
+                     id="title-${encId}"
+                     style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;background:var(--surface);color:var(--text);text-align:right;" />
+              <button onclick="saveFileTitle('${encId}', '${f.publicId}')"
+                      style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;">
+                שמור
               </button>
             </div>`;
         }).join('');
@@ -1240,6 +1253,36 @@
       } catch(e) { alert('שגיאת תקשורת'); }
     }
 
+
+    async function editInstallerName(phoneNumber, currentName) {
+      const newName = prompt('שם הטכנאי:', currentName || '');
+      if (newName === null) return;
+      try {
+        const res = await fetch(`/api/manager/installers/${phoneNumber}/info`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ installerName: newName.trim() })
+        });
+        const data = await res.json();
+        if (data.success) loadData();
+        else alert('שגיאה: ' + (data.error || 'unknown'));
+      } catch(e) { alert('שגיאת תקשורת'); }
+    }
+
+    async function saveFileTitle(encId, publicId) {
+      const input = document.getElementById('title-' + encId);
+      if (!input) return;
+      const title = input.value.trim();
+      try {
+        const res = await fetch('/api/manager/files/title', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publicId: decodeURIComponent(publicId), title })
+        });
+        const data = await res.json();
+        if (data.success) { loadManagerFiles(); }
+        else alert('שגיאה: ' + (data.error || 'unknown'));
+      } catch(e) { alert('שגיאת תקשורת'); }
+    }
+
     async function loadData() {
       loadUnreadBadges();
       const installersRes = await fetch('/api/manager/installers');
@@ -1254,9 +1297,10 @@
 
         row.innerHTML = `
           <td>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span>${installer.phoneNumber}</span>
-              <button class="field-edit-btn" onclick='editPhoneNumber("${installer.phoneNumber}")' title="${translations[currentLang].editPhone}" style="opacity: 1;">✏️</button>
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${installer.installerName || '—'}</div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="color:var(--text-dim);font-size:13px;">${installer.phoneNumber}</span>
+              <button class="field-edit-btn" onclick='editInstallerName("${installer.phoneNumber}", "${(installer.installerName||'')}')" title="ערוך שם">✏️</button>
             </div>
           </td>
           <td>
@@ -1283,6 +1327,12 @@
                     <span class="mac-detail-label">🖥️ ${translations[currentLang].panelModel}:</span>
                     <span class="mac-detail-value">${(macObj.panelType||'genesis7')==='genesis5'?'Genesis 5':'Genesis 7'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "panelType")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📞 VoipBell Account:</span>
+                    <span class="mac-detail-value">${macObj.voipbellAccount || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "voipbellAccount")'>✏️</button>
                   </div>
 
                   <div class="mac-detail-field">
