@@ -496,6 +496,49 @@ async function deleteManagerFile(publicId) {
   await db.collection("managerFiles").deleteOne({ publicId });
 }
 
+
+// ==================== MERGE ACCOUNTS ====================
+async function mergeInstallers(primaryPhone, secondaryPhone) {
+  await connectDB();
+
+  const primary   = await db.collection('installers').findOne({ phoneNumber: primaryPhone });
+  const secondary = await db.collection('installers').findOne({ phoneNumber: secondaryPhone });
+
+  if (!primary)   throw new Error('Primary account not found');
+  if (!secondary) throw new Error('Secondary account not found');
+
+  const primaryMacs   = primary.macAddresses   || [];
+  const secondaryMacs = secondary.macAddresses || [];
+
+  // Merge MACs — skip duplicates
+  const existingMacSet = new Set(primaryMacs.map(m => m.mac));
+  const newMacs = secondaryMacs.filter(m => !existingMacSet.has(m.mac));
+  const mergedMacs = [...primaryMacs, ...newMacs];
+
+  // Update primary with merged MACs
+  await db.collection('installers').updateOne(
+    { phoneNumber: primaryPhone },
+    { $set: { macAddresses: mergedMacs } }
+  );
+
+  // Transfer chat messages
+  await db.collection('chat').updateMany(
+    { phoneNumber: secondaryPhone },
+    { $set: { phoneNumber: primaryPhone } }
+  );
+
+  // Transfer login logs
+  await db.collection('loginLogs').updateMany(
+    { phoneNumber: secondaryPhone },
+    { $set: { phoneNumber: primaryPhone } }
+  );
+
+  // Delete secondary account
+  await db.collection('installers').deleteOne({ phoneNumber: secondaryPhone });
+
+  return { mergedMacs: newMacs.length, total: mergedMacs.length };
+}
+
 module.exports = {
   connectDB,
   createInstaller,
@@ -510,6 +553,7 @@ module.exports = {
   resetPassword,
   getFullDatabaseBackup,
   changeInstallerPhone,
+  mergeInstallers,
   getAutoRebootSchedules,
   saveAutoRebootSchedules,
   updateInstallerPanelType,

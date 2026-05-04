@@ -907,6 +907,22 @@ app.post('/api/manager/installers/:phoneNumber/account-type', async (req, res) =
   }
 });
 
+
+// ==================== MERGE ACCOUNTS ====================
+app.post('/api/manager/installers/merge', async (req, res) => {
+  try {
+    const { primaryPhone, secondaryPhone } = req.body;
+    if (!primaryPhone || !secondaryPhone)
+      return res.status(400).json({ success: false, error: 'Both phone numbers required' });
+    if (primaryPhone === secondaryPhone)
+      return res.status(400).json({ success: false, error: 'Cannot merge same account' });
+    const result = await db.mergeInstallers(primaryPhone, secondaryPhone);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Update installer name / voipbell account
 app.post('/api/manager/installers/:phoneNumber/info', async (req, res) => {
   try {
