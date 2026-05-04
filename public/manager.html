@@ -1264,9 +1264,10 @@
           body: JSON.stringify({ installerName: newName.trim() })
         });
         const data = await res.json();
+        console.log('editInstallerName response:', data);
         if (data.success) loadData();
         else alert('שגיאה: ' + (data.error || 'unknown'));
-      } catch(e) { alert('שגיאת תקשורת'); }
+      } catch(e) { alert('שגיאת תקשורת: ' + e.message); }
     }
 
     async function saveFileTitle(encId, publicId) {
