@@ -227,6 +227,8 @@
       padding: 32px;
       width: 520px;
       max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
     }
 
     .modal h3 {
@@ -606,11 +608,19 @@
         <input type="number" id="modalLicensesPurchased" placeholder="e.g. 5" min="0" />
       </div>
 
-      <!-- Hidden fields for values not shown in UI but needed by submitMac -->
+      <!-- Hidden fields -->
       <input type="hidden" id="modalTechnicianPhone" />
       <input type="hidden" id="modalCommitteePhone" />
-      <input type="hidden" id="modalCity" />
-      <input type="hidden" id="modalVoipbellAccount" />
+
+      <div class="modal-field">
+        <label id="labelCity">🏙️ City</label>
+        <input type="text" id="modalCity" placeholder="City" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelVoipbell">📞 VoipBell Account</label>
+        <input type="text" id="modalVoipbellAccount" placeholder="VoipBell account name" />
+      </div>
 
       <div class="modal-buttons">
         <button class="btn-cancel" onclick="closeModal()" id="modalCancelBtn">Cancel</button>
@@ -922,6 +932,8 @@
       document.getElementById('labelTechnician').textContent = '👷 ' + t.technicianName;
       document.getElementById('labelSupplier').textContent = '🏢 ' + t.supplierName;
       document.getElementById('labelAnnualFee').textContent = '💰 ' + t.annualFee;
+      document.getElementById('labelCity').textContent = '🏙️ ' + (currentLang === 'he' ? 'עיר' : 'City');
+      document.getElementById('labelVoipbell').textContent = '📞 VoipBell Account';
 
       document.getElementById('modalCancelBtn').textContent = currentLang === 'he' ? 'ביטול' : 'Cancel';
       document.getElementById('modalSaveBtn').textContent = currentLang === 'he' ? 'שמור' : 'Save';
