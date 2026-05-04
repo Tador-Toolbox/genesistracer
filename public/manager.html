@@ -1295,6 +1295,26 @@
 
 
 
+
+    async function editInstallerPhone(currentPhone) {
+      const newPhone = prompt('מספר טלפון חדש:', currentPhone);
+      if (!newPhone || newPhone.trim() === currentPhone) return;
+      const confirmed = confirm('שינוי מספר הטלפון מ-' + currentPhone + ' ל-' + newPhone.trim() + '\n\nהטכנאי יצטרך להתחבר עם המספר החדש. להמשיך?');
+      if (!confirmed) return;
+      try {
+        const res = await fetch('/api/manager/installers/' + currentPhone + '/change-phone', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newPhoneNumber: newPhone.trim() })
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadData();
+        } else {
+          alert('שגיאה: ' + (data.error || 'unknown'));
+        }
+      } catch(e) { alert('שגיאת תקשורת: ' + e.message); }
+    }
+
     async function toggleAccountType(phoneNumber, btn) {
       const current = btn.getAttribute('data-type') || 'installer';
       const newType = current === 'installer' ? 'committee' : 'installer';
@@ -1360,7 +1380,10 @@
 
         row.innerHTML = `
           <td>
-            <span style="font-size:13px;">${installer.phoneNumber}</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:13px;">${installer.phoneNumber}</span>
+              <button class="field-edit-btn" onclick="editInstallerPhone('${installer.phoneNumber}')" title="ערוך מספר טלפון" style="opacity:1;">✏️</button>
+            </div>
           </td>
           <td>
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
