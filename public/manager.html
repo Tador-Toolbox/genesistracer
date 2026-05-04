@@ -1294,6 +1294,27 @@
     }
 
 
+
+    async function toggleAccountType(phoneNumber, btn) {
+      const current = btn.getAttribute('data-type') || 'installer';
+      const newType = current === 'installer' ? 'committee' : 'installer';
+      try {
+        const res = await fetch('/api/manager/installers/' + phoneNumber + '/account-type', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountType: newType })
+        });
+        const data = await res.json();
+        if (data.success) {
+          btn.setAttribute('data-type', newType);
+          btn.textContent = newType === 'committee' ? 'ועד' : 'מתקין';
+          btn.style.background = newType === 'committee' ? '#e0e7ff' : '#dcfce7';
+          btn.style.color = newType === 'committee' ? '#4338ca' : '#16a34a';
+        } else {
+          alert('שגיאה: ' + (data.error || 'unknown'));
+        }
+      } catch(e) { alert('שגיאת תקשורת'); }
+    }
+
     async function editInstallerName(phoneNumber) {
       const currentName = '';
       const newName = prompt('שם הטכנאי:', currentName);
@@ -1342,9 +1363,18 @@
             <span style="font-size:13px;">${installer.phoneNumber}</span>
           </td>
           <td>
-            <div style="display:flex;align-items:center;gap:6px;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <span style="font-weight:600;font-size:13px;">${installer.installerName || '—'}</span>
               <button class="field-edit-btn" onclick="editInstallerName('${installer.phoneNumber}')" title="ערוך שם" style="opacity:1;">✏️</button>
+            </div>
+            <div style="margin-top:5px;">
+              <button onclick="toggleAccountType('${installer.phoneNumber}', this)"
+                data-type="${installer.accountType || 'installer'}"
+                style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;border:none;cursor:pointer;
+                  background:${(installer.accountType||'installer')==='committee'?'#e0e7ff':'#dcfce7'};
+                  color:${(installer.accountType||'installer')==='committee'?'#4338ca':'#16a34a'};">
+                ${(installer.accountType||'installer')==='committee'?'ועד':'מתקין'}
+              </button>
             </div>
           </td>
           <td>

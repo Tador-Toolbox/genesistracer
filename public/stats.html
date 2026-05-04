@@ -464,15 +464,14 @@
   }
 
   function renderInstallers(list) {
-    document.getElementById('installerCount').textContent = list.length;
+    const installers  = list.filter(i => (i.accountType || 'installer') === 'installer');
+    const committees  = list.filter(i => i.accountType === 'committee');
+
+    document.getElementById('installerCount').textContent = installers.length;
     const container = document.getElementById('installerList');
 
-    if (!list.length) {
-      container.innerHTML = '<div class="empty">אין טכנאים להצגה</div>';
-      return;
-    }
-
-    container.innerHTML = list.map((inst, i) => {
+    const renderCards = (items, startIdx) => items.map((inst, ii) => {
+      const i = startIdx + ii;
       const macCount     = inst.macAddresses.length;
       const paidCount    = inst.macAddresses.filter(m => m.licensePaid).length;
       const lastLogin    = inst.lastLogin
@@ -501,7 +500,7 @@
         <div class="installer-card" id="card-${i}">
           <div class="installer-header" onclick="toggleCard(${i})">
             <div class="installer-info">
-              <div class="installer-name">${inst.installerName || '—'}</div>
+              <div class="installer-name">${inst.installerName || inst.phoneNumber}</div>
               <div class="installer-phone">${inst.phoneNumber}</div>
               <div class="last-login ${isRecent ? 'recent' : ''}">
                 🕐 כניסה אחרונה: ${lastLogin}
@@ -530,7 +529,20 @@
             </table>
           </div>
         </div>`;
-    }).join('');
+    });
+
+    // Build HTML: installers + committees section
+    let html = renderCards(installers, 0).join('');
+
+    if (committees.length) {
+      html += `<div class="section-title" style="margin-top:24px;color:#4338ca;">
+        🏢 חשבונות ועד
+        <span class="count-badge" style="background:#4338ca;">${committees.length}</span>
+      </div>`;
+      html += renderCards(committees, installers.length).join('');
+    }
+
+    container.innerHTML = html;
   }
 
   function toggleCard(i) {
