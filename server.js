@@ -1303,39 +1303,86 @@ app.get('/api/stats', async (req, res) => {
     const adminUser = process.env.ADMIN_USER || 'admin';
     const filtered = installers.filter(i => i.phoneNumber !== adminUser);
 
-    const totalInstallers = filtered.length;
-    const totalMacs = filtered.reduce((sum, i) => sum + (i.macAddresses || []).length, 0);
-    const totalLicensesPaid = filtered.reduce((sum, i) => {
-      return sum + (i.macAddresses || []).filter(m => m.licensePaid).length;
-    }, 0);
-    const genesis7Count = filtered.reduce((sum, i) => {
-      return sum + (i.macAddresses || []).filter(m => (m.panelType || 'genesis7') === 'genesis7').length;
-    }, 0);
-    const genesis5Count = filtered.reduce((sum, i) => {
-      return sum + (i.macAddresses || []).filter(m => m.panelType === 'genesis5').length;
-    }, 0);
+    // Deduplicate MACs globally across all installers
+    const seenMacs = new Set();
+    const now = new Date();
+    const oneYearMs  = 365 * 24 * 60 * 60 * 1000;
+    const twoYearsMs = 2 * oneYearMs;
 
-    const installerList = filtered.map(i => ({
-      phoneNumber: i.phoneNumber,
-      installerName: i.installerName || '',
-      createdAt: i.createdAt,
-      lastLogin: i.lastLogin,
-      macAddresses: (i.macAddresses || []).map(m => ({
-        mac: m.mac,
-        address: m.address || '',
-        city: m.city || '',
-        panelType: m.panelType || 'genesis7',
-        licensePaid: m.licensePaid || false,
-        annualFee: m.annualFee || '',
-        committeeName: m.committeeName || '',
-        startDate: m.startDate || '',
-      }))
-    }));
+    const alerts1Year  = []; // passed 1 year, not paid
+    const alerts2Years = []; // passed 2 years, not paid
+
+    const installerList = filtered.map(inst => {
+      const uniqueMacs = [];
+      for (const m of (inst.macAddresses || [])) {
+        if (!m.mac || seenMacs.has(m.mac)) continue;
+        seenMacs.add(m.mac);
+        uniqueMacs.push(m);
+
+        // Check overdue licenses
+        if (!m.licensePaid && m.startDate) {
+          const start = new Date(m.startDate);
+          if (!isNaN(start)) {
+            const elapsed = now - start;
+            if (elapsed >= twoYearsMs) {
+              alerts2Years.push({
+                installerName: inst.installerName || inst.phoneNumber,
+                phoneNumber: inst.phoneNumber,
+                mac: m.mac,
+                address: m.address || '',
+                city: m.city || '',
+                committeeName: m.committeeName || '',
+                startDate: m.startDate,
+                yearsElapsed: (elapsed / oneYearMs).toFixed(1),
+              });
+            } else if (elapsed >= oneYearMs) {
+              alerts1Year.push({
+                installerName: inst.installerName || inst.phoneNumber,
+                phoneNumber: inst.phoneNumber,
+                mac: m.mac,
+                address: m.address || '',
+                city: m.city || '',
+                committeeName: m.committeeName || '',
+                startDate: m.startDate,
+                yearsElapsed: (elapsed / oneYearMs).toFixed(1),
+              });
+            }
+          }
+        }
+      }
+      return {
+        phoneNumber: inst.phoneNumber,
+        installerName: inst.installerName || '',
+        createdAt: inst.createdAt,
+        lastLogin: inst.lastLogin,
+        macAddresses: uniqueMacs.map(m => ({
+          mac: m.mac,
+          address: m.address || '',
+          city: m.city || '',
+          panelType: m.panelType || 'genesis7',
+          licensePaid: m.licensePaid || false,
+          annualFee: m.annualFee || '',
+          committeeName: m.committeeName || '',
+          startDate: m.startDate || '',
+        }))
+      };
+    });
+
+    const allUniqueMacs = [...seenMacs];
+    const totalMacs        = allUniqueMacs.length;
+    const totalInstallers  = filtered.length;
+    const totalLicensesPaid = installerList.reduce((sum, i) =>
+      sum + i.macAddresses.filter(m => m.licensePaid).length, 0);
+    const genesis7Count = installerList.reduce((sum, i) =>
+      sum + i.macAddresses.filter(m => (m.panelType || 'genesis7') === 'genesis7').length, 0);
+    const genesis5Count = installerList.reduce((sum, i) =>
+      sum + i.macAddresses.filter(m => m.panelType === 'genesis5').length, 0);
 
     res.json({
       success: true,
       summary: { totalInstallers, totalMacs, totalLicensesPaid, genesis7Count, genesis5Count },
-      installers: installerList
+      installers: installerList,
+      alerts: { oneYear: alerts1Year, twoYears: alerts2Years },
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
