@@ -1255,11 +1255,15 @@
     }
 
 
-    async function editInstallerName(phoneNumber, currentName) {
-      const newName = prompt('שם הטכנאי:', currentName || '');
+    // Map to store installer names for safe access
+    const installerNameMap = {};
+
+    async function editInstallerName(phoneNumber) {
+      const currentName = installerNameMap[phoneNumber] || '';
+      const newName = prompt('שם הטכנאי:', currentName);
       if (newName === null) return;
       try {
-        const res = await fetch(`/api/manager/installers/${phoneNumber}/info`, {
+        const res = await fetch('/api/manager/installers/' + phoneNumber + '/info', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ installerName: newName.trim() })
         });
@@ -1303,9 +1307,10 @@
           </td>
           <td>
             <div style="display:flex;align-items:center;gap:6px;">
-              <span style="font-weight:600;font-size:13px;">${installer.installerName || '—'}</span>
-              <button class="field-edit-btn" data-phone="${installer.phoneNumber}" data-name="${installer.installerName||''}" onclick="editInstallerName(this.getAttribute('data-phone'), this.getAttribute('data-name'))" title="ערוך שם" style="opacity:1;">✏️</button>
+              <span style="font-weight:600;font-size:13px;" id="instName-${installer.phoneNumber}">${installer.installerName || '—'}</span>
+              <button class="field-edit-btn" onclick="editInstallerName('${installer.phoneNumber}')" title="ערוך שם" style="opacity:1;">✏️</button>
             </div>
+            <script>installerNameMap['${installer.phoneNumber}'] = '${(installer.installerName||'').replace(/'/g,"\\'")}'; </script>
           </td>
           <td>
             <div class="password-display">
