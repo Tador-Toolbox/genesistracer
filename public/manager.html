@@ -1303,7 +1303,7 @@
           <td>
             <div style="display:flex;align-items:center;gap:6px;">
               <span style="font-weight:600;font-size:13px;">${installer.installerName || '—'}</span>
-              <button class="field-edit-btn" onclick='editInstallerName("${installer.phoneNumber}", "${(installer.installerName||'')}')" title="ערוך שם" style="opacity:1;">✏️</button>
+              <button class="field-edit-btn" data-phone="${installer.phoneNumber}" data-name="${installer.installerName||''}" onclick="editInstallerName(this.getAttribute('data-phone'), this.getAttribute('data-name'))" title="ערוך שם" style="opacity:1;">✏️</button>
             </div>
           </td>
           <td>
