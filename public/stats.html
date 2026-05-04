@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>סטטיסטיקה — GenesisTracer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --surface2: #f8fafc;
+      --border: #e2e8f0;
+      --accent: #2563eb;
+      --green: #16a34a;
+      --green-dim: #dcfce7;
+      --red: #dc2626;
+      --red-dim: #fee2e2;
+      --amber: #d97706;
+      --amber-dim: #fef3c7;
+      --purple: #7c3aed;
+      --purple-dim: #ede9fe;
+      --text: #0f172a;
+      --text-2: #334155;
+      --text-dim: #64748b;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+    }
+
+    body {
+      font-family: 'Syne', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: var(--shadow);
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .logo-box {
+      width: 30px; height: 30px;
+      background: var(--text);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 12px; font-weight: 800;
+    }
+    .header-title { font-size: 16px; font-weight: 800; letter-spacing: 0.3px; }
+    .header-sub { font-size: 12px; color: var(--text-dim); }
+    .back-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 7px; padding: 7px 14px;
+      font-family: inherit; font-size: 13px; font-weight: 700;
+      color: var(--text-2); cursor: pointer;
+      text-decoration: none;
+      transition: border-color .15s, color .15s;
+    }
+    .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── MAIN ── */
+    main { max-width: 1100px; margin: 0 auto; padding: 28px 24px 48px; }
+
+    /* ── SUMMARY CARDS ── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 18px;
+      box-shadow: var(--shadow);
+    }
+    .stat-card-icon { font-size: 24px; margin-bottom: 10px; }
+    .stat-card-value {
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-card-label { font-size: 12px; color: var(--text-dim); font-weight: 600; }
+    .stat-card.green .stat-card-value { color: var(--green); }
+    .stat-card.blue .stat-card-value { color: var(--accent); }
+    .stat-card.amber .stat-card-value { color: var(--amber); }
+    .stat-card.purple .stat-card-value { color: var(--purple); }
+    .stat-card.red .stat-card-value { color: var(--red); }
+
+    /* ── SEARCH ── */
+    .search-bar {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .search-bar input {
+      width: 100%;
+      padding: 12px 16px 12px 42px;
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      font-family: inherit;
+      font-size: 14px;
+      background: var(--surface);
+      color: var(--text);
+      transition: border-color .15s;
+    }
+    .search-bar input:focus { outline: none; border-color: var(--accent); }
+    .search-bar input::placeholder { color: var(--text-dim); }
+    .search-icon {
+      position: absolute;
+      left: 14px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      font-size: 17px;
+    }
+
+    /* ── INSTALLER TABLE ── */
+    .section-title {
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 14px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .count-badge {
+      background: var(--accent);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .installer-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: box-shadow .15s;
+    }
+    .installer-card:hover { box-shadow: var(--shadow-md); }
+
+    .installer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      cursor: pointer;
+      gap: 12px;
+      border-bottom: 1px solid transparent;
+      transition: background .15s;
+    }
+    .installer-header:hover { background: var(--surface2); }
+    .installer-header.open { border-bottom-color: var(--border); background: var(--surface2); }
+
+    .installer-info { flex: 1; }
+    .installer-name { font-size: 15px; font-weight: 700; color: var(--text); }
+    .installer-phone { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+    .installer-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .meta-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .pill-blue { background: #dbeafe; color: var(--accent); }
+    .pill-green { background: var(--green-dim); color: var(--green); }
+    .pill-amber { background: var(--amber-dim); color: var(--amber); }
+    .pill-gray { background: var(--border); color: var(--text-dim); }
+
+    .toggle-icon { color: var(--text-dim); font-size: 18px; transition: transform .2s; }
+    .toggle-icon.open { transform: rotate(180deg); }
+
+    /* ── MAC LIST ── */
+    .mac-list { display: none; padding: 14px 18px; }
+    .mac-list.open { display: block; }
+
+    .mac-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .mac-table th {
+      text-align: right;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      padding: 6px 10px;
+      border-bottom: 1.5px solid var(--border);
+    }
+    .mac-table td {
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-2);
+      vertical-align: middle;
+    }
+    .mac-table tr:last-child td { border-bottom: none; }
+    .mac-table tr:hover td { background: var(--surface2); }
+
+    .mac-addr {
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .license-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .license-paid { background: var(--green-dim); color: var(--green); }
+    .license-free { background: var(--border); color: var(--text-dim); }
+    .panel-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 5px;
+      background: var(--purple-dim);
+      color: var(--purple);
+    }
+
+    /* ── LOADING / EMPTY ── */
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-dim);
+    }
+    .loading-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty { text-align: center; padding: 40px; color: var(--text-dim); font-size: 14px; }
+
+    /* ── LAST LOGIN ── */
+    .last-login {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 1px;
+    }
+    .last-login.recent { color: var(--green); }
+
+    @media (max-width: 640px) {
+      main { padding: 16px; }
+      .header { padding: 0 16px; }
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+      .mac-table th:nth-child(3),
+      .mac-table td:nth-child(3) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <div class="logo-box">T</div>
+    <div>
+      <div class="header-title">GenesisTracer</div>
+      <div class="header-sub">סטטיסטיקה</div>
+    </div>
+  </div>
+  <a href="/manager.html" class="back-btn">← חזור למנהל</a>
+</header>
+
+<main>
+  <!-- Summary -->
+  <div class="summary-grid" id="summaryGrid">
+    <div class="loading" style="grid-column:1/-1;">
+      <div class="loading-spinner"></div>
+      טוען נתונים...
+    </div>
+  </div>
+
+  <!-- Installer List -->
+  <div class="section-title">
+    רשימת טכנאים
+    <span class="count-badge" id="installerCount">0</span>
+  </div>
+
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="חפש לפי שם, טלפון או כתובת MAC..."
+           oninput="filterInstallers(this.value)" />
+  </div>
+
+  <div id="installerList">
+    <div class="loading">
+      <div class="loading-spinner"></div>
+      טוען רשימת טכנאים...
+    </div>
+  </div>
+</main>
+
+<script>
+  let allInstallers = [];
+
+  async function loadStats() {
+    try {
+      const res  = await fetch('/api/stats');
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      renderSummary(data.summary);
+      allInstallers = data.installers;
+      renderInstallers(allInstallers);
+    } catch(e) {
+      document.getElementById('summaryGrid').innerHTML =
+        `<div class="empty" style="grid-column:1/-1;">❌ שגיאה בטעינה: ${e.message}</div>`;
+    }
+  }
+
+  function renderSummary(s) {
+    document.getElementById('summaryGrid').innerHTML = `
+      <div class="stat-card blue">
+        <div class="stat-card-icon">👷</div>
+        <div class="stat-card-value">${s.totalInstallers}</div>
+        <div class="stat-card-label">סה"כ טכנאים</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-card-icon">📟</div>
+        <div class="stat-card-value">${s.totalMacs}</div>
+        <div class="stat-card-label">סה"כ פנלים</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-card-icon">✅</div>
+        <div class="stat-card-value">${s.totalLicensesPaid}</div>
+        <div class="stat-card-label">רישיונות ששולמו</div>
+      </div>
+      <div class="stat-card amber">
+        <div class="stat-card-icon">🖥️</div>
+        <div class="stat-card-value">${s.genesis7Count}</div>
+        <div class="stat-card-label">Genesis 7</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-card-icon">🖥️</div>
+        <div class="stat-card-value">${s.genesis5Count}</div>
+        <div class="stat-card-label">Genesis 5</div>
+      </div>
+    `;
+  }
+
+  function renderInstallers(list) {
+    document.getElementById('installerCount').textContent = list.length;
+    const container = document.getElementById('installerList');
+
+    if (!list.length) {
+      container.innerHTML = '<div class="empty">אין טכנאים להצגה</div>';
+      return;
+    }
+
+    container.innerHTML = list.map((inst, i) => {
+      const macCount     = inst.macAddresses.length;
+      const paidCount    = inst.macAddresses.filter(m => m.licensePaid).length;
+      const lastLogin    = inst.lastLogin
+        ? new Date(inst.lastLogin).toLocaleDateString('he-IL')
+        : 'לא התחבר';
+      const isRecent     = inst.lastLogin &&
+        (Date.now() - new Date(inst.lastLogin)) < 7 * 24 * 60 * 60 * 1000;
+
+      const macRows = inst.macAddresses.length
+        ? inst.macAddresses.map(m => `
+          <tr>
+            <td><span class="mac-addr">${m.mac}</span></td>
+            <td>${m.address || '—'}${m.city ? ', ' + m.city : ''}</td>
+            <td>${m.committeeName || '—'}</td>
+            <td><span class="panel-badge">${m.panelType === 'genesis5' ? 'Genesis 5' : 'Genesis 7'}</span></td>
+            <td>
+              <span class="license-badge ${m.licensePaid ? 'license-paid' : 'license-free'}">
+                ${m.licensePaid ? '✅ שולם' : '○ חינם'}
+              </span>
+            </td>
+            <td>${m.annualFee ? '₪' + m.annualFee : '—'}</td>
+          </tr>`).join('')
+        : `<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:16px;">אין פנלים</td></tr>`;
+
+      return `
+        <div class="installer-card" id="card-${i}">
+          <div class="installer-header" onclick="toggleCard(${i})">
+            <div class="installer-info">
+              <div class="installer-name">${inst.installerName || '—'}</div>
+              <div class="installer-phone">${inst.phoneNumber}</div>
+              <div class="last-login ${isRecent ? 'recent' : ''}">
+                🕐 כניסה אחרונה: ${lastLogin}
+              </div>
+            </div>
+            <div class="installer-meta">
+              <span class="meta-pill pill-blue">${macCount} פנלים</span>
+              ${paidCount > 0 ? `<span class="meta-pill pill-green">${paidCount} שולמו</span>` : ''}
+              ${macCount - paidCount > 0 ? `<span class="meta-pill pill-gray">${macCount - paidCount} חינם</span>` : ''}
+            </div>
+            <span class="toggle-icon" id="icon-${i}">▼</span>
+          </div>
+          <div class="mac-list" id="macs-${i}">
+            <table class="mac-table">
+              <thead>
+                <tr>
+                  <th>כתובת MAC</th>
+                  <th>כתובת</th>
+                  <th>ועד / דיירים</th>
+                  <th>דגם</th>
+                  <th>רישיון</th>
+                  <th>תשלום שנתי</th>
+                </tr>
+              </thead>
+              <tbody>${macRows}</tbody>
+            </table>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function toggleCard(i) {
+    const macs = document.getElementById('macs-' + i);
+    const icon = document.getElementById('icon-' + i);
+    const header = macs.previousElementSibling;
+    const isOpen = macs.classList.contains('open');
+    macs.classList.toggle('open', !isOpen);
+    icon.classList.toggle('open', !isOpen);
+    header.classList.toggle('open', !isOpen);
+  }
+
+  function filterInstallers(q) {
+    if (!q.trim()) { renderInstallers(allInstallers); return; }
+    const lower = q.toLowerCase();
+    const filtered = allInstallers.filter(inst =>
+      (inst.installerName || '').toLowerCase().includes(lower) ||
+      inst.phoneNumber.includes(lower) ||
+      inst.macAddresses.some(m =>
+        m.mac.toLowerCase().includes(lower) ||
+        (m.address || '').toLowerCase().includes(lower) ||
+        (m.city || '').toLowerCase().includes(lower) ||
+        (m.committeeName || '').toLowerCase().includes(lower)
+      )
+    );
+    renderInstallers(filtered);
+  }
+
+  loadStats();
+</script>
+</body>
+</html>
