@@ -187,6 +187,7 @@ async function getInstallers() {
     macCount: (inst.macAddresses || []).length,
     createdAt: inst.createdAt,
     lastLogin: inst.lastLogin,
+    installerName: inst.installerName || '',
   }));
 }
 
