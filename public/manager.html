@@ -238,6 +238,26 @@
       text-transform: uppercase;
       letter-spacing: 1px;
     }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .modal-header h3 {
+      margin-bottom: 0;
+    }
+    .modal-close-btn {
+      background: none;
+      border: none;
+      font-size: 22px;
+      color: var(--text-dim);
+      cursor: pointer;
+      line-height: 1;
+      padding: 0 4px;
+      opacity: 0.7;
+    }
+    .modal-close-btn:hover { opacity: 1; color: var(--text); }
 
     .modal-field { margin-bottom: 16px; }
     .modal-field label {
@@ -546,7 +566,10 @@
   <!-- MAC Modal -->
   <div class="modal-overlay" id="macModal">
     <div class="modal">
-      <h3 id="modalTitle">Add MAC Address</h3>
+      <div class="modal-header">
+        <h3 id="modalTitle">Add MAC Address</h3>
+        <button class="modal-close-btn" onclick="closeModal()" title="Close">✕</button>
+      </div>
       <input type="hidden" id="modalPhone" />
       <input type="hidden" id="modalOriginalMac" />
 
