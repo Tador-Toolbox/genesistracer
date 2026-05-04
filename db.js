@@ -110,7 +110,8 @@ async function assignMacToInstaller(
   annualFee = "",
   licensesPurchased = "",
   licensePaid = false,
-  panelType = "genesis7"
+  panelType = "genesis7",
+  voipbellAccount = ""
 ) {
   await connectDB();
 
@@ -119,7 +120,7 @@ async function assignMacToInstaller(
 
   const existingMacIndex = (installer.macAddresses || []).findIndex((m) => m.mac === macAddress);
 
-  const updatedMac = { mac: macAddress, address, city, notes, purchaseDate, startDate, technicianName, technicianPhone, supplierName, committeeName, committeePhone, description, annualFee, licensesPurchased, licensePaid, panelType };
+  const updatedMac = { mac: macAddress, address, city, notes, purchaseDate, startDate, technicianName, technicianPhone, supplierName, committeeName, committeePhone, description, annualFee, licensesPurchased, licensePaid, panelType, voipbellAccount };
 
   if (existingMacIndex >= 0) installer.macAddresses[existingMacIndex] = updatedMac;
   else installer.macAddresses = [...(installer.macAddresses || []), updatedMac];
@@ -304,6 +305,18 @@ async function updateInstallerPanelType(phoneNumber, panelType) {
 }
 
 // ==================== CATALOG ====================
+async function updateInstallerInfo(phoneNumber, fields) {
+  await connectDB();
+  const allowed = ['installerName', 'voipbellAccount'];
+  const update = {};
+  for (const key of allowed) {
+    if (fields[key] !== undefined) update[key] = fields[key];
+  }
+  if (Object.keys(update).length === 0) return;
+  await db.collection('installers').updateOne({ phoneNumber }, { $set: update });
+}
+
+
 async function getCatalogUrl() {
   await connectDB();
   const doc = await db.collection("settings").findOne({ key: "catalogUrl" });
@@ -461,6 +474,12 @@ async function getManagerFiles() {
   return await db.collection("managerFiles").find({}).sort({ uploadedAt: -1 }).toArray();
 }
 
+async function updateManagerFileTitle(publicId, title) {
+  await connectDB();
+  await db.collection("managerFiles").updateOne({ publicId }, { $set: { title } });
+}
+
+
 async function deleteManagerFile(publicId) {
   await connectDB();
   await db.collection("managerFiles").deleteOne({ publicId });
@@ -483,6 +502,7 @@ module.exports = {
   getAutoRebootSchedules,
   saveAutoRebootSchedules,
   updateInstallerPanelType,
+  updateInstallerInfo,
   getCatalogUrl,
   setCatalogUrl,
   getTutorials,
@@ -493,6 +513,7 @@ module.exports = {
   addManagerFile,
   getManagerFiles,
   deleteManagerFile,
+  updateManagerFileTitle,
   subscribeToMailingList,
   getMailingList,
   removeFromMailingList,

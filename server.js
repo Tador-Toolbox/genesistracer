@@ -374,6 +374,7 @@ app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
       licensesPurchased = '',
       licensePaid = false,
       panelType = 'genesis7',
+      voipbellAccount = '',
     } = req.body;
 
     const cleanMac = (macAddress || '').replace(/[:\s-]/g, '').toUpperCase();
@@ -396,7 +397,8 @@ app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
       annualFee,
       licensesPurchased,
       licensePaid,
-      panelType
+      panelType,
+      voipbellAccount
     );
 
     res.json({ success: true });
@@ -889,6 +891,19 @@ app.post('/api/installer/reboot', async (req, res) => {
 
 
 
+
+// Update installer name / voipbell account
+app.post('/api/manager/installers/:phoneNumber/info', async (req, res) => {
+  try {
+    const { phoneNumber } = req.params;
+    const { installerName, voipbellAccount } = req.body;
+    await db.updateInstallerInfo(phoneNumber, { installerName, voipbellAccount });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== RELAY TOGGLE (Always On) ====================
 const http = require('http');
 const { exec } = require('child_process');
@@ -1250,6 +1265,19 @@ app.get('/api/manager/files', async (req, res) => {
   try {
     const files = await db.getManagerFiles();
     res.json({ success: true, files });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+// Update file title
+app.post('/api/manager/files/title', async (req, res) => {
+  try {
+    const { publicId, title } = req.body;
+    if (!publicId) return res.status(400).json({ success: false, error: 'publicId required' });
+    await db.updateManagerFileTitle(publicId, title);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
