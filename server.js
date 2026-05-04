@@ -1295,6 +1295,53 @@ app.delete('/api/manager/files/:publicId(*)', async (req, res) => {
   }
 });
 
+
+// ==================== STATS ====================
+app.get('/api/stats', async (req, res) => {
+  try {
+    const installers = await db.getAllInstallersWithMacs();
+    const adminUser = process.env.ADMIN_USER || 'admin';
+    const filtered = installers.filter(i => i.phoneNumber !== adminUser);
+
+    const totalInstallers = filtered.length;
+    const totalMacs = filtered.reduce((sum, i) => sum + (i.macAddresses || []).length, 0);
+    const totalLicensesPaid = filtered.reduce((sum, i) => {
+      return sum + (i.macAddresses || []).filter(m => m.licensePaid).length;
+    }, 0);
+    const genesis7Count = filtered.reduce((sum, i) => {
+      return sum + (i.macAddresses || []).filter(m => (m.panelType || 'genesis7') === 'genesis7').length;
+    }, 0);
+    const genesis5Count = filtered.reduce((sum, i) => {
+      return sum + (i.macAddresses || []).filter(m => m.panelType === 'genesis5').length;
+    }, 0);
+
+    const installerList = filtered.map(i => ({
+      phoneNumber: i.phoneNumber,
+      installerName: i.installerName || '',
+      createdAt: i.createdAt,
+      lastLogin: i.lastLogin,
+      macAddresses: (i.macAddresses || []).map(m => ({
+        mac: m.mac,
+        address: m.address || '',
+        city: m.city || '',
+        panelType: m.panelType || 'genesis7',
+        licensePaid: m.licensePaid || false,
+        annualFee: m.annualFee || '',
+        committeeName: m.committeeName || '',
+        startDate: m.startDate || '',
+      }))
+    }));
+
+    res.json({
+      success: true,
+      summary: { totalInstallers, totalMacs, totalLicensesPaid, genesis7Count, genesis5Count },
+      installers: installerList
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
