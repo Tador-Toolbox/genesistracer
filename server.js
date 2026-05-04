@@ -892,6 +892,21 @@ app.post('/api/installer/reboot', async (req, res) => {
 
 
 
+
+// Update account type (installer / committee)
+app.post('/api/manager/installers/:phoneNumber/account-type', async (req, res) => {
+  try {
+    const { phoneNumber } = req.params;
+    const { accountType } = req.body;
+    if (!['installer', 'committee'].includes(accountType))
+      return res.status(400).json({ success: false, error: 'Invalid type' });
+    await db.updateAccountType(phoneNumber, accountType);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Update installer name / voipbell account
 app.post('/api/manager/installers/:phoneNumber/info', async (req, res) => {
   try {
@@ -1370,7 +1385,7 @@ app.get('/api/stats', async (req, res) => {
 
     const allUniqueMacs = [...seenMacs];
     const totalMacs        = allUniqueMacs.length;
-    const totalInstallers  = filtered.length;
+    const totalInstallers  = filtered.filter(i => (i.accountType || 'installer') === 'installer').length;
     const totalLicensesPaid = installerList.reduce((sum, i) =>
       sum + i.macAddresses.filter(m => m.licensePaid).length, 0);
     const genesis7Count = installerList.reduce((sum, i) =>

@@ -188,6 +188,7 @@ async function getInstallers() {
     createdAt: inst.createdAt,
     lastLogin: inst.lastLogin,
     installerName: inst.installerName || '',
+    accountType: inst.accountType || 'installer',
   }));
 }
 
@@ -315,6 +316,15 @@ async function updateInstallerInfo(phoneNumber, fields) {
   }
   if (Object.keys(update).length === 0) return;
   await db.collection('installers').updateOne({ phoneNumber }, { $set: update });
+}
+
+
+async function updateAccountType(phoneNumber, accountType) {
+  await connectDB();
+  await db.collection('installers').updateOne(
+    { phoneNumber },
+    { $set: { accountType } }
+  );
 }
 
 
@@ -504,6 +514,7 @@ module.exports = {
   saveAutoRebootSchedules,
   updateInstallerPanelType,
   updateInstallerInfo,
+  updateAccountType,
   getCatalogUrl,
   setCatalogUrl,
   getTutorials,
