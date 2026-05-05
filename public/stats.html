@@ -355,6 +355,22 @@
     </div>
   </div>
 
+  <!-- Filter buttons -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+    <button onclick="setFilter('all')" id="filterAll"
+      style="padding:8px 18px;border-radius:20px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;background:#0f172a;color:white;transition:all .15s;">
+      הכל
+    </button>
+    <button onclick="setFilter('installer')" id="filterInstaller"
+      style="padding:8px 18px;border-radius:20px;border:1.5px solid #e2e8f0;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;background:white;color:#16a34a;transition:all .15s;">
+      ✅ מתקינים
+    </button>
+    <button onclick="setFilter('committee')" id="filterCommittee"
+      style="padding:8px 18px;border-radius:20px;border:1.5px solid #e2e8f0;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;background:white;color:#4338ca;transition:all .15s;">
+      🏢 ועד
+    </button>
+  </div>
+
   <div class="section-title">
     רשימת טכנאים
     <span class="count-badge" id="installerCount">0</span>
@@ -376,6 +392,30 @@
 
 <script>
   let allInstallers = [];
+  let currentFilter = 'all';
+
+  function setFilter(type) {
+    currentFilter = type;
+    // Update button styles
+    const styles = {
+      all:       { active: '#0f172a', color: 'white' },
+      installer: { active: '#dcfce7', color: '#16a34a' },
+      committee: { active: '#e0e7ff', color: '#4338ca' },
+    };
+    ['all','installer','committee'].forEach(t => {
+      const btn = document.getElementById('filter' + t.charAt(0).toUpperCase() + t.slice(1));
+      if (!btn) return;
+      const isActive = t === type;
+      btn.style.background = isActive ? styles[t].active : 'white';
+      btn.style.color       = isActive ? (t === 'all' ? 'white' : styles[t].color) : '#64748b';
+      btn.style.border      = isActive ? 'none' : '1.5px solid #e2e8f0';
+    });
+
+    const filtered = currentFilter === 'all'
+      ? allInstallers
+      : allInstallers.filter(i => (i.accountType || 'installer') === currentFilter);
+    renderInstallers(filtered);
+  }
 
   async function loadStats() {
     try {
