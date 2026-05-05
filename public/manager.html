@@ -455,9 +455,20 @@
       <!-- Create Installer -->
       <div class="card">
         <h2 data-i18n="createInstaller">➕ Create Installer Account</h2>
-        <div class="form-row">
+        <div class="form-row" style="flex-wrap:wrap;gap:8px;">
           <input type="text" id="newPhone" data-i18n-placeholder="phoneNumber" placeholder="Phone Number (e.g., +972501234567)" />
           <input type="text" id="newMacs" data-i18n-placeholder="macAddresses" placeholder="MAC Addresses (comma separated, optional)" />
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button id="typeInstallerBtn" onclick="setNewAccountType('installer')"
+              style="padding:8px 14px;border-radius:20px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#dcfce7;color:#16a34a;">
+              ✅ מתקין
+            </button>
+            <button id="typeCommitteeBtn" onclick="setNewAccountType('committee')"
+              style="padding:8px 14px;border-radius:20px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:var(--surface2);color:var(--text-dim);">
+              🏢 ועד
+            </button>
+            <input type="hidden" id="newAccountType" value="installer" />
+          </div>
           <button onclick="createInstaller()" data-i18n="createBtn">Create</button>
         </div>
         <div id="createResult"></div>
@@ -622,6 +633,11 @@
       </div>
 
       <div class="modal-field">
+        <label id="labelCommitteePhone">📞 Committee Phone</label>
+        <input type="text" id="modalCommitteePhone" placeholder="Committee phone number" />
+      </div>
+
+      <div class="modal-field">
         <label id="labelModel">💻 דגם מכשיר</label>
         <select id="modalModel" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;direction:rtl;">
           <option value="genesis7">Genesis 7</option>
@@ -641,7 +657,6 @@
 
       <!-- Hidden fields -->
       <input type="hidden" id="modalTechnicianPhone" />
-      <input type="hidden" id="modalCommitteePhone" />
 
       <div class="modal-field">
         <label id="labelCity">🏙️ City</label>
@@ -871,15 +886,30 @@
       document.getElementById('loginError').style.display = 'none';
     }
 
+
+    function setNewAccountType(type) {
+      document.getElementById('newAccountType').value = type;
+      const instBtn = document.getElementById('typeInstallerBtn');
+      const commBtn = document.getElementById('typeCommitteeBtn');
+      if (type === 'installer') {
+        instBtn.style.background = '#dcfce7'; instBtn.style.color = '#16a34a';
+        commBtn.style.background = 'var(--surface2)'; commBtn.style.color = 'var(--text-dim)';
+      } else {
+        commBtn.style.background = '#e0e7ff'; commBtn.style.color = '#4338ca';
+        instBtn.style.background = 'var(--surface2)'; instBtn.style.color = 'var(--text-dim)';
+      }
+    }
+
     async function createInstaller() {
       const phoneNumber = document.getElementById('newPhone').value;
       const macs = document.getElementById('newMacs').value;
       const macAddresses = macs ? macs.split(',').map(m => m.trim().replace(/[:\s-]/g, '').toUpperCase()) : [];
 
+      const accountType = document.getElementById('newAccountType').value;
       const res = await fetch('/api/manager/installers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, macAddresses })
+        body: JSON.stringify({ phoneNumber, macAddresses, accountType })
       });
 
       const data = await res.json();
@@ -898,6 +928,8 @@
         `;
         document.getElementById('newPhone').value = '';
         document.getElementById('newMacs').value = '';
+        document.getElementById('newAccountType').value = 'installer';
+        setNewAccountType('installer');
         loadData();
       } else {
         resultDiv.innerHTML = `<div class="error-msg">${data.error || 'Error'}</div>`;
@@ -953,6 +985,7 @@
       document.getElementById('modalCity').value = macObj ? (macObj.city || '') : '';
       document.getElementById('modalModel').value = macObj ? (macObj.panelType || 'genesis7') : 'genesis7';
       document.getElementById('modalVoipbellAccount').value = macObj ? (macObj.voipbellAccount || '') : '';
+      document.getElementById('modalCommitteePhone').value = macObj ? (macObj.committeePhone || '') : '';
       document.getElementById('modalAnnualFee').value = macObj ? (macObj.annualFee || '') : '';
 
       document.getElementById('modalTitle').textContent = macObj ? (t.edit + ' MAC') : ('+ ' + t.addMac);
