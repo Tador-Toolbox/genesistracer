@@ -507,8 +507,17 @@
     const installers  = list.filter(i => (i.accountType || 'installer') === 'installer');
     const committees  = list.filter(i => i.accountType === 'committee');
 
-    document.getElementById('installerCount').textContent = installers.length;
+    // Update count badge based on what's shown
+    const shown = currentFilter === 'committee' ? committees.length
+                : currentFilter === 'installer' ? installers.length
+                : list.length;
+    document.getElementById('installerCount').textContent = shown;
     const container = document.getElementById('installerList');
+
+    if (!list.length) {
+      container.innerHTML = '<div class="empty">אין תוצאות להצגה</div>';
+      return;
+    }
 
     const renderCards = (items, startIdx) => items.map((inst, ii) => {
       const i = startIdx + ii;
@@ -571,15 +580,31 @@
         </div>`;
     });
 
-    // Build HTML: installers + committees section
-    let html = renderCards(installers, 0).join('');
+    // Build HTML based on current filter
+    let html = '';
 
-    if (committees.length) {
-      html += `<div class="section-title" style="margin-top:24px;color:#4338ca;">
-        🏢 חשבונות ועד
-        <span class="count-badge" style="background:#4338ca;">${committees.length}</span>
-      </div>`;
-      html += renderCards(committees, installers.length).join('');
+    if (currentFilter === 'committee') {
+      // Show only committees
+      if (!committees.length) {
+        html = '<div class="empty">אין חשבונות ועד</div>';
+      } else {
+        html += `<div class="section-title" style="color:#4338ca;">🏢 חשבונות ועד <span class="count-badge" style="background:#4338ca;">${committees.length}</span></div>`;
+        html += renderCards(committees, 0).join('');
+      }
+    } else if (currentFilter === 'installer') {
+      // Show only installers
+      if (!installers.length) {
+        html = '<div class="empty">אין מתקינים</div>';
+      } else {
+        html = renderCards(installers, 0).join('');
+      }
+    } else {
+      // Show all
+      html = renderCards(installers, 0).join('');
+      if (committees.length) {
+        html += `<div class="section-title" style="margin-top:24px;color:#4338ca;">🏢 חשבונות ועד <span class="count-badge" style="background:#4338ca;">${committees.length}</span></div>`;
+        html += renderCards(committees, installers.length).join('');
+      }
     }
 
     container.innerHTML = html;
