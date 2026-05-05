@@ -621,25 +621,9 @@
         <input type="text" id="modalNotes" placeholder="Extra details..." />
       </div>
 
-      <div class="modal-field">
-        <label id="labelTechnician">👷 Technician Name</label>
-        <input type="text" id="modalTechnicianName" placeholder="Technician full name" />
-      </div>
 
-      <div class="modal-field">
-        <label id="labelSupplier">🏢 Supplier Name</label>
-        <input type="text" id="modalSupplier" placeholder="Supplier name" />
-      </div>
 
-      <div class="modal-field">
-        <label id="labelCommittee">👥 Committee Name</label>
-        <input type="text" id="modalCommittee" placeholder="Committee name" />
-      </div>
 
-      <div class="modal-field">
-        <label id="labelCommitteePhone">📞 Committee Phone</label>
-        <input type="text" id="modalCommitteePhone" placeholder="Committee phone number" />
-      </div>
 
       <div class="modal-field">
         <label id="labelModel">💻 דגם מכשיר</label>
@@ -671,6 +655,12 @@
         <label id="labelVoipbell">📞 VoipBell Account</label>
         <input type="text" id="modalVoipbellAccount" placeholder="VoipBell account name" />
       </div>
+
+      <!-- Fields removed from UI but kept for backward compat -->
+      <input type="hidden" id="modalTechnicianName" value="" />
+      <input type="hidden" id="modalSupplier" value="" />
+      <input type="hidden" id="modalCommittee" value="" />
+      <input type="hidden" id="modalCommitteePhone" value="" />
 
       <div class="modal-buttons">
         <button class="btn-cancel" onclick="closeModal()" id="modalCancelBtn">Cancel</button>
