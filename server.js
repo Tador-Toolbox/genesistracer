@@ -1387,6 +1387,7 @@ app.get('/api/stats', async (req, res) => {
       return {
         phoneNumber: inst.phoneNumber,
         installerName: inst.installerName || '',
+        accountType: inst.accountType || 'installer',
         createdAt: inst.createdAt,
         lastLogin: inst.lastLogin,
         macAddresses: uniqueMacs.map(m => ({
