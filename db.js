@@ -128,6 +128,20 @@ async function assignMacToInstaller(
   await db.collection("installers").updateOne({ phoneNumber }, { $set: { macAddresses: installer.macAddresses } });
 }
 
+async function updateMacField(phoneNumber, macAddress, field, value) {
+  await connectDB();
+  const allowedFields = ['description', 'notes', 'address', 'city', 'purchaseDate',
+    'startDate', 'annualFee', 'licensesPurchased', 'licensePaid', 'panelType', 'voipbellAccount',
+    'technicianName', 'technicianPhone', 'supplierName', 'committeeName', 'committeePhone'];
+  if (!allowedFields.includes(field)) throw new Error('Field not allowed: ' + field);
+
+  await db.collection('installers').updateOne(
+    { phoneNumber, 'macAddresses.mac': macAddress },
+    { $set: { [`macAddresses.$.${field}`]: value } }
+  );
+}
+
+
 async function removeMacFromInstaller(phoneNumber, macAddress) {
   await connectDB();
   await db.collection("installers").updateOne({ phoneNumber }, { $pull: { macAddresses: { mac: macAddress } } });
@@ -553,6 +567,7 @@ module.exports = {
   resetPassword,
   getFullDatabaseBackup,
   changeInstallerPhone,
+  updateMacField,
   mergeInstallers,
   getAutoRebootSchedules,
   saveAutoRebootSchedules,

@@ -576,33 +576,10 @@ app.get('/api/installer/note', async (req, res) => {
 app.post('/api/installer/description', async (req, res) => {
   try {
     const { phoneNumber, mac, description } = req.body;
-    const details = await db.getInstallerDetails(phoneNumber);
-    if (!details) return res.status(404).json({ success: false, error: 'Installer not found' });
-
     const cleanMac = (mac || '').replace(/[:\s-]/g, '').toUpperCase();
-    const existing = (details.macAddresses || []).find(m => m.mac === cleanMac);
 
-    if (!existing) return res.status(404).json({ success: false, error: 'MAC not found' });
-
-    await db.assignMacToInstaller(
-      phoneNumber,
-      cleanMac,
-      existing.address || '',
-      existing.city || '',
-      existing.notes || '',
-      existing.purchaseDate || '',
-      existing.startDate || '',
-      existing.technicianName || '',
-      existing.technicianPhone || '',
-      existing.supplierName || '',
-      existing.committeeName || '',
-      existing.committeePhone || '',
-      description || '',
-      existing.annualFee || '',
-      existing.licensesPurchased || '',
-      existing.licensePaid || false,
-      existing.panelType || 'genesis7'
-    );
+    // Update ONLY the description field — do not touch any other field
+    await db.updateMacField(phoneNumber, cleanMac, 'description', description || '');
 
     res.json({ success: true });
   } catch (err) {
