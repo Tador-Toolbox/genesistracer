@@ -1410,6 +1410,10 @@ app.get('/api/stats', async (req, res) => {
     const salesData = Object.entries(salesByMonth)
       .sort(([a],[b]) => a.localeCompare(b))
       .map(([month, count]) => ({ month, count }));
+    console.log('salesData:', JSON.stringify(salesData));
+    // Debug: sample purchaseDates
+    const sampleDates = installerList.flatMap(i => i.macAddresses.map(m => m.purchaseDate)).filter(Boolean).slice(0,5);
+    console.log('sample purchaseDates:', sampleDates);
 
     res.json({
       success: true,
