@@ -1395,7 +1395,12 @@ app.get('/api/stats', async (req, res) => {
     for (const inst of installerList) {
       for (const m of inst.macAddresses) {
         if (!m.purchaseDate) continue;
-        const d = new Date(m.purchaseDate);
+        let d = new Date(m.purchaseDate);
+        // Handle DD/MM/YYYY format
+        if (isNaN(d) && m.purchaseDate.includes('/')) {
+          const parts = m.purchaseDate.split('/');
+          if (parts.length === 3) d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        }
         if (isNaN(d)) continue;
         const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
         salesByMonth[key] = (salesByMonth[key] || 0) + 1;
