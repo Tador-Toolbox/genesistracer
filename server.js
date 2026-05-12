@@ -832,8 +832,8 @@ app.delete('/api/manager/auto-reboot/:mac', async (req, res) => {
 
 // Installer login
 app.post('/api/installer/login', async (req, res) => {
-  const { phoneNumber, password } = req.body;
-  const result = await db.loginInstaller(phoneNumber, password);
+  const { phoneNumber, password, isManagerAccess } = req.body;
+  const result = await db.loginInstaller(phoneNumber, password, isManagerAccess === true);
   if (result.success) result.data.ip = req.ip;
   res.json(result);
 });

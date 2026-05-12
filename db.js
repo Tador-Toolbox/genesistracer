@@ -147,7 +147,7 @@ async function removeMacFromInstaller(phoneNumber, macAddress) {
   await db.collection("installers").updateOne({ phoneNumber }, { $pull: { macAddresses: { mac: macAddress } } });
 }
 
-async function loginInstaller(phoneNumber, password) {
+async function loginInstaller(phoneNumber, password, isManagerAccess = false) {
   await connectDB();
 
   const installer = await db.collection("installers").findOne({ phoneNumber });
@@ -156,13 +156,15 @@ async function loginInstaller(phoneNumber, password) {
   const hashedPassword = crypto.createHash("md5").update(password).digest("hex");
   if (installer.password !== hashedPassword) return { success: false, error: "Invalid password" };
 
-  await db.collection("installers").updateOne({ phoneNumber }, { $set: { lastLogin: new Date() } });
-
-  await db.collection("loginLogs").insertOne({
-    phoneNumber,
-    timestamp: new Date(),
-    ip: null,
-  });
+  // Only update lastLogin and log if it is a real technician login (not manager remote access)
+  if (!isManagerAccess) {
+    await db.collection("installers").updateOne({ phoneNumber }, { $set: { lastLogin: new Date() } });
+    await db.collection("loginLogs").insertOne({
+      phoneNumber,
+      timestamp: new Date(),
+      ip: null,
+    });
+  }
 
   return {
     success: true,
