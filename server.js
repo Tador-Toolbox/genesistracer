@@ -1390,11 +1390,28 @@ app.get('/api/stats', async (req, res) => {
     const genesis5Count = installerList.reduce((sum, i) =>
       sum + i.macAddresses.filter(m => m.panelType === 'genesis5').length, 0);
 
+    // Build monthly sales data from purchaseDate
+    const salesByMonth = {};
+    for (const inst of installerList) {
+      for (const m of inst.macAddresses) {
+        if (!m.purchaseDate) continue;
+        const d = new Date(m.purchaseDate);
+        if (isNaN(d)) continue;
+        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        salesByMonth[key] = (salesByMonth[key] || 0) + 1;
+      }
+    }
+    // Sort by date
+    const salesData = Object.entries(salesByMonth)
+      .sort(([a],[b]) => a.localeCompare(b))
+      .map(([month, count]) => ({ month, count }));
+
     res.json({
       success: true,
       summary: { totalInstallers, totalMacs, totalLicensesPaid, genesis7Count, genesis5Count },
       installers: installerList,
       alerts: { oneYear: alerts1Year, twoYears: alerts2Years },
+      salesData,
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
