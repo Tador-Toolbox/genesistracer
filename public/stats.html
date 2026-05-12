@@ -348,8 +348,9 @@
       display: flex;
       align-items: flex-end;
       gap: 6px;
-      height: 180px;
-      padding-bottom: 24px;
+      height: 200px;
+      padding-bottom: 28px;
+      padding-top: 24px;
       overflow-x: auto;
       scrollbar-width: thin;
     }
@@ -365,6 +366,7 @@
       font-size: 11px;
       font-weight: 700;
       color: var(--text);
+      min-height: 16px;
     }
     .bar {
       width: 32px;
@@ -426,8 +428,9 @@
       display: flex;
       align-items: flex-end;
       gap: 6px;
-      height: 180px;
-      padding-bottom: 24px;
+      height: 200px;
+      padding-bottom: 28px;
+      padding-top: 24px;
       overflow-x: auto;
       scrollbar-width: thin;
     }
@@ -443,6 +446,7 @@
       font-size: 11px;
       font-weight: 700;
       color: var(--text);
+      min-height: 16px;
     }
     .bar {
       width: 32px;
@@ -499,6 +503,20 @@
       <div class="chart-controls">
         <label>שנה:</label>
         <select id="yearSelect" onchange="renderChart()"></select>
+        <div style="display:flex;gap:6px;">
+          <button id="chartFilterAll" onclick="setChartFilter('all')"
+            style="padding:5px 12px;border-radius:20px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#0f172a;color:white;">
+            הכל
+          </button>
+          <button id="chartFilterG7" onclick="setChartFilter('genesis7')"
+            style="padding:5px 12px;border-radius:20px;border:1.5px solid #e2e8f0;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:white;color:#d97706;">
+            Genesis 7
+          </button>
+          <button id="chartFilterG5" onclick="setChartFilter('genesis5')"
+            style="padding:5px 12px;border-radius:20px;border:1.5px solid #e2e8f0;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:white;color:#7c3aed;">
+            Genesis 5
+          </button>
+        </div>
         <span class="chart-total" id="chartTotal"></span>
       </div>
       <div class="chart-wrap">
@@ -595,7 +613,7 @@
 
       renderSummary(data.summary);
       renderAlerts(data.alerts || {});
-      renderSalesChart(data.salesData || []);
+      renderSalesChart(data.salesData || [], data.installers || []);
       allInstallers = data.installers;
       renderInstallers(allInstallers);
     } catch(e) {
@@ -607,13 +625,48 @@
 
   // ── Sales Chart ──
   let allSalesData = [];
+  let chartFilter = 'all';
+
+  function setChartFilter(type) {
+    chartFilter = type;
+    ['All','G7','G5'].forEach(t => {
+      const btn = document.getElementById('chartFilter' + t);
+      if (!btn) return;
+      btn.style.background = 'white';
+      btn.style.border = '1.5px solid #e2e8f0';
+      btn.style.color = t === 'All' ? '#0f172a' : t === 'G7' ? '#d97706' : '#7c3aed';
+    });
+    const active = document.getElementById('chartFilter' + (type === 'all' ? 'All' : type === 'genesis7' ? 'G7' : 'G5'));
+    if (active) { active.style.background = type === 'all' ? '#0f172a' : type === 'genesis7' ? '#fef3c7' : '#ede9fe'; active.style.border = 'none'; }
+    renderChart();
+  }
 
   const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני',
                        'יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
-  function renderSalesChart(data) {
-    allSalesData = data;
-    if (!data.length) return;
+  function renderSalesChart(data, installers) {
+    // Build richer sales data including panelType
+    const richData = {};
+    if (installers) {
+      for (const inst of installers) {
+        for (const m of inst.macAddresses) {
+          if (!m.purchaseDate) continue;
+          let d = new Date(m.purchaseDate);
+          if (isNaN(d) && m.purchaseDate.includes('/')) {
+            const p = m.purchaseDate.split('/');
+            if (p.length === 3) d = new Date(`${p[2]}-${p[1]}-${p[0]}`);
+          }
+          if (isNaN(d)) continue;
+          const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+          if (!richData[key]) richData[key] = { all: 0, genesis7: 0, genesis5: 0 };
+          richData[key].all++;
+          richData[key][m.panelType || 'genesis7']++;
+        }
+      }
+    }
+    allSalesData = Object.entries(richData).sort(([a],[b]) => a.localeCompare(b)).map(([month, counts]) => ({ month, ...counts }));
+    if (!allSalesData.length && data.length) allSalesData = data.map(d => ({ ...d, all: d.count, genesis7: d.count, genesis5: 0 }));
+    if (!allSalesData.length) return;
 
     document.getElementById('chartSection').style.display = 'block';
 
@@ -630,26 +683,31 @@
     const chart = document.getElementById('barChart');
     const totalEl = document.getElementById('chartTotal');
 
-    // Build 12 months for selected year
     const months = Array.from({length:12}, (_,i) => {
       const key = `${year}-${String(i+1).padStart(2,'0')}`;
       const found = allSalesData.find(d => d.month === key);
-      return { month: MONTH_NAMES[i], count: found ? found.count : 0 };
+      const count = found ? (found[chartFilter] || 0) : 0;
+      return { month: MONTH_NAMES[i], count };
     });
 
     const maxVal = Math.max(...months.map(m => m.count), 1);
     const total  = months.reduce((s,m) => s + m.count, 0);
+    const filterLabel = chartFilter === 'all' ? 'סה"כ' : chartFilter === 'genesis7' ? 'Genesis 7' : 'Genesis 5';
+    const barColor = chartFilter === 'genesis7'
+      ? 'linear-gradient(180deg,#d97706,#b45309)'
+      : chartFilter === 'genesis5'
+      ? 'linear-gradient(180deg,#7c3aed,#5b21b6)'
+      : 'linear-gradient(180deg,#2563eb,#1d4ed8)';
 
-    totalEl.innerHTML = `סה"כ בשנת ${year}: <strong>${total} פנלים</strong>`;
+    totalEl.innerHTML = `${filterLabel} בשנת ${year}: <strong>${total} פנלים</strong>`;
 
     chart.innerHTML = months.map(m => {
-      const heightPct = Math.round((m.count / maxVal) * 140);
-      const barH = m.count === 0 ? 4 : Math.max(heightPct, 8);
-      const opacity = m.count === 0 ? '0.2' : '1';
+      const barH = m.count === 0 ? 4 : Math.max(Math.round((m.count / maxVal) * 140), 10);
+      const opacity = m.count === 0 ? '0.15' : '1';
       return `
         <div class="bar-col">
-          <span class="bar-value">${m.count > 0 ? m.count : ''}</span>
-          <div class="bar" style="height:${barH}px;opacity:${opacity};" title="${m.month}: ${m.count} פנלים"></div>
+          <span class="bar-value" style="visibility:${m.count > 0 ? 'visible' : 'hidden'}">${m.count}</span>
+          <div class="bar" style="height:${barH}px;opacity:${opacity};background:${barColor};" title="${m.month}: ${m.count} פנלים"></div>
           <span class="bar-label">${m.month.slice(0,3)}</span>
         </div>`;
     }).join('');
