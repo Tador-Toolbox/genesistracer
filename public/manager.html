@@ -973,7 +973,8 @@
 
       document.getElementById('modalMac').value = macObj ? (macObj.mac || '') : '';
       document.getElementById('modalAddress').value = macObj ? (macObj.address || '') : '';
-      document.getElementById('modalPurchaseDate').value = macObj ? (macObj.purchaseDate || '') : '';
+      const todayStr = new Date().toISOString().split('T')[0];
+      document.getElementById('modalPurchaseDate').value = macObj ? (macObj.purchaseDate || '') : todayStr;
       document.getElementById('modalStartDate').value = macObj ? (macObj.startDate || '') : '';
       document.getElementById('modalNotes').value = macObj ? (macObj.notes || '') : '';
       document.getElementById('modalTechnicianName').value = macObj ? (macObj.technicianName || '') : '';
@@ -1649,7 +1650,7 @@
         const loginRes = await fetch('/api/installer/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phoneNumber, password })
+          body: JSON.stringify({ phoneNumber, password, isManagerAccess: true })
         });
         
         const loginData = await loginRes.json();
