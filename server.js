@@ -1376,6 +1376,7 @@ app.get('/api/stats', async (req, res) => {
           annualFee: m.annualFee || '',
           committeeName: m.committeeName || '',
           startDate: m.startDate || '',
+          purchaseDate: m.purchaseDate || '',
         }))
       };
     });
