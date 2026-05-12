@@ -553,6 +553,23 @@ async function mergeInstallers(primaryPhone, secondaryPhone) {
   return { mergedMacs: newMacs.length, total: mergedMacs.length };
 }
 
+
+// ==================== ADMIN NOTES ====================
+async function getAdminNotes() {
+  await connectDB();
+  const doc = await db.collection('settings').findOne({ key: 'adminNotes' });
+  return doc ? (doc.value || []) : [];
+}
+
+async function saveAdminNotes(notes) {
+  await connectDB();
+  await db.collection('settings').updateOne(
+    { key: 'adminNotes' },
+    { $set: { key: 'adminNotes', value: notes, updatedAt: new Date() } },
+    { upsert: true }
+  );
+}
+
 module.exports = {
   connectDB,
   createInstaller,
@@ -575,6 +592,8 @@ module.exports = {
   updateInstallerInfo,
   updateAccountType,
   getCatalogUrl,
+  getAdminNotes,
+  saveAdminNotes,
   setCatalogUrl,
   getTutorials,
   addPortfolioImage,

@@ -1401,6 +1401,38 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
+
+// ==================== ADMIN NOTES ====================
+app.get('/api/manager/notes', async (req, res) => {
+  try {
+    const notes = await db.getAdminNotes();
+    res.json({ success: true, notes });
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.post('/api/manager/notes', async (req, res) => {
+  try {
+    const { notes } = req.body;
+    await db.saveAdminNotes(notes);
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Upload image for notes (paste from clipboard)
+app.post('/api/manager/notes/image', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, error: 'No image' });
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        { folder: 'tador/notes', resource_type: 'image',
+          transformation: [{ quality: 'auto', fetch_format: 'auto', width: 1600, crop: 'limit' }] },
+        (error, result) => error ? reject(error) : resolve(result)
+      ).end(req.file.buffer);
+    });
+    res.json({ success: true, url: result.secure_url });
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
