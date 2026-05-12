@@ -305,6 +305,162 @@
     .years-danger { background: #fee2e2; color: #991b1b; }
     .alert-empty { font-size: 13px; color: var(--text-dim); padding: 12px 0; }
 
+    /* ── CHART ── */
+    .chart-section { margin-bottom: 28px; }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+    .chart-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .chart-controls label { font-size: 12px; font-weight: 700; color: var(--text-dim); }
+    .chart-controls select {
+      padding: 6px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .chart-controls select:focus { outline: none; border-color: var(--accent); }
+    .chart-total {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-right: auto;
+    }
+    .chart-total strong { color: var(--text); font-size: 15px; }
+    .chart-wrap {
+      position: relative;
+      height: 220px;
+    }
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 180px;
+      padding-bottom: 24px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    .bar-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      min-width: 44px;
+    }
+    .bar-value {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .bar {
+      width: 32px;
+      background: linear-gradient(180deg, var(--accent) 0%, #1d4ed8 100%);
+      border-radius: 5px 5px 0 0;
+      transition: height .4s ease, opacity .2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .bar:hover { opacity: .8; }
+    .bar-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .chart-empty { text-align:center; padding:48px; color:var(--text-dim); font-size:14px; }
+
+    @media (max-width: 640px) {    @media (max-width: 640px) {    /* ── CHART ── */
+    .chart-section { margin-bottom: 28px; }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+    .chart-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .chart-controls label { font-size: 12px; font-weight: 700; color: var(--text-dim); }
+    .chart-controls select {
+      padding: 6px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .chart-controls select:focus { outline: none; border-color: var(--accent); }
+    .chart-total {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-right: auto;
+    }
+    .chart-total strong { color: var(--text); font-size: 15px; }
+    .chart-wrap {
+      position: relative;
+      height: 220px;
+    }
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 180px;
+      padding-bottom: 24px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    .bar-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      min-width: 44px;
+    }
+    .bar-value {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .bar {
+      width: 32px;
+      background: linear-gradient(180deg, var(--accent) 0%, #1d4ed8 100%);
+      border-radius: 5px 5px 0 0;
+      transition: height .4s ease, opacity .2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .bar:hover { opacity: .8; }
+    .bar-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .chart-empty { text-align:center; padding:48px; color:var(--text-dim); font-size:14px; }
+
     @media (max-width: 640px) {    @media (max-width: 640px) {
       main { padding: 16px; }
       .header { padding: 0 16px; }
@@ -337,6 +493,20 @@
   </div>
 
   <!-- Installer List -->
+  <!-- Sales Chart -->
+  <div class="chart-section" id="chartSection" style="display:none;">
+    <div class="chart-card">
+      <div class="chart-controls">
+        <label>שנה:</label>
+        <select id="yearSelect" onchange="renderChart()"></select>
+        <span class="chart-total" id="chartTotal"></span>
+      </div>
+      <div class="chart-wrap">
+        <div class="bar-chart" id="barChart"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Alerts -->
   <div id="alertsSection" style="display:none;">
     <div class="alert-section">
@@ -425,12 +595,64 @@
 
       renderSummary(data.summary);
       renderAlerts(data.alerts || {});
+      renderSalesChart(data.salesData || []);
       allInstallers = data.installers;
       renderInstallers(allInstallers);
     } catch(e) {
       document.getElementById('summaryGrid').innerHTML =
         `<div class="empty" style="grid-column:1/-1;">❌ שגיאה בטעינה: ${e.message}</div>`;
     }
+  }
+
+
+  // ── Sales Chart ──
+  let allSalesData = [];
+
+  const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני',
+                       'יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
+  function renderSalesChart(data) {
+    allSalesData = data;
+    if (!data.length) return;
+
+    document.getElementById('chartSection').style.display = 'block';
+
+    // Populate year dropdown
+    const years = [...new Set(data.map(d => d.month.split('-')[0]))].sort((a,b) => b-a);
+    const sel = document.getElementById('yearSelect');
+    sel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+
+    renderChart();
+  }
+
+  function renderChart() {
+    const year = document.getElementById('yearSelect').value;
+    const chart = document.getElementById('barChart');
+    const totalEl = document.getElementById('chartTotal');
+
+    // Build 12 months for selected year
+    const months = Array.from({length:12}, (_,i) => {
+      const key = `${year}-${String(i+1).padStart(2,'0')}`;
+      const found = allSalesData.find(d => d.month === key);
+      return { month: MONTH_NAMES[i], count: found ? found.count : 0 };
+    });
+
+    const maxVal = Math.max(...months.map(m => m.count), 1);
+    const total  = months.reduce((s,m) => s + m.count, 0);
+
+    totalEl.innerHTML = `סה"כ בשנת ${year}: <strong>${total} פנלים</strong>`;
+
+    chart.innerHTML = months.map(m => {
+      const heightPct = Math.round((m.count / maxVal) * 140);
+      const barH = m.count === 0 ? 4 : Math.max(heightPct, 8);
+      const opacity = m.count === 0 ? '0.2' : '1';
+      return `
+        <div class="bar-col">
+          <span class="bar-value">${m.count > 0 ? m.count : ''}</span>
+          <div class="bar" style="height:${barH}px;opacity:${opacity};" title="${m.month}: ${m.count} פנלים"></div>
+          <span class="bar-label">${m.month.slice(0,3)}</span>
+        </div>`;
+    }).join('');
   }
 
   function renderAlerts(alerts) {
