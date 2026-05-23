@@ -75,85 +75,130 @@ app.use((req, res, next) => {
 app.use(express.static('public'));
 
 const NEXHOME_BASE = 'https://nexsmart-us.nexhome.ai';
-const USERNAME = 'ort_tadorcom';
-const PASSWORD = '5uWRg8sR';
 const APP_ID = 'INTERNATIONAL_COMMUNITY_MANAGER_WEB';
 
 function md5(str) {
   return crypto.createHash('md5').update(str).digest('hex');
 }
 
-// -------------------- NexHome auth token cache (for speed) --------------------
-let cachedAuth = null;
-let cachedAuthExpiresAt = 0; // epoch ms
+// -------------------- NexHome account pool (round-robin) --------------------
+const NEXHOME_ACCOUNTS = [
+  {
+    username: process.env.NEXHOME_USERNAME_1 || 'ort_tadorcom',
+    password: process.env.NEXHOME_PASSWORD_1 || '5uWRg8sR',
+    token: null,
+    employeeAccountId: null,
+    customerId: null,
+    engineeringId: null,
+    expiresAt: 0,
+  },
+  {
+    username: process.env.NEXHOME_USERNAME_2 || 'mobile_tadorcom',
+    password: process.env.NEXHOME_PASSWORD_2 || 'Zv4QM88EC',
+    token: null,
+    employeeAccountId: null,
+    customerId: null,
+    engineeringId: null,
+    expiresAt: 0,
+  },
+];
 
-function isAuthValid() {
-  return cachedAuth && Date.now() < cachedAuthExpiresAt;
+let roundRobinIndex = 0;
+let requestCounter = 0;
+
+function logAccountStatus() {
+  const now = Date.now();
+  NEXHOME_ACCOUNTS.forEach((a, i) => {
+    const valid = a.token && now < a.expiresAt;
+    const expiresIn = valid ? Math.round((a.expiresAt - now) / 1000) + 's' : 'expired';
+    console.log(`   📋 Account[${i}] ${a.username} — ${valid ? `✅ valid (expires in ${expiresIn})` : '❌ no valid token'}`);
+  });
 }
 
-async function tryLoginToNexHome(passwordToSend) {
-  const res = await axios.post(
-    `${NEXHOME_BASE}/api/employees/account/login`,
-    {
-      loginName: USERNAME,
-      password: passwordToSend,
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        AppId: APP_ID,
-        Referer: NEXHOME_BASE + '/login',
-        Origin: NEXHOME_BASE,
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-        Accept: 'application/json, text/plain, */*',
-      },
-      timeout: 15000,
-    }
-  );
-
-  return res.data;
-}
-
-async function getAuthToken() {
-  if (isAuthValid()) return cachedAuth;
-
-  // Try MD5 first (old behavior), then plain text (in case they changed)
-  const candidates = [md5(PASSWORD), PASSWORD];
-
-  let lastData = null;
+async function loginAccount(account) {
+  const candidates = [md5(account.password), account.password];
 
   for (const pass of candidates) {
     try {
-      const data = await tryLoginToNexHome(pass);
-      lastData = data;
+      const res = await axios.post(
+        `${NEXHOME_BASE}/api/employees/account/login`,
+        { loginName: account.username, password: pass },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            AppId: APP_ID,
+            Referer: NEXHOME_BASE + '/login',
+            Origin: NEXHOME_BASE,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+            Accept: 'application/json, text/plain, */*',
+          },
+          timeout: 15000,
+        }
+      );
 
-      const token = data?.result?.tokenInfo?.token;
-      const employeeAccountId = data?.result?.employeeInfo?.accountId;
-      const customerId = data?.result?.employeeInfo?.customerId;
-      const engineeringId = data?.result?.employeeInfo?.engineeringId;
-
+      const token = res.data?.result?.tokenInfo?.token;
       if (token) {
-        cachedAuth = { token, employeeAccountId, customerId, engineeringId };
-        cachedAuthExpiresAt = Date.now() + 8 * 60 * 1000;
-        console.log('✅ NexHome login success (cached)');
-        return cachedAuth;
+        account.token = token;
+        account.employeeAccountId = res.data?.result?.employeeInfo?.accountId;
+        account.customerId = res.data?.result?.employeeInfo?.customerId;
+        account.engineeringId = res.data?.result?.employeeInfo?.engineeringId;
+        account.expiresAt = Date.now() + 8 * 60 * 1000;
+        console.log(`✅ NexHome login success: ${account.username} (token valid 8 min)`);
+        return true;
       }
     } catch (err) {
-      lastData = err?.response?.data || { message: err.message };
+      console.log(`❌ NexHome login failed for ${account.username}: ${err.message}`);
     }
   }
+  return false;
+}
 
-  const code = lastData?.code || lastData?.result?.code || null;
-  const message =
-    lastData?.message ||
-    lastData?.msg ||
-    lastData?.result?.message ||
-    'NexHome login failed';
+async function getAuthToken(requestLabel = 'unknown') {
+  const reqId = ++requestCounter;
+  const accountIndex = roundRobinIndex % NEXHOME_ACCOUNTS.length;
+  const account = NEXHOME_ACCOUNTS[accountIndex];
+  roundRobinIndex++;
 
-  throw new Error(
-    `NexHome login failed${code ? ` (${code})` : ''}: ${message}`
-  );
+  if (account.token && Date.now() < account.expiresAt) {
+    console.log(`🔄 [req#${reqId}] ${requestLabel} → account[${accountIndex}] ${account.username} (cached token)`);
+    return account;
+  }
+
+  console.log(`🔑 [req#${reqId}] ${requestLabel} → account[${accountIndex}] ${account.username} token expired, re-logging in...`);
+  const success = await loginAccount(account);
+  if (success) {
+    console.log(`✅ [req#${reqId}] ${requestLabel} → account[${accountIndex}] ${account.username} ready`);
+    return account;
+  }
+
+  const fallbackIndex = NEXHOME_ACCOUNTS.findIndex(a => a !== account);
+  const fallback = NEXHOME_ACCOUNTS[fallbackIndex];
+  console.log(`⚠️ [req#${reqId}] ${requestLabel} → account[${accountIndex}] failed, trying fallback account[${fallbackIndex}] ${fallback.username}`);
+
+  if (fallback.token && Date.now() < fallback.expiresAt) {
+    console.log(`✅ [req#${reqId}] ${requestLabel} → fallback account[${fallbackIndex}] ${fallback.username} (cached token)`);
+    return fallback;
+  }
+
+  const fallbackSuccess = await loginAccount(fallback);
+  if (fallbackSuccess) {
+    console.log(`✅ [req#${reqId}] ${requestLabel} → fallback account[${fallbackIndex}] ${fallback.username} ready`);
+    return fallback;
+  }
+
+  throw new Error(`[req#${reqId}] All NexHome accounts failed for: ${requestLabel}`);
+}
+
+// Pre-login both accounts at startup for zero-delay on first request
+async function initNexHomeAccounts() {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('🔑 Initializing NexHome account pool...');
+  for (const account of NEXHOME_ACCOUNTS) {
+    await loginAccount(account);
+  }
+  console.log('📊 Account pool status after init:');
+  logAccountStatus();
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }
 
 async function searchMac(auth, mac) {
@@ -257,7 +302,7 @@ app.post('/api/lookup', async (req, res) => {
   const cleanMac = mac.replace(/[:\-\s]/g, '').toUpperCase();
 
   try {
-    const auth = await getAuthToken();
+    const auth = await getAuthToken('lookup');
     const macData = await searchMac(auth, cleanMac);
 
     const macList = macData?.result?.elements || macData?.result?.list || [];
@@ -307,7 +352,7 @@ app.post('/api/lookup', async (req, res) => {
 // Debug endpoint
 app.get('/api/debug/:mac', async (req, res) => {
   try {
-    const auth = await getAuthToken();
+    const auth = await getAuthToken('debug');
     const cleanMac = req.params.mac.replace(/[:\-\s]/g, '').toUpperCase();
     const macData = await searchMac(auth, cleanMac);
     res.json({ success: true, macData });
@@ -599,7 +644,7 @@ app.post('/api/manager/reboot', async (req, res) => {
   const cleanMac = mac.replace(/[:\-\s]/g, '').toUpperCase();
 
   try {
-    const auth = await getAuthToken();
+    const auth = await getAuthToken('manager-reboot');
 
     // Step 1: Find communityId from MAC library
     const macData = await searchMac(auth, cleanMac);
@@ -746,7 +791,7 @@ setInterval(async () => {
 
     try {
       console.log(`🔄 Auto-reboot: ${mac}`);
-      const auth = await getAuthToken();
+      const auth = await getAuthToken('auto-reboot:' + mac);
       const macData = await searchMac(auth, mac);
       const macList = macData?.result?.elements || macData?.result?.list || [];
       const macEntry = macList[0];
@@ -844,7 +889,7 @@ app.post('/api/installer/reboot', async (req, res) => {
   if (!mac) return res.status(400).json({ success: false, error: 'MAC required' });
   const cleanMac = mac.replace(/[:\-\s]/g, '').toUpperCase();
   try {
-    const auth = await getAuthToken();
+    const auth = await getAuthToken('installer-reboot');
     const macData = await searchMac(auth, cleanMac);
     const macList = macData?.result?.elements || macData?.result?.list || [];
     const macEntry = macList[0];
@@ -1472,6 +1517,7 @@ app.listen(PORT, () => {
   }
   console.log('Powered by Tador Technologies LTD');
   loadSchedules();
+  initNexHomeAccounts();
 
   // Keep-alive: ping עצמי כל 10 דקות כדי למנוע שינה ב-Render Free
   const APP_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
