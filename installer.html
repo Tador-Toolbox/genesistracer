@@ -4,485 +4,604 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>פאנל מתקין — Tador</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #f5f7fa;
-      --surface: #ffffff;
-      --surface2: #f0f2f6;
-      --border: #e2e6ed;
-      --accent: #2563eb;
-      --accent-dim: #dbeafe;
-      --green: #16a34a;
-      --green-dim: #dcfce7;
-      --amber: #d97706;
-      --amber-dim: #fef3c7;
-      --red: #dc2626;
-      --red-dim: #fee2e2;
-      --purple: #7c3aed;
-      --text: #111827;
-      --text-2: #374151;
-      --text-dim: #6b7280;
-      --text-xs: #9ca3af;
-      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-      --shadow-md: 0 4px 16px rgba(0,0,0,0.10);
-      --shadow-lg: 0 8px 32px rgba(0,0,0,0.14);
-      --radius: 12px;
-      --radius-sm: 8px;
-      --radius-lg: 16px;
-    }
-
-    body.dark {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --surface2: #1c2330;
-      --border: #2d3748;
-      --accent: #3b82f6;
-      --accent-dim: #1e3a5f;
-      --green: #22c55e;
-      --green-dim: #14532d;
-      --amber: #f59e0b;
-      --amber-dim: #451a03;
-      --red: #ef4444;
-      --red-dim: #450a0a;
-      --purple: #a78bfa;
-      --text: #f1f5f9;
-      --text-2: #cbd5e1;
-      --text-dim: #94a3b8;
-      --text-xs: #64748b;
+      --red: #E31B23;
+      --red-dark: #c4151b;
+      --black: #000000;
+      --white: #ffffff;
+      --gray-50: #f9f9f9;
+      --gray-100: #f2f2f2;
+      --gray-200: #e5e5e5;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --text: #000000;
+      --bg: #ffffff;
     }
 
     body {
+      font-family: 'Manrope', sans-serif;
       background: var(--bg);
       color: var(--text);
-      font-family: 'Inter', system-ui, sans-serif;
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      line-height: 1.5;
     }
 
-    .page { width: 100%; max-width: 420px; }
-
-    /* ── Card ── */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md);
-      overflow: hidden;
-    }
-
-    .card-header {
-      padding: 24px 24px 0;
-      text-align: center;
-    }
-
-    .card-brand {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      margin-bottom: 6px;
-    }
-
-    .card-title {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-
-    .card-subtitle {
-      font-size: 13px;
-      color: var(--text-dim);
-      margin-bottom: 24px;
-    }
-
-    .card-body { padding: 0 24px 24px; }
-
-    /* ── Form ── */
-    .field { margin-bottom: 14px; }
-    .field label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-2);
-      margin-bottom: 6px;
-    }
-    .field input {
-      width: 100%;
-      padding: 11px 14px;
-      background: var(--surface2);
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text);
-      font-family: inherit;
-      font-size: 15px;
-      transition: border-color 0.15s;
-    }
-    .field input:focus {
-      outline: none;
-      border-color: var(--accent);
-      background: var(--surface);
-    }
-    .field input::placeholder { color: var(--text-xs); }
-
-    /* ── Buttons ── */
-    .btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      width: 100%;
-      padding: 13px 16px;
-      border: none;
-      border-radius: var(--radius-sm);
-      font-family: inherit;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.15s, transform 0.1s;
-      text-align: center;
-      min-height: 48px;
-    }
-    .btn:active { transform: scale(0.98); }
-    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-amber   { background: var(--amber); color: #fff; }
-    .btn-ghost   { background: transparent; border: 1.5px solid var(--border); color: var(--text-2); }
-    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-    .btn-danger  { background: var(--red-dim); color: var(--red); border: 1.5px solid var(--red); }
-    .btn-subtle  { background: var(--surface2); color: var(--text-dim); font-size: 13px; min-height: 40px; padding: 9px 14px; }
-    .btn-chat    { background: var(--purple); color: #fff; position: relative; }
-    .btn-catalog { background: #ea580c; color: #fff; }
-
-    /* ── MAC cards ── */
-    .mac-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
-
-    .mac-card {
-      background: var(--surface2);
-      border: 2px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 14px;
-      cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
-    }
-    .mac-card:hover { border-color: var(--accent); }
-    .mac-card.selected {
-      border-color: var(--accent);
-      background: var(--accent-dim);
-    }
-    .mac-addr {
-      font-family: 'Courier New', monospace;
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--accent);
-      margin-bottom: 4px;
-    }
-    .mac-desc {
-      font-size: 12px;
-      color: var(--text-dim);
-      font-style: italic;
-    }
-    .mac-desc.has-value { color: var(--text-2); font-style: normal; }
-
-    .desc-edit-area { margin-top: 10px; display: none; gap: 6px; flex-direction: column; }
-    .desc-edit-area.open { display: flex; }
-    .desc-edit-area input {
-      width: 100%;
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: 1.5px solid var(--border);
-      background: var(--surface);
-      color: var(--text);
-      font-size: 13px;
-      font-family: inherit;
-    }
-    .desc-edit-area input:focus { outline: none; border-color: var(--accent); }
-
-    .btn-edit-desc {
-      padding: 3px 10px;
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      background: transparent;
-      color: var(--text-dim);
-      font-size: 12px;
-      cursor: pointer;
-      font-family: inherit;
-      width: auto;
-      min-height: unset;
-    }
-    .btn-edit-desc:hover { border-color: var(--accent); color: var(--accent); }
-
-    /* ── Result box ── */
-    .result-box {
-      background: var(--green-dim);
-      border: 1.5px solid var(--green);
-      border-radius: var(--radius-sm);
-      padding: 16px;
-    }
-    .result-box.error {
-      background: var(--red-dim);
-      border-color: var(--red);
-    }
-    .result-label {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: var(--green);
-      margin-bottom: 6px;
-    }
-    .result-box.error .result-label { color: var(--red); }
-    .result-ip {
-      font-family: 'Courier New', monospace;
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--green);
-      margin-bottom: 12px;
-    }
-    .result-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-    .result-cell {
-      background: rgba(255,255,255,0.5);
-      border-radius: 6px;
-      padding: 8px 10px;
-    }
-    body.dark .result-cell { background: rgba(0,0,0,0.25); }
-    .result-cell-label { font-size: 10px; color: var(--text-dim); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .result-cell-value { font-family: 'Courier New', monospace; font-size: 13px; font-weight: 600; }
-
-    /* ── Divider ── */
-    .divider {
-      border: none;
-      border-top: 1px solid var(--border);
-      margin: 16px 0;
-    }
-
-    /* ── Section label ── */
-    .section-label {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: var(--text-xs);
-      margin-bottom: 10px;
-    }
-
-    /* ── Footer bar ── */
-    .card-footer {
-      padding: 12px 24px;
-      border-top: 1px solid var(--border);
+    /* ── HEADER ── */
+    .top-bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-200);
+      height: 64px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: var(--surface2);
+      padding: 0 24px;
     }
-
-    /* ── Lang switch ── */
-    .lang-switch {
+    .top-bar-logo {
       display: flex;
-      background: var(--surface);
-      border: 1px solid var(--border);
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-box {
+      width: 32px; height: 32px;
+      background: var(--black);
       border-radius: 6px;
-      padding: 2px;
-      gap: 2px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--white);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .logo-text {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .top-bar-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .lang-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-right: 1px solid var(--gray-200);
+      padding-right: 16px;
     }
     .lang-btn {
-      padding: 5px 12px;
-      background: transparent;
+      background: none;
       border: none;
-      border-radius: 4px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-dim);
       cursor: pointer;
       font-family: inherit;
-      min-height: unset;
-      width: auto;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--gray-400);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.15s;
     }
-    .lang-btn.active { background: var(--accent); color: #fff; }
-
-    /* ── Theme toggle ── */
-    .theme-btn {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 5px 10px;
-      font-size: 16px;
+    .lang-btn.active { color: var(--black); }
+    .lang-btn .material-symbols-outlined { font-size: 14px; color: var(--red); }
+    .logout-btn {
+      background: none;
+      border: none;
       cursor: pointer;
-      color: var(--text);
-      min-height: unset;
-      width: auto;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--red);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .logout-btn:hover { background: #fee2e2; }
+    .logout-btn .material-symbols-outlined { font-size: 16px; }
+
+    /* ── MAIN ── */
+    main { padding-top: 88px; padding-bottom: 40px; }
+    .page-wrap {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 0 20px;
     }
 
-    /* ── Unread badge ── */
+    /* ── LOGIN ── */
+    #loginScreen { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 64px); }
+    .login-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 36px 28px;
+      width: 100%;
+      max-width: 400px;
+    }
+    .login-card h2 {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .login-card p {
+      color: var(--gray-500);
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .field input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 15px;
+      background: var(--gray-50);
+      color: var(--black);
+      transition: border-color 0.15s;
+    }
+    .field input:focus { outline: none; border-color: var(--black); background: var(--white); }
+    .field input::placeholder { color: var(--gray-400); }
+
+    /* ── BUTTONS ── */
+    .btn-red {
+      width: 100%;
+      background: var(--red);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      padding: 14px 20px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: background 0.15s, transform 0.1s;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .btn-red:hover { background: var(--red-dark); }
+    .btn-red:active { transform: scale(0.98); }
+    .btn-red:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-red .material-symbols-outlined { font-size: 20px; }
+
+    .btn-black {
+      background: var(--black);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.15s;
+    }
+    .btn-black:hover { opacity: 0.85; }
+    .btn-black .material-symbols-outlined { font-size: 16px; }
+
+    .btn-outline {
+      background: none;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--black);
+      transition: border-color 0.15s;
+    }
+    .btn-outline:hover { border-color: var(--black); }
+
+    /* ── MAC LIST ── */
+    .mac-list { display: flex; flex-direction: column; gap: 10px; }
+    .mac-card {
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 16px 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .mac-card:hover { border-color: var(--black); }
+    .mac-card.selected {
+      border: 2px solid var(--black);
+      background: var(--gray-50);
+    }
+    .mac-info { flex: 1; }
+    .mac-name { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+    .mac-addr {
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: var(--gray-500);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .mac-edit-btn {
+      width: 36px; height: 36px;
+      border: 1px solid var(--gray-200);
+      border-radius: 6px;
+      background: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gray-400);
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .mac-card.selected .mac-edit-btn { border-color: var(--black); color: var(--black); }
+    .mac-edit-btn:hover { border-color: var(--black); color: var(--black); }
+    .mac-edit-btn .material-symbols-outlined { font-size: 17px; }
+
+    .desc-edit-area { margin-top: 12px; display: none; flex-direction: column; gap: 8px; }
+    .desc-edit-area.open { display: flex; }
+    .desc-edit-area input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      background: var(--white);
+      color: var(--black);
+    }
+    .desc-edit-area input:focus { outline: none; border-color: var(--black); }
+    .desc-save-btn {
+      background: var(--black);
+      color: var(--white);
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* ── SEARCH ── */
+    .search-wrap { position: relative; }
+    .search-wrap .material-symbols-outlined {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gray-400);
+      font-size: 20px;
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      padding: 14px 16px 14px 44px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      background: var(--gray-50);
+      color: var(--black);
+      transition: border-color 0.15s;
+    }
+    .search-input:focus { outline: none; border-color: var(--black); background: var(--white); }
+    .search-input::placeholder { color: var(--gray-400); }
+
+    /* ── INFO TIP ── */
+    .info-tip {
+      background: var(--gray-50);
+      border-radius: 8px;
+      border-right: 4px solid var(--black);
+      padding: 12px 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .info-tip .material-symbols-outlined { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .info-tip-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .info-tip-text { font-size: 11px; color: var(--gray-500); line-height: 1.5; margin-top: 2px; }
+
+    /* ── RESULT BOX ── */
+    .result-box {
+      border: 1.5px solid #16a34a;
+      border-radius: 8px;
+      background: #f0fdf4;
+      padding: 16px;
+    }
+    .result-box.error { border-color: var(--red); background: #fff5f5; }
+    .result-box.offline { border-color: var(--red); background: #fff5f5; }
+    .result-label {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #16a34a;
+      margin-bottom: 6px;
+    }
+    .result-box.error .result-label { color: var(--red); }
+    .result-box.offline .result-label { color: var(--red); }
+    .result-ip {
+      font-family: 'Courier New', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: #16a34a;
+      margin-bottom: 12px;
+    }
+    .result-box.offline .result-ip { color: var(--red); }
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .result-cell { background: rgba(255,255,255,0.7); border-radius: 6px; padding: 8px 10px; }
+    .result-cell-label { font-size: 10px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .result-cell-value { font-family: 'Courier New', monospace; font-size: 12px; font-weight: 600; }
+    .result-open-btn {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      background: #16a34a;
+      color: var(--white);
+      border: none;
+      border-radius: 6px;
+      padding: 10px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* ── ACTION GRID ── */
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .action-card {
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 18px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      background: none;
+      font-family: inherit;
+      transition: border-color 0.15s, transform 0.1s;
+      position: relative;
+    }
+    .action-card:hover { border-color: var(--black); }
+    .action-card:active { transform: scale(0.97); }
+    .action-card .material-symbols-outlined { font-size: 24px; color: var(--black); }
+    .action-card-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--black); }
+    .action-badge {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 20px;
+      letter-spacing: 0.3px;
+    }
+    .badge-on { background: #dcfce7; color: #16a34a; }
+    .badge-off { background: var(--gray-100); color: var(--gray-500); }
+    .badge-loading { background: var(--gray-100); color: var(--gray-500); }
+
+    /* ── STATUS MSG ── */
+    .status-msg { font-size: 12px; font-weight: 600; text-align: center; min-height: 16px; margin-top: 4px; }
+
+    /* ── MAILING LIST ── */
+    .mailing-section {
+      background: var(--black);
+      color: var(--white);
+      border-radius: 10px;
+      padding: 24px 20px;
+    }
+    .mailing-section h3 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+    .mailing-section p { color: var(--gray-400); font-size: 13px; margin-bottom: 16px; }
+    .mailing-input-wrap { position: relative; margin-bottom: 10px; }
+    .mailing-input-wrap .material-symbols-outlined {
+      position: absolute;
+      left: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--gray-500); font-size: 18px;
+      pointer-events: none;
+    }
+    .mailing-input {
+      width: 100%;
+      padding: 12px 14px 12px 40px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--white);
+    }
+    .mailing-input:focus { outline: none; border-color: var(--red); }
+    .mailing-input::placeholder { color: var(--gray-500); }
+
+    /* ── DIVIDER ── */
+    .divider { border: none; border-top: 1px solid var(--gray-200); }
+
+    /* ── ERROR ── */
+    .error-msg { font-size: 13px; color: var(--red); text-align: center; margin-top: 10px; min-height: 18px; font-weight: 600; }
+
+    /* ── OVERLAY / MODAL ── */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: var(--white);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 440px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    }
+    .modal-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--gray-200);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-head h3 { font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+    .modal-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--gray-400);
+      font-size: 20px;
+      line-height: 1;
+      padding: 4px;
+    }
+    .modal-body { padding: 16px; overflow-y: auto; flex: 1; }
+
+    /* ── CHAT ── */
+    .chat-messages {
+      min-height: 200px;
+      max-height: 52vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .chat-empty { text-align: center; color: var(--gray-400); font-size: 13px; margin: auto; padding: 32px 0; }
+    .chat-input-row {
+      padding: 12px 16px;
+      border-top: 1px solid var(--gray-200);
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .chat-textarea {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1.5px solid var(--gray-200);
+      font-family: inherit;
+      font-size: 14px;
+      resize: none;
+      line-height: 1.4;
+      min-height: 42px;
+      max-height: 100px;
+    }
+    .chat-textarea:focus { outline: none; border-color: var(--black); }
+    .chat-send {
+      padding: 10px 16px;
+      background: var(--red);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* ── TUTORIALS ── */
+    .tut-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      margin-bottom: 10px;
+    }
+    .tut-item:hover { border-color: var(--black); }
+    .tut-icon {
+      width: 44px; height: 44px;
+      background: var(--black);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .tut-icon .material-symbols-outlined { font-size: 22px; color: var(--white); }
+    .tut-info { flex: 1; }
+    .tut-title { font-size: 14px; font-weight: 700; }
+    .tut-sub { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+
+    /* ── BADGE (unread) ── */
     .badge {
       display: none;
-      background: #ef4444;
-      color: #fff;
+      background: var(--red);
+      color: var(--white);
       border-radius: 50%;
-      width: 18px;
-      height: 18px;
+      width: 18px; height: 18px;
       font-size: 10px;
       line-height: 18px;
       text-align: center;
       font-weight: 700;
     }
 
-    /* ── Error msg ── */
-    .error-msg { font-size: 13px; color: var(--red); text-align: center; margin-top: 10px; min-height: 18px; }
-    .status-msg { font-size: 13px; text-align: center; margin-top: 8px; min-height: 18px; }
-
-    /* ── Chat Modal ── */
-    .overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.55);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-    }
-    .overlay.open { display: flex; }
-
-    .chat-modal {
-      background: var(--surface);
-      border-radius: var(--radius-lg);
-      width: 100%;
-      max-width: 440px;
-      max-height: 88vh;
-      display: flex;
-      flex-direction: column;
-      box-shadow: var(--shadow-lg);
-      overflow: hidden;
-    }
-
-    .chat-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-    }
-    .chat-header h3 { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-
-    .chat-close {
-      background: none;
-      border: none;
-      font-size: 20px;
-      cursor: pointer;
-      color: var(--text-dim);
-      line-height: 1;
-      padding: 4px;
-      min-height: unset;
-      width: auto;
-    }
-
-    .chat-messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      min-height: 200px;
-      max-height: 52vh;
-    }
-
-    .chat-empty { text-align: center; color: var(--text-dim); font-size: 13px; margin: auto; }
-
-    .chat-input-row {
-      padding: 12px 16px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      gap: 8px;
-      align-items: flex-end;
-    }
-
-    .chat-textarea {
-      flex: 1;
-      padding: 10px 14px;
-      border-radius: 10px;
-      border: 1.5px solid var(--border);
-      background: var(--surface2);
-      color: var(--text);
-      font-size: 14px;
-      font-family: inherit;
-      resize: none;
-      line-height: 1.4;
-      min-height: 42px;
-      max-height: 100px;
-    }
-    .chat-textarea:focus { outline: none; border-color: var(--accent); }
-
-    .chat-send {
-      padding: 10px 16px;
-      background: var(--purple);
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      font-family: inherit;
-      width: auto;
-      min-height: unset;
-      white-space: nowrap;
-      align-self: flex-end;
-    }
-
-    /* ── Subscribe Modal ── */
-    .sub-modal {
-      background: var(--surface);
-      border-radius: var(--radius-lg);
-      padding: 28px 24px;
-      width: 100%;
-      max-width: 360px;
-      box-shadow: var(--shadow-lg);
-    }
-    .sub-modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-    .sub-modal p { font-size: 13px; color: var(--text-dim); margin-bottom: 18px; }
-
-    #installerPanel { display: none; }
+    /* ── SECTION SPACING ── */
+    .space-y > * + * { margin-top: 20px; }
 
     @media (max-width: 480px) {
-      body { align-items: flex-start; padding-top: 24px; }
-      .card-header { padding: 20px 20px 0; }
-      .card-body { padding: 0 20px 20px; }
-      .card-footer { padding: 10px 20px; }
+      .page-wrap { padding: 0 16px; }
+      .top-bar { padding: 0 16px; }
     }
   </style>
-  <script>
-    document.documentElement.setAttribute('lang','he');
-    document.documentElement.setAttribute('dir','rtl');
-  </script>
 </head>
-<body class="light">
+<body>
+
+<!-- ══ TOP BAR ══ -->
+<header class="top-bar">
+  <div class="top-bar-logo">
+    <div class="logo-box">T</div>
+    <span class="logo-text">Tador</span>
+  </div>
+  <div class="top-bar-actions">
+    <div class="lang-group">
+      <button class="lang-btn" data-lang="en" id="langEn">
+        <span class="material-symbols-outlined" style="font-size:13px;color:var(--gray-400);">language</span>
+        ENGLISH
+      </button>
+      <button class="lang-btn active" data-lang="he" id="langHe">
+        <span class="material-symbols-outlined" style="font-size:13px;">check_circle</span>
+        עברית
+      </button>
+    </div>
+    <button class="logout-btn" onclick="logout()">
+      <span class="material-symbols-outlined">logout</span>
+      <span data-i18n="logoutBtn">התנתק</span>
+    </button>
+  </div>
+</header>
 
 <!-- ══════════════════════════════════════
      LOGIN SCREEN
 ══════════════════════════════════════ -->
-<div id="loginScreen" class="page">
-  <div class="card">
-    <div class="card-header">
-      <div class="card-brand">Tador Technologies</div>
-      <h1 class="card-title" data-i18n="loginTitle">כניסת מתקין</h1>
-      <p class="card-subtitle" data-i18n="loginSub">מערכת ניהול מכשירים</p>
-    </div>
-
-    <div class="card-body" style="margin-top:20px;">
+<div id="loginScreen">
+  <div class="page-wrap" style="width:100%;padding-top:0;">
+    <div class="login-card">
+      <h2 data-i18n="loginTitle">כניסת מתקין</h2>
+      <p data-i18n="loginSub">מערכת ניהול מכשירים</p>
       <div class="field">
         <label data-i18n="phoneLabel">מספר טלפון</label>
         <input type="tel" id="loginPhone" placeholder="0501234567" autocomplete="username"
@@ -493,17 +612,8 @@
         <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"
                onkeydown="if(event.key==='Enter')login()" />
       </div>
-
-      <button class="btn btn-primary" onclick="login()" data-i18n="loginBtn">התחבר</button>
+      <button class="btn-red" onclick="login()" data-i18n="loginBtn">התחבר</button>
       <div id="loginError" class="error-msg"></div>
-    </div>
-
-    <div class="card-footer">
-      <div class="lang-switch">
-        <button class="lang-btn active" data-lang="he">עברית</button>
-        <button class="lang-btn" data-lang="en">English</button>
-      </div>
-      <button class="theme-btn" onclick="toggleTheme()" title="החלף ערכת נושא">🌙</button>
     </div>
   </div>
 </div>
@@ -511,98 +621,131 @@
 <!-- ══════════════════════════════════════
      INSTALLER PANEL
 ══════════════════════════════════════ -->
-<div id="installerPanel" class="page">
-  <div class="card">
+<div id="installerPanel" style="display:none;">
+  <main>
+    <div class="page-wrap space-y">
 
-    <!-- Header -->
-    <div class="card-header" style="text-align:right;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
-        <div>
-          <div class="card-brand">Tador Technologies</div>
-          <h1 class="card-title" data-i18n="panelTitle" style="text-align:right;">חיפוש מכשיר</h1>
-          <p class="card-subtitle" data-i18n="panelSubtitle" style="margin-bottom:0;">בחר כתובת MAC ולחץ התחברות מרחוק</p>
+      <!-- Hero -->
+      <section>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <h1 style="font-size:28px;font-weight:800;" data-i18n="panelTitle">חיפוש מכשיר</h1>
+          <button class="btn-black" onclick="openInstallerChat()" style="position:relative;">
+            <span class="material-symbols-outlined">chat</span>
+            <span data-i18n="supportBtn">תמיכה</span>
+            <span id="installerUnreadBadge" class="badge" style="position:absolute;top:-6px;left:-6px;display:none;"></span>
+          </button>
         </div>
-        <button class="btn-chat" onclick="openInstallerChat()"
-          style="border:none;border-radius:10px;padding:8px 14px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0;margin-top:4px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          תמיכה
-          <span id="installerUnreadBadge" class="badge"></span>
-        </button>
+        <p style="color:var(--gray-500);font-size:13px;font-weight:500;" data-i18n="panelSubtitle">בחר כתובת MAC ולחץ התחברות מרחוק</p>
+      </section>
+
+      <!-- Search -->
+      <div class="search-wrap">
+        <span class="material-symbols-outlined">search</span>
+        <input class="search-input" id="macSearch" type="text"
+               placeholder="חפש מכשיר לפי שם או כתובת MAC..."
+               oninput="filterMacList(this.value)" />
       </div>
-    </div>
 
-    <div class="card-body">
-
-      <!-- MAC selection -->
-      <div class="section-label" data-i18n="macLabel">כתובות MAC שלך</div>
+      <!-- MAC List -->
       <div class="mac-list" id="macList"></div>
 
-      <!-- PRIMARY action -->
-      <button class="btn btn-primary" onclick="lookup()" style="margin-top:16px;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <!-- Lookup Button -->
+      <button class="btn-red" onclick="lookup()" id="lookupBtn" style="font-size:16px;padding:18px 20px;">
+        <span class="material-symbols-outlined">settings_remote</span>
         <span data-i18n="lookupBtn">התחברות מרחוק</span>
       </button>
 
       <!-- Result -->
-      <div id="result" style="margin-top:12px;"></div>
+      <div id="result"></div>
 
-      <hr class="divider">
-
-      <!-- Secondary actions group -->
-      <div class="section-label">פעולות נוספות</div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <button class="btn btn-amber" id="rebootBtn" onclick="rebootDevice()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          <span data-i18n="rebootBtn">אתחול מכשיר</span>
-        </button>
-        <div id="rebootResult" class="status-msg"></div>
-
-        <div id="catalogSection">
-          <button class="btn btn-catalog" onclick="openCatalog()">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span data-i18n="catalogBtn">הורדת קטלוג מוצרים</span>
-          </button>
+      <!-- Technical tip -->
+      <div class="info-tip">
+        <span class="material-symbols-outlined">info</span>
+        <div>
+          <div class="info-tip-label" data-i18n="tipLabel">המלצה טכנית:</div>
+          <div class="info-tip-text" data-i18n="tipText">מומלץ לבצע הגדרות פנל דרך מחשב לצורך נוחות מירבית ודיוק בפרמטרים המורחבים.</div>
         </div>
-
-        <button class="btn" onclick="openTutorials()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-          סרטוני הדרכה
-        </button>
       </div>
 
-      <hr class="divider">
+      <hr class="divider"/>
 
-      <!-- Quiet actions -->
-      <div style="display:flex;flex-direction:column;gap:6px;">
-        <button class="btn btn-subtle" onclick="openSubscribeModal()">
-          📧 קבלו עדכונים על מוצרים ומבצעים
+      <!-- Action Grid -->
+      <div class="action-grid">
+
+        <!-- Emergency Door Open -->
+        <button class="action-card" id="relayBtn" onclick="toggleRelay()">
+          <span id="relayBadge" class="action-badge badge-loading">...</span>
+          <span class="material-symbols-outlined">door_open</span>
+          <span class="action-card-label" data-i18n="emergencyBtn">פתיחת דלת חירום</span>
+          <div id="relayResult" class="status-msg"></div>
         </button>
-        <button class="btn btn-ghost" onclick="logout()" data-i18n="logoutBtn">התנתק</button>
+
+        <!-- Reboot -->
+        <button class="action-card" id="rebootBtn" onclick="rebootDevice()">
+          <span class="material-symbols-outlined">restart_alt</span>
+          <span class="action-card-label" data-i18n="rebootBtn">אתחול מכשיר</span>
+          <div id="rebootResult" class="status-msg"></div>
+        </button>
+
+        <!-- Catalog -->
+        <button class="action-card" id="catalogSection" onclick="openCatalog()">
+          <span class="material-symbols-outlined">download</span>
+          <span class="action-card-label" data-i18n="catalogBtn">קטלוג מוצרים</span>
+        </button>
+
+        <!-- Resident Example -->
+        <button class="action-card" id="residentExampleBtn" onclick="downloadResidentExampleInstaller()" style="display:none;">
+          <span class="material-symbols-outlined">people</span>
+          <span class="action-card-label">רשימת דיירים לדוגמא</span>
+        </button>
+
+        <!-- Tutorials -->
+        <button class="action-card" onclick="openTutorials()">
+          <span class="material-symbols-outlined">play_circle</span>
+          <span class="action-card-label">סרטוני הדרכה</span>
+        </button>
+
+        <!-- Portfolio - full width -->
+        <button class="action-card" onclick="openPortfolio()" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;gap:14px;padding:16px 18px;">
+          <span class="material-symbols-outlined" style="font-size:28px;">photo_library</span>
+          <div style="text-align:right;">
+            <div class="action-card-label" style="font-size:13px;">תיק עבודות</div>
+            <div style="font-size:11px;color:var(--gray-500);font-weight:500;margin-top:2px;">תמונות מהתקנות שלי</div>
+          </div>
+          <span class="material-symbols-outlined" style="margin-right:auto;color:var(--gray-400);font-size:18px;">arrow_back_ios</span>
+        </button>
+
+      </div>
+
+      <hr class="divider"/>
+
+      <!-- Mailing List -->
+      <div class="mailing-section">
+        <h3>רשימת תפוצה</h3>
+        <p>עדכונים על מוצרים חדשים ומבצעים בלעדיים.</p>
+        <div class="mailing-input-wrap">
+          <span class="material-symbols-outlined">mail</span>
+          <input class="mailing-input" id="subEmail" type="email" placeholder="כתובת אימייל..." />
+        </div>
+        <div id="subMsg" class="status-msg" style="color:white;margin-bottom:8px;"></div>
+        <button class="btn-red" onclick="submitSubscribe()">הצטרפות</button>
       </div>
 
     </div>
-
-    <div class="card-footer">
-      <div class="lang-switch">
-        <button class="lang-btn active" data-lang="he">עברית</button>
-        <button class="lang-btn" data-lang="en">English</button>
-      </div>
-      <button class="theme-btn" onclick="toggleTheme()">🌙</button>
-    </div>
-  </div>
+  </main>
 </div>
 
-<!-- ══════ CHAT MODAL ══════ -->
+<!-- ══ CHAT MODAL ══ -->
 <div id="installerChatOverlay" class="overlay">
-  <div class="chat-modal">
-    <div class="chat-header">
+  <div class="modal">
+    <div class="modal-head">
       <h3>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span class="material-symbols-outlined" style="font-size:18px;">chat</span>
         צ'אט תמיכה
       </h3>
-      <button class="chat-close" onclick="closeInstallerChat()">✕</button>
+      <button class="modal-close" onclick="closeInstallerChat()">✕</button>
     </div>
-    <div class="chat-messages" id="installerChatMessages">
+    <div class="chat-messages modal-body" id="installerChatMessages">
       <div class="chat-empty">אין הודעות עדיין</div>
     </div>
     <div class="chat-input-row">
@@ -613,17 +756,18 @@
   </div>
 </div>
 
-<!-- ══════ SUBSCRIBE MODAL ══════ -->
-<div id="subscribeOverlay" class="overlay">
-  <div class="sub-modal">
-    <h3>📧 הישארו מעודכנים</h3>
-    <p>קבלו עדכונים ראשונים על מוצרים חדשים, כלים והטבות</p>
-    <div class="field"><label>שם מלא</label><input id="subName" type="text" placeholder="ישראל ישראלי" /></div>
-    <div class="field" style="margin-bottom:10px;"><label>אימייל</label><input id="subEmail" type="email" placeholder="example@gmail.com" /></div>
-    <div id="subMsg" class="status-msg" style="margin-bottom:12px;"></div>
-    <div style="display:flex;gap:8px;">
-      <button class="btn btn-primary" onclick="submitSubscribe()" style="flex:1;">הרשם</button>
-      <button class="btn btn-ghost" onclick="closeSubscribeModal()" style="flex:1;">ביטול</button>
+<!-- ══ TUTORIALS MODAL ══ -->
+<div id="tutorialsModal" class="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">play_circle</span>
+        סרטוני הדרכה
+      </h3>
+      <button class="modal-close" onclick="closeTutorials()">✕</button>
+    </div>
+    <div class="modal-body" id="tutorialsList">
+      <div class="chat-empty">טוען...</div>
     </div>
   </div>
 </div>
@@ -632,95 +776,108 @@
   // ── Translations ──
   const translations = {
     en: {
-      loginTitle: "Installer Login", loginSub: "Device Management System",
-      phoneLabel: "Phone Number", passwordLabel: "Password", loginBtn: "Login",
-      panelTitle: "Device Lookup", panelSubtitle: "Select a MAC and press Remote Access",
-      macLabel: "Your MAC Addresses", lookupBtn: "Remote Access",
-      logoutBtn: "Logout", rebootBtn: "Reboot Device", catalogBtn: "Download Product Catalog",
-      deviceFound: "DEVICE FOUND", error: "ERROR",
-      mac: "MAC", serial: "SERIAL", project: "PROJECT", status: "STATUS",
-      openBackend: "Connect", addDescription: "Add description...",
-      editDescription: "✏️ Edit", saveDescription: "Save",
-      descriptionLabel: "📝 Description", noDescription: "No description — click Edit",
+      loginTitle:"Installer Login", loginSub:"Device Management System",
+      phoneLabel:"Phone Number", passwordLabel:"Password", loginBtn:"Login",
+      panelTitle:"Device Lookup", panelSubtitle:"Select a MAC and press Remote Access",
+      lookupBtn:"Remote Access", logoutBtn:"Logout", rebootBtn:"Reboot",
+      supportBtn:"Support", catalogBtn:"Catalog",
+      tipLabel:"Technical Note:", tipText:"It is recommended to configure panel settings from a computer for maximum comfort and accuracy.",
+      deviceFound:"DEVICE FOUND", deviceOffline:"DEVICE NOT FOUND", offlineMsg:"Please check if the device has an internet connection.", error:"ERROR",
+      mac:"MAC", serial:"SERIAL", project:"PROJECT", status:"STATUS", openBackend:"Connect",
+      addDescription:"Add description...", editDescription:"Edit", saveDescription:"Save",
+      noDescription:"No description",
     },
     he: {
-      loginTitle: "כניסת מתקין", loginSub: "מערכת ניהול מכשירים",
-      phoneLabel: "מספר טלפון", passwordLabel: "סיסמה", loginBtn: "התחבר",
-      panelTitle: "חיפוש מכשיר", panelSubtitle: "בחר כתובת MAC ולחץ התחברות מרחוק",
-      macLabel: "כתובות MAC שלך", lookupBtn: "התחברות מרחוק",
-      logoutBtn: "התנתק", rebootBtn: "אתחול מכשיר", catalogBtn: "הורדת קטלוג מוצרים",
-      deviceFound: "מכשיר נמצא", error: "שגיאה",
-      mac: "MAC", serial: "מספר סידורי", project: "פרויקט", status: "סטטוס",
-      openBackend: "התחבר", addDescription: "הוסף תיאור...",
-      editDescription: "✏️ ערוך", saveDescription: "שמור",
-      descriptionLabel: "📝 תיאור", noDescription: "אין תיאור — לחץ ערוך",
+      loginTitle:"כניסת מתקין", loginSub:"מערכת ניהול מכשירים",
+      phoneLabel:"מספר טלפון", passwordLabel:"סיסמה", loginBtn:"התחבר",
+      panelTitle:"חיפוש מכשיר", panelSubtitle:"בחר כתובת MAC ולחץ התחברות מרחוק",
+      lookupBtn:"התחברות מרחוק", logoutBtn:"התנתק", rebootBtn:"אתחול מכשיר",
+      supportBtn:"תמיכה", catalogBtn:"קטלוג מוצרים",
+      tipLabel:"המלצה טכנית:", tipText:"מומלץ לבצע הגדרות פנל דרך מחשב לצורך נוחות מירבית ודיוק בפרמטרים המורחבים.",
+      deviceFound:"מכשיר נמצא", deviceOffline:"מכשיר לא נמצא", offlineMsg:"יש לבדוק האם למכשיר יש חיבור אינטרנט.", error:"שגיאה",
+      mac:"MAC", serial:"מספר סידורי", project:"פרויקט", status:"סטטוס", openBackend:"התחבר",
+      addDescription:"הוסף תיאור...", editDescription:"ערוך", saveDescription:"שמור",
+      noDescription:"אין תיאור",
     }
   };
 
   let currentLang = 'he';
   let installerData = null;
   let selectedMac = null;
-
-  // ── Theme ──
-  function toggleTheme() {
-    document.body.classList.toggle('dark');
-    document.body.classList.toggle('light');
-    const isDark = document.body.classList.contains('dark');
-    document.querySelectorAll('.theme-btn').forEach(b => b.textContent = isDark ? '☀️' : '🌙');
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-  }
-  if (localStorage.getItem('theme') === 'dark') {
-    document.body.classList.replace('light','dark');
-    document.querySelectorAll('.theme-btn').forEach(b => b.textContent = '☀️');
-  }
+  let lastPanelAddress = null;
+  let catalogUrl = 'https://www.tador.com';
 
   // ── Language ──
   function setLanguage(lang) {
     currentLang = lang;
     document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang;
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const k = el.getAttribute('data-i18n');
       if (translations[lang][k]) el.textContent = translations[lang][k];
     });
-    document.querySelectorAll('.lang-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.lang === lang);
-    });
+    document.getElementById('langHe').classList.toggle('active', lang === 'he');
+    document.getElementById('langEn').classList.toggle('active', lang === 'en');
+    const heIcon = document.querySelector('#langHe .material-symbols-outlined');
+    const enIcon = document.querySelector('#langEn .material-symbols-outlined');
+    if (heIcon) heIcon.style.color = lang === 'he' ? 'var(--red)' : 'var(--gray-400)';
+    if (enIcon) enIcon.style.color = lang === 'en' ? 'var(--red)' : 'var(--gray-400)';
   }
+
   document.addEventListener('click', e => {
-    if (e.target.classList.contains('lang-btn')) setLanguage(e.target.dataset.lang);
+    const btn = e.target.closest('[data-lang]');
+    if (btn) setLanguage(btn.dataset.lang);
   });
 
   // ── MAC List ──
-  function renderMacList() {
+  function renderMacList(filter = '') {
     const t = translations[currentLang];
-    document.getElementById('macList').innerHTML = installerData.macAddresses.map(m => `
+    const list = document.getElementById('macList');
+    if (!installerData?.macAddresses?.length) {
+      list.innerHTML = `<p style="color:var(--gray-400);font-size:14px;padding:8px 0;">אין כתובות MAC מוקצות</p>`;
+      return;
+    }
+    const macs = installerData.macAddresses.filter(m => {
+      if (!filter) return true;
+      const q = filter.toLowerCase();
+      return m.mac.toLowerCase().includes(q) || (m.description || '').toLowerCase().includes(q);
+    });
+    list.innerHTML = macs.map(m => `
       <div class="mac-card ${selectedMac === m.mac ? 'selected' : ''}" onclick="selectMac('${m.mac}')">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-          <span class="mac-addr">${m.mac}</span>
-          <button class="btn-edit-desc" onclick="event.stopPropagation();toggleDescEdit('${m.mac}')">${t.editDescription}</button>
+        <div class="mac-info">
+          <div class="mac-name">${m.description || t.noDescription}</div>
+          <div class="mac-addr">${m.mac}</div>
+          <div class="desc-edit-area" id="desc-wrap-${m.mac}">
+            <input type="text" id="desc-input-${m.mac}" value="${m.description || ''}"
+                   placeholder="${t.addDescription}" onclick="event.stopPropagation()" />
+            <button class="desc-save-btn" onclick="event.stopPropagation();saveDescription('${m.mac}')">${t.saveDescription}</button>
+          </div>
         </div>
-        <div class="mac-desc ${m.description ? 'has-value' : ''}">
-          ${m.description ? '📝 ' + m.description : t.noDescription}
-        </div>
-        <div class="desc-edit-area" id="desc-wrap-${m.mac}">
-          <input type="text" id="desc-input-${m.mac}" value="${m.description || ''}" placeholder="${t.addDescription}" onclick="event.stopPropagation()" />
-          <button class="btn btn-primary" style="min-height:36px;padding:8px;font-size:13px;" onclick="event.stopPropagation();saveDescription('${m.mac}')">${t.saveDescription}</button>
-        </div>
+        <button class="mac-edit-btn" onclick="event.stopPropagation();toggleDescEdit('${m.mac}')">
+          <span class="material-symbols-outlined">edit</span>
+        </button>
       </div>
-    `).join('') || `<p style="color:var(--text-dim);font-size:14px;padding:8px 0;">אין כתובות MAC מוקצות</p>`;
+    `).join('');
   }
 
-  function selectMac(mac) { selectedMac = mac; renderMacList(); }
+  function filterMacList(val) { renderMacList(val); }
+
+  function selectMac(mac) {
+    selectedMac = mac;
+    renderMacList(document.getElementById('macSearch')?.value || '');
+    lastPanelAddress = null;
+    resetRelayBadge();
+  }
 
   function toggleDescEdit(mac) {
     const w = document.getElementById(`desc-wrap-${mac}`);
     w.classList.toggle('open');
-    if (w.classList.contains('open')) document.getElementById(`desc-input-${mac}`).focus();
+    if (w.classList.contains('open')) document.getElementById(`desc-input-${mac}`)?.focus();
   }
 
   async function saveDescription(mac) {
     const inputEl = document.getElementById(`desc-input-${mac}`);
-    if (!inputEl) { alert('שגיאה: שדה לא נמצא'); return; }
+    if (!inputEl) return;
     const description = inputEl.value;
     try {
       const res = await fetch('/api/installer/description', {
@@ -732,10 +889,8 @@
       const mo = installerData.macAddresses.find(m => m.mac === mac);
       if (mo) mo.description = description;
       document.getElementById(`desc-wrap-${mac}`)?.classList.remove('open');
-      renderMacList();
-    } catch(e) {
-      alert('שגיאת תקשורת: ' + e.message);
-    }
+      renderMacList(document.getElementById('macSearch')?.value || '');
+    } catch(e) { alert('שגיאת תקשורת: ' + e.message); }
   }
 
   // ── Login ──
@@ -750,11 +905,12 @@
     const data = await res.json();
     if (data.success) {
       installerData = data.data;
-      selectedMac   = installerData.macAddresses.length > 0 ? installerData.macAddresses[0].mac : null;
+      selectedMac = installerData.macAddresses.length > 0 ? installerData.macAddresses[0].mac : null;
       document.getElementById('loginScreen').style.display  = 'none';
       document.getElementById('installerPanel').style.display = 'block';
       renderMacList();
       loadCatalog();
+      loadResidentExampleInstaller();
       loadManagerNote(installerData.phoneNumber);
     } else {
       document.getElementById('loginError').textContent = data.error || 'כניסה נכשלה';
@@ -762,14 +918,16 @@
   }
 
   function logout() {
-    installerData = null; selectedMac = null;
-    document.getElementById('loginScreen').style.display  = 'block';
+    installerData = null; selectedMac = null; lastPanelAddress = null;
+    document.getElementById('loginScreen').style.display  = 'flex';
     document.getElementById('installerPanel').style.display = 'none';
     document.getElementById('loginPhone').value = '';
     document.getElementById('loginPassword').value = '';
     document.getElementById('loginError').textContent = '';
     document.getElementById('result').innerHTML = '';
     document.getElementById('rebootResult').textContent = '';
+    document.getElementById('relayResult').textContent = '';
+    resetRelayBadge();
   }
 
   // Auto-login from manager remote access
@@ -779,7 +937,7 @@
     if (stored) {
       try {
         installerData = JSON.parse(stored);
-        selectedMac   = installerData.macAddresses.length > 0 ? installerData.macAddresses[0].mac : null;
+        selectedMac = installerData.macAddresses.length > 0 ? installerData.macAddresses[0].mac : null;
         document.getElementById('loginScreen').style.display  = 'none';
         document.getElementById('installerPanel').style.display = 'block';
         renderMacList();
@@ -794,17 +952,22 @@
   async function lookup() {
     if (!selectedMac) return alert('בחר כתובת MAC תחילה');
     const resultDiv = document.getElementById('result');
-    resultDiv.innerHTML = '<p style="color:var(--text-dim);font-size:13px;padding:8px 0;">מחפש...</p>';
+    const btn = document.getElementById('lookupBtn');
+    btn.disabled = true;
+    resultDiv.innerHTML = '<p style="color:var(--gray-500);font-size:13px;padding:8px 0;text-align:center;">מחפש...</p>';
     const res  = await fetch('/api/lookup', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ mac: selectedMac })
     });
     const data = await res.json();
     const t    = translations[currentLang];
+    btn.disabled = false;
     if (data.success) {
+      lastPanelAddress = data.fullAddress || null;
+      if (lastPanelAddress) loadRelayStatus(lastPanelAddress);
       resultDiv.innerHTML = `
-        <div class="result-box">
-          <div class="result-label">✓ ${t.deviceFound}</div>
+        <div class="result-box${(data.status || '').toLowerCase() === 'offline' ? ' offline' : ''}">
+          <div class="result-label">${(data.status || '').toLowerCase() === 'offline' ? '✗ ' + t.deviceOffline : '✓ ' + t.deviceFound}</div>
           <div class="result-ip">${data.fullAddress || data.ip}</div>
           <div class="result-grid">
             <div class="result-cell"><div class="result-cell-label">${t.mac}</div><div class="result-cell-value">${data.mac}</div></div>
@@ -812,16 +975,16 @@
             <div class="result-cell"><div class="result-cell-label">${t.project}</div><div class="result-cell-value">${data.project || '—'}</div></div>
             <div class="result-cell"><div class="result-cell-label">${t.status}</div><div class="result-cell-value">${data.status || '—'}</div></div>
           </div>
-          ${data.fullAddress ? `
-            <button class="btn btn-primary" onclick="window.open('http://${data.fullAddress}','_blank')" style="margin-top:12px;">
-              🌐 ${t.openBackend}
-            </button>` : ''}
+          ${(data.status || '').toLowerCase() === 'offline' ? `<div style="margin-top:12px;padding:10px 12px;background:rgba(232,0,28,0.07);border-radius:6px;font-size:12px;color:var(--red);text-align:center;">⚠️ ${t.offlineMsg}</div>` : ''}
+          ${data.fullAddress ? `<button class="result-open-btn" onclick="window.open('http://${data.fullAddress}','_blank')">
+            <span class="material-symbols-outlined" style="font-size:16px;">open_in_new</span> ${t.openBackend}
+          </button>` : ''}
         </div>`;
     } else {
       resultDiv.innerHTML = `
         <div class="result-box error">
           <div class="result-label">✗ ${t.error}</div>
-          <p style="font-size:13px;">${data.error}</p>
+          <p style="font-size:13px;color:var(--red);">${data.error}</p>
         </div>`;
     }
   }
@@ -829,10 +992,11 @@
   // ── Reboot ──
   async function rebootDevice() {
     if (!selectedMac) return alert('בחר כתובת MAC תחילה');
+    const confirmed = confirm('האם אתה בטוח שברצונך לבצע הפעלה מחדש למערכת?');
+    if (!confirmed) return;
     const btn = document.getElementById('rebootBtn');
     const msg = document.getElementById('rebootResult');
     btn.disabled = true;
-    btn.querySelector('span').textContent = 'מאתחל...';
     msg.textContent = '';
     try {
       const r    = await fetch('/api/installer/reboot', {
@@ -840,14 +1004,96 @@
         body: JSON.stringify({ mac: selectedMac })
       });
       const data = await r.json();
-      msg.style.color = data.success ? 'var(--green)' : 'var(--red)';
-      msg.textContent = data.success ? '✅ פקודת אתחול נשלחה' : '❌ ' + (data.error || 'שגיאה');
+      msg.style.color = data.success ? '#16a34a' : 'var(--red)';
+      msg.textContent = data.success ? '✅ נשלח' : '❌ ' + (data.error || 'שגיאה');
     } catch(e) {
       msg.style.color = 'var(--red)';
       msg.textContent = '❌ שגיאת תקשורת';
     }
     btn.disabled = false;
-    btn.querySelector('span').textContent = translations[currentLang].rebootBtn || 'אתחול מכשיר';
+  }
+
+  // ── Relay (Always On) ──
+  function resetRelayBadge() {
+    const badge = document.getElementById('relayBadge');
+    badge.textContent = '—';
+    badge.className = 'action-badge badge-loading';
+  }
+
+  async function loadRelayStatus(panelAddress) {
+    if (!panelAddress) return;
+    const badge = document.getElementById('relayBadge');
+    badge.textContent = '...';
+    try {
+      const r = await fetch('/api/installer/relay-status?panelAddress=' + encodeURIComponent(panelAddress));
+      const data = await r.json();
+      if (data.success) updateRelayBadge(data.mode);
+      else badge.textContent = '—';
+    } catch(e) { badge.textContent = '—'; }
+  }
+
+  function updateRelayBadge(mode) {
+    const badge = document.getElementById('relayBadge');
+    if (mode === 'alwayson') {
+      badge.textContent = '● פעיל';
+      badge.className = 'action-badge badge-on';
+    } else {
+      badge.textContent = '○ כבוי';
+      badge.className = 'action-badge badge-off';
+    }
+  }
+
+  async function toggleRelay() {
+    if (!selectedMac) return alert('בחר כתובת MAC תחילה');
+    const btn  = document.getElementById('relayBtn');
+    const badge = document.getElementById('relayBadge');
+    const msg  = document.getElementById('relayResult');
+    btn.disabled = true;
+    badge.textContent = '...';
+    badge.className = 'action-badge badge-loading';
+    msg.textContent = '';
+
+    try {
+      if (!lastPanelAddress) {
+        msg.style.color = 'var(--gray-500)';
+        msg.textContent = 'מחפש...';
+        const lr = await fetch('/api/lookup', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ mac: selectedMac })
+        });
+        const ld = await lr.json();
+        if (!ld.success || !ld.fullAddress) {
+          badge.textContent = '⚠';
+          msg.style.color = 'var(--red)';
+          msg.textContent = '❌ לא נמצאה כתובת';
+          btn.disabled = false;
+          return;
+        }
+        lastPanelAddress = ld.fullAddress;
+        msg.textContent = '';
+      }
+
+      const r = await fetch('/api/installer/relay-toggle', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ mac: selectedMac, panelAddress: lastPanelAddress })
+      });
+      const data = await r.json();
+      if (data.success) {
+        updateRelayBadge(data.newMode);
+        msg.style.color = '#16a34a';
+        msg.textContent = data.newMode === 'alwayson' ? '✅ הופעל' : '✅ כובה';
+      } else {
+        badge.textContent = '⚠';
+        badge.className = 'action-badge badge-loading';
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      badge.textContent = '⚠';
+      msg.style.color = 'var(--red)';
+      msg.textContent = '❌ שגיאת תקשורת';
+    }
+    btn.disabled = false;
   }
 
   // ── Chat ──
@@ -876,15 +1122,13 @@
       const data = await res.json();
       const c    = document.getElementById('installerChatMessages');
       const atBottom = c.scrollHeight - c.scrollTop <= c.clientHeight + 50;
-      if (!data.messages.length) {
-        c.innerHTML = '<div class="chat-empty">אין הודעות עדיין</div>'; return;
-      }
+      if (!data.messages.length) { c.innerHTML = '<div class="chat-empty">אין הודעות עדיין</div>'; return; }
       c.innerHTML = data.messages.map(m => {
         const mine = m.from === 'installer';
         const time = new Date(m.timestamp).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
         return `<div style="display:flex;flex-direction:column;align-items:${mine?'flex-start':'flex-end'}">
-          <div style="max-width:78%;padding:9px 13px;border-radius:${mine?'4px 14px 14px 14px':'14px 4px 14px 14px'};background:${mine?'var(--purple)':'var(--surface2)'};color:${mine?'#fff':'var(--text)'};font-size:14px;line-height:1.4;">${m.text}</div>
-          <span style="font-size:10px;color:var(--text-xs);margin-top:3px;">${mine?'אתה':'מנהל'} · ${time}</span>
+          <div style="max-width:78%;padding:9px 13px;border-radius:${mine?'4px 14px 14px 14px':'14px 4px 14px 14px'};background:${mine?'var(--black)':'var(--gray-100)'};color:${mine?'var(--white)':'var(--black)'};font-size:14px;line-height:1.4;">${m.text}</div>
+          <span style="font-size:10px;color:var(--gray-400);margin-top:3px;">${mine?'אתה':'מנהל'} · ${time}</span>
         </div>`;
       }).join('');
       if (atBottom) c.scrollTop = c.scrollHeight;
@@ -921,95 +1165,277 @@
   }
 
   // ── Catalog ──
-  let catalogUrl = 'https://www.tador.com';
   async function loadCatalog() {
     try {
       const res  = await fetch('/api/catalog');
       const data = await res.json();
       if (data.url) catalogUrl = data.url;
-      document.getElementById('catalogSection').style.display = 'block';
     } catch(e) {}
   }
   function openCatalog() { window.open(catalogUrl, '_blank'); }
 
-  // ── Subscribe ──
-  function openSubscribeModal()  { document.getElementById('subscribeOverlay').classList.add('open'); }
-  function closeSubscribeModal() { document.getElementById('subscribeOverlay').classList.remove('open'); }
+  // ── Resident Example ──
+  async function loadResidentExampleInstaller() {
+    try {
+      const res = await fetch('/api/resident-example/meta');
+      const data = await res.json();
+      const btn = document.getElementById('residentExampleBtn');
+      if (btn) btn.style.display = data.exists ? '' : 'none';
+    } catch(e) {}
+  }
 
+  async function downloadResidentExampleInstaller() {
+    try {
+      const res = await fetch('/api/resident-example/download');
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const cd = res.headers.get('Content-Disposition') || '';
+      const match = cd.match(/filename="?([^"]+)"?/);
+      const filename = match ? decodeURIComponent(match[1]) : 'resident-example';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    } catch(e) {}
+  }
+
+  // ── Subscribe ──
   async function submitSubscribe() {
-    const name  = document.getElementById('subName').value.trim();
     const email = document.getElementById('subEmail').value.trim();
     const msg   = document.getElementById('subMsg');
-    if (!name || !email) { msg.style.color='var(--red)'; msg.textContent='נא למלא שם ואימייל'; return; }
-    msg.style.color='var(--text-dim)'; msg.textContent='שולח...';
+    if (!email) { msg.style.color='var(--red)'; msg.textContent='נא להזין אימייל'; return; }
+    msg.style.color='var(--gray-400)'; msg.textContent='שולח...';
     try {
       const res  = await fetch('/api/mailing-list/subscribe', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ name, email })
+        body: JSON.stringify({ name: email, email })
       });
       const data = await res.json();
       if (data.success) {
-        msg.style.color='var(--green)'; msg.textContent='✅ נרשמת בהצלחה!';
-        setTimeout(closeSubscribeModal, 1800);
+        msg.style.color='#4ade80'; msg.textContent='✅ נרשמת בהצלחה!';
+        document.getElementById('subEmail').value = '';
       } else {
         msg.style.color='var(--red)'; msg.textContent = data.error || 'שגיאה';
       }
     } catch(e) { msg.style.color='var(--red)'; msg.textContent='שגיאת תקשורת'; }
   }
-</script>
 
-<!-- ══════ TUTORIALS MODAL ══════ -->
-<div id="tutorialsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:var(--surface);border-radius:16px;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
-    <div style="padding:20px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-      <button onclick="closeTutorials()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:20px;line-height:1;padding:0;">✕</button>
-      <h2 style="margin:0;font-size:18px;font-weight:700;color:var(--text);">🎬 סרטוני הדרכה</h2>
-    </div>
-    <div id="tutorialsList" style="padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;">
-      <div style="text-align:center;color:var(--text-dim);padding:32px 0;">טוען...</div>
-    </div>
-  </div>
-</div>
-
-<script>
+  // ── Tutorials ──
   function openTutorials() {
-    document.getElementById('tutorialsModal').style.display = 'flex';
+    document.getElementById('tutorialsModal').classList.add('open');
     loadTutorialsList();
   }
   function closeTutorials() {
-    document.getElementById('tutorialsModal').style.display = 'none';
+    document.getElementById('tutorialsModal').classList.remove('open');
   }
   async function loadTutorialsList() {
     const container = document.getElementById('tutorialsList');
-    container.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:32px 0;">טוען...</div>';
+    container.innerHTML = '<div class="chat-empty">טוען...</div>';
     try {
       const res = await fetch('/api/tutorials');
       const data = await res.json();
       const list = data.tutorials || [];
       if (!list.length) {
-        container.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:32px 0;">אין סרטוני הדרכה כרגע</div>';
+        container.innerHTML = '<div class="chat-empty">אין סרטוני הדרכה כרגע</div>';
         return;
       }
-      container.innerHTML = list.map((t, i) => `
-        <div onclick="playTutorial('${encodeURIComponent(t.url)}')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--surface2);border-radius:12px;border:1px solid var(--border);transition:border-color .2s;" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='var(--border)'">
-          <div style="width:44px;height:44px;background:linear-gradient(135deg,#7c3aed,#5b21b6);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="10 8 16 12 10 16 10 8"/></svg>
+      container.innerHTML = list.map(t => `
+        <div class="tut-item" onclick="window.open(decodeURIComponent('${encodeURIComponent(t.url)}'),'_blank')">
+          <div class="tut-icon"><span class="material-symbols-outlined">play_arrow</span></div>
+          <div class="tut-info">
+            <div class="tut-title">${t.title}</div>
+            <div class="tut-sub">לחץ לצפייה</div>
           </div>
-          <div style="flex:1;text-align:right;">
-            <div style="font-weight:600;font-size:14px;color:var(--text);">${t.title}</div>
-            <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">לחץ לצפייה</div>
-          </div>
+          <span class="material-symbols-outlined" style="color:var(--gray-400);font-size:18px;">arrow_back_ios</span>
         </div>
       `).join('');
     } catch(e) {
-      container.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:32px 0;">שגיאה בטעינה</div>';
+      container.innerHTML = '<div class="chat-empty">שגיאה בטעינה</div>';
     }
   }
-  function playTutorial(encodedUrl) {
-    const url = decodeURIComponent(encodedUrl);
-    window.open(url, '_blank');
-  }
+
+  // Close modals on overlay click
+  document.getElementById('installerChatOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeInstallerChat();
+  });
+  document.getElementById('tutorialsModal').addEventListener('click', function(e) {
+    if (e.target === this) closeTutorials();
+  });
 </script>
 
+<!-- ══ PORTFOLIO MODAL ══ -->
+<div id="portfolioModal" class="overlay">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">photo_library</span>
+        תיק עבודות
+      </h3>
+      <button class="modal-close" onclick="closePortfolio()">✕</button>
+    </div>
+
+    <!-- Upload area -->
+    <div style="padding:16px;border-bottom:1px solid var(--gray-200);">
+      <div id="uploadArea" onclick="document.getElementById('portfolioFileInput').click()"
+           style="border:2px dashed var(--gray-200);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:border-color .15s;"
+           onmouseover="this.style.borderColor='var(--black)'" onmouseout="this.style.borderColor='var(--gray-200)'">
+        <span class="material-symbols-outlined" style="font-size:32px;color:var(--gray-400);display:block;margin-bottom:6px;">add_photo_alternate</span>
+        <div style="font-size:13px;font-weight:700;color:var(--black);">לחץ להוספת תמונה</div>
+        <div style="font-size:11px;color:var(--gray-500);margin-top:2px;">JPG, PNG עד 10MB</div>
+      </div>
+      <input type="file" id="portfolioFileInput" accept="image/*" style="display:none;" onchange="previewPortfolioImage(event)" />
+
+      <!-- Preview -->
+      <div id="portfolioPreview" style="display:none;margin-top:12px;">
+        <img id="portfolioPreviewImg" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-bottom:10px;" />
+        <input type="text" id="portfolioDescription" placeholder="תיאור ההתקנה (כתובת, סוג עבודה...)"
+               style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:13px;margin-bottom:10px;" />
+        <div style="display:flex;gap:8px;">
+          <button class="btn-red" onclick="uploadPortfolioImage()" id="portfolioUploadBtn" style="flex:1;padding:12px;">
+            <span class="material-symbols-outlined" style="font-size:18px;">upload</span>
+            העלה תמונה
+          </button>
+          <button onclick="cancelPortfolioPreview()" style="padding:12px 16px;border:1.5px solid var(--gray-200);border-radius:8px;background:none;cursor:pointer;font-family:inherit;font-weight:600;">
+            ביטול
+          </button>
+        </div>
+        <div id="portfolioUploadMsg" class="status-msg" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <!-- Image grid -->
+    <div class="modal-body" id="portfolioGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px;max-height:50vh;overflow-y:auto;">
+      <div style="grid-column:1/-1;text-align:center;color:var(--gray-400);padding:24px;font-size:13px;">טוען...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LIGHTBOX ══ -->
+<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:12px;" onclick="closeLightbox()">
+  <img id="lightboxImg" style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;" />
+  <div id="lightboxCaption" style="color:white;font-size:14px;font-weight:600;text-align:center;max-width:90%;"></div>
+</div>
+
+<script>
+  // ── Portfolio ──
+  function openPortfolio() {
+    document.getElementById('portfolioModal').classList.add('open');
+    loadPortfolioImages();
+  }
+  function closePortfolio() {
+    document.getElementById('portfolioModal').classList.remove('open');
+    cancelPortfolioPreview();
+  }
+  document.getElementById('portfolioModal').addEventListener('click', function(e) {
+    if (e.target === this) closePortfolio();
+  });
+
+  function previewPortfolioImage(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('portfolioPreviewImg').src = e.target.result;
+      document.getElementById('portfolioPreview').style.display = 'block';
+      document.getElementById('uploadArea').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function cancelPortfolioPreview() {
+    document.getElementById('portfolioPreview').style.display = 'none';
+    document.getElementById('uploadArea').style.display = 'block';
+    document.getElementById('portfolioFileInput').value = '';
+    document.getElementById('portfolioDescription').value = '';
+    document.getElementById('portfolioUploadMsg').textContent = '';
+  }
+
+  async function uploadPortfolioImage() {
+    const file = document.getElementById('portfolioFileInput').files[0];
+    const description = document.getElementById('portfolioDescription').value.trim();
+    const btn = document.getElementById('portfolioUploadBtn');
+    const msg = document.getElementById('portfolioUploadMsg');
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('phoneNumber', installerData.phoneNumber);
+    formData.append('description', description);
+
+    btn.disabled = true;
+    msg.style.color = 'var(--gray-500)';
+    msg.textContent = 'מעלה תמונה...';
+
+    try {
+      const res = await fetch('/api/installer/portfolio/upload', { method:'POST', body: formData });
+      const data = await res.json();
+      if (data.success) {
+        msg.style.color = '#16a34a';
+        msg.textContent = '✅ הועלה בהצלחה!';
+        setTimeout(() => { cancelPortfolioPreview(); loadPortfolioImages(); }, 1000);
+      } else {
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      msg.style.color = 'var(--red)';
+      msg.textContent = '❌ שגיאת תקשורת';
+    }
+    btn.disabled = false;
+  }
+
+  async function loadPortfolioImages() {
+    const grid = document.getElementById('portfolioGrid');
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--gray-400);padding:24px;font-size:13px;">טוען...</div>';
+    try {
+      const res = await fetch('/api/installer/portfolio?phoneNumber=' + encodeURIComponent(installerData.phoneNumber));
+      const data = await res.json();
+      const images = (data.images || []).slice().reverse();
+      if (!images.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--gray-400);padding:32px;font-size:13px;">אין תמונות עדיין<br><span style=\"font-size:11px;\">לחץ למעלה להוספת תמונה ראשונה</span></div>';
+        return;
+      }
+      grid.innerHTML = images.map(img => `
+        <div style="position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--gray-200);aspect-ratio:1;">
+          <img src="${img.imageUrl}" alt="${img.description}"
+               style="width:100%;height:100%;object-fit:cover;cursor:pointer;"
+               onclick="openLightbox('${img.imageUrl}','${(img.description||'').replace(/'/g,'')}')"/>
+          ${img.description ? `<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;font-weight:600;padding:4px 6px;line-height:1.3;">${img.description}</div>` : ''}
+          <button onclick="deletePortfolioImage('${img.id}','${img.publicId || ''}')"
+                  style="position:absolute;top:6px;left:6px;background:rgba(227,27,35,0.9);border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:white;">
+            <span class="material-symbols-outlined" style="font-size:14px;">delete</span>
+          </button>
+        </div>
+      `).join('');
+    } catch(e) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--red);padding:24px;font-size:13px;">שגיאה בטעינה</div>';
+    }
+  }
+
+  async function deletePortfolioImage(imageId, publicId) {
+    if (!confirm('למחוק את התמונה?')) return;
+    try {
+      const res = await fetch(`/api/installer/portfolio/${imageId}`, {
+        method:'DELETE',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ phoneNumber: installerData.phoneNumber, publicId })
+      });
+      const data = await res.json();
+      if (data.success) loadPortfolioImages();
+      else alert('שגיאה במחיקה: ' + (data.error || 'unknown'));
+    } catch(e) { alert('שגיאת תקשורת'); }
+  }
+
+  function openLightbox(url, caption) {
+    const lb = document.getElementById('lightbox');
+    document.getElementById('lightboxImg').src = url;
+    document.getElementById('lightboxCaption').textContent = caption;
+    lb.style.display = 'flex';
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').style.display = 'none';
+  }
+</script>
 </body>
 </html>
