@@ -1135,6 +1135,147 @@ app.get('/api/installer/relay-status', async (req, res) => {
   }
 });
 
+// ==================== TEMPORARY CODE ====================
+app.post('/api/installer/temp-code', async (req, res) => {
+  const { panelAddress, validWeekdays } = req.body;
+  if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
+  if (!Array.isArray(validWeekdays) || validWeekdays.length === 0)
+    return res.status(400).json({ success: false, error: 'validWeekdays required' });
+
+  try {
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    // Step 1: Login to panel
+    let token = null;
+    try {
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens',
+        { username: 'admin', password: '123456' });
+      token = loginRes?.data?.token || null;
+    } catch(e) {
+      console.log('Panel login failed:', e.message);
+    }
+
+    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+    // Step 2: Get existing access list to find next Temporary code number
+    const listRes = await panelHttpGetWithHeaders(host, port,
+      '/api/v1/access?page_num=1&page_size=100', authHeaders);
+    const existingList = listRes?.data?.list || [];
+
+    // Find highest Temporary code number
+    let maxNum = 0;
+    for (const item of existingList) {
+      const match = (item.label || '').match(/^Temporary code (\d+)$/i);
+      if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
+    }
+    const nextNum = maxNum + 1;
+    const label = `Temporary code ${String(nextNum).padStart(2, '0')}`;
+
+    // Collect existing passwords to avoid duplicates
+    const existingPasswords = new Set(existingList.map(i => i.content || i.password || ''));
+
+    // Step 3: Generate unique 4-digit PIN
+    let pin = null;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const candidate = String(Math.floor(1000 + Math.random() * 9000));
+      if (!existingPasswords.has(candidate)) { pin = candidate; break; }
+    }
+    if (!pin) return res.status(500).json({ success: false, error: 'Could not generate unique PIN after 20 attempts' });
+
+    // Step 4: Create the temporary code
+    const now = Date.now();
+    const expiry = 7258175999000; // 2199-12-31
+
+    const body = {
+      label,
+      password: pin,
+      effective_date: now,
+      expired_date: expiry,
+      valid_weekdays: validWeekdays,
+      valid_count: -1,
+      valid_periods: '[{"begin":"00:00:00","end":"23:59:59"}]',
+      valid_door: '1',
+    };
+
+    const createRes = await panelHttpPostWithHeaders(host, port, '/api/v1/access', body, authHeaders);
+
+    if (createRes?.status === 'OK') {
+      console.log(`✅ Temp code created: ${label} PIN:${pin} days:${validWeekdays}`);
+      return res.json({ success: true, label, pin, validWeekdays });
+    } else {
+      const errCode = createRes?.error?.code;
+      const errMsg = createRes?.error?.message || createRes?.status || 'Unknown error';
+      if (errCode === 409012) {
+        return res.json({ success: false, error: 'קוד כבר קיים במערכת, נסה שוב' });
+      }
+      return res.json({ success: false, error: errMsg });
+    }
+
+  } catch (err) {
+    console.error('Temp code error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Helper: panelHttpGet with custom headers
+function panelHttpGetWithHeaders(host, port, path, extraHeaders = {}) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: host, port, path, method: 'GET',
+      agent: new http.Agent({ keepAlive: false }),
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        'User-Agent': 'Mozilla/5.0',
+        Connection: 'keep-alive',
+        ...extraHeaders,
+      },
+    };
+    const req = http.request(options, (panelRes) => {
+      let data = '';
+      panelRes.on('data', chunk => data += chunk);
+      panelRes.on('end', () => {
+        try { resolve(JSON.parse(data)); } catch(e) { resolve({}); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(10000, () => { req.destroy(new Error('timeout')); });
+    req.end();
+  });
+}
+
+// Helper: panelHttpPost with custom headers
+function panelHttpPostWithHeaders(host, port, path, body, extraHeaders = {}) {
+  return new Promise((resolve, reject) => {
+    const bodyStr = JSON.stringify(body);
+    const bodyBuf = Buffer.from(bodyStr, 'utf8');
+    const options = {
+      hostname: host, port, path, method: 'POST',
+      agent: new http.Agent({ keepAlive: false }),
+      headers: {
+        'Content-Type': 'application/json;charset=UTF-8',
+        'Content-Length': bodyBuf.length,
+        Accept: 'application/json, text/plain, */*',
+        'User-Agent': 'Mozilla/5.0',
+        Connection: 'keep-alive',
+        ...extraHeaders,
+      },
+    };
+    const req = http.request(options, (panelRes) => {
+      let chunks = [];
+      panelRes.on('data', chunk => chunks.push(chunk));
+      panelRes.on('end', () => {
+        const data = Buffer.concat(chunks).toString('utf8');
+        try { resolve(JSON.parse(data)); } catch(e) { resolve({ status: 'OK' }); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(12000, () => { req.destroy(new Error('timeout')); });
+    req.write(bodyBuf);
+    req.end();
+  });
+}
+
 // ==================== CATALOG ====================
 app.get('/api/catalog', async (req, res) => {
   try {
