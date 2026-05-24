@@ -811,6 +811,7 @@
   let installerData = null;
   let selectedMac = null;
   let lastPanelAddress = null;
+  let selectedExpiry = 'unlimited';
   let catalogUrl = 'https://www.tador.com';
 
   // ── Language ──
@@ -1357,10 +1358,26 @@
         </div>
       </div>
 
+      <!-- Expiry type selection -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">סוג תוקף</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <label id="expiry-unlimited" onclick="selectExpiry('unlimited')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border:2px solid var(--red);background:#fff5f5;border-radius:8px;cursor:pointer;text-align:center;">
+            <span class="material-symbols-outlined" style="font-size:22px;color:var(--red);">all_inclusive</span>
+            <span style="font-size:12px;font-weight:800;color:var(--red);">ללא הגבלה</span>
+            <span style="font-size:10px;color:var(--gray-500);">עובד כל שבוע</span>
+          </label>
+          <label id="expiry-daily" onclick="selectExpiry('daily')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border:1.5px solid var(--gray-200);background:none;border-radius:8px;cursor:pointer;text-align:center;">
+            <span class="material-symbols-outlined" style="font-size:22px;color:var(--gray-500);">today</span>
+            <span style="font-size:12px;font-weight:800;color:var(--black);">יומי</span>
+            <span style="font-size:10px;color:var(--gray-500);">תוקף להיום בלבד</span>
+          </label>
+        </div>
+      </div>
+
       <!-- Info box -->
-      <div style="background:var(--gray-50);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--gray-500);margin-bottom:20px;line-height:1.6;">
+      <div style="background:var(--gray-50);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--gray-500);margin-bottom:16px;line-height:1.7;">
         🕐 הקוד יהיה פעיל <strong>כל היום</strong> (00:00–23:59)<br>
-        📅 תוקף: עד 2199 (ללא הגבלה)<br>
         🔢 הקוד יווצר אוטומטית — 4 ספרות
       </div>
 
@@ -1416,6 +1433,31 @@
     cancelPortfolioPreview();
   }
   // ── Temp Code ──
+  function selectExpiry(type) {
+    selectedExpiry = type;
+    const unlimitedEl = document.getElementById('expiry-unlimited');
+    const dailyEl = document.getElementById('expiry-daily');
+    if (type === 'unlimited') {
+      unlimitedEl.style.border = '2px solid var(--red)';
+      unlimitedEl.style.background = '#fff5f5';
+      unlimitedEl.querySelector('.material-symbols-outlined').style.color = 'var(--red)';
+      unlimitedEl.querySelector('span:nth-child(2)').style.color = 'var(--red)';
+      dailyEl.style.border = '1.5px solid var(--gray-200)';
+      dailyEl.style.background = 'none';
+      dailyEl.querySelector('.material-symbols-outlined').style.color = 'var(--gray-500)';
+      dailyEl.querySelector('span:nth-child(2)').style.color = 'var(--black)';
+    } else {
+      dailyEl.style.border = '2px solid var(--red)';
+      dailyEl.style.background = '#fff5f5';
+      dailyEl.querySelector('.material-symbols-outlined').style.color = 'var(--red)';
+      dailyEl.querySelector('span:nth-child(2)').style.color = 'var(--red)';
+      unlimitedEl.style.border = '1.5px solid var(--gray-200)';
+      unlimitedEl.style.background = 'none';
+      unlimitedEl.querySelector('.material-symbols-outlined').style.color = 'var(--gray-500)';
+      unlimitedEl.querySelector('span:nth-child(2)').style.color = 'var(--black)';
+    }
+  }
+
   function openTempCode() {
     if (!lastPanelAddress) {
       alert('יש לבצע התחברות מרחוק תחילה כדי לקבל את כתובת הפנל');
@@ -1429,6 +1471,9 @@
       cb.checked = false;
       toggleDayLabel(parseInt(cb.value));
     });
+    // Reset expiry
+    selectedExpiry = 'unlimited';
+    selectExpiry('unlimited');
   }
 
   function closeTempCode() {
@@ -1469,7 +1514,7 @@
       const res = await fetch('/api/installer/temp-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ panelAddress: lastPanelAddress, validWeekdays })
+        body: JSON.stringify({ panelAddress: lastPanelAddress, validWeekdays, expiryType: selectedExpiry })
       });
       const data = await res.json();
 
@@ -1479,7 +1524,8 @@
         const daysStr = data.validWeekdays.map(d => dayNames[d]).join(', ');
         document.getElementById('tempCodeResultLabel').textContent = data.label;
         document.getElementById('tempCodeResultPin').textContent = data.pin;
-        document.getElementById('tempCodeResultDays').textContent = `ימים: ${daysStr} · כל היום`;
+        const expiryLabel = data.expiryType === 'daily' ? '· היום בלבד' : '· ללא הגבלה';
+        document.getElementById('tempCodeResultDays').textContent = `ימים: ${daysStr} · כל היום ${expiryLabel}`;
         document.getElementById('tempCodeResultModal').classList.add('open');
       } else {
         errEl.textContent = '❌ ' + (data.error || 'שגיאה');
