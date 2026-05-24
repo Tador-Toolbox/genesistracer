@@ -782,7 +782,7 @@
       lookupBtn:"Remote Access", logoutBtn:"Logout", rebootBtn:"Reboot",
       supportBtn:"Support", catalogBtn:"Catalog",
       tipLabel:"Technical Note:", tipText:"It is recommended to configure panel settings from a computer for maximum comfort and accuracy.",
-      deviceFound:"DEVICE FOUND", error:"ERROR",
+      deviceFound:"DEVICE FOUND", deviceOffline:"DEVICE NOT FOUND", offlineMsg:"Please check if the device has an internet connection.", error:"ERROR",
       mac:"MAC", serial:"SERIAL", project:"PROJECT", status:"STATUS", openBackend:"Connect",
       addDescription:"Add description...", editDescription:"Edit", saveDescription:"Save",
       noDescription:"No description",
@@ -794,7 +794,7 @@
       lookupBtn:"התחברות מרחוק", logoutBtn:"התנתק", rebootBtn:"אתחול מכשיר",
       supportBtn:"תמיכה", catalogBtn:"קטלוג מוצרים",
       tipLabel:"המלצה טכנית:", tipText:"מומלץ לבצע הגדרות פנל דרך מחשב לצורך נוחות מירבית ודיוק בפרמטרים המורחבים.",
-      deviceFound:"מכשיר נמצא", error:"שגיאה",
+      deviceFound:"מכשיר נמצא", deviceOffline:"מכשיר לא נמצא", offlineMsg:"יש לבדוק האם למכשיר יש חיבור אינטרנט.", error:"שגיאה",
       mac:"MAC", serial:"מספר סידורי", project:"פרויקט", status:"סטטוס", openBackend:"התחבר",
       addDescription:"הוסף תיאור...", editDescription:"ערוך", saveDescription:"שמור",
       noDescription:"אין תיאור",
@@ -967,7 +967,7 @@
       if (lastPanelAddress) loadRelayStatus(lastPanelAddress);
       resultDiv.innerHTML = `
         <div class="result-box${(data.status || '').toLowerCase() === 'offline' ? ' offline' : ''}">
-          <div class="result-label">${(data.status || '').toLowerCase() === 'offline' ? '✗' : '✓'} ${t.deviceFound}</div>
+          <div class="result-label">${(data.status || '').toLowerCase() === 'offline' ? '✗ ' + t.deviceOffline : '✓ ' + t.deviceFound}</div>
           <div class="result-ip">${data.fullAddress || data.ip}</div>
           <div class="result-grid">
             <div class="result-cell"><div class="result-cell-label">${t.mac}</div><div class="result-cell-value">${data.mac}</div></div>
@@ -975,6 +975,7 @@
             <div class="result-cell"><div class="result-cell-label">${t.project}</div><div class="result-cell-value">${data.project || '—'}</div></div>
             <div class="result-cell"><div class="result-cell-label">${t.status}</div><div class="result-cell-value">${data.status || '—'}</div></div>
           </div>
+          ${(data.status || '').toLowerCase() === 'offline' ? `<div style="margin-top:12px;padding:10px 12px;background:rgba(232,0,28,0.07);border-radius:6px;font-size:12px;color:var(--red);text-align:center;">⚠️ ${t.offlineMsg}</div>` : ''}
           ${data.fullAddress ? `<button class="result-open-btn" onclick="window.open('http://${data.fullAddress}','_blank')">
             <span class="material-symbols-outlined" style="font-size:16px;">open_in_new</span> ${t.openBackend}
           </button>` : ''}
