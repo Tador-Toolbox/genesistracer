@@ -1186,8 +1186,8 @@ app.post('/api/installer/temp-code', async (req, res) => {
     // Step 4: Create the temporary code
     const { expiryType } = req.body; // 'unlimited' | 'daily'
 
-    // Calculate Israel timezone timestamps
-    function getIsraelDayTimestamps() {
+    // Calculate Israel timezone — find next occurrence of selected weekday(s)
+    function getTargetDayTimestamps(weekdays) {
       const now = new Date();
       const year = now.getUTCFullYear();
       const marchEnd = new Date(Date.UTC(year, 2, 31));
@@ -1195,14 +1195,28 @@ app.post('/api/installer/temp-code', async (req, res) => {
       const octEnd = new Date(Date.UTC(year, 9, 31));
       while (octEnd.getUTCDay() !== 0) octEnd.setUTCDate(octEnd.getUTCDate() - 1);
       const offsetHours = (now >= marchEnd && now < octEnd) ? 3 : 2;
+
       const ilMs = now.getTime() + offsetHours * 3600000;
       const il = new Date(ilMs);
-      const startMs = Date.UTC(il.getUTCFullYear(), il.getUTCMonth(), il.getUTCDate()) - offsetHours * 3600000;
+      const todayDOW = il.getUTCDay(); // 0=Sun
+
+      // Find the nearest selected weekday from today (0 = today itself)
+      let minOffset = 7;
+      for (const targetDOW of weekdays) {
+        const offset = (targetDOW - todayDOW + 7) % 7;
+        minOffset = Math.min(minOffset, offset);
+      }
+
+      // Build start/end timestamps for that target date in Israel time
+      const startMs = Date.UTC(il.getUTCFullYear(), il.getUTCMonth(), il.getUTCDate() + minOffset) - offsetHours * 3600000;
       const endMs = startMs + 86400000 - 1000; // 23:59:59
+
+      const targetDate = new Date(startMs + offsetHours * 3600000);
+      console.log(`📅 Daily target: +${minOffset} days → ${targetDate.toISOString().slice(0,10)}`);
       return { start: startMs, end: endMs };
     }
 
-    const timestamps = getIsraelDayTimestamps();
+    const timestamps = getTargetDayTimestamps(validWeekdays);
     const effective_date = timestamps.start;
     const expired_date = expiryType === 'daily' ? timestamps.end : 7258175999000; // 2199-12-31
 
