@@ -687,6 +687,12 @@
           <div id="rebootResult" class="status-msg"></div>
         </button>
 
+        <!-- Temporary Code -->
+        <button class="action-card" id="tempCodeBtn" onclick="openTempCode()">
+          <span class="material-symbols-outlined">password</span>
+          <span class="action-card-label">קוד זמני</span>
+        </button>
+
         <!-- Catalog -->
         <button class="action-card" id="catalogSection" onclick="openCatalog()">
           <span class="material-symbols-outlined">download</span>
@@ -1311,6 +1317,88 @@
   </div>
 </div>
 
+<!-- ══ TEMP CODE MODAL ══ -->
+<div id="tempCodeModal" class="overlay">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">password</span>
+        קוד זמני חדש
+      </h3>
+      <button class="modal-close" onclick="closeTempCode()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px;">
+
+      <!-- Days selection -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">ימים בשבוע</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="dayCheckboxes">
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-0">
+            <input type="checkbox" value="0" onchange="toggleDayLabel(0)" style="accent-color:var(--red);width:16px;height:16px;"> ראשון
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-1">
+            <input type="checkbox" value="1" onchange="toggleDayLabel(1)" style="accent-color:var(--red);width:16px;height:16px;"> שני
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-2">
+            <input type="checkbox" value="2" onchange="toggleDayLabel(2)" style="accent-color:var(--red);width:16px;height:16px;"> שלישי
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-3">
+            <input type="checkbox" value="3" onchange="toggleDayLabel(3)" style="accent-color:var(--red);width:16px;height:16px;"> רביעי
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-4">
+            <input type="checkbox" value="4" onchange="toggleDayLabel(4)" style="accent-color:var(--red);width:16px;height:16px;"> חמישי
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-5">
+            <input type="checkbox" value="5" onchange="toggleDayLabel(5)" style="accent-color:var(--red);width:16px;height:16px;"> שישי
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-6">
+            <input type="checkbox" value="6" onchange="toggleDayLabel(6)" style="accent-color:var(--red);width:16px;height:16px;"> שבת
+          </label>
+        </div>
+      </div>
+
+      <!-- Info box -->
+      <div style="background:var(--gray-50);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--gray-500);margin-bottom:20px;line-height:1.6;">
+        🕐 הקוד יהיה פעיל <strong>כל היום</strong> (00:00–23:59)<br>
+        📅 תוקף: עד 2199 (ללא הגבלה)<br>
+        🔢 הקוד יווצר אוטומטית — 4 ספרות
+      </div>
+
+      <!-- Error msg -->
+      <div id="tempCodeError" style="font-size:13px;color:var(--red);font-weight:600;min-height:18px;margin-bottom:12px;text-align:center;"></div>
+
+      <!-- Submit button -->
+      <button class="btn-red" onclick="createTempCode()" id="tempCodeSubmitBtn">
+        <span class="material-symbols-outlined">add_circle</span>
+        צור קוד זמני
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TEMP CODE RESULT MODAL ══ -->
+<div id="tempCodeResultModal" class="overlay">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;color:#16a34a;">check_circle</span>
+        קוד נוצר בהצלחה!
+      </h3>
+      <button class="modal-close" onclick="closeTempCodeResult()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:24px;text-align:center;">
+      <div style="font-size:13px;color:var(--gray-500);margin-bottom:8px;" id="tempCodeResultLabel"></div>
+      <div style="font-family:'Courier New',monospace;font-size:52px;font-weight:800;color:var(--black);letter-spacing:12px;margin:16px 0;" id="tempCodeResultPin"></div>
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:20px;" id="tempCodeResultDays"></div>
+      <button onclick="copyTempCode()" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:12px;border:1.5px solid var(--gray-200);border-radius:8px;background:none;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;">
+        <span class="material-symbols-outlined" style="font-size:18px;">content_copy</span>
+        העתק קוד
+      </button>
+      <button class="btn-red" onclick="closeTempCodeResult()">סגור</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ LIGHTBOX ══ -->
 <div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:12px;" onclick="closeLightbox()">
   <img id="lightboxImg" style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;" />
@@ -1327,6 +1415,102 @@
     document.getElementById('portfolioModal').classList.remove('open');
     cancelPortfolioPreview();
   }
+  // ── Temp Code ──
+  function openTempCode() {
+    if (!lastPanelAddress) {
+      alert('יש לבצע התחברות מרחוק תחילה כדי לקבל את כתובת הפנל');
+      return;
+    }
+    document.getElementById('tempCodeModal').classList.add('open');
+    document.getElementById('tempCodeError').textContent = '';
+    document.getElementById('tempCodeSubmitBtn').disabled = false;
+    // Reset checkboxes
+    document.querySelectorAll('#dayCheckboxes input[type=checkbox]').forEach(cb => {
+      cb.checked = false;
+      toggleDayLabel(parseInt(cb.value));
+    });
+  }
+
+  function closeTempCode() {
+    document.getElementById('tempCodeModal').classList.remove('open');
+  }
+
+  function closeTempCodeResult() {
+    document.getElementById('tempCodeResultModal').classList.remove('open');
+  }
+
+  function toggleDayLabel(dayIndex) {
+    const label = document.getElementById(`day-label-${dayIndex}`);
+    const cb = label.querySelector('input');
+    if (cb.checked) {
+      label.style.borderColor = 'var(--red)';
+      label.style.background = '#fff5f5';
+    } else {
+      label.style.borderColor = 'var(--gray-200)';
+      label.style.background = '';
+    }
+  }
+
+  async function createTempCode() {
+    const checkboxes = document.querySelectorAll('#dayCheckboxes input[type=checkbox]:checked');
+    if (checkboxes.length === 0) {
+      document.getElementById('tempCodeError').textContent = 'יש לבחור לפחות יום אחד';
+      return;
+    }
+
+    const validWeekdays = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    const btn = document.getElementById('tempCodeSubmitBtn');
+    const errEl = document.getElementById('tempCodeError');
+    btn.disabled = true;
+    errEl.textContent = '';
+    btn.innerHTML = '<span class="material-symbols-outlined">hourglass_empty</span> יוצר קוד...';
+
+    try {
+      const res = await fetch('/api/installer/temp-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ panelAddress: lastPanelAddress, validWeekdays })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        closeTempCode();
+        const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+        const daysStr = data.validWeekdays.map(d => dayNames[d]).join(', ');
+        document.getElementById('tempCodeResultLabel').textContent = data.label;
+        document.getElementById('tempCodeResultPin').textContent = data.pin;
+        document.getElementById('tempCodeResultDays').textContent = `ימים: ${daysStr} · כל היום`;
+        document.getElementById('tempCodeResultModal').classList.add('open');
+      } else {
+        errEl.textContent = '❌ ' + (data.error || 'שגיאה');
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined">add_circle</span> צור קוד זמני';
+      }
+    } catch(e) {
+      errEl.textContent = '❌ שגיאת תקשורת';
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">add_circle</span> צור קוד זמני';
+    }
+  }
+
+  function copyTempCode() {
+    const pin = document.getElementById('tempCodeResultPin').textContent;
+    navigator.clipboard.writeText(pin).then(() => {
+      const btn = event.target.closest('button');
+      btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;">check</span> הועתק!';
+      setTimeout(() => {
+        btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;">content_copy</span> העתק קוד';
+      }, 2000);
+    });
+  }
+
+  document.getElementById('tempCodeModal').addEventListener('click', function(e) {
+    if (e.target === this) closeTempCode();
+  });
+  document.getElementById('tempCodeResultModal').addEventListener('click', function(e) {
+    if (e.target === this) closeTempCodeResult();
+  });
+
   document.getElementById('portfolioModal').addEventListener('click', function(e) {
     if (e.target === this) closePortfolio();
   });
