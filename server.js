@@ -101,6 +101,15 @@ const NEXHOME_ACCOUNTS = [
     engineeringId: null,
     expiresAt: 0,
   },
+  {
+    username: process.env.NEXHOME_USERNAME_3 || 'sales_tadorcom',
+    password: process.env.NEXHOME_PASSWORD_3 || '',
+    token: null,
+    employeeAccountId: null,
+    customerId: null,
+    engineeringId: null,
+    expiresAt: 0,
+  },
 ];
 
 let roundRobinIndex = 0;
