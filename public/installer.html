@@ -324,6 +324,7 @@
       padding: 16px;
     }
     .result-box.error { border-color: var(--red); background: #fff5f5; }
+    .result-box.offline { border-color: var(--red); background: #fff5f5; }
     .result-label {
       font-size: 10px;
       font-weight: 800;
@@ -333,6 +334,7 @@
       margin-bottom: 6px;
     }
     .result-box.error .result-label { color: var(--red); }
+    .result-box.offline .result-label { color: var(--red); }
     .result-ip {
       font-family: 'Courier New', monospace;
       font-size: 18px;
@@ -340,6 +342,7 @@
       color: #16a34a;
       margin-bottom: 12px;
     }
+    .result-box.offline .result-ip { color: var(--red); }
     .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .result-cell { background: rgba(255,255,255,0.7); border-radius: 6px; padding: 8px 10px; }
     .result-cell-label { font-size: 10px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
@@ -963,8 +966,8 @@
       lastPanelAddress = data.fullAddress || null;
       if (lastPanelAddress) loadRelayStatus(lastPanelAddress);
       resultDiv.innerHTML = `
-        <div class="result-box">
-          <div class="result-label">✓ ${t.deviceFound}</div>
+        <div class="result-box${(data.status || '').toLowerCase() === 'offline' ? ' offline' : ''}">
+          <div class="result-label">${(data.status || '').toLowerCase() === 'offline' ? '✗' : '✓'} ${t.deviceFound}</div>
           <div class="result-ip">${data.fullAddress || data.ip}</div>
           <div class="result-grid">
             <div class="result-cell"><div class="result-cell-label">${t.mac}</div><div class="result-cell-value">${data.mac}</div></div>
