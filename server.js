@@ -1184,14 +1184,33 @@ app.post('/api/installer/temp-code', async (req, res) => {
     if (!pin) return res.status(500).json({ success: false, error: 'Could not generate unique PIN after 20 attempts' });
 
     // Step 4: Create the temporary code
-    const now = Date.now();
-    const expiry = 7258175999000; // 2199-12-31
+    const { expiryType } = req.body; // 'unlimited' | 'daily'
+
+    // Calculate Israel timezone timestamps
+    function getIsraelDayTimestamps() {
+      const now = new Date();
+      const year = now.getUTCFullYear();
+      const marchEnd = new Date(Date.UTC(year, 2, 31));
+      while (marchEnd.getUTCDay() !== 5) marchEnd.setUTCDate(marchEnd.getUTCDate() - 1);
+      const octEnd = new Date(Date.UTC(year, 9, 31));
+      while (octEnd.getUTCDay() !== 0) octEnd.setUTCDate(octEnd.getUTCDate() - 1);
+      const offsetHours = (now >= marchEnd && now < octEnd) ? 3 : 2;
+      const ilMs = now.getTime() + offsetHours * 3600000;
+      const il = new Date(ilMs);
+      const startMs = Date.UTC(il.getUTCFullYear(), il.getUTCMonth(), il.getUTCDate()) - offsetHours * 3600000;
+      const endMs = startMs + 86400000 - 1000; // 23:59:59
+      return { start: startMs, end: endMs };
+    }
+
+    const timestamps = getIsraelDayTimestamps();
+    const effective_date = timestamps.start;
+    const expired_date = expiryType === 'daily' ? timestamps.end : 7258175999000; // 2199-12-31
 
     const body = {
       label,
       password: pin,
-      effective_date: now,
-      expired_date: expiry,
+      effective_date,
+      expired_date,
       valid_weekdays: validWeekdays,
       valid_count: -1,
       valid_periods: '[{"begin":"00:00:00","end":"23:59:59"}]',
@@ -1201,8 +1220,8 @@ app.post('/api/installer/temp-code', async (req, res) => {
     const createRes = await panelHttpPostWithHeaders(host, port, '/api/v1/access', body, authHeaders);
 
     if (createRes?.status === 'OK') {
-      console.log(`✅ Temp code created: ${label} PIN:${pin} days:${validWeekdays}`);
-      return res.json({ success: true, label, pin, validWeekdays });
+      console.log(`✅ Temp code created: ${label} PIN:${pin} days:${validWeekdays} expiry:${expiryType}`);
+      return res.json({ success: true, label, pin, validWeekdays, expiryType });
     } else {
       const errCode = createRes?.error?.code;
       const errMsg = createRes?.error?.message || createRes?.status || 'Unknown error';
