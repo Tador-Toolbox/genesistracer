@@ -573,31 +573,19 @@
         </table>
       </div>
 
-      <!-- Login Logs -->
-      <div class="card">
-        <h2 data-i18n="loginLogs">📊 Login Activity</h2>
-        <table id="logsTable">
-          <thead>
-            <tr>
-              <th data-i18n="thPhone">Phone Number</th>
-              <th data-i18n="thTimestamp">Timestamp</th>
-              <th data-i18n="thIP">IP Address</th>
-            </tr>
-          </thead>
-          <tbody id="logsBody"></tbody>
-        </table>
-      </div>
+
 
       <!-- Activity Log -->
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-          <h2 style="margin:0;">יומן פעילות מתקינים</h2>
+          <h2 style="margin:0;">יומן פעילות</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <select id="activityFilterInstaller" onchange="loadActivityLogs()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-family:inherit;font-size:13px;">
               <option value="">כל המשתמשים</option>
             </select>
             <select id="activityFilterAction" onchange="loadActivityLogs()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-family:inherit;font-size:13px;">
               <option value="">כל הפעולות</option>
+              <option value="login">כניסה למערכת</option>
               <option value="lookup">התחברות מרחוק</option>
               <option value="reboot">אתחול</option>
               <option value="relay_toggle">פתיחת דלת חירום</option>
@@ -1447,8 +1435,8 @@
       return mac;
     }
 
-    var ACTION_LABELS = { lookup:'התחברות מרחוק', reboot:'אתחול מכשיר', relay_toggle:'פתיחת דלת חירום', temp_code:'קוד זמני', catalog:'קטלוג מוצרים', portfolio:'תיק עבודות' };
-    var ACTION_COLORS = { lookup:'#3b82f6', reboot:'#f59e0b', relay_toggle:'#ef4444', temp_code:'#8b5cf6', catalog:'#0ea5e9', portfolio:'#10b981' };
+    var ACTION_LABELS = { login:'כניסה למערכת', lookup:'התחברות מרחוק', reboot:'אתחול מכשיר', relay_toggle:'פתיחת דלת חירום', temp_code:'קוד זמני', catalog:'קטלוג מוצרים', portfolio:'תיק עבודות' };
+    var ACTION_COLORS = { login:'#6b7280', lookup:'#3b82f6', reboot:'#f59e0b', relay_toggle:'#ef4444', temp_code:'#8b5cf6', catalog:'#0ea5e9', portfolio:'#10b981' };
 
     async function loadActivityLogs() {
       var installer = document.getElementById('activityFilterInstaller') ? document.getElementById('activityFilterInstaller').value : '';
@@ -1480,6 +1468,8 @@
             detailsStr = 'קוד: ' + log.details.pin + ' | ' + days + ' | ' + (log.details.expiryType === 'daily' ? 'יומי' : 'ללא הגבלה');
           } else if (log.action === 'relay_toggle' && log.details && log.details.newMode) {
             detailsStr = log.details.newMode === 'alwayson' ? 'הופעל' : 'כובה';
+          } else if (log.action === 'login') {
+            detailsStr = log.details && log.details.ip ? 'IP: ' + log.details.ip : '';
           } else if (log.action === 'lookup' && log.details && log.details.status) {
             detailsStr = (log.details.project || '') + ' - ' + (log.details.status === 'online' ? 'מחובר' : 'מנותק');
           } else if (log.action === 'reboot') {
@@ -1734,16 +1724,7 @@
         tbody.appendChild(row);
       }
 
-      const logsRes = await fetch('/api/manager/logs');
-      const logsData = await logsRes.json();
-      const logsBody = document.getElementById('logsBody');
-      logsBody.innerHTML = logsData.logs.slice(0, 20).map(log => `
-        <tr>
-          <td>${log.phoneNumber}</td>
-          <td>${new Date(log.timestamp).toLocaleString()}</td>
-          <td>${log.ip || 'N/A'}</td>
-        </tr>
-      `).join('');
+
     }
 
     // initial labels
