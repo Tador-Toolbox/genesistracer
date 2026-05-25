@@ -1380,6 +1380,14 @@ app.get('/api/manager/activity-logs/:phoneNumber', async (req, res) => {
   }
 });
 
+// ==================== GENERIC ACTION LOG ====================
+app.post('/api/installer/log-action', async (req, res) => {
+  const { action, installerPhone, details = {} } = req.body;
+  if (!action) return res.status(400).json({ success: false });
+  await logActivity({ phoneNumber: installerPhone || 'unknown', action, mac: null, details, success: true });
+  res.json({ success: true });
+});
+
 // ==================== CATALOG ====================
 app.get('/api/catalog', async (req, res) => {
   try {
