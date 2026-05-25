@@ -1395,6 +1395,92 @@ app.post('/api/installer/log-action', async (req, res) => {
   res.json({ success: true });
 });
 
+// ==================== ANNOUNCEMENTS ====================
+
+// Manager: send announcement
+app.post('/api/manager/announcements', async (req, res) => {
+  try {
+    const { text, audience } = req.body; // audience: 'all' | 'installers' | 'committees'
+    if (!text || !text.trim()) return res.status(400).json({ success: false, error: 'Text required' });
+    const db_module = require('./db');
+    const database = await db_module.connectDB();
+    const col = database.collection('announcements');
+    const result = await col.insertOne({
+      text: text.trim(),
+      audience: audience || 'all',
+      createdAt: new Date(),
+      readBy: [],
+    });
+    res.json({ success: true, id: result.insertedId });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Manager: get all announcements
+app.get('/api/manager/announcements', async (req, res) => {
+  try {
+    const db_module = require('./db');
+    const database = await db_module.connectDB();
+    const col = database.collection('announcements');
+    const announcements = await col.find({}).sort({ createdAt: -1 }).limit(50).toArray();
+    res.json({ success: true, announcements });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Manager: delete announcement
+app.delete('/api/manager/announcements/:id', async (req, res) => {
+  try {
+    const { ObjectId } = require('mongodb');
+    const db_module = require('./db');
+    const database = await db_module.connectDB();
+    const col = database.collection('announcements');
+    await col.deleteOne({ _id: new ObjectId(req.params.id) });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Installer: get announcements for me
+app.get('/api/installer/announcements', async (req, res) => {
+  try {
+    const { phoneNumber, accountType } = req.query;
+    const db_module = require('./db');
+    const database = await db_module.connectDB();
+    const col = database.collection('announcements');
+    const type = accountType || 'installer';
+    const query = {
+      audience: { $in: ['all', type === 'committee' ? 'committees' : 'installers'] }
+    };
+    const announcements = await col.find(query).sort({ createdAt: -1 }).limit(20).toArray();
+    // Count unread
+    const unread = announcements.filter(a => !a.readBy.includes(phoneNumber)).length;
+    res.json({ success: true, announcements, unread });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Installer: mark announcements as read
+app.post('/api/installer/announcements/read', async (req, res) => {
+  try {
+    const { phoneNumber } = req.body;
+    const db_module = require('./db');
+    const database = await db_module.connectDB();
+    const col = database.collection('announcements');
+    await col.updateMany(
+      { readBy: { $ne: phoneNumber } },
+      { $addToSet: { readBy: phoneNumber } }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== CATALOG ====================
 app.get('/api/catalog', async (req, res) => {
   try {
