@@ -575,6 +575,34 @@
 
 
 
+      <!-- Announcements -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+          <h2 style="margin:0;">📢 הודעות</h2>
+          <button onclick="toggleNewAnnouncement()" style="padding:7px 14px;background:var(--primary);color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">+ הודעה חדשה</button>
+        </div>
+
+        <!-- New announcement form -->
+        <div id="newAnnouncementForm" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <textarea id="announcementText" placeholder="כתוב הודעה לכל המתקינים/ועדים..." style="width:100%;min-height:80px;padding:10px 12px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:14px;background:var(--bg-card);color:var(--text);resize:vertical;margin-bottom:10px;"></textarea>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <select id="announcementAudience" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-family:inherit;font-size:13px;">
+              <option value="all">כולם</option>
+              <option value="installers">מתקינים בלבד</option>
+              <option value="committees">ועדי בתים בלבד</option>
+            </select>
+            <button onclick="sendAnnouncement()" style="padding:7px 16px;background:var(--primary);color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">שלח</button>
+            <button onclick="toggleNewAnnouncement()" style="padding:7px 14px;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--text);">ביטול</button>
+            <span id="announcementMsg" style="font-size:13px;font-weight:600;"></span>
+          </div>
+        </div>
+
+        <!-- Existing announcements list -->
+        <div id="announcementsManagerList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;">טוען...</div>
+        </div>
+      </div>
+
       <!-- Activity Log -->
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
@@ -888,7 +916,7 @@
         if (data.success) {
           document.getElementById('loginScreen').style.display = 'none';
           document.getElementById('managerPanel').style.display = 'block';
-          loadData().then(function(){ loadActivityLogs(); populateActivityInstallerFilter(); });
+          loadData().then(function(){ loadActivityLogs(); populateActivityInstallerFilter(); loadAnnouncements(); });
           loadCatalog();
           loadMailingList();
           loadTutorialsAdmin();
@@ -1529,6 +1557,72 @@
           sel.appendChild(grp2);
         }
       } catch(e) {}
+    }
+
+    function toggleNewAnnouncement() {
+      var form = document.getElementById('newAnnouncementForm');
+      form.style.display = form.style.display === 'none' ? 'block' : 'none';
+      if (form.style.display === 'block') document.getElementById('announcementText').focus();
+    }
+
+    async function sendAnnouncement() {
+      var text = document.getElementById('announcementText').value.trim();
+      var audience = document.getElementById('announcementAudience').value;
+      var msg = document.getElementById('announcementMsg');
+      if (!text) { msg.style.color = 'red'; msg.textContent = 'נא להזין הודעה'; return; }
+      msg.style.color = 'var(--text-dim)'; msg.textContent = 'שולח...';
+      try {
+        var res = await fetch('/api/manager/announcements', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, audience })
+        });
+        var data = await res.json();
+        if (data.success) {
+          msg.style.color = 'green'; msg.textContent = '✅ נשלח בהצלחה';
+          document.getElementById('announcementText').value = '';
+          setTimeout(() => { toggleNewAnnouncement(); msg.textContent = ''; loadAnnouncements(); }, 1000);
+        } else {
+          msg.style.color = 'red'; msg.textContent = data.error || 'שגיאה';
+        }
+      } catch(e) { msg.style.color = 'red'; msg.textContent = 'שגיאת תקשורת'; }
+    }
+
+    async function deleteAnnouncement(id) {
+      if (!confirm('למחוק את ההודעה?')) return;
+      await fetch('/api/manager/announcements/' + id, { method: 'DELETE' });
+      loadAnnouncements();
+    }
+
+    async function loadAnnouncements() {
+      var list = document.getElementById('announcementsManagerList');
+      if (!list) return;
+      try {
+        var res = await fetch('/api/manager/announcements');
+        var data = await res.json();
+        if (!data.announcements.length) {
+          list.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;">אין הודעות עדיין</div>';
+          return;
+        }
+        var audienceLabels = { all: 'כולם', installers: 'מתקינים', committees: 'ועדי בתים' };
+        list.innerHTML = data.announcements.map(function(a) {
+          var date = new Date(a.createdAt).toLocaleDateString('he-IL', {day:'numeric',month:'numeric',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+          var readCount = (a.readBy || []).length;
+          return '<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;">' +
+            '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;">' +
+            '<div style="font-size:14px;line-height:1.6;flex:1;">' + a.text.split('\n').join('<br/>') + '</div>' +
+            '<button onclick="deleteAnnouncement(&quot;' + a._id + '&quot;)" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:18px;flex-shrink:0;padding:0 4px;">×</button>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:12px;font-size:11px;color:var(--text-dim);">' +
+            '<span>' + date + '</span>' +
+            '<span style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:2px 8px;">' + (audienceLabels[a.audience] || a.audience) + '</span>' +
+            '<span>נקרא ע"י ' + readCount + '</span>' +
+            '</div>' +
+            '</div>';
+        }).join('');
+      } catch(e) {
+        list.innerHTML = '<div style="color:red;font-size:13px;padding:12px;">שגיאה בטעינה</div>';
+      }
     }
 
     async function loadData() {
