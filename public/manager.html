@@ -227,8 +227,6 @@
       padding: 32px;
       width: 520px;
       max-width: 95vw;
-      max-height: 90vh;
-      overflow-y: auto;
     }
 
     .modal h3 {
@@ -238,26 +236,6 @@
       text-transform: uppercase;
       letter-spacing: 1px;
     }
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-    }
-    .modal-header h3 {
-      margin-bottom: 0;
-    }
-    .modal-close-btn {
-      background: none;
-      border: none;
-      font-size: 22px;
-      color: var(--text-dim);
-      cursor: pointer;
-      line-height: 1;
-      padding: 0 4px;
-      opacity: 0.7;
-    }
-    .modal-close-btn:hover { opacity: 1; color: var(--text); }
 
     .modal-field { margin-bottom: 16px; }
     .modal-field label {
@@ -437,25 +415,9 @@
             <span>☎️</span>
             <span data-i18n="voipbellServer">Voipbell Server Login</span>
           </a>
-          <a href="https://nexsmart-us.nexhome.ai/login" target="_blank" class="installer-link" style="background:linear-gradient(135deg,#0ea5e9,#0369a1);color:white;">
-            <span>🌐</span>
-            <span>Nexhome Login</span>
-          </a>
           <a href="#" onclick="exportExcel(); return false;" class="installer-link" style="background:linear-gradient(135deg,#1a7a4a,#12593a);color:white;">
             <span>📊</span>
             <span>ייצוא Excel</span>
-          </a>
-          <a href="/stats.html" target="_blank" class="installer-link" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;">
-            <span>📈</span>
-            <span>סטטיסטיקה</span>
-          </a>
-          <a href="/notes.html" target="_blank" class="installer-link" style="background:linear-gradient(135deg,#0891b2,#0e7490);color:white;">
-            <span>📝</span>
-            <span>תכנותים נוספים</span>
-          </a>
-          <a href="#" onclick="openMergeModal(); return false;" class="installer-link" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;">
-            <span>🔀</span>
-            <span>מיזוג חשבונות</span>
           </a>
         </div>
       </div>
@@ -463,20 +425,9 @@
       <!-- Create Installer -->
       <div class="card">
         <h2 data-i18n="createInstaller">➕ Create Installer Account</h2>
-        <div class="form-row" style="flex-wrap:wrap;gap:8px;">
+        <div class="form-row">
           <input type="text" id="newPhone" data-i18n-placeholder="phoneNumber" placeholder="Phone Number (e.g., +972501234567)" />
           <input type="text" id="newMacs" data-i18n-placeholder="macAddresses" placeholder="MAC Addresses (comma separated, optional)" />
-          <div style="display:flex;gap:6px;align-items:center;">
-            <button id="typeInstallerBtn" onclick="setNewAccountType('installer')"
-              style="padding:8px 14px;border-radius:20px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#dcfce7;color:#16a34a;">
-              ✅ מתקין
-            </button>
-            <button id="typeCommitteeBtn" onclick="setNewAccountType('committee')"
-              style="padding:8px 14px;border-radius:20px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:var(--surface2);color:var(--text-dim);">
-              🏢 ועד
-            </button>
-            <input type="hidden" id="newAccountType" value="installer" />
-          </div>
           <button onclick="createInstaller()" data-i18n="createBtn">Create</button>
         </div>
         <div id="createResult"></div>
@@ -591,7 +542,7 @@
       <!-- Activity Log -->
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-          <h2 style="margin:0;">🕵️ יומן פעילות מתקינים</h2>
+          <h2 style="margin:0;">יומן פעילות מתקינים</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <select id="activityFilterInstaller" onchange="loadActivityLogs()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-family:inherit;font-size:13px;">
               <option value="">כל המתקינים</option>
@@ -630,10 +581,7 @@
   <!-- MAC Modal -->
   <div class="modal-overlay" id="macModal">
     <div class="modal">
-      <div class="modal-header">
-        <h3 id="modalTitle">Add MAC Address</h3>
-        <button class="modal-close-btn" onclick="closeModal()" title="Close">✕</button>
-      </div>
+      <h3 id="modalTitle">Add MAC Address</h3>
       <input type="hidden" id="modalPhone" />
       <input type="hidden" id="modalOriginalMac" />
 
@@ -662,9 +610,20 @@
         <input type="text" id="modalNotes" placeholder="Extra details..." />
       </div>
 
+      <div class="modal-field">
+        <label id="labelTechnician">👷 Technician Name</label>
+        <input type="text" id="modalTechnicianName" placeholder="Technician full name" />
+      </div>
 
+      <div class="modal-field">
+        <label id="labelSupplier">🏢 Supplier Name</label>
+        <input type="text" id="modalSupplier" placeholder="Supplier name" />
+      </div>
 
-
+      <div class="modal-field">
+        <label id="labelCommittee">👥 Committee Name</label>
+        <input type="text" id="modalCommittee" placeholder="Committee name" />
+      </div>
 
       <div class="modal-field">
         <label id="labelModel">💻 דגם מכשיר</label>
@@ -684,24 +643,11 @@
         <input type="number" id="modalLicensesPurchased" placeholder="e.g. 5" min="0" />
       </div>
 
-      <!-- Hidden fields -->
+      <!-- Hidden fields for values not shown in UI but needed by submitMac -->
       <input type="hidden" id="modalTechnicianPhone" />
-
-      <div class="modal-field">
-        <label id="labelCity">🏙️ City</label>
-        <input type="text" id="modalCity" placeholder="City" />
-      </div>
-
-      <div class="modal-field">
-        <label id="labelVoipbell">📞 VoipBell Account</label>
-        <input type="text" id="modalVoipbellAccount" placeholder="VoipBell account name" />
-      </div>
-
-      <!-- Fields removed from UI but kept for backward compat -->
-      <input type="hidden" id="modalTechnicianName" value="" />
-      <input type="hidden" id="modalSupplier" value="" />
-      <input type="hidden" id="modalCommittee" value="" />
-      <input type="hidden" id="modalCommitteePhone" value="" />
+      <input type="hidden" id="modalCommitteePhone" />
+      <input type="hidden" id="modalCity" />
+      <input type="hidden" id="modalVoipbellAccount" />
 
       <div class="modal-buttons">
         <button class="btn-cancel" onclick="closeModal()" id="modalCancelBtn">Cancel</button>
@@ -898,7 +844,7 @@
         if (data.success) {
           document.getElementById('loginScreen').style.display = 'none';
           document.getElementById('managerPanel').style.display = 'block';
-          loadData().then(() => { loadActivityLogs(); populateActivityInstallerFilter(); });
+          loadData().then(function(){ loadActivityLogs(); populateActivityInstallerFilter(); });
           loadCatalog();
           loadMailingList();
           loadTutorialsAdmin();
@@ -921,30 +867,15 @@
       document.getElementById('loginError').style.display = 'none';
     }
 
-
-    function setNewAccountType(type) {
-      document.getElementById('newAccountType').value = type;
-      const instBtn = document.getElementById('typeInstallerBtn');
-      const commBtn = document.getElementById('typeCommitteeBtn');
-      if (type === 'installer') {
-        instBtn.style.background = '#dcfce7'; instBtn.style.color = '#16a34a';
-        commBtn.style.background = 'var(--surface2)'; commBtn.style.color = 'var(--text-dim)';
-      } else {
-        commBtn.style.background = '#e0e7ff'; commBtn.style.color = '#4338ca';
-        instBtn.style.background = 'var(--surface2)'; instBtn.style.color = 'var(--text-dim)';
-      }
-    }
-
     async function createInstaller() {
       const phoneNumber = document.getElementById('newPhone').value;
       const macs = document.getElementById('newMacs').value;
       const macAddresses = macs ? macs.split(',').map(m => m.trim().replace(/[:\s-]/g, '').toUpperCase()) : [];
 
-      const accountType = document.getElementById('newAccountType').value;
       const res = await fetch('/api/manager/installers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, macAddresses, accountType })
+        body: JSON.stringify({ phoneNumber, macAddresses })
       });
 
       const data = await res.json();
@@ -963,8 +894,6 @@
         `;
         document.getElementById('newPhone').value = '';
         document.getElementById('newMacs').value = '';
-        document.getElementById('newAccountType').value = 'installer';
-        setNewAccountType('installer');
         loadData();
       } else {
         resultDiv.innerHTML = `<div class="error-msg">${data.error || 'Error'}</div>`;
@@ -1010,8 +939,7 @@
 
       document.getElementById('modalMac').value = macObj ? (macObj.mac || '') : '';
       document.getElementById('modalAddress').value = macObj ? (macObj.address || '') : '';
-      const todayStr = new Date().toISOString().split('T')[0];
-      document.getElementById('modalPurchaseDate').value = macObj ? (macObj.purchaseDate || '') : todayStr;
+      document.getElementById('modalPurchaseDate').value = macObj ? (macObj.purchaseDate || '') : '';
       document.getElementById('modalStartDate').value = macObj ? (macObj.startDate || '') : '';
       document.getElementById('modalNotes').value = macObj ? (macObj.notes || '') : '';
       document.getElementById('modalTechnicianName').value = macObj ? (macObj.technicianName || '') : '';
@@ -1021,7 +949,6 @@
       document.getElementById('modalCity').value = macObj ? (macObj.city || '') : '';
       document.getElementById('modalModel').value = macObj ? (macObj.panelType || 'genesis7') : 'genesis7';
       document.getElementById('modalVoipbellAccount').value = macObj ? (macObj.voipbellAccount || '') : '';
-      document.getElementById('modalCommitteePhone').value = macObj ? (macObj.committeePhone || '') : '';
       document.getElementById('modalAnnualFee').value = macObj ? (macObj.annualFee || '') : '';
 
       document.getElementById('modalTitle').textContent = macObj ? (t.edit + ' MAC') : ('+ ' + t.addMac);
@@ -1032,8 +959,6 @@
       document.getElementById('labelTechnician').textContent = '👷 ' + t.technicianName;
       document.getElementById('labelSupplier').textContent = '🏢 ' + t.supplierName;
       document.getElementById('labelAnnualFee').textContent = '💰 ' + t.annualFee;
-      document.getElementById('labelCity').textContent = '🏙️ ' + (currentLang === 'he' ? 'עיר' : 'City');
-      document.getElementById('labelVoipbell').textContent = '📞 VoipBell Account';
 
       document.getElementById('modalCancelBtn').textContent = currentLang === 'he' ? 'ביטול' : 'Cancel';
       document.getElementById('modalSaveBtn').textContent = currentLang === 'he' ? 'שמור' : 'Save';
@@ -1316,9 +1241,6 @@
                 שמור
               </button>
             </div>`;
-          } catch(renderErr) {
-            return `<tr><td colspan="6" style="color:red;padding:8px;">שגיאת עיבוד: ${renderErr.message}</td></tr>`;
-          }
         }).join('');
       } catch(e) {
         list.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;">שגיאה בטעינה</div>';
@@ -1370,53 +1292,11 @@
     }
 
 
-
-
-    async function editInstallerPhone(currentPhone) {
-      const newPhone = prompt('מספר טלפון חדש:', currentPhone);
-      if (!newPhone || newPhone.trim() === currentPhone) return;
-      const confirmed = confirm('שינוי מספר הטלפון מ-' + currentPhone + ' ל-' + newPhone.trim() + '\n\nהטכנאי יצטרך להתחבר עם המספר החדש. להמשיך?');
-      if (!confirmed) return;
-      try {
-        const res = await fetch('/api/manager/installers/' + currentPhone + '/change-phone', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ newPhoneNumber: newPhone.trim() })
-        });
-        const data = await res.json();
-        if (data.success) {
-          loadData();
-        } else {
-          alert('שגיאה: ' + (data.error || 'unknown'));
-        }
-      } catch(e) { alert('שגיאת תקשורת: ' + e.message); }
-    }
-
-    async function toggleAccountType(phoneNumber, btn) {
-      const current = btn.getAttribute('data-type') || 'installer';
-      const newType = current === 'installer' ? 'committee' : 'installer';
-      try {
-        const res = await fetch('/api/manager/installers/' + phoneNumber + '/account-type', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountType: newType })
-        });
-        const data = await res.json();
-        if (data.success) {
-          btn.setAttribute('data-type', newType);
-          btn.textContent = newType === 'committee' ? 'ועד' : 'מתקין';
-          btn.style.background = newType === 'committee' ? '#e0e7ff' : '#dcfce7';
-          btn.style.color = newType === 'committee' ? '#4338ca' : '#16a34a';
-        } else {
-          alert('שגיאה: ' + (data.error || 'unknown'));
-        }
-      } catch(e) { alert('שגיאת תקשורת'); }
-    }
-
-    async function editInstallerName(phoneNumber) {
-      const currentName = '';
-      const newName = prompt('שם הטכנאי:', currentName);
+    async function editInstallerName(phoneNumber, currentName) {
+      const newName = prompt('שם הטכנאי:', currentName || '');
       if (newName === null) return;
       try {
-        const res = await fetch('/api/manager/installers/' + phoneNumber + '/info', {
+        const res = await fetch(`/api/manager/installers/${phoneNumber}/info`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ installerName: newName.trim() })
         });
@@ -1442,85 +1322,87 @@
       } catch(e) { alert('שגיאת תקשורת'); }
     }
 
-    const ACTION_LABELS = {
-      lookup: '🔍 התחברות מרחוק',
-      reboot: '🔄 אתחול מכשיר',
-      relay_toggle: '🚪 פתיחת דלת חירום',
-      temp_code: '🔑 קוד זמני',
-    };
-    const ACTION_COLORS = {
-      lookup: '#3b82f6',
-      reboot: '#f59e0b',
-      relay_toggle: '#ef4444',
-      temp_code: '#8b5cf6',
-    };
 
     function formatMac(mac) {
-      if (!mac) return '—';
+      if (!mac) return '-';
       if (/^[0-9A-Fa-f]{12}$/.test(mac)) return mac.match(/.{1,2}/g).join(':');
       return mac;
     }
 
+    var ACTION_LABELS = {
+      lookup: 'התחברות מרחוק',
+      reboot: 'אתחול מכשיר',
+      relay_toggle: 'פתיחת דלת חירום',
+      temp_code: 'קוד זמני'
+    };
+    var ACTION_COLORS = {
+      lookup: '#3b82f6',
+      reboot: '#f59e0b',
+      relay_toggle: '#ef4444',
+      temp_code: '#8b5cf6'
+    };
+
     async function loadActivityLogs() {
-      const installer = document.getElementById('activityFilterInstaller')?.value || '';
-      const action = document.getElementById('activityFilterAction')?.value || '';
-      const body = document.getElementById('activityLogBody');
+      var installer = document.getElementById('activityFilterInstaller') ? document.getElementById('activityFilterInstaller').value : '';
+      var action = document.getElementById('activityFilterAction') ? document.getElementById('activityFilterAction').value : '';
+      var body = document.getElementById('activityLogBody');
       if (!body) return;
       body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-dim);">טוען...</td></tr>';
       try {
-        let url = '/api/manager/activity-logs?limit=200';
+        var url = '/api/manager/activity-logs?limit=200';
         if (installer) url += '&phoneNumber=' + encodeURIComponent(installer);
         if (action) url += '&action=' + encodeURIComponent(action);
-        const res = await fetch(url);
-        const data = await res.json();
+        var res = await fetch(url);
+        var data = await res.json();
         if (!data.success || !data.logs.length) {
           body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-dim);">אין פעילות להצגה</td></tr>';
           return;
         }
-        body.innerHTML = data.logs.map(log => {
-          try {
-            const actionLabel = ACTION_LABELS[log.action] || log.action;
-            const actionColor = ACTION_COLORS[log.action] || '#6b7280';
-            const date = new Date(log.timestamp);
-            const dateStr = date.toLocaleDateString('he-IL') + ' ' + date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-            let detailsStr = '';
-            if (log.action === 'temp_code' && log.details?.pin) {
-              detailsStr = 'קוד: <strong>' + log.details.pin + '</strong> | ' + (log.details.validWeekdays || []).map(d => ['א','ב','ג','ד','ה','ו','ש'][d]).join(',') + ' | ' + (log.details.expiryType === 'daily' ? 'יומי' : 'ללא הגבלה');
-            } else if (log.action === 'relay_toggle' && log.details?.newMode) {
-              detailsStr = log.details.newMode === 'alwayson' ? '🟢 הופעל' : '🔴 כובה';
-            } else if (log.action === 'lookup' && log.details?.status) {
-              detailsStr = (log.details.project || '') + ' · ' + (log.details.status === 'online' ? '🟢 מחובר' : '🔴 מנותק');
-            } else if (log.action === 'reboot') {
-              detailsStr = log.details?.source === 'manager' ? 'ע"י מנהל' : 'ע"י מתקין';
-            }
-            return '<tr style="border-bottom:1px solid var(--border);">' +
-              '<td style="padding:10px;font-size:13px;font-weight:600;">' + log.phoneNumber + '</td>' +
-              '<td style="padding:10px;"><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:' + actionColor + '18;color:' + actionColor + ';">' + actionLabel + '</span></td>' +
-              '<td style="padding:10px;font-family:monospace;font-size:12px;color:var(--text-dim);">' + formatMac(log.mac) + '</td>' +
-              '<td style="padding:10px;font-size:12px;color:var(--text-dim);">' + detailsStr + '</td>' +
-              '<td style="padding:10px;font-size:12px;color:var(--text-dim);white-space:nowrap;">' + dateStr + '</td>' +
-              '<td style="padding:10px;text-align:center;"><span style="font-size:16px;">' + (log.success ? '✅' : '❌') + '</span></td>' +
-              '</tr>';
-          } catch(renderErr) {
-            return '<tr><td colspan="6" style="color:red;padding:8px;">שגיאת עיבוד: ' + renderErr.message + '</td></tr>';
+        var rows = '';
+        for (var i = 0; i < data.logs.length; i++) {
+          var log = data.logs[i];
+          var actionLabel = ACTION_LABELS[log.action] || log.action;
+          var actionColor = ACTION_COLORS[log.action] || '#6b7280';
+          var date = new Date(log.timestamp);
+          var dateStr = date.toLocaleDateString('he-IL') + ' ' + date.toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'});
+          var detailsStr = '';
+          if (log.action === 'temp_code' && log.details && log.details.pin) {
+            var dayNames = ['\u05d0','\u05d1','\u05d2','\u05d3','\u05d4','\u05d5','\u05e9'];
+            var days = (log.details.validWeekdays || []).map(function(d){return dayNames[d];}).join(',');
+            detailsStr = '\u05e7\u05d5\u05d3: ' + log.details.pin + ' | ' + days + ' | ' + (log.details.expiryType === 'daily' ? '\u05d9\u05d5\u05de\u05d9' : '\u05dc\u05dc\u05d0 \u05d4\u05d2\u05d1\u05dc\u05d4');
+          } else if (log.action === 'relay_toggle' && log.details && log.details.newMode) {
+            detailsStr = log.details.newMode === 'alwayson' ? '\u05d4\u05d5\u05e4\u05e2\u05dc' : '\u05db\u05d5\u05d1\u05d4';
+          } else if (log.action === 'lookup' && log.details && log.details.status) {
+            detailsStr = (log.details.project || '') + ' - ' + (log.details.status === 'online' ? '\u05de\u05d7\u05d5\u05d1\u05e8' : '\u05de\u05e0\u05d5\u05ea\u05e7');
+          } else if (log.action === 'reboot') {
+            detailsStr = (log.details && log.details.source === 'manager') ? '\u05e2"\u05d9 \u05de\u05e0\u05d4\u05dc' : '\u05e2"\u05d9 \u05de\u05ea\u05e7\u05d9\u05df';
           }
-        }).join('');
+          rows += '<tr style="border-bottom:1px solid var(--border);">' +
+            '<td style="padding:10px;font-size:13px;font-weight:600;">' + log.phoneNumber + '</td>' +
+            '<td style="padding:10px;"><span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:' + actionColor + '18;color:' + actionColor + ';">' + actionLabel + '</span></td>' +
+            '<td style="padding:10px;font-family:monospace;font-size:12px;color:var(--text-dim);">' + formatMac(log.mac) + '</td>' +
+            '<td style="padding:10px;font-size:12px;color:var(--text-dim);">' + detailsStr + '</td>' +
+            '<td style="padding:10px;font-size:12px;color:var(--text-dim);white-space:nowrap;">' + dateStr + '</td>' +
+            '<td style="padding:10px;text-align:center;font-size:14px;">' + (log.success ? 'V' : 'X') + '</td>' +
+            '</tr>';
+        }
+        body.innerHTML = rows;
       } catch (err) {
-        body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:red;">שגיאה: ' + err.message + '</td></tr>';
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:red;">' + err.message + '</td></tr>';
       }
     }
 
     async function populateActivityInstallerFilter() {
-      const sel = document.getElementById('activityFilterInstaller');
+      var sel = document.getElementById('activityFilterInstaller');
       if (!sel) return;
       try {
-        const res = await fetch('/api/manager/installers');
-        const data = await res.json();
-        (data.installers || []).forEach(inst => {
-          if (inst.phoneNumber === (window.adminUser || 'admin')) return;
-          const opt = document.createElement('option');
+        var res = await fetch('/api/manager/installers');
+        var data = await res.json();
+        (data.installers || []).forEach(function(inst) {
+          if (inst.phoneNumber === 'admin') return;
+          var opt = document.createElement('option');
           opt.value = inst.phoneNumber;
-          opt.textContent = (inst.installerName || inst.phoneNumber);
+          opt.textContent = inst.installerName || inst.phoneNumber;
           sel.appendChild(opt);
         });
       } catch(e) {}
@@ -1537,29 +1419,15 @@
       for (const installer of installersData.installers) {
         const details = await fetch(`/api/manager/installers/${installer.phoneNumber}`).then(r => r.json());
         const row = document.createElement('tr');
-        row.dataset.phone = installer.phoneNumber;
-        row.dataset.name  = installer.installerName || installer.phoneNumber;
 
         row.innerHTML = `
           <td>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span style="font-size:13px;">${installer.phoneNumber}</span>
-              <button class="field-edit-btn" onclick="editInstallerPhone('${installer.phoneNumber}')" title="ערוך מספר טלפון" style="opacity:1;">✏️</button>
-            </div>
+            <span style="font-size:13px;">${installer.phoneNumber}</span>
           </td>
           <td>
-            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:6px;">
               <span style="font-weight:600;font-size:13px;">${installer.installerName || '—'}</span>
-              <button class="field-edit-btn" onclick="editInstallerName('${installer.phoneNumber}')" title="ערוך שם" style="opacity:1;">✏️</button>
-            </div>
-            <div style="margin-top:5px;">
-              <button onclick="toggleAccountType('${installer.phoneNumber}', this)"
-                data-type="${installer.accountType || 'installer'}"
-                style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;border:none;cursor:pointer;
-                  background:${(installer.accountType||'installer')==='committee'?'#e0e7ff':'#dcfce7'};
-                  color:${(installer.accountType||'installer')==='committee'?'#4338ca':'#16a34a'};">
-                ${(installer.accountType||'installer')==='committee'?'ועד':'מתקין'}
-              </button>
+              <button class="field-edit-btn" data-phone="${installer.phoneNumber}" data-name="${installer.installerName||''}" onclick="editInstallerName(this.getAttribute('data-phone'), this.getAttribute('data-name'))" title="ערוך שם" style="opacity:1;">✏️</button>
             </div>
           </td>
           <td>
@@ -1622,6 +1490,36 @@
                     <span class="mac-detail-label">📝 ${translations[currentLang].notes}:</span>
                     <span class="mac-detail-value">${macObj.notes || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "notes")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">👷 ${translations[currentLang].technicianName}:</span>
+                    <span class="mac-detail-value">${macObj.technicianName || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "technicianName")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📞 ${translations[currentLang].technicianPhone}:</span>
+                    <span class="mac-detail-value">${macObj.technicianPhone || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "technicianPhone")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">🏢 ${translations[currentLang].supplierName}:</span>
+                    <span class="mac-detail-value">${macObj.supplierName || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "supplierName")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">👥 ${translations[currentLang].committeeName}:</span>
+                    <span class="mac-detail-value">${macObj.committeeName || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "committeeName")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📞 ${translations[currentLang].committeePhone}:</span>
+                    <span class="mac-detail-value">${macObj.committeePhone || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "committeePhone")'>✏️</button>
                   </div>
 
                   <div class="mac-detail-field">
@@ -1774,7 +1672,7 @@
         const loginRes = await fetch('/api/installer/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phoneNumber, password, isManagerAccess: true })
+          body: JSON.stringify({ phoneNumber, password })
         });
         
         const loginData = await loginRes.json();
@@ -2061,10 +1959,7 @@
               <div style="max-width:75%;padding:8px 12px;border-radius:${isManager?'4px 16px 16px 16px':'16px 4px 16px 16px'};background:${isManager?'var(--accent)':'var(--surface2)'};color:${isManager?'white':'var(--text)'};font-size:14px;">${m.text}</div>
               <span style="font-size:10px;color:var(--text-dim);margin-top:2px;">${isManager?'מנהל':'מתקין'} · ${time}</span>
             </div>`;
-            } catch(renderErr) {
-            return `<tr><td colspan="6" style="color:red;padding:8px;">שגיאת עיבוד: ${renderErr.message}</td></tr>`;
-          }
-        }).join('');
+          }).join('');
       if (wasAtBottom) container.scrollTop = container.scrollHeight;
 
       // mark as read
@@ -2134,171 +2029,5 @@
     </div>
   </div>
 
-
-<!-- ══ MERGE MODAL ══ -->
-<div id="mergeOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:var(--surface);border-radius:16px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,0.4);overflow:hidden;">
-    <div style="padding:20px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-      <button onclick="closeMergeModal()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:20px;">✕</button>
-      <h3 style="margin:0;font-size:16px;font-weight:700;color:var(--text);">🔀 מיזוג חשבונות</h3>
-    </div>
-
-    <div style="padding:22px;">
-      <p style="font-size:13px;color:var(--text-dim);margin-bottom:18px;text-align:right;line-height:1.6;">
-        בחר שני חשבונות למיזוג. כל הפנלים יועברו לחשבון הראשי, והחשבון המשני יימחק.
-      </p>
-
-      <div style="margin-bottom:14px;">
-        <label style="display:block;font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;">חשבון ראשי (ישאר)</label>
-        <select id="mergePrimary" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:inherit;font-size:14px;">
-          <option value="">בחר חשבון...</option>
-        </select>
-      </div>
-
-      <div style="margin-bottom:20px;">
-        <label style="display:block;font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;">חשבון למיזוג (יימחק)</label>
-        <select id="mergeSecondary" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:inherit;font-size:14px;">
-          <option value="">בחר חשבון...</option>
-        </select>
-      </div>
-
-      <div id="mergeMsg" style="font-size:13px;text-align:center;min-height:18px;margin-bottom:12px;"></div>
-
-      <div style="display:flex;gap:10px;">
-        <button onclick="executeMerge()" style="flex:1;padding:12px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">
-          🔀 מזג חשבונות
-        </button>
-        <button onclick="closeMergeModal()" style="flex:1;padding:12px;background:var(--surface2);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;">
-          ביטול
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-  // ── Activity Log constants (global scope) ──
-  function openMergeModal() {
-    // Populate dropdowns from current installers data
-    const primary   = document.getElementById('mergePrimary');
-    const secondary = document.getElementById('mergeSecondary');
-    const msg       = document.getElementById('mergeMsg');
-    msg.textContent = '';
-
-        body.innerHTML = data.logs.map(log => {
-          try {
-          const actionLabel = ACTION_LABELS[log.action] || log.action;
-          const actionColor = ACTION_COLORS[log.action] || '#6b7280';
-          const date = new Date(log.timestamp);
-          const dateStr = date.toLocaleDateString('he-IL') + ' ' + date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-
-          // Build details string
-          let detailsStr = '';
-          if (log.action === 'temp_code' && log.details?.pin) {
-            detailsStr = `קוד: <strong>${log.details.pin}</strong> | ${(log.details.validWeekdays || []).map(d => ['א','ב','ג','ד','ה','ו','ש'][d]).join(',')} | ${log.details.expiryType === 'daily' ? 'יומי' : 'ללא הגבלה'}`;
-          } else if (log.action === 'relay_toggle' && log.details?.newMode) {
-            detailsStr = log.details.newMode === 'alwayson' ? '🟢 הופעל' : '🔴 כובה';
-          } else if (log.action === 'lookup' && log.details?.status) {
-            detailsStr = `${log.details.project || ''} · ${log.details.status === 'online' ? '🟢 מחובר' : '🔴 מנותק'}`;
-          } else if (log.action === 'reboot') {
-            detailsStr = log.details?.source === 'manager' ? 'ע"י מנהל' : 'ע"י מתקין';
-          }
-
-          return `<tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:10px;font-size:13px;font-weight:600;">${log.phoneNumber}</td>
-            <td style="padding:10px;">
-              <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:${actionColor}18;color:${actionColor};">
-                ${actionLabel}
-              </span>
-            </td>
-            <td style="padding:10px;font-family:monospace;font-size:12px;color:var(--text-dim);">${formatMac(log.mac)}</td>
-            <td style="padding:10px;font-size:12px;color:var(--text-dim);">${detailsStr}</td>
-            <td style="padding:10px;font-size:12px;color:var(--text-dim);white-space:nowrap;">${dateStr}</td>
-            <td style="padding:10px;text-align:center;">
-              <span style="font-size:16px;">${log.success ? '✅' : '❌'}</span>
-            </td>
-          </tr>`;
-          } catch(renderErr) {
-            return `<tr><td colspan="6" style="color:red;padding:8px;">שגיאת עיבוד: ${renderErr.message}</td></tr>`;
-          }
-        }).join('');
-
-      } catch (err) {
-        body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:red;">שגיאה: ${err.message}</td></tr>`;
-      }
-    }
-
-
-
-
-    // Get all installers from table rows
-    const rows = document.querySelectorAll('#installersBody tr');
-    const options = ['<option value="">בחר חשבון...</option>'];
-    rows.forEach(row => {
-      const phone = row.dataset.phone;
-      const name  = row.dataset.name || phone;
-      if (phone) options.push(`<option value="${phone}">${name} — ${phone}</option>`);
-    });
-    primary.innerHTML   = options.join('');
-    secondary.innerHTML = options.join('');
-    document.getElementById('mergeOverlay').style.display = 'flex';
-  }
-
-  function closeMergeModal() {
-    document.getElementById('mergeOverlay').style.display = 'none';
-  }
-
-  async function executeMerge() {
-    const primaryPhone   = document.getElementById('mergePrimary').value;
-    const secondaryPhone = document.getElementById('mergeSecondary').value;
-    const msg            = document.getElementById('mergeMsg');
-
-    if (!primaryPhone || !secondaryPhone) {
-      msg.style.color = 'var(--red)';
-      msg.textContent = '⚠️ יש לבחור שני חשבונות';
-      return;
-    }
-    if (primaryPhone === secondaryPhone) {
-      msg.style.color = 'var(--red)';
-      msg.textContent = '⚠️ לא ניתן למזג חשבון עם עצמו';
-      return;
-    }
-
-    const primaryName   = document.getElementById('mergePrimary').selectedOptions[0].text;
-    const secondaryName = document.getElementById('mergeSecondary').selectedOptions[0].text;
-
-    if (!confirm(`מיזוג:
-✅ ראשי: ${primaryName}
-❌ ייסגר: ${secondaryName}
-
-הפנלים של החשבון המשני יועברו לחשבון הראשי. פעולה זו בלתי הפיכה!`)) return;
-
-    msg.style.color = 'var(--text-dim)';
-    msg.textContent = 'מבצע מיזוג...';
-
-    try {
-      const res  = await fetch('/api/manager/installers/merge', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ primaryPhone, secondaryPhone })
-      });
-      const data = await res.json();
-      if (data.success) {
-        msg.style.color = 'var(--green)';
-        msg.textContent = `✅ מוזג! ${data.mergedMacs} פנלים הועברו (סה"כ ${data.total})`;
-        setTimeout(() => { closeMergeModal(); loadData(); }, 1800);
-      } else {
-        msg.style.color = 'var(--red)';
-        msg.textContent = '❌ ' + (data.error || 'שגיאה');
-      }
-    } catch(e) {
-      msg.style.color = 'var(--red)';
-      msg.textContent = '❌ שגיאת תקשורת';
-    }
-  }
-
-  document.getElementById('mergeOverlay').addEventListener('click', function(e) {
-    if (e.target === this) closeMergeModal();
-  });
-</script>
 </body>
 </html>
