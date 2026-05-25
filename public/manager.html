@@ -898,7 +898,7 @@
         if (data.success) {
           document.getElementById('loginScreen').style.display = 'none';
           document.getElementById('managerPanel').style.display = 'block';
-          loadData();
+          loadData().then(() => { loadActivityLogs(); populateActivityInstallerFilter(); });
           loadCatalog();
           loadMailingList();
           loadTutorialsAdmin();
@@ -1441,8 +1441,6 @@
 
     async function loadData() {
       loadUnreadBadges();
-      populateActivityInstallerFilter();
-      loadActivityLogs();
       const installersRes = await fetch('/api/manager/installers');
       const installersData = await installersRes.json();
 
