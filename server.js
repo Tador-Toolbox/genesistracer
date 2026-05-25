@@ -1400,14 +1400,16 @@ app.post('/api/installer/log-action', async (req, res) => {
 // Manager: send announcement
 app.post('/api/manager/announcements', async (req, res) => {
   try {
-    const { text, audience } = req.body; // audience: 'all' | 'installers' | 'committees'
-    if (!text || !text.trim()) return res.status(400).json({ success: false, error: 'Text required' });
+    const { text, audience, specificPhone, imageUrl } = req.body;
+    if (!text && !imageUrl) return res.status(400).json({ success: false, error: 'Text or image required' });
     const db_module = require('./db');
     const database = await db_module.connectDB();
     const col = database.collection('announcements');
     const result = await col.insertOne({
-      text: text.trim(),
+      text: (text || '').trim(),
       audience: audience || 'all',
+      specificPhone: specificPhone || null,
+      imageUrl: imageUrl || null,
       createdAt: new Date(),
       readBy: [],
     });
@@ -1453,7 +1455,10 @@ app.get('/api/installer/announcements', async (req, res) => {
     const col = database.collection('announcements');
     const type = accountType || 'installer';
     const query = {
-      audience: { $in: ['all', type === 'committee' ? 'committees' : 'installers'] }
+      $or: [
+        { audience: { $in: ['all', type === 'committee' ? 'committees' : 'installers'] } },
+        { audience: 'specific', specificPhone: phoneNumber }
+      ]
     };
     const announcements = await col.find(query).sort({ createdAt: -1 }).limit(20).toArray();
     // Count unread
