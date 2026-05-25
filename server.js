@@ -403,6 +403,10 @@ app.get('/api/debug/:mac', async (req, res) => {
 app.post('/api/manager/login', async (req, res) => {
   const { username, password } = req.body;
   const result = await db.loginManager(username, password);
+  if (result.success) {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip;
+    await logActivity({ phoneNumber: username, action: 'login', mac: null, details: { ip, role: 'manager' }, success: true });
+  }
   res.json(result);
 });
 
@@ -916,7 +920,10 @@ app.delete('/api/manager/auto-reboot/:mac', async (req, res) => {
 app.post('/api/installer/login', async (req, res) => {
   const { phoneNumber, password, isManagerAccess } = req.body;
   const result = await db.loginInstaller(phoneNumber, password, isManagerAccess === true);
-  if (result.success) result.data.ip = req.ip;
+  if (result.success) {
+    result.data.ip = req.ip;
+    await logActivity({ phoneNumber, action: 'login', mac: null, details: { ip: req.ip, isManagerAccess: !!isManagerAccess }, success: true });
+  }
   res.json(result);
 });
 
