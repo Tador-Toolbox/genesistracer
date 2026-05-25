@@ -1570,7 +1570,7 @@
     const pin = document.getElementById('tempCodeResultPin').textContent.trim();
     const label = document.getElementById('tempCodeResultLabel').textContent.trim();
     const days = document.getElementById('tempCodeResultDays').textContent.trim();
-    const lines = ['קוד גישה זמני לבניין:', '', '*' + pin + '*', '', days, '', 'הוזן דרך מערכת טדור.'];
+    const lines = ['הונפק קוד גישה זמני', '', '*' + pin + '*', '', days];
     const msg = encodeURIComponent(lines.join('\n'));
     window.open('https://wa.me/?text=' + msg, '_blank');
   }
