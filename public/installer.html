@@ -964,7 +964,7 @@
     resultDiv.innerHTML = '<p style="color:var(--gray-500);font-size:13px;padding:8px 0;text-align:center;">מחפש...</p>';
     const res  = await fetch('/api/lookup', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ mac: selectedMac })
+      body: JSON.stringify({ mac: selectedMac, installerPhone: installerData?.phoneNumber })
     });
     const data = await res.json();
     const t    = translations[currentLang];
@@ -1008,7 +1008,7 @@
     try {
       const r    = await fetch('/api/installer/reboot', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ mac: selectedMac })
+        body: JSON.stringify({ mac: selectedMac, installerPhone: installerData?.phoneNumber })
       });
       const data = await r.json();
       msg.style.color = data.success ? '#16a34a' : 'var(--red)';
@@ -1082,7 +1082,7 @@
 
       const r = await fetch('/api/installer/relay-toggle', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ mac: selectedMac, panelAddress: lastPanelAddress })
+        body: JSON.stringify({ mac: selectedMac, panelAddress: lastPanelAddress, installerPhone: installerData?.phoneNumber })
       });
       const data = await r.json();
       if (data.success) {
@@ -1514,7 +1514,7 @@
       const res = await fetch('/api/installer/temp-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ panelAddress: lastPanelAddress, validWeekdays, expiryType: selectedExpiry })
+        body: JSON.stringify({ panelAddress: lastPanelAddress, validWeekdays, expiryType: selectedExpiry, installerPhone: installerData?.phoneNumber })
       });
       const data = await res.json();
 

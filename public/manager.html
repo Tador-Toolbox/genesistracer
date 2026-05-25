@@ -587,6 +587,43 @@
           <tbody id="logsBody"></tbody>
         </table>
       </div>
+
+      <!-- Activity Log -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+          <h2 style="margin:0;">🕵️ יומן פעילות מתקינים</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <select id="activityFilterInstaller" onchange="loadActivityLogs()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-family:inherit;font-size:13px;">
+              <option value="">כל המתקינים</option>
+            </select>
+            <select id="activityFilterAction" onchange="loadActivityLogs()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-family:inherit;font-size:13px;">
+              <option value="">כל הפעולות</option>
+              <option value="lookup">התחברות מרחוק</option>
+              <option value="reboot">אתחול</option>
+              <option value="relay_toggle">פתיחת דלת חירום</option>
+              <option value="temp_code">קוד זמני</option>
+            </select>
+            <button onclick="loadActivityLogs()" style="padding:6px 12px;background:var(--primary);color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">רענן</button>
+          </div>
+        </div>
+        <div id="activityLogWrap" style="max-height:500px;overflow-y:auto;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="position:sticky;top:0;background:var(--bg-card);z-index:1;">
+                <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);font-size:12px;">מתקין</th>
+                <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);font-size:12px;">פעולה</th>
+                <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);font-size:12px;">MAC</th>
+                <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);font-size:12px;">פרטים</th>
+                <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);font-size:12px;">תאריך ושעה</th>
+                <th style="padding:10px;text-align:center;border-bottom:2px solid var(--border);font-size:12px;">סטטוס</th>
+              </tr>
+            </thead>
+            <tbody id="activityLogBody">
+              <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-dim);">טוען...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2056,6 +2093,95 @@
     const secondary = document.getElementById('mergeSecondary');
     const msg       = document.getElementById('mergeMsg');
     msg.textContent = '';
+
+    // ── Activity Log ──
+    const ACTION_LABELS = {
+      lookup: '🔍 התחברות מרחוק',
+      reboot: '🔄 אתחול מכשיר',
+      relay_toggle: '🚪 פתיחת דלת חירום',
+      temp_code: '🔑 קוד זמני',
+    };
+
+    const ACTION_COLORS = {
+      lookup: '#3b82f6',
+      reboot: '#f59e0b',
+      relay_toggle: '#ef4444',
+      temp_code: '#8b5cf6',
+    };
+
+    async function loadActivityLogs() {
+      const installer = document.getElementById('activityFilterInstaller')?.value || '';
+      const action = document.getElementById('activityFilterAction')?.value || '';
+      const body = document.getElementById('activityLogBody');
+      if (!body) return;
+      body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-dim);">טוען...</td></tr>';
+
+      try {
+        let url = '/api/manager/activity-logs?limit=200';
+        if (installer) url += '&phoneNumber=' + encodeURIComponent(installer);
+        if (action) url += '&action=' + encodeURIComponent(action);
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data.success || !data.logs.length) {
+          body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-dim);">אין פעילות להצגה</td></tr>';
+          return;
+        }
+
+        body.innerHTML = data.logs.map(log => {
+          const actionLabel = ACTION_LABELS[log.action] || log.action;
+          const actionColor = ACTION_COLORS[log.action] || '#6b7280';
+          const date = new Date(log.timestamp);
+          const dateStr = date.toLocaleDateString('he-IL') + ' ' + date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+
+          // Build details string
+          let detailsStr = '';
+          if (log.action === 'temp_code' && log.details?.pin) {
+            detailsStr = `קוד: <strong>${log.details.pin}</strong> | ${(log.details.validWeekdays || []).map(d => ['א','ב','ג','ד','ה','ו','ש'][d]).join(',')} | ${log.details.expiryType === 'daily' ? 'יומי' : 'ללא הגבלה'}`;
+          } else if (log.action === 'relay_toggle' && log.details?.newMode) {
+            detailsStr = log.details.newMode === 'alwayson' ? '🟢 הופעל' : '🔴 כובה';
+          } else if (log.action === 'lookup' && log.details?.status) {
+            detailsStr = `${log.details.project || ''} · ${log.details.status === 'online' ? '🟢 מחובר' : '🔴 מנותק'}`;
+          } else if (log.action === 'reboot') {
+            detailsStr = log.details?.source === 'manager' ? 'ע"י מנהל' : 'ע"י מתקין';
+          }
+
+          return `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:10px;font-size:13px;font-weight:600;">${log.phoneNumber}</td>
+            <td style="padding:10px;">
+              <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:${actionColor}18;color:${actionColor};">
+                ${actionLabel}
+              </span>
+            </td>
+            <td style="padding:10px;font-family:monospace;font-size:12px;color:var(--text-dim);">${log.mac ? log.mac.match(/.{1,2}/g).join(':') : '—'}</td>
+            <td style="padding:10px;font-size:12px;color:var(--text-dim);">${detailsStr}</td>
+            <td style="padding:10px;font-size:12px;color:var(--text-dim);white-space:nowrap;">${dateStr}</td>
+            <td style="padding:10px;text-align:center;">
+              <span style="font-size:16px;">${log.success ? '✅' : '❌'}</span>
+            </td>
+          </tr>`;
+        }).join('');
+
+      } catch (err) {
+        body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:red;">שגיאה: ${err.message}</td></tr>`;
+      }
+    }
+
+    // Populate installer filter dropdown
+    async function populateActivityInstallerFilter() {
+      const sel = document.getElementById('activityFilterInstaller');
+      if (!sel) return;
+      try {
+        const res = await fetch('/api/manager/installers');
+        const data = await res.json();
+        (data.installers || []).forEach(inst => {
+          if (inst.phoneNumber === (window.adminUser || 'admin')) return;
+          const opt = document.createElement('option');
+          opt.value = inst.phoneNumber;
+          opt.textContent = (inst.installerName || inst.phoneNumber);
+          sel.appendChild(opt);
+        });
+      } catch(e) {}
+    }
 
     // Get all installers from table rows
     const rows = document.querySelectorAll('#installersBody tr');
