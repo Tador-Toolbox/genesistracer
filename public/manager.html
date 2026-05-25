@@ -457,6 +457,10 @@
             <span>🔀</span>
             <span>מיזוג חשבונות</span>
           </a>
+          <a href="#" onclick="scrollToAnnouncements(); return false;" class="installer-link" style="background:linear-gradient(135deg,#e31b23,#b8151c);color:white;">
+            <span>📢</span>
+            <span>שלח הודעה</span>
+          </a>
         </div>
       </div>
 
@@ -1557,6 +1561,17 @@
           sel.appendChild(grp2);
         }
       } catch(e) {}
+    }
+
+    function scrollToAnnouncements() {
+      var el = document.getElementById('newAnnouncementForm');
+      if (el) {
+        el.closest('.card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(function() {
+          el.style.display = 'block';
+          document.getElementById('announcementText').focus();
+        }, 400);
+      }
     }
 
     function toggleNewAnnouncement() {
