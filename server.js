@@ -210,6 +210,25 @@ async function initNexHomeAccounts() {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }
 
+// ==================== ACTIVITY LOG ====================
+async function logActivity({ phoneNumber, action, mac, details = {}, success = true }) {
+  try {
+    const db_module = require('./db');
+    const database = await db_module.connectDB();
+    const col = database.collection('activity_logs');
+    await col.insertOne({
+      phoneNumber,
+      action,        // 'door_open' | 'reboot' | 'temp_code' | 'relay_toggle' | 'lookup'
+      mac: mac || null,
+      details,       // extra info: pin, days, mode, error etc.
+      success,
+      timestamp: new Date(),
+    });
+  } catch (err) {
+    console.error('⚠️ Failed to log activity:', err.message);
+  }
+}
+
 async function searchMac(auth, mac) {
   const headers = {
     Authorization: auth.token,
@@ -337,7 +356,7 @@ app.post('/api/lookup', async (req, res) => {
     const ip = reverseLoginData?.result?.targetHost || null;
     const port = reverseLoginData?.result?.targetPort || null;
 
-    return res.json({
+    const lookupResult = {
       success: true,
       mac: cleanMac,
       ip: ip || 'Not found',
@@ -351,7 +370,15 @@ app.post('/api/lookup', async (req, res) => {
       status: deviceEntry.onlineStatus || macEntry.status,
       building: deviceEntry.buildingName || null,
       apartment: deviceEntry.roomNumber || null,
+    };
+    await logActivity({
+      phoneNumber: req.body.installerPhone || 'unknown',
+      action: 'lookup',
+      mac: cleanMac,
+      details: { status: lookupResult.status, project: lookupResult.project, ip: lookupResult.fullAddress },
+      success: true,
     });
+    return res.json(lookupResult);
   } catch (err) {
     console.error('Lookup error:', err.message);
     return res.status(500).json({ success: false, error: err.message });
@@ -701,6 +728,7 @@ app.post('/api/manager/reboot', async (req, res) => {
 
     const code = rebootRes.data?.code;
     if (code === '0' || code === 0) {
+      await logActivity({ phoneNumber: 'manager', action: 'reboot', mac: cleanMac, details: { source: 'manager' }, success: true });
       return res.json({ success: true, message: 'Reboot command sent successfully' });
     } else {
       return res.json({ success: false, error: rebootRes.data?.message || `Unexpected response code: ${code}` });
@@ -916,6 +944,7 @@ app.post('/api/installer/reboot', async (req, res) => {
       'Content-Type': 'application/json; charset=UTF-8',
     };
     await axios.post(`${NEXHOME_BASE}/api/employees/publics/devices/${deviceEntry.id}:reboot`, {}, { headers, timeout: 15000 });
+    await logActivity({ phoneNumber: req.body.installerPhone || 'unknown', action: 'reboot', mac: cleanMac, details: { source: 'installer' }, success: true });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -1114,6 +1143,7 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
       return res.json({ success: false, error: `Panel rejected: ${postData.status}` });
     }
 
+    await logActivity({ phoneNumber: req.body.installerPhone || 'unknown', action: 'relay_toggle', mac: req.body.mac || null, details: { previousMode: currentMode, newMode }, success: true });
     res.json({ success: true, previousMode: currentMode, newMode });
   } catch (err) {
     console.error('Relay toggle error:', err.message);
@@ -1235,6 +1265,7 @@ app.post('/api/installer/temp-code', async (req, res) => {
 
     if (createRes?.status === 'OK') {
       console.log(`✅ Temp code created: ${label} PIN:${pin} days:${validWeekdays} expiry:${expiryType}`);
+      await logActivity({ phoneNumber: req.body.installerPhone || 'unknown', action: 'temp_code', mac: panelAddress, details: { label, pin, validWeekdays, expiryType }, success: true });
       return res.json({ success: true, label, pin, validWeekdays, expiryType });
     } else {
       const errCode = createRes?.error?.code;
@@ -1308,6 +1339,46 @@ function panelHttpPostWithHeaders(host, port, path, body, extraHeaders = {}) {
     req.end();
   });
 }
+
+// ==================== ACTIVITY LOG ROUTES ====================
+
+// GET all activity logs (manager only)
+app.get('/api/manager/activity-logs', async (req, res) => {
+  try {
+    const db_module = require('./db');
+    const database = await db_module.connectDB();
+    const col = database.collection('activity_logs');
+    const { phoneNumber, action, limit = 100 } = req.query;
+    const filter = {};
+    if (phoneNumber) filter.phoneNumber = phoneNumber;
+    if (action) filter.action = action;
+    const logs = await col
+      .find(filter)
+      .sort({ timestamp: -1 })
+      .limit(parseInt(limit))
+      .toArray();
+    res.json({ success: true, logs });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET activity logs for a specific installer
+app.get('/api/manager/activity-logs/:phoneNumber', async (req, res) => {
+  try {
+    const db_module = require('./db');
+    const database = await db_module.connectDB();
+    const col = database.collection('activity_logs');
+    const logs = await col
+      .find({ phoneNumber: req.params.phoneNumber })
+      .sort({ timestamp: -1 })
+      .limit(50)
+      .toArray();
+    res.json({ success: true, logs });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // ==================== CATALOG ====================
 app.get('/api/catalog', async (req, res) => {
