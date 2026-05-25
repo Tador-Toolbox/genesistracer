@@ -594,7 +594,7 @@
           <h2 style="margin:0;">יומן פעילות מתקינים</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <select id="activityFilterInstaller" onchange="loadActivityLogs()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-family:inherit;font-size:13px;">
-              <option value="">כל המתקינים</option>
+              <option value="">כל המשתמשים</option>
             </select>
             <select id="activityFilterAction" onchange="loadActivityLogs()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-family:inherit;font-size:13px;">
               <option value="">כל הפעולות</option>
@@ -1506,13 +1506,38 @@
       try {
         var res = await fetch('/api/manager/installers');
         var data = await res.json();
+        var installers = [];
+        var committees = [];
         (data.installers || []).forEach(function(inst) {
           if (inst.phoneNumber === 'admin') return;
-          var opt = document.createElement('option');
-          opt.value = inst.phoneNumber;
-          opt.textContent = inst.installerName || inst.phoneNumber;
-          sel.appendChild(opt);
+          if ((inst.accountType || 'installer') === 'committee') {
+            committees.push(inst);
+          } else {
+            installers.push(inst);
+          }
         });
+        if (installers.length) {
+          var grp1 = document.createElement('optgroup');
+          grp1.label = 'מתקינים';
+          installers.forEach(function(inst) {
+            var opt = document.createElement('option');
+            opt.value = inst.phoneNumber;
+            opt.textContent = (inst.installerName || inst.phoneNumber);
+            grp1.appendChild(opt);
+          });
+          sel.appendChild(grp1);
+        }
+        if (committees.length) {
+          var grp2 = document.createElement('optgroup');
+          grp2.label = 'ועדי בתים';
+          committees.forEach(function(inst) {
+            var opt = document.createElement('option');
+            opt.value = inst.phoneNumber;
+            opt.textContent = (inst.installerName || inst.phoneNumber);
+            grp2.appendChild(opt);
+          });
+          sel.appendChild(grp2);
+        }
       } catch(e) {}
     }
 
