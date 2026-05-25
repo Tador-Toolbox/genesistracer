@@ -1441,6 +1441,8 @@
 
     async function loadData() {
       loadUnreadBadges();
+      populateActivityInstallerFilter();
+      loadActivityLogs();
       const installersRes = await fetch('/api/manager/installers');
       const installersData = await installersRes.json();
 
