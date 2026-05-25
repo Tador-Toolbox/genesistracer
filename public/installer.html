@@ -1179,7 +1179,14 @@
       if (data.url) catalogUrl = data.url;
     } catch(e) {}
   }
-  function openCatalog() { window.open(catalogUrl, '_blank'); }
+  function openCatalog() {
+    window.open(catalogUrl, '_blank');
+    fetch('/api/installer/log-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'catalog', installerPhone: installerData?.phoneNumber, details: { url: catalogUrl } })
+    }).catch(() => {});
+  }
 
   // ── Resident Example ──
   async function loadResidentExampleInstaller() {
@@ -1427,6 +1434,11 @@
   function openPortfolio() {
     document.getElementById('portfolioModal').classList.add('open');
     loadPortfolioImages();
+    fetch('/api/installer/log-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'portfolio', installerPhone: installerData?.phoneNumber, details: {} })
+    }).catch(() => {});
   }
   function closePortfolio() {
     document.getElementById('portfolioModal').classList.remove('open');
