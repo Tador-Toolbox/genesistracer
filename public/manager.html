@@ -2087,27 +2087,26 @@
 </div>
 
 <script>
+  // ── Activity Log constants (global scope) ──
+  const ACTION_LABELS = {
+    lookup: '🔍 התחברות מרחוק',
+    reboot: '🔄 אתחול מכשיר',
+    relay_toggle: '🚪 פתיחת דלת חירום',
+    temp_code: '🔑 קוד זמני',
+  };
+  const ACTION_COLORS = {
+    lookup: '#3b82f6',
+    reboot: '#f59e0b',
+    relay_toggle: '#ef4444',
+    temp_code: '#8b5cf6',
+  };
+
   function openMergeModal() {
     // Populate dropdowns from current installers data
     const primary   = document.getElementById('mergePrimary');
     const secondary = document.getElementById('mergeSecondary');
     const msg       = document.getElementById('mergeMsg');
     msg.textContent = '';
-
-    // ── Activity Log ──
-    const ACTION_LABELS = {
-      lookup: '🔍 התחברות מרחוק',
-      reboot: '🔄 אתחול מכשיר',
-      relay_toggle: '🚪 פתיחת דלת חירום',
-      temp_code: '🔑 קוד זמני',
-    };
-
-    const ACTION_COLORS = {
-      lookup: '#3b82f6',
-      reboot: '#f59e0b',
-      relay_toggle: '#ef4444',
-      temp_code: '#8b5cf6',
-    };
 
     async function loadActivityLogs() {
       const installer = document.getElementById('activityFilterInstaller')?.value || '';
