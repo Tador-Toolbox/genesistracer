@@ -1132,7 +1132,13 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
       console.log('🔑 Panel login failed (continuing anyway):', loginErr.message);
     }
 
-    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+    const panelOrigin = `http://${host}:${port}`;
+    const authHeaders = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      'Origin': panelOrigin,
+      'Referer': `${panelOrigin}/`,
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    };
 
     // Step 2: Use client-provided relay config if available (skip GET), else fetch
     let relayList, relayCount;
