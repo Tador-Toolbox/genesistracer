@@ -1254,7 +1254,7 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
 });
 
 app.get('/api/installer/relay-status', async (req, res) => {
-  const { panelAddress } = req.query;
+  const { panelAddress, installerPhone } = req.query;
   if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
   try {
     const [host, portStr] = panelAddress.split(':');
@@ -1269,6 +1269,9 @@ app.get('/api/installer/relay-status', async (req, res) => {
     const relayData = getData?.data;
     const relay1 = (relayData?.relay_list || []).find(r => r.relay_id === 'relay1');
     // Return full config so toggle can skip the GET step
+    if (installerPhone) {
+      await logActivity({ phoneNumber: installerPhone, action: 'relay_status', mac: panelAddress?.split(':')[0] || null, details: { mode: relay1?.relay_mode }, success: true });
+    }
     res.json({
       success: true,
       mode: relay1?.relay_mode || 'unknown',
