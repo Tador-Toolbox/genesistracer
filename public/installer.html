@@ -1149,6 +1149,12 @@
       const data = await r.json();
       if (data.success) {
         updateRelayBadge(data.newMode);
+        // Update cache with new mode so next toggle sends correct state
+        if (window.relayConfigCache && window.relayConfigCache.relayList) {
+          window.relayConfigCache.relayList = window.relayConfigCache.relayList.map(function(r) {
+            return r.relay_id === 'relay1' ? Object.assign({}, r, { relay_mode: data.newMode }) : r;
+          });
+        }
         msg.style.color = '#16a34a';
         msg.textContent = data.newMode === 'alwayson' ? '✅ הופעל' : '✅ כובה';
       } else {
