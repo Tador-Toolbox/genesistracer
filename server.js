@@ -1119,16 +1119,21 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
     const [host, portStr] = panelAddress.split(':');
     const port = parseInt(portStr) || 80;
 
-    // Step 1: Login first (browser always does this — warms up the panel connection)
+    // Step 1: Login — get JWT token (required by newer firmware)
+    let token = null;
     try {
-      await panelHttpPost(host, port, '/api/v1/accounts/tokens',
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens',
         { username: 'admin', password: '123456' });
+      token = loginRes?.data?.token || null;
+      console.log(`🔑 Panel login: ${token ? 'got token' : 'no token (older firmware)'}`);
     } catch(loginErr) {
       console.log('Panel login failed (continuing anyway):', loginErr.message);
     }
 
-    // Step 2: GET current relay config
-    const getData = await panelHttpGet(host, port, '/api/v1/configurations/relayfunction/relay1');
+    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+    // Step 2: GET current relay config (with token if available)
+    const getData = await panelHttpGetWithHeaders(host, port, '/api/v1/configurations/relayfunction/relay1', authHeaders);
     const relayData = getData?.data;
     if (!relayData) return res.json({ success: false, error: `Could not read relay config. Raw: ${JSON.stringify(getData).slice(0,200)}` });
 
@@ -1139,13 +1144,13 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
     const currentMode = relay1.relay_mode;
     const newMode     = currentMode === 'alwayson' ? 'normal' : 'alwayson';
 
-    // Step 3: POST full relay config (all relays) to /relayfunction via curl
+    // Step 3: POST full relay config with token
     const updatedRelayList = relayList.map(r =>
       r.relay_id === 'relay1' ? { ...r, relay_mode: newMode } : r
     );
     const postBody = { relay_count: relayData.relay_count, relay_list: updatedRelayList };
 
-    const postData = await panelHttpPost(host, port, '/api/v1/configurations/relayfunction', postBody);
+    const postData = await panelHttpPostWithHeaders(host, port, '/api/v1/configurations/relayfunction', postBody, authHeaders);
     if (postData?.status && postData.status !== 'OK') {
       return res.json({ success: false, error: `Panel rejected: ${postData.status}` });
     }
@@ -1164,7 +1169,14 @@ app.get('/api/installer/relay-status', async (req, res) => {
   try {
     const [host, portStr] = panelAddress.split(':');
     const port = parseInt(portStr) || 80;
-    const getData = await panelHttpGet(host, port, '/api/v1/configurations/relayfunction/relay1');
+    // Login to get token for newer firmware
+    let token = null;
+    try {
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+      token = loginRes?.data?.token || null;
+    } catch(e) {}
+    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+    const getData = await panelHttpGetWithHeaders(host, port, '/api/v1/configurations/relayfunction/relay1', authHeaders);
     const relay1 = (getData?.data?.relay_list || []).find(r => r.relay_id === 'relay1');
     res.json({ success: true, mode: relay1?.relay_mode || 'unknown' });
   } catch (err) {
