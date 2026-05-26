@@ -1121,13 +1121,15 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
 
     // Step 1: Login — get JWT token
     let token = null;
+    console.log(`🔄 relay-toggle START host=${host} port=${port} hasCache=${!!(clientRelayList?.length)}`);
     try {
+      console.log('🔑 Logging in to panel...');
       const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens',
         { username: 'admin', password: '123456' });
       token = loginRes?.data?.token || null;
-      console.log(`🔑 Panel login: ${token ? 'got token' : 'no token (older firmware)'}`);
+      console.log(`🔑 Login result: ${token ? 'got token ✅' : 'no token (older firmware)'}`);
     } catch(loginErr) {
-      console.log('Panel login failed (continuing anyway):', loginErr.message);
+      console.log('🔑 Panel login failed (continuing anyway):', loginErr.message);
     }
 
     const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
@@ -1137,13 +1139,15 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
     if (clientRelayList && clientRelayList.length > 0) {
       relayList = clientRelayList;
       relayCount = clientRelayCount || clientRelayList.length;
-      console.log('Using client-provided relay config (skipping GET)');
+      console.log(`📋 Using cached relay config (${relayList.length} relays) — skipping GET`);
     } else {
+      console.log('📡 Fetching relay config from panel...');
       const getData = await panelHttpGetWithHeaders(host, port, '/api/v1/configurations/relayfunction/relay1', authHeaders);
       const relayData = getData?.data;
       if (!relayData) return res.json({ success: false, error: `Could not read relay config. Raw: ${JSON.stringify(getData).slice(0,200)}` });
       relayList = relayData.relay_list || [];
       relayCount = relayData.relay_count;
+      console.log(`📋 Got relay config from panel (${relayList.length} relays)`);
     }
 
     const relay1 = relayList.find(r => r.relay_id === 'relay1');
@@ -1158,7 +1162,11 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
     );
     const postBody = { relay_count: relayCount, relay_list: updatedRelayList };
 
+    console.log(`📤 POSTing relay config: mode ${currentMode} → ${newMode}, ${updatedRelayList.length} relays, token=${!!token}`);
+    // Small delay — some panels need a moment after login before accepting POST
+    await new Promise(resolve => setTimeout(resolve, 300));
     const postData = await panelHttpPostWithHeaders(host, port, '/api/v1/configurations/relayfunction', postBody, authHeaders);
+    console.log(`📥 POST result:`, JSON.stringify(postData).slice(0, 200));
     if (postData?.status && postData.status !== 'OK') {
       return res.json({ success: false, error: `Panel rejected: ${postData.status}` });
     }
