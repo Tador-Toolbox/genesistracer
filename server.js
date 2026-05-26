@@ -1146,6 +1146,38 @@ function panelReq(agent, host, port, method, path, body, extraHeaders = {}) {
   });
 }
 
+// Helper: relay POST via curl with body in temp file (bypasses Node HTTP issues with NexHome tunnel)
+function relayPostViaCurl(host, port, path, body, extraHeaders = {}) {
+  return new Promise((resolve, reject) => {
+    const fs = require('fs');
+    const os = require('os');
+    const tmpFile = require('path').join(os.tmpdir(), `relay_${Date.now()}.json`);
+    fs.writeFileSync(tmpFile, JSON.stringify(body));
+
+    const panelOrigin = `http://${host}:${port}`;
+    const headerArgs = [
+      `-H "Accept: application/json, text/plain, */*"`,
+      `-H "Content-Type: application/json;charset=UTF-8"`,
+      `-H "Connection: keep-alive"`,
+      `-H "Origin: ${panelOrigin}"`,
+      `-H "Referer: ${panelOrigin}/"`,
+      `-H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"`,
+    ];
+    if (extraHeaders.Authorization) {
+      headerArgs.push(`-H "Authorization: ${extraHeaders.Authorization}"`);
+    }
+
+    const cmd = `curl -s --max-time 15 -X POST ${headerArgs.join(' ')} --data @${tmpFile} "http://${host}:${port}${path}"`;
+    console.log(`🌀 curl relay POST to ${host}:${port}${path}`);
+
+    require('child_process').exec(cmd, { maxBuffer: 1024 * 1024 }, (err, stdout, stderr) => {
+      fs.unlink(tmpFile, () => {});
+      if (err) { reject(new Error(err.message || stderr)); return; }
+      try { resolve(JSON.parse(stdout)); } catch(e) { resolve({ status: 'OK', raw: stdout }); }
+    });
+  });
+}
+
 app.post('/api/installer/relay-toggle', async (req, res) => {
   const { panelAddress, relayList: clientRelayList, relayCount: clientRelayCount } = req.body;
   if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
@@ -1198,10 +1230,10 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
     const postBody = { relay_count: relayCount, relay_list: updatedRelayList };
 
     // Small delay after login before POST
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 300));
 
-    console.log(`📤 POSTing relay: ${currentMode} → ${newMode}, ${updatedRelayList.length} relays, token=${!!token}`);
-    const postData = await panelReq(agent, host, port, 'POST', '/api/v1/configurations/relayfunction', postBody, authHeaders);
+    console.log(`📤 POSTing relay via curl: ${currentMode} → ${newMode}, ${updatedRelayList.length} relays, token=${!!token}`);
+    const postData = await relayPostViaCurl(host, port, '/api/v1/configurations/relayfunction', postBody, authHeaders);
     console.log(`📥 POST result:`, JSON.stringify(postData).slice(0, 200));
 
     if (postData?.status && postData.status !== 'OK') {
