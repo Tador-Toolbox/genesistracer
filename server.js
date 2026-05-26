@@ -1112,14 +1112,14 @@ function panelHttpPost(host, port, path, body) {
 }
 
 app.post('/api/installer/relay-toggle', async (req, res) => {
-  const { panelAddress } = req.body;
+  const { panelAddress, relayList: clientRelayList, relayCount: clientRelayCount } = req.body;
   if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
 
   try {
     const [host, portStr] = panelAddress.split(':');
     const port = parseInt(portStr) || 80;
 
-    // Step 1: Login — get JWT token (required by newer firmware)
+    // Step 1: Login — get JWT token
     let token = null;
     try {
       const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens',
@@ -1132,13 +1132,21 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
 
     const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
-    // Step 2: GET current relay config (with token if available)
-    const getData = await panelHttpGetWithHeaders(host, port, '/api/v1/configurations/relayfunction/relay1', authHeaders);
-    const relayData = getData?.data;
-    if (!relayData) return res.json({ success: false, error: `Could not read relay config. Raw: ${JSON.stringify(getData).slice(0,200)}` });
+    // Step 2: Use client-provided relay config if available (skip GET), else fetch
+    let relayList, relayCount;
+    if (clientRelayList && clientRelayList.length > 0) {
+      relayList = clientRelayList;
+      relayCount = clientRelayCount || clientRelayList.length;
+      console.log('Using client-provided relay config (skipping GET)');
+    } else {
+      const getData = await panelHttpGetWithHeaders(host, port, '/api/v1/configurations/relayfunction/relay1', authHeaders);
+      const relayData = getData?.data;
+      if (!relayData) return res.json({ success: false, error: `Could not read relay config. Raw: ${JSON.stringify(getData).slice(0,200)}` });
+      relayList = relayData.relay_list || [];
+      relayCount = relayData.relay_count;
+    }
 
-    const relayList = relayData.relay_list || [];
-    const relay1    = relayList.find(r => r.relay_id === 'relay1');
+    const relay1 = relayList.find(r => r.relay_id === 'relay1');
     if (!relay1) return res.json({ success: false, error: 'relay1 not found' });
 
     const currentMode = relay1.relay_mode;
@@ -1148,7 +1156,7 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
     const updatedRelayList = relayList.map(r =>
       r.relay_id === 'relay1' ? { ...r, relay_mode: newMode } : r
     );
-    const postBody = { relay_count: relayData.relay_count, relay_list: updatedRelayList };
+    const postBody = { relay_count: relayCount, relay_list: updatedRelayList };
 
     const postData = await panelHttpPostWithHeaders(host, port, '/api/v1/configurations/relayfunction', postBody, authHeaders);
     if (postData?.status && postData.status !== 'OK') {
@@ -1169,7 +1177,6 @@ app.get('/api/installer/relay-status', async (req, res) => {
   try {
     const [host, portStr] = panelAddress.split(':');
     const port = parseInt(portStr) || 80;
-    // Login to get token for newer firmware
     let token = null;
     try {
       const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
@@ -1177,8 +1184,15 @@ app.get('/api/installer/relay-status', async (req, res) => {
     } catch(e) {}
     const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
     const getData = await panelHttpGetWithHeaders(host, port, '/api/v1/configurations/relayfunction/relay1', authHeaders);
-    const relay1 = (getData?.data?.relay_list || []).find(r => r.relay_id === 'relay1');
-    res.json({ success: true, mode: relay1?.relay_mode || 'unknown' });
+    const relayData = getData?.data;
+    const relay1 = (relayData?.relay_list || []).find(r => r.relay_id === 'relay1');
+    // Return full config so toggle can skip the GET step
+    res.json({
+      success: true,
+      mode: relay1?.relay_mode || 'unknown',
+      relayCount: relayData?.relay_count,
+      relayList: relayData?.relay_list || [],
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
