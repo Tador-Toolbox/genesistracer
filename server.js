@@ -1145,7 +1145,7 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
     );
     const postBody = { relay_count: relayData.relay_count, relay_list: updatedRelayList };
 
-    const postData = await curlPost(host, port, '/api/v1/configurations/relayfunction', postBody);
+    const postData = await panelHttpPost(host, port, '/api/v1/configurations/relayfunction', postBody);
     if (postData?.status && postData.status !== 'OK') {
       return res.json({ success: false, error: `Panel rejected: ${postData.status}` });
     }
