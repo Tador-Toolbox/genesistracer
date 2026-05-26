@@ -1084,7 +1084,7 @@
       try {
         const lr = await fetch('/api/lookup', {
           method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ mac: selectedMac })
+          body: JSON.stringify({ mac: selectedMac, installerPhone: installerData?.phoneNumber })
         });
         const ld = await lr.json();
         if (!ld.success || !ld.fullAddress) {
@@ -1110,7 +1110,7 @@
       badge.className = 'action-badge badge-loading';
       if (label) label.textContent = 'בודק סטטוס...';
       try {
-        const r = await fetch('/api/installer/relay-status?panelAddress=' + encodeURIComponent(lastPanelAddress));
+        const r = await fetch('/api/installer/relay-status?panelAddress=' + encodeURIComponent(lastPanelAddress) + '&installerPhone=' + encodeURIComponent(installerData?.phoneNumber || ''));
         const data = await r.json();
         if (data.success) {
           updateRelayBadge(data.mode);
