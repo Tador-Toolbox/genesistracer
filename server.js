@@ -1111,6 +1111,41 @@ function panelHttpPost(host, port, path, body) {
   });
 }
 
+// Helper: make panel HTTP request with shared agent
+function panelReq(agent, host, port, method, path, body, extraHeaders = {}) {
+  return new Promise((resolve, reject) => {
+    const panelOrigin = `http://${host}:${port}`;
+    const bodyStr = body ? JSON.stringify(body) : null;
+    const bodyBuf = bodyStr ? Buffer.from(bodyStr, 'utf8') : null;
+    const options = {
+      hostname: host, port, path, method,
+      agent,
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Content-Type': 'application/json;charset=UTF-8',
+        'Connection': 'keep-alive',
+        'Origin': panelOrigin,
+        'Referer': `${panelOrigin}/`,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        ...(bodyBuf ? { 'Content-Length': bodyBuf.length } : {}),
+        ...extraHeaders,
+      },
+    };
+    const req = http.request(options, (panelRes) => {
+      let chunks = [];
+      panelRes.on('data', chunk => chunks.push(chunk));
+      panelRes.on('end', () => {
+        const data = Buffer.concat(chunks).toString('utf8');
+        try { resolve(JSON.parse(data)); } catch(e) { resolve({ raw: data, status: 'OK' }); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(15000, () => { req.destroy(new Error('timeout')); });
+    if (bodyBuf) req.write(bodyBuf);
+    req.end();
+  });
+}
+
 app.post('/api/installer/relay-toggle', async (req, res) => {
   const { panelAddress, relayList: clientRelayList, relayCount: clientRelayCount } = req.body;
   if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
@@ -1118,42 +1153,37 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
   try {
     const [host, portStr] = panelAddress.split(':');
     const port = parseInt(portStr) || 80;
-
-    // Step 1: Login — get JWT token
-    let token = null;
     console.log(`🔄 relay-toggle START host=${host} port=${port} hasCache=${!!(clientRelayList?.length)}`);
+
+    // Shared keepAlive agent — all requests reuse the same TCP connection
+    const agent = new http.Agent({ keepAlive: true, maxSockets: 1 });
+
+    // Step 1: Login with shared agent
+    let token = null;
     try {
       console.log('🔑 Logging in to panel...');
-      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens',
-        { username: 'admin', password: '123456' });
+      const loginRes = await panelReq(agent, host, port, 'POST', '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
       token = loginRes?.data?.token || null;
-      console.log(`🔑 Login result: ${token ? 'got token ✅' : 'no token (older firmware)'}`);
+      console.log(`🔑 Login result: ${token ? 'got token ✅' : 'no token'}`);
     } catch(loginErr) {
-      console.log('🔑 Panel login failed (continuing anyway):', loginErr.message);
+      console.log('🔑 Login failed (continuing):', loginErr.message);
     }
 
-    const panelOrigin = `http://${host}:${port}`;
-    const authHeaders = {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      'Origin': panelOrigin,
-      'Referer': `${panelOrigin}/`,
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    };
+    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
-    // Step 2: Use client-provided relay config if available (skip GET), else fetch
+    // Step 2: Get relay config (use cache if available)
     let relayList, relayCount;
     if (clientRelayList && clientRelayList.length > 0) {
       relayList = clientRelayList;
       relayCount = clientRelayCount || clientRelayList.length;
       console.log(`📋 Using cached relay config (${relayList.length} relays) — skipping GET`);
     } else {
-      console.log('📡 Fetching relay config from panel...');
-      const getData = await panelHttpGetWithHeaders(host, port, '/api/v1/configurations/relayfunction/relay1', authHeaders);
+      console.log('📡 Fetching relay config...');
+      const getData = await panelReq(agent, host, port, 'GET', '/api/v1/configurations/relayfunction/relay1', null, authHeaders);
       const relayData = getData?.data;
-      if (!relayData) return res.json({ success: false, error: `Could not read relay config. Raw: ${JSON.stringify(getData).slice(0,200)}` });
+      if (!relayData) return res.json({ success: false, error: `Could not read relay config` });
       relayList = relayData.relay_list || [];
       relayCount = relayData.relay_count;
-      console.log(`📋 Got relay config from panel (${relayList.length} relays)`);
     }
 
     const relay1 = relayList.find(r => r.relay_id === 'relay1');
@@ -1162,21 +1192,23 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
     const currentMode = relay1.relay_mode;
     const newMode     = currentMode === 'alwayson' ? 'normal' : 'alwayson';
 
-    // Step 3: POST full relay config with token
     const updatedRelayList = relayList.map(r =>
       r.relay_id === 'relay1' ? { ...r, relay_mode: newMode } : r
     );
     const postBody = { relay_count: relayCount, relay_list: updatedRelayList };
 
-    console.log(`📤 POSTing relay config: mode ${currentMode} → ${newMode}, ${updatedRelayList.length} relays, token=${!!token}`);
-    // Small delay — some panels need a moment after login before accepting POST
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const postData = await panelHttpPostWithHeaders(host, port, '/api/v1/configurations/relayfunction', postBody, authHeaders);
+    // Small delay after login before POST
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    console.log(`📤 POSTing relay: ${currentMode} → ${newMode}, ${updatedRelayList.length} relays, token=${!!token}`);
+    const postData = await panelReq(agent, host, port, 'POST', '/api/v1/configurations/relayfunction', postBody, authHeaders);
     console.log(`📥 POST result:`, JSON.stringify(postData).slice(0, 200));
+
     if (postData?.status && postData.status !== 'OK') {
       return res.json({ success: false, error: `Panel rejected: ${postData.status}` });
     }
 
+    agent.destroy();
     await logActivity({ phoneNumber: req.body.installerPhone || 'unknown', action: 'relay_toggle', mac: req.body.mac || null, details: { previousMode: currentMode, newMode }, success: true });
     res.json({ success: true, previousMode: currentMode, newMode });
   } catch (err) {
