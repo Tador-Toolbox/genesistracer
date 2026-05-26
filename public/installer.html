@@ -713,6 +713,12 @@
         </button>
 
         <!-- Tutorials -->
+        <!-- Resident Update -->
+        <button class="action-card" onclick="openResidentUpdate()">
+          <span class="material-symbols-outlined">person_edit</span>
+          <span class="action-card-label">עדכון דייר</span>
+        </button>
+
         <button class="action-card" onclick="openTutorials()">
           <span class="material-symbols-outlined">play_circle</span>
           <span class="action-card-label">סרטוני הדרכה</span>
@@ -1452,6 +1458,60 @@
   </div>
 </div>
 
+<!-- ══ RESIDENT UPDATE MODAL ══ -->
+<div id="residentUpdateModal" class="overlay">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">person_edit</span>
+        עדכון דיירים
+      </h3>
+      <button class="modal-close" onclick="closeResidentUpdate()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:18px;max-height:75vh;overflow-y:auto;">
+
+      <!-- Leaving residents -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:#E31B23;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">logout</span>
+          דיירים עוזבים
+        </div>
+        <div id="leavingResidents">
+          <div class="resident-row" data-type="leaving">
+            <input type="text" placeholder="שם פרטי ושם משפחה" class="res-name" style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;margin-bottom:6px;width:100%;"/>
+            <input type="text" placeholder="מספר דירה" class="res-apt" style="width:120px;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;"/>
+          </div>
+        </div>
+        <button onclick="addResidentRow('leaving')" id="addLeavingBtn" style="margin-top:8px;padding:6px 14px;border:1px dashed var(--gray-200);border-radius:7px;background:none;font-family:inherit;font-size:12px;cursor:pointer;color:var(--gray-500);">+ הוסף דייר עוזב</button>
+      </div>
+
+      <!-- Entering residents -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:#16a34a;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">login</span>
+          דיירים נכנסים
+        </div>
+        <div id="enteringResidents">
+          <div class="resident-row" data-type="entering">
+            <input type="text" placeholder="שם פרטי ושם משפחה" class="res-name" style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;margin-bottom:6px;width:100%;"/>
+            <input type="text" placeholder="מספר דירה" class="res-apt" style="width:120px;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;"/>
+          </div>
+        </div>
+        <button onclick="addResidentRow('entering')" id="addEnteringBtn" style="margin-top:8px;padding:6px 14px;border:1px dashed var(--gray-200);border-radius:7px;background:none;font-family:inherit;font-size:12px;cursor:pointer;color:var(--gray-500);">+ הוסף דייר נכנס</button>
+      </div>
+
+      <!-- Error msg -->
+      <div id="residentUpdateError" style="font-size:13px;color:var(--red);font-weight:600;min-height:18px;margin-bottom:12px;text-align:center;"></div>
+
+      <!-- Submit -->
+      <button class="btn-red" onclick="submitResidentUpdate()" id="residentUpdateSubmitBtn">
+        <span class="material-symbols-outlined">send</span>
+        שלח עדכון למנהל
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ LIGHTBOX ══ -->
 <div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:12px;" onclick="closeLightbox()">
   <img id="lightboxImg" style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;" />
@@ -1459,6 +1519,123 @@
 </div>
 
 <script>
+  // ── Resident Update ──
+  function openResidentUpdate() {
+    document.getElementById('residentUpdateModal').classList.add('open');
+    document.getElementById('residentUpdateError').textContent = '';
+    document.getElementById('residentUpdateSubmitBtn').disabled = false;
+    // Reset to 1 row each
+    document.getElementById('leavingResidents').innerHTML = buildResidentRow('leaving');
+    document.getElementById('enteringResidents').innerHTML = buildResidentRow('entering');
+    updateAddButtons();
+  }
+
+  function closeResidentUpdate() {
+    document.getElementById('residentUpdateModal').classList.remove('open');
+  }
+
+  function buildResidentRow(type) {
+    return '<div class="resident-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">' +
+      '<input type="text" placeholder="שם פרטי ושם משפחה" class="res-name" style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;"/>' +
+      '<input type="text" placeholder='+"'דירה'" + ' class="res-apt" style="width:90px;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;"/>' +
+      '</div>';
+  }
+
+  function addResidentRow(type) {
+    var container = document.getElementById(type === 'leaving' ? 'leavingResidents' : 'enteringResidents');
+    var rows = container.querySelectorAll('.resident-row');
+    if (rows.length >= 5) return;
+    container.insertAdjacentHTML('beforeend', buildResidentRow(type));
+    updateAddButtons();
+  }
+
+  function updateAddButtons() {
+    var leavingCount = document.getElementById('leavingResidents').querySelectorAll('.resident-row').length;
+    var enteringCount = document.getElementById('enteringResidents').querySelectorAll('.resident-row').length;
+    document.getElementById('addLeavingBtn').style.display = leavingCount >= 5 ? 'none' : 'inline-block';
+    document.getElementById('addEnteringBtn').style.display = enteringCount >= 5 ? 'none' : 'inline-block';
+  }
+
+  async function submitResidentUpdate() {
+    var errEl = document.getElementById('residentUpdateError');
+    var btn = document.getElementById('residentUpdateSubmitBtn');
+    errEl.textContent = '';
+
+    // Collect leaving
+    var leaving = [];
+    document.getElementById('leavingResidents').querySelectorAll('.resident-row').forEach(function(row) {
+      var name = row.querySelector('.res-name').value.trim();
+      var apt = row.querySelector('.res-apt').value.trim();
+      if (name || apt) leaving.push({ name: name || '-', apt: apt || '-' });
+    });
+
+    // Collect entering
+    var entering = [];
+    document.getElementById('enteringResidents').querySelectorAll('.resident-row').forEach(function(row) {
+      var name = row.querySelector('.res-name').value.trim();
+      var apt = row.querySelector('.res-apt').value.trim();
+      if (name || apt) entering.push({ name: name || '-', apt: apt || '-' });
+    });
+
+    if (!leaving.length && !entering.length) {
+      errEl.textContent = 'נא למלא לפחות שורה אחת';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined">hourglass_empty</span> שולח...';
+
+    // Build message text
+    var panelInfo = selectedMac || 'לא ידוע';
+    var lines = ['עדכון דיירים מהמתקין ' + installerData.phoneNumber, 'פנל: ' + panelInfo, ''];
+    if (leaving.length) {
+      lines.push('דיירים עוזבים:');
+      leaving.forEach(function(r) { lines.push('  • ' + r.name + ' | דירה ' + r.apt); });
+      lines.push('');
+    }
+    if (entering.length) {
+      lines.push('דיירים נכנסים:');
+      entering.forEach(function(r) { lines.push('  • ' + r.name + ' | דירה ' + r.apt); });
+    }
+    var msgText = lines.join('\n');
+
+    try {
+      var res = await fetch('/api/manager/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: msgText,
+          audience: 'specific',
+          specificPhone: 'admin',
+          imageUrl: null,
+        })
+      });
+      var data = await res.json();
+      if (data.success) {
+        closeResidentUpdate();
+        alert('העדכון נשלח למנהל בהצלחה!');
+        // Log action
+        fetch('/api/installer/log-action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'resident_update', installerPhone: installerData.phoneNumber, details: { leaving: leaving.length, entering: entering.length } })
+        }).catch(function(){});
+      } else {
+        errEl.textContent = '❌ ' + (data.error || 'שגיאה בשליחה');
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined">send</span> שלח עדכון למנהל';
+      }
+    } catch(e) {
+      errEl.textContent = '❌ שגיאת תקשורת';
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">send</span> שלח עדכון למנהל';
+    }
+  }
+
+  document.getElementById('residentUpdateModal').addEventListener('click', function(e) {
+    if (e.target === this) closeResidentUpdate();
+  });
+
   // ── Announcements ──
   async function openAnnouncements() {
     document.getElementById('announcementsModal').classList.add('open');
