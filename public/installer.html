@@ -1034,32 +1034,36 @@
   }
 
   // ── Relay (Always On) ──
+  // relay state: null = unknown, 'alwayson' | 'normal' = known
+  let relayKnownMode = null;
+
   function resetRelayBadge() {
+    relayKnownMode = null;
     const badge = document.getElementById('relayBadge');
     badge.textContent = '—';
     badge.className = 'action-badge badge-loading';
+    const label = document.getElementById('relayBtnLabel');
+    if (label) label.textContent = 'פתיחת דלת חירום';
   }
 
   async function loadRelayStatus(panelAddress) {
-    if (!panelAddress) return;
-    const badge = document.getElementById('relayBadge');
-    badge.textContent = '...';
-    try {
-      const r = await fetch('/api/installer/relay-status?panelAddress=' + encodeURIComponent(panelAddress));
-      const data = await r.json();
-      if (data.success) updateRelayBadge(data.mode);
-      else badge.textContent = '—';
-    } catch(e) { badge.textContent = '—'; }
+    // Called after lookup — just silently loads, doesn't update relayKnownMode
+    // (user must click to check)
+    resetRelayBadge();
   }
 
   function updateRelayBadge(mode) {
+    relayKnownMode = mode;
     const badge = document.getElementById('relayBadge');
+    const label = document.getElementById('relayBtnLabel');
     if (mode === 'alwayson') {
       badge.textContent = '● פעיל';
       badge.className = 'action-badge badge-on';
+      if (label) label.textContent = 'לחץ לכיבוי';
     } else {
       badge.textContent = '○ כבוי';
       badge.className = 'action-badge badge-off';
+      if (label) label.textContent = 'לחץ להפעלה';
     }
   }
 
@@ -1068,15 +1072,15 @@
     const btn  = document.getElementById('relayBtn');
     const badge = document.getElementById('relayBadge');
     const msg  = document.getElementById('relayResult');
+    const label = document.getElementById('relayBtnLabel');
     btn.disabled = true;
-    badge.textContent = '...';
-    badge.className = 'action-badge badge-loading';
     msg.textContent = '';
 
-    try {
-      if (!lastPanelAddress) {
-        msg.style.color = 'var(--gray-500)';
-        msg.textContent = 'מחפש...';
+    // Ensure we have panel address
+    if (!lastPanelAddress) {
+      badge.textContent = '...';
+      badge.className = 'action-badge badge-loading';
+      try {
         const lr = await fetch('/api/lookup', {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ mac: selectedMac })
@@ -1090,9 +1094,50 @@
           return;
         }
         lastPanelAddress = ld.fullAddress;
-        msg.textContent = '';
+      } catch(e) {
+        badge.textContent = '⚠';
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ שגיאת תקשורת';
+        btn.disabled = false;
+        return;
       }
+    }
 
+    // STATE 0: status unknown → check first
+    if (relayKnownMode === null) {
+      badge.textContent = '...';
+      badge.className = 'action-badge badge-loading';
+      if (label) label.textContent = 'בודק סטטוס...';
+      try {
+        const r = await fetch('/api/installer/relay-status?panelAddress=' + encodeURIComponent(lastPanelAddress));
+        const data = await r.json();
+        if (data.success) {
+          updateRelayBadge(data.mode);
+          msg.style.color = 'var(--gray-500)';
+          msg.textContent = 'לחץ שוב להחלפה';
+        } else {
+          badge.textContent = '⚠';
+          badge.className = 'action-badge badge-loading';
+          if (label) label.textContent = 'פתיחת דלת חירום';
+          msg.style.color = 'var(--red)';
+          msg.textContent = '❌ ' + (data.error || 'שגיאה');
+        }
+      } catch(e) {
+        badge.textContent = '⚠';
+        badge.className = 'action-badge badge-loading';
+        if (label) label.textContent = 'פתיחת דלת חירום';
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ ' + e.message;
+      }
+      btn.disabled = false;
+      return;
+    }
+
+    // STATE 1: status known → toggle
+    badge.textContent = '...';
+    badge.className = 'action-badge badge-loading';
+    if (label) label.textContent = 'מחליף...';
+    try {
       const r = await fetch('/api/installer/relay-toggle', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ mac: selectedMac, panelAddress: lastPanelAddress, installerPhone: installerData?.phoneNumber })
@@ -1103,15 +1148,20 @@
         msg.style.color = '#16a34a';
         msg.textContent = data.newMode === 'alwayson' ? '✅ הופעל' : '✅ כובה';
       } else {
+        relayKnownMode = null;
         badge.textContent = '⚠';
         badge.className = 'action-badge badge-loading';
+        if (label) label.textContent = 'פתיחת דלת חירום';
         msg.style.color = 'var(--red)';
         msg.textContent = '❌ ' + (data.error || 'שגיאה');
       }
     } catch(e) {
+      relayKnownMode = null;
       badge.textContent = '⚠';
+      badge.className = 'action-badge badge-loading';
+      if (label) label.textContent = 'פתיחת דלת חירום';
       msg.style.color = 'var(--red)';
-      msg.textContent = '❌ שגיאת תקשורת';
+      msg.textContent = '❌ ' + e.message;
     }
     btn.disabled = false;
   }
