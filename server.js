@@ -1157,11 +1157,13 @@ function relayPostViaCurl(host, port, path, body, extraHeaders = {}) {
     const panelOrigin = `http://${host}:${port}`;
     const headerArgs = [
       `-H "Accept: application/json, text/plain, */*"`,
+      `-H "Accept-Encoding: gzip, deflate"`,
+      `-H "Accept-Language: he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7"`,
       `-H "Content-Type: application/json;charset=UTF-8"`,
       `-H "Connection: keep-alive"`,
       `-H "Origin: ${panelOrigin}"`,
       `-H "Referer: ${panelOrigin}/"`,
-      `-H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"`,
+      `-H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"`,
     ];
     if (extraHeaders.Authorization) {
       headerArgs.push(`-H "Authorization: ${extraHeaders.Authorization}"`);
@@ -1227,13 +1229,15 @@ app.post('/api/installer/relay-toggle', async (req, res) => {
     const updatedRelayList = relayList.map(r =>
       r.relay_id === 'relay1' ? { ...r, relay_mode: newMode } : r
     );
-    const postBody = { relay_count: relayCount, relay_list: updatedRelayList };
+    const postBody = { relay_count: relayCount, relay_list: updatedRelayList, relay_changed_pub: 'disable' };
 
     // Small delay after login before POST
     await new Promise(resolve => setTimeout(resolve, 300));
 
-    console.log(`📤 POSTing relay via curl: ${currentMode} → ${newMode}, ${updatedRelayList.length} relays, token=${!!token}`);
-    const postData = await relayPostViaCurl(host, port, '/api/v1/configurations/relayfunction', postBody, authHeaders);
+    // Do NOT send Authorization header with relay POST — NexHome tunnel intercepts and rejects panel JWT
+    // Browser succeeds without it — tunnel handles session auth internally
+    console.log(`📤 POSTing relay via curl: ${currentMode} → ${newMode}, ${updatedRelayList.length} relays (no auth header)`);
+    const postData = await relayPostViaCurl(host, port, '/api/v1/configurations/relayfunction', postBody, {});
     console.log(`📥 POST result:`, JSON.stringify(postData).slice(0, 200));
 
     if (postData?.status && postData.status !== 'OK') {
