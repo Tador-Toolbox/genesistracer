@@ -1039,6 +1039,7 @@
 
   function resetRelayBadge() {
     relayKnownMode = null;
+    window.relayConfigCache = null;
     const badge = document.getElementById('relayBadge');
     badge.textContent = '—';
     badge.className = 'action-badge badge-loading';
@@ -1113,6 +1114,8 @@
         const data = await r.json();
         if (data.success) {
           updateRelayBadge(data.mode);
+          // Store full config so toggle can skip the GET
+          window.relayConfigCache = { relayList: data.relayList, relayCount: data.relayCount };
           msg.style.color = 'var(--gray-500)';
           msg.textContent = 'לחץ שוב להחלפה';
         } else {
@@ -1133,14 +1136,15 @@
       return;
     }
 
-    // STATE 1: status known → toggle
+    // STATE 1: status known → toggle (pass cached relay config to skip GET on server)
     badge.textContent = '...';
     badge.className = 'action-badge badge-loading';
     if (label) label.textContent = 'מחליף...';
     try {
+      const cache = window.relayConfigCache || {};
       const r = await fetch('/api/installer/relay-toggle', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ mac: selectedMac, panelAddress: lastPanelAddress, installerPhone: installerData?.phoneNumber })
+        body: JSON.stringify({ mac: selectedMac, panelAddress: lastPanelAddress, installerPhone: installerData?.phoneNumber, relayList: cache.relayList, relayCount: cache.relayCount })
       });
       const data = await r.json();
       if (data.success) {
