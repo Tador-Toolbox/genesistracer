@@ -1597,6 +1597,44 @@ app.post('/api/installer/announcements/read', async (req, res) => {
   }
 });
 
+// ==================== PANEL INFO ====================
+app.post('/api/manager/panel-info', async (req, res) => {
+  const { panelAddress } = req.body;
+  if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
+  try {
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    // Login
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes?.data?.token;
+    if (!token) return res.status(500).json({ success: false, error: 'Panel login failed' });
+    const auth = { Authorization: `Bearer ${token}` };
+
+    // Fetch all 3 endpoints in parallel
+    const [basic, network, sip2] = await Promise.all([
+      panelHttpGetWithHeaders(host, port, '/api/v1/information/basic', auth),
+      panelHttpGetWithHeaders(host, port, '/api/v1/configurations/networks', auth),
+      panelHttpGetWithHeaders(host, port, '/api/v1/intercoms/sips/2', auth),
+    ]);
+
+    res.json({
+      success: true,
+      info: {
+        softwareVersion: basic?.data?.software_version || '—',
+        model:           basic?.data?.model || '—',
+        mac:             basic?.data?.mac || '—',
+        networkType:     network?.data?.type || '—',
+        ip:              network?.data?.ip || '—',
+        account2Name:    sip2?.data?.username || sip2?.data?.register || '—',
+        account2Server:  sip2?.data?.server_endpoint || '—',
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== CATALOG ====================
 app.get('/api/catalog', async (req, res) => {
   try {
