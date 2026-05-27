@@ -1788,6 +1788,7 @@
                     <span class="mac-detail-mac">${macObj.mac}</span>
                     <div class="mac-actions">
                       <button class="small" onclick='editMac("${installer.phoneNumber}", ${JSON.stringify(macObj)})'>${translations[currentLang].edit}</button>
+                      <button class="small" onclick="openPanelInfo('${installer.phoneNumber}', '${macObj.mac}')" style="background:#0891b2;color:white;" title="מידע פנל">🔍 מידע</button>
                       <button class="small danger" onclick="removeMac('${installer.phoneNumber}', '${macObj.mac}')">×</button>
                     </div>
                   </div>
@@ -2451,5 +2452,106 @@
     if (e.target === this) closeMergeModal();
   });
 </script>
+
+<!-- ══ PANEL INFO MODAL ══ -->
+<div id="panelInfoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:28px;max-width:440px;width:90%;position:relative;">
+    <button onclick="closePanelInfo()" style="position:absolute;top:12px;left:12px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-dim);">✕</button>
+    <h3 style="margin:0 0 20px;font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;">
+      🔍 מידע פנל
+      <span id="panelInfoMac" style="font-family:monospace;font-size:12px;color:var(--text-dim);font-weight:500;"></span>
+    </h3>
+    <div id="panelInfoBody">
+      <div style="text-align:center;padding:24px;color:var(--text-dim);">טוען...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function closePanelInfo() {
+  document.getElementById('panelInfoModal').style.display = 'none';
+}
+
+async function openPanelInfo(phoneNumber, mac) {
+  const modal = document.getElementById('panelInfoModal');
+  const body = document.getElementById('panelInfoBody');
+  const macLabel = document.getElementById('panelInfoMac');
+  macLabel.textContent = mac;
+  body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-dim);">מתחבר לפנל...</div>';
+  modal.style.display = 'flex';
+
+  try {
+    // First get the panel address via lookup
+    const lookupRes = await fetch('/api/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mac: mac.replace(/[:\-]/g, '') })
+    });
+    const lookupData = await lookupRes.json();
+    if (!lookupData.success || !lookupData.fullAddress) {
+      body.innerHTML = '<div style="color:red;text-align:center;padding:20px;">❌ לא נמצאה כתובת לפנל זה.<br/><small style="color:var(--text-dim);">ייתכן שהפנל לא מחובר.</small></div>';
+      return;
+    }
+
+    body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-dim);">קורא מידע מהפנל...</div>';
+
+    const infoRes = await fetch('/api/manager/panel-info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ panelAddress: lookupData.fullAddress })
+    });
+    const infoData = await infoRes.json();
+
+    if (!infoData.success) {
+      body.innerHTML = '<div style="color:red;text-align:center;padding:20px;">❌ ' + (infoData.error || 'שגיאה') + '</div>';
+      return;
+    }
+
+    const i = infoData.info;
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:0;">
+        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--text-dim);font-size:13px;">גרסת תוכנה</span>
+          <span style="font-weight:700;font-size:13px;">${i.softwareVersion}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--text-dim);font-size:13px;">דגם</span>
+          <span style="font-weight:700;font-size:13px;">${i.model}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--text-dim);font-size:13px;">MAC</span>
+          <span style="font-weight:700;font-size:13px;font-family:monospace;">${i.mac}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--text-dim);font-size:13px;">חיבור רשת</span>
+          <span style="font-weight:700;font-size:13px;">${i.networkType}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--text-dim);font-size:13px;">כתובת IP</span>
+          <span style="font-weight:700;font-size:13px;font-family:monospace;">${i.ip}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--text-dim);font-size:13px;">חשבון 2 — שם</span>
+          <span style="font-weight:700;font-size:13px;">${i.account2Name}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px 0;">
+          <span style="color:var(--text-dim);font-size:13px;">חשבון 2 — שרת</span>
+          <span style="font-weight:700;font-size:13px;">${i.account2Server}</span>
+        </div>
+      </div>
+      <div style="margin-top:16px;text-align:center;">
+        <small style="color:var(--text-dim);">${lookupData.fullAddress}</small>
+      </div>
+    `;
+  } catch(e) {
+    body.innerHTML = '<div style="color:red;text-align:center;padding:20px;">❌ ' + e.message + '</div>';
+  }
+}
+
+document.getElementById('panelInfoModal').addEventListener('click', function(e) {
+  if (e.target === this) closePanelInfo();
+});
+</script>
+
 </body>
 </html>
