@@ -2294,6 +2294,7 @@ function uploadFaceToPanel(host, port, token, name, photoUrl) {
             content: serverFile,
             valid_periods: JSON.stringify([{ begin: '00:00:00', end: '23:59:59' }]),
             valid_door: '',
+            relay: '1',
           });
           const tmpJson = path.join(os.tmpdir(), `access_${Date.now()}.json`);
           fs.writeFileSync(tmpJson, accessBody);
