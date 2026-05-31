@@ -120,6 +120,16 @@
       <input type="text" id="searchInput" placeholder="חפש לפי שם, דירה או טלפון..." oninput="filterResidents()"/>
     </div>
 
+    <!-- Upload toolbar -->
+    <div id="uploadToolbar" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;padding:14px 16px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;">
+      <button onclick="toggleSelectMode()" id="selectModeBtn" style="padding:9px 16px;background:#2563eb;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">✓ בחר דיירים</button>
+      <button onclick="selectAll()" id="selectAllBtn" style="display:none;padding:9px 16px;background:white;color:#2563eb;border:1.5px solid #2563eb;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">בחר הכל</button>
+      <button onclick="uploadSelected()" id="uploadBtn" style="display:none;padding:9px 18px;background:#16a34a;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">⬆ העלה לפנל (<span id="selCount">0</span>)</button>
+      <span id="uploadStatus" style="font-size:13px;font-weight:600;"></span>
+      <div style="flex:1;"></div>
+      <span style="font-size:12px;color:#3b82f6;">💡 שלח תמונות פנים לפנל לזיהוי פנים בכניסה</span>
+    </div>
+
     <!-- Grid -->
     <div class="residents-grid" id="residentsGrid">
       <div class="empty-state" style="grid-column:1/-1;">
@@ -243,7 +253,8 @@
       return;
     }
     grid.innerHTML = residents.map(r => `
-      <div class="resident-card">
+      <div class="resident-card ${selectMode ? 'selectable' : ''}" data-id="${r._id}" ${selectMode ? `onclick="toggleCard('${r._id}')"` : ''} style="${selectMode ? 'cursor:pointer;' : ''}position:relative;">
+        ${selectMode ? `<div class="card-check" id="check-${r._id}" style="position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:50%;background:${selectedIds.has(r._id) ? '#16a34a' : 'rgba(255,255,255,0.9)'};border:2px solid ${selectedIds.has(r._id) ? '#16a34a' : '#d1d5db'};display:flex;align-items:center;justify-content:center;z-index:5;font-size:14px;color:white;">${selectedIds.has(r._id) ? '✓' : ''}</div>` : ''}
         <div class="resident-photo">
           ${r.photoUrl
             ? `<img src="${r.photoUrl}" alt="${r.firstName}" loading="lazy"/>`
@@ -256,7 +267,10 @@
         </div>
         <div class="resident-footer">
           <div class="resident-date">${new Date(r.createdAt).toLocaleDateString('he-IL')}</div>
-          <button class="delete-btn" onclick="deleteResident('${r._id}', '${r.firstName} ${r.lastName}')" title="מחק">🗑</button>
+          <div style="display:flex;gap:4px;">
+            ${!selectMode ? `<button class="delete-btn" onclick="uploadSingle('${r._id}')" title="העלה לפנל" style="color:#16a34a;">⬆</button>` : ''}
+            <button class="delete-btn" onclick="event.stopPropagation();deleteResident('${r._id}', '${r.firstName} ${r.lastName}')" title="מחק">🗑</button>
+          </div>
         </div>
       </div>
     `).join('');
@@ -271,6 +285,99 @@
       r.phone.includes(q)
     );
     renderResidents(filtered);
+  }
+
+  let selectMode = false;
+  let selectedIds = new Set();
+
+  function toggleSelectMode() {
+    selectMode = !selectMode;
+    selectedIds.clear();
+    document.getElementById('selectModeBtn').textContent = selectMode ? '✕ בטל בחירה' : '✓ בחר דיירים';
+    document.getElementById('selectModeBtn').style.background = selectMode ? '#6b7280' : '#2563eb';
+    document.getElementById('selectAllBtn').style.display = selectMode ? 'inline-block' : 'none';
+    document.getElementById('uploadBtn').style.display = selectMode ? 'inline-block' : 'none';
+    document.getElementById('uploadStatus').textContent = '';
+    updateSelCount();
+    renderResidents(getFiltered());
+  }
+
+  function getFiltered() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    if (!q) return allResidents;
+    return allResidents.filter(r =>
+      (r.firstName + ' ' + r.lastName).toLowerCase().includes(q) ||
+      r.apartment.toLowerCase().includes(q) ||
+      r.phone.includes(q));
+  }
+
+  function toggleCard(id) {
+    if (selectedIds.has(id)) selectedIds.delete(id);
+    else selectedIds.add(id);
+    const check = document.getElementById('check-' + id);
+    if (check) {
+      const on = selectedIds.has(id);
+      check.style.background = on ? '#16a34a' : 'rgba(255,255,255,0.9)';
+      check.style.borderColor = on ? '#16a34a' : '#d1d5db';
+      check.textContent = on ? '✓' : '';
+    }
+    updateSelCount();
+  }
+
+  function selectAll() {
+    const filtered = getFiltered();
+    const allSelected = filtered.every(r => selectedIds.has(r._id));
+    if (allSelected) { selectedIds.clear(); }
+    else { filtered.forEach(r => { if (r.photoUrl) selectedIds.add(r._id); }); }
+    updateSelCount();
+    renderResidents(filtered);
+  }
+
+  function updateSelCount() {
+    document.getElementById('selCount').textContent = selectedIds.size;
+  }
+
+  async function uploadSelected() {
+    if (!selectedIds.size) { alert('נא לבחור לפחות דייר אחד'); return; }
+    await doUpload(Array.from(selectedIds));
+  }
+
+  async function uploadSingle(id) {
+    await doUpload([id]);
+  }
+
+  async function doUpload(ids) {
+    const status = document.getElementById('uploadStatus');
+    const btn = document.getElementById('uploadBtn');
+    status.style.color = '#2563eb';
+    status.textContent = '⏳ מתחבר לפנל ומעלה ' + ids.length + ' דיירים...';
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch('/api/committee/upload-faces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentIds: ids })
+      });
+      const data = await res.json();
+      if (data.success) {
+        status.style.color = '#16a34a';
+        status.textContent = `✅ הועלו ${data.uploaded} בהצלחה` + (data.failed ? `, ${data.failed} נכשלו` : '');
+        if (data.failed) {
+          const failed = data.results.filter(r => !r.success).map(r => r.name + ' (' + r.error + ')').join(', ');
+          console.log('Failed:', failed);
+        }
+        selectedIds.clear();
+        updateSelCount();
+        renderResidents(getFiltered());
+      } else {
+        status.style.color = '#ef4444';
+        status.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      status.style.color = '#ef4444';
+      status.textContent = '❌ שגיאת תקשורת';
+    }
+    if (btn) btn.disabled = false;
   }
 
   async function deleteResident(id, name) {
