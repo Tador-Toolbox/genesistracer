@@ -144,6 +144,19 @@
       </div>
     </div>
 
+    <!-- Panel faces (imported from Genesis) -->
+    <div style="margin-top:40px;padding-top:28px;border-top:2px solid var(--gray-200);">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+        <div>
+          <h2 style="font-size:20px;font-weight:900;">פנים בפנל Genesis</h2>
+          <p style="font-size:13px;color:var(--gray-500);">כל הפנים הרשומים כרגע בפנל עצמו</p>
+        </div>
+        <button onclick="loadPanelFaces()" id="loadPanelBtn" style="padding:11px 20px;background:var(--black);color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">⬇ ייבא מהפנל</button>
+      </div>
+      <div id="panelFacesStatus" style="font-size:13px;font-weight:600;margin-bottom:12px;"></div>
+      <div class="residents-grid" id="panelFacesGrid"></div>
+    </div>
+
   </div>
 </div>
 
@@ -423,6 +436,82 @@
     } catch(e) {
       alert('שגיאת תקשורת');
     }
-  }</script>
+  }
+  async function loadPanelFaces() {
+    const btn = document.getElementById('loadPanelBtn');
+    const status = document.getElementById('panelFacesStatus');
+    const grid = document.getElementById('panelFacesGrid');
+    btn.disabled = true;
+    const origText = btn.textContent;
+    btn.textContent = '⏳ מתחבר לפנל...';
+    status.style.color = '#2563eb';
+    status.textContent = 'קורא פנים מהפנל — עשוי לקחת כמה שניות...';
+    grid.innerHTML = '';
+    try {
+      const res = await fetch('/api/committee/panel-faces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        status.style.color = '#ef4444';
+        status.textContent = '❌ ' + (data.error || 'שגיאה');
+        btn.disabled = false; btn.textContent = origText;
+        return;
+      }
+      status.style.color = '#16a34a';
+      status.textContent = '✅ נמצאו ' + data.total + ' פנים בפנל';
+      if (!data.faces.length) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="icon">👤</div><div>אין פנים בפנל</div></div>';
+      } else {
+        grid.innerHTML = data.faces.map(function(f) {
+          var dateStr = f.createdTime ? new Date(f.createdTime).toLocaleDateString('he-IL') : '';
+          return '<div class="resident-card">' +
+            '<div class="resident-photo"><div class="no-photo">👤</div></div>' +
+            '<div class="resident-info">' +
+              '<div class="resident-name">' + (f.name || '—') + '</div>' +
+              '<div class="resident-apt">🆔 ' + f.id + '</div>' +
+              '<div style="display:inline-block;margin-top:6px;padding:3px 10px;background:#eff6ff;color:#2563eb;border-radius:20px;font-size:11px;font-weight:700;">⬇ יובא מפנל</div>' +
+            '</div>' +
+            '<div class="resident-actions">' +
+              '<button class="act-btn act-panel-del" onclick="deletePanelById(' + f.id + ', &quot;' + (f.name||'') + '&quot;)">🗑 מחק מהפנל</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+    } catch(e) {
+      status.style.color = '#ef4444';
+      status.textContent = '❌ שגיאת תקשורת';
+    }
+    btn.disabled = false; btn.textContent = origText;
+  }
+
+  async function deletePanelById(panelId, name) {
+    if (!confirm('למחוק את הפנים של ' + name + ' (ID ' + panelId + ') מהפנל?')) return;
+    const status = document.getElementById('panelFacesStatus');
+    status.style.color = '#2563eb';
+    status.textContent = '⏳ מוחק מהפנל...';
+    try {
+      const res = await fetch('/api/committee/delete-panel-id', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelId: panelId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        status.style.color = '#16a34a';
+        status.textContent = '✅ נמחק מהפנל';
+        loadPanelFaces();
+      } else {
+        status.style.color = '#ef4444';
+        status.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      status.style.color = '#ef4444';
+      status.textContent = '❌ שגיאת תקשורת';
+    }
+  }
+</script>
 </body>
 </html>
