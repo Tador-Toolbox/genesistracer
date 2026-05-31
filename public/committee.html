@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>פנל ועד — Genesis</title>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--red:#E31B23;--black:#0A0A0A;--gray-50:#F9F9F9;--gray-100:#F3F3F3;--gray-200:#E5E5E5;--gray-400:#9CA3AF;--gray-500:#6B7280;--green:#16a34a;}
+    body{font-family:'Heebo',sans-serif;background:var(--gray-50);min-height:100vh;direction:rtl;color:var(--black);}
+    .topbar{background:var(--black);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;}
+    .topbar-logo{color:white;font-size:16px;font-weight:900;}
+    .topbar-sub{color:var(--gray-400);font-size:13px;}
+    .topbar button{background:none;border:1px solid var(--gray-400);color:var(--gray-400);padding:5px 14px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;}
+    .topbar button:hover{color:white;border-color:white;}
+    #loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;}
+    .login-card{background:white;border-radius:16px;border:1px solid var(--gray-200);padding:40px;width:360px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.08);}
+    .login-card .icon{font-size:48px;margin-bottom:12px;}
+    .login-card h2{font-size:22px;font-weight:900;margin-bottom:4px;}
+    .login-card p{font-size:13px;color:var(--gray-500);margin-bottom:24px;}
+    .login-card input{width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:15px;margin-bottom:10px;text-align:right;}
+    .login-card input:focus{outline:none;border-color:var(--red);}
+    .btn-red{width:100%;padding:14px;background:var(--red);color:white;border:none;border-radius:8px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;margin-top:4px;}
+    .btn-red:hover{opacity:0.9;}
+    .err{color:var(--red);font-size:13px;font-weight:600;margin-top:10px;min-height:18px;}
+    #mainPanel{display:none;}
+    .container{max-width:1000px;margin:0 auto;padding:28px 20px;}
+    .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+    .panel-header h1{font-size:24px;font-weight:900;}
+    .panel-header p{font-size:13px;color:var(--gray-500);}
+    .stats-row{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
+    .stat-card{background:white;border:1px solid var(--gray-200);border-radius:10px;padding:16px 20px;flex:1;min-width:120px;}
+    .stat-card .num{font-size:28px;font-weight:900;}
+    .stat-card .label{font-size:12px;color:var(--gray-500);margin-top:2px;}
+    .search-bar{position:relative;margin-bottom:20px;}
+    .search-bar input{width:100%;padding:12px 16px 12px 44px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:inherit;font-size:14px;background:white;}
+    .search-bar input:focus{outline:none;border-color:var(--red);}
+    .search-bar .icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--gray-400);font-size:18px;}
+    .residents-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;}
+    .resident-card{background:white;border:1px solid var(--gray-200);border-radius:12px;overflow:hidden;transition:box-shadow .2s;}
+    .resident-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.1);}
+    .resident-photo{width:100%;height:160px;object-fit:cover;background:var(--gray-100);display:flex;align-items:center;justify-content:center;}
+    .resident-photo img{width:100%;height:160px;object-fit:cover;}
+    .resident-photo .no-photo{font-size:48px;color:var(--gray-300);}
+    .resident-info{padding:14px;}
+    .resident-name{font-size:15px;font-weight:800;margin-bottom:4px;}
+    .resident-apt{font-size:12px;color:var(--gray-500);margin-bottom:2px;}
+    .resident-phone{font-size:12px;color:var(--gray-500);}
+    .resident-footer{padding:10px 14px;border-top:1px solid var(--gray-100);display:flex;justify-content:space-between;align-items:center;}
+    .resident-date{font-size:10px;color:var(--gray-400);}
+    .delete-btn{background:none;border:none;color:#ef4444;cursor:pointer;font-size:18px;padding:2px 6px;border-radius:4px;}
+    .delete-btn:hover{background:#fff5f5;}
+    .empty-state{text-align:center;padding:60px 20px;color:var(--gray-400);}
+    .empty-state .icon{font-size:48px;margin-bottom:12px;}
+    .share-btn{padding:10px 18px;background:var(--black);color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;}
+    .share-btn:hover{opacity:0.85;}
+    .reg-link-box{background:#f0fdf4;border:1.5px solid var(--green);border-radius:8px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+    .reg-link-box .link{font-family:monospace;font-size:12px;color:var(--green);word-break:break-all;flex:1;}
+    .reg-link-box button{padding:7px 14px;background:var(--green);color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;white-space:nowrap;}
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="icon">🏢</div>
+    <h2>פנל ועד הבית</h2>
+    <p>הכנס קוד בניין וסיסמה להתחברות</p>
+    <input type="text" id="loginCode" placeholder="קוד בניין (6 ספרות)" maxlength="6" inputmode="numeric"/>
+    <input type="password" id="loginPass" placeholder="סיסמה"/>
+    <button class="btn-red" onclick="doLogin()">כניסה</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- Main panel -->
+<div id="mainPanel">
+  <div class="topbar">
+    <div class="topbar-logo">🏢 פנל ועד הבית</div>
+    <div class="topbar-sub" id="topbarAddr"></div>
+    <button onclick="logout()">התנתק</button>
+  </div>
+
+  <div class="container">
+
+    <!-- Registration link -->
+    <div class="reg-link-box" id="regLinkBox">
+      <div>
+        <div style="font-size:11px;font-weight:800;color:var(--green);margin-bottom:4px;">🔗 קישור לרישום דיירים — שתף עם הדיירים</div>
+        <div class="link" id="regLink"></div>
+      </div>
+      <button onclick="copyRegLink()">📋 העתק</button>
+    </div>
+
+    <div class="panel-header">
+      <div>
+        <h1>רשימת דיירים</h1>
+        <p id="buildingSubtitle"></p>
+      </div>
+      <button class="share-btn" onclick="copyRegLink()">📤 שתף קישור רישום</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="num" id="statTotal">0</div>
+        <div class="label">דיירים רשומים</div>
+      </div>
+      <div class="stat-card">
+        <div class="num" id="statPhoto">0</div>
+        <div class="label">עם תמונה</div>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="search-bar">
+      <span class="icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="חפש לפי שם, דירה או טלפון..." oninput="filterResidents()"/>
+    </div>
+
+    <!-- Grid -->
+    <div class="residents-grid" id="residentsGrid">
+      <div class="empty-state" style="grid-column:1/-1;">
+        <div class="icon">⏳</div>
+        <div>טוען...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let sessionCode = null;
+  let sessionPass = null;
+  let allResidents = [];
+
+  // Auto-fill from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlCode = urlParams.get('code');
+  const isAdmin = urlParams.get('admin') === '1';
+
+  if (urlCode) {
+    document.getElementById('loginCode').value = urlCode;
+    if (isAdmin) {
+      // Manager bypass — load without password
+      adminBypass(urlCode);
+    }
+  }
+
+  async function adminBypass(code) {
+    // Manager opens committee view directly — fetch without password check
+    try {
+      const res = await fetch('/api/buildings');
+      const data = await res.json();
+      const building = data.buildings.find(b => b.buildingCode === code);
+      if (!building) return;
+      sessionCode = code;
+      sessionPass = building.password;
+      showPanel(building.address);
+      loadResidents();
+    } catch(e) {}
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  async function doLogin() {
+    const code = document.getElementById('loginCode').value.trim();
+    const pass = document.getElementById('loginPass').value.trim();
+    const err = document.getElementById('loginErr');
+    err.textContent = '';
+    if (!code || !pass) { err.textContent = 'נא למלא קוד וסיסמה'; return; }
+    try {
+      const res = await fetch('/api/committee/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: code, password: pass })
+      });
+      const data = await res.json();
+      if (data.success) {
+        sessionCode = code;
+        sessionPass = pass;
+        showPanel(data.address);
+        loadResidents();
+      } else {
+        err.textContent = data.error || 'שגיאה בכניסה';
+      }
+    } catch(e) {
+      err.textContent = 'שגיאת תקשורת';
+    }
+  }
+
+  function showPanel(address) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainPanel').style.display = 'block';
+    document.getElementById('topbarAddr').textContent = address;
+    document.getElementById('buildingSubtitle').textContent = address + ' · קוד: ' + sessionCode;
+    const regUrl = window.location.origin + '/resident-register.html?code=' + sessionCode;
+    document.getElementById('regLink').textContent = regUrl;
+  }
+
+  function copyRegLink() {
+    const url = window.location.origin + '/resident-register.html?code=' + sessionCode;
+    navigator.clipboard.writeText(url);
+    const btn = event.target.closest('button');
+    const orig = btn.textContent;
+    btn.textContent = '✅ הועתק!';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+  }
+
+  function logout() {
+    sessionCode = null;
+    sessionPass = null;
+    allResidents = [];
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('mainPanel').style.display = 'none';
+    document.getElementById('loginPass').value = '';
+  }
+
+  async function loadResidents() {
+    const grid = document.getElementById('residentsGrid');
+    try {
+      const res = await fetch('/api/committee/residents/' + sessionCode + '?password=' + encodeURIComponent(sessionPass));
+      const data = await res.json();
+      if (!data.success) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="icon">❌</div><div>' + data.error + '</div></div>';
+        return;
+      }
+      allResidents = data.residents;
+      document.getElementById('statTotal').textContent = allResidents.length;
+      document.getElementById('statPhoto').textContent = allResidents.filter(r => r.photoUrl).length;
+      renderResidents(allResidents);
+    } catch(e) {
+      grid.innerHTML = '<div style="color:red;padding:20px;grid-column:1/-1;">שגיאה: ' + e.message + '</div>';
+    }
+  }
+
+  function renderResidents(residents) {
+    const grid = document.getElementById('residentsGrid');
+    if (!residents.length) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="icon">👥</div><div>אין דיירים רשומים עדיין</div></div>';
+      return;
+    }
+    grid.innerHTML = residents.map(r => `
+      <div class="resident-card">
+        <div class="resident-photo">
+          ${r.photoUrl
+            ? `<img src="${r.photoUrl}" alt="${r.firstName}" loading="lazy"/>`
+            : `<div class="no-photo">👤</div>`}
+        </div>
+        <div class="resident-info">
+          <div class="resident-name">${r.firstName} ${r.lastName}</div>
+          <div class="resident-apt">🏠 דירה ${r.apartment}</div>
+          <div class="resident-phone">📱 ${r.phone}</div>
+        </div>
+        <div class="resident-footer">
+          <div class="resident-date">${new Date(r.createdAt).toLocaleDateString('he-IL')}</div>
+          <button class="delete-btn" onclick="deleteResident('${r._id}', '${r.firstName} ${r.lastName}')" title="מחק">🗑</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function filterResidents() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    if (!q) { renderResidents(allResidents); return; }
+    const filtered = allResidents.filter(r =>
+      (r.firstName + ' ' + r.lastName).toLowerCase().includes(q) ||
+      r.apartment.toLowerCase().includes(q) ||
+      r.phone.includes(q)
+    );
+    renderResidents(filtered);
+  }
+
+  async function deleteResident(id, name) {
+    if (!confirm('למחוק את הדייר ' + name + '?')) return;
+    try {
+      const res = await fetch('/api/committee/residents/' + id + '?password=' + encodeURIComponent(sessionPass) + '&buildingCode=' + sessionCode, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) loadResidents();
+      else alert('שגיאה: ' + (data.error || 'unknown'));
+    } catch(e) {
+      alert('שגיאת תקשורת');
+    }
+  }
+</script>
+</body>
+</html>

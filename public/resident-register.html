@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>רישום דייר — Genesis</title>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--red:#E31B23;--black:#0A0A0A;--gray-50:#F9F9F9;--gray-100:#F3F3F3;--gray-200:#E5E5E5;--gray-400:#9CA3AF;--gray-500:#6B7280;--green:#16a34a;}
+    body{font-family:'Heebo',sans-serif;background:var(--gray-50);min-height:100vh;direction:rtl;color:var(--black);padding:24px 16px;}
+    .header{text-align:center;margin-bottom:32px;}
+    .header .logo{width:56px;height:56px;background:var(--black);border-radius:12px;display:flex;align-items:center;justify-content:center;color:white;font-size:22px;font-weight:900;margin:0 auto 12px;}
+    .header h1{font-size:24px;font-weight:900;margin-bottom:4px;}
+    .header p{font-size:14px;color:var(--gray-500);}
+    .card{background:white;border-radius:16px;border:1px solid var(--gray-200);padding:24px;max-width:480px;margin:0 auto;}
+    .building-info{background:var(--gray-50);border-radius:8px;padding:12px 16px;margin-bottom:20px;display:none;}
+    .building-info .addr{font-size:15px;font-weight:700;}
+    .building-info .code{font-size:12px;color:var(--gray-500);margin-top:2px;}
+    .field{margin-bottom:16px;}
+    .field label{display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);margin-bottom:6px;}
+    .field input{width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:15px;color:var(--black);background:var(--gray-50);}
+    .field input:focus{outline:none;border-color:var(--red);background:white;}
+    .field input.err-input{border-color:var(--red);}
+    .photo-wrap{border:2px dashed var(--gray-200);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:16px;position:relative;}
+    .photo-wrap:hover{border-color:var(--red);}
+    .photo-wrap input{display:none;}
+    .photo-preview{width:100%;max-height:200px;object-fit:cover;border-radius:8px;display:none;}
+    .photo-placeholder{color:var(--gray-400);font-size:14px;}
+    .photo-placeholder .icon{font-size:36px;margin-bottom:8px;}
+    .btn{width:100%;padding:15px;background:var(--red);color:white;border:none;border-radius:10px;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;}
+    .btn:hover{opacity:0.9;}
+    .btn:disabled{opacity:0.6;cursor:not-allowed;}
+    .err-msg{color:var(--red);font-size:13px;font-weight:600;text-align:center;margin-top:12px;min-height:18px;}
+    .success-screen{display:none;text-align:center;padding:32px 16px;}
+    .success-screen .icon{font-size:64px;margin-bottom:16px;}
+    .success-screen h2{font-size:22px;font-weight:900;margin-bottom:8px;color:var(--green);}
+    .success-screen p{font-size:15px;color:var(--gray-500);line-height:1.6;}
+    #formScreen{}
+    .code-input-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:20px;}
+    .code-input-row input{flex:1;}
+    .code-input-row button{padding:12px 18px;background:var(--black);color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;}
+    .code-err{font-size:13px;color:var(--red);font-weight:600;margin-top:-12px;margin-bottom:12px;}
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">T</div>
+  <h1>רישום דייר</h1>
+  <p>מלא את הפרטים להצטרפות לרשימת הדיירים בבניין</p>
+</div>
+
+<div class="card">
+
+  <!-- Building code step -->
+  <div id="codeStep">
+    <div class="field">
+      <label>קוד בניין</label>
+      <div class="code-input-row">
+        <input type="text" id="buildingCodeInput" placeholder="הכנס קוד 6 ספרות" maxlength="6" inputmode="numeric"/>
+        <button onclick="verifyCode()">אמת</button>
+      </div>
+    </div>
+    <div class="code-err" id="codeErr"></div>
+  </div>
+
+  <!-- Building confirmed -->
+  <div class="building-info" id="buildingInfo">
+    <div class="addr" id="buildingAddr"></div>
+    <div class="code" id="buildingCodeLabel"></div>
+  </div>
+
+  <!-- Registration form -->
+  <div id="formStep" style="display:none;">
+    <div style="display:flex;gap:10px;">
+      <div class="field" style="flex:1;">
+        <label>שם פרטי</label>
+        <input type="text" id="firstName" placeholder="שם פרטי"/>
+      </div>
+      <div class="field" style="flex:1;">
+        <label>שם משפחה</label>
+        <input type="text" id="lastName" placeholder="שם משפחה"/>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;">
+      <div class="field" style="flex:1;">
+        <label>מספר דירה</label>
+        <input type="text" id="apartment" placeholder="למשל: 4" inputmode="numeric"/>
+      </div>
+      <div class="field" style="flex:1;">
+        <label>מספר טלפון</label>
+        <input type="tel" id="phone" placeholder="05X-XXXXXXX" inputmode="tel"/>
+      </div>
+    </div>
+
+    <!-- Photo -->
+    <label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);margin-bottom:6px;">תמונת פנים</label>
+    <div class="photo-wrap" onclick="document.getElementById('photoInput').click()">
+      <input type="file" id="photoInput" accept="image/*" capture="user" onchange="previewPhoto(event)"/>
+      <img id="photoPreview" class="photo-preview"/>
+      <div class="photo-placeholder" id="photoPlaceholder">
+        <div class="icon">📷</div>
+        <div>לחץ לצילום תמונה או העלאה מהגלריה</div>
+        <div style="font-size:12px;color:var(--gray-400);margin-top:4px;">מומלץ: תמונת פנים ברורה</div>
+      </div>
+    </div>
+
+    <div class="err-msg" id="errMsg"></div>
+
+    <button class="btn" onclick="submitRegistration()" id="submitBtn">
+      <span>📝</span>
+      שלח רישום
+    </button>
+  </div>
+
+  <!-- Success -->
+  <div class="success-screen" id="successScreen">
+    <div class="icon">✅</div>
+    <h2>הרישום נשלח בהצלחה!</h2>
+    <p>פרטיך נשלחו לוועד הבית.<br/>תוכל לסגור את הדף.</p>
+  </div>
+
+</div>
+
+<script>
+  let verifiedCode = null;
+
+  // Auto-fill from URL if code param exists
+  const urlCode = new URLSearchParams(window.location.search).get('code');
+  if (urlCode) {
+    document.getElementById('buildingCodeInput').value = urlCode;
+    verifyCode();
+  }
+
+  async function verifyCode() {
+    const code = document.getElementById('buildingCodeInput').value.trim();
+    const errEl = document.getElementById('codeErr');
+    errEl.textContent = '';
+    if (code.length < 6) { errEl.textContent = 'קוד לא תקין'; return; }
+    try {
+      const res = await fetch('/api/buildings/info/' + code);
+      const data = await res.json();
+      if (data.success) {
+        verifiedCode = code;
+        document.getElementById('buildingAddr').textContent = '🏢 ' + data.address;
+        document.getElementById('buildingCodeLabel').textContent = 'קוד בניין: ' + code;
+        document.getElementById('buildingInfo').style.display = 'block';
+        document.getElementById('formStep').style.display = 'block';
+        document.getElementById('codeStep').style.display = 'none';
+      } else {
+        errEl.textContent = 'קוד בניין לא נמצא';
+      }
+    } catch(e) {
+      errEl.textContent = 'שגיאת תקשורת';
+    }
+  }
+
+  function previewPhoto(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const preview = document.getElementById('photoPreview');
+      preview.src = e.target.result;
+      preview.style.display = 'block';
+      document.getElementById('photoPlaceholder').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function submitRegistration() {
+    const firstName = document.getElementById('firstName').value.trim();
+    const lastName = document.getElementById('lastName').value.trim();
+    const apartment = document.getElementById('apartment').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const photoFile = document.getElementById('photoInput').files[0];
+    const errEl = document.getElementById('errMsg');
+    const btn = document.getElementById('submitBtn');
+
+    errEl.textContent = '';
+
+    if (!firstName || !lastName || !apartment || !phone) {
+      errEl.textContent = 'נא למלא את כל השדות';
+      return;
+    }
+    if (!photoFile) {
+      errEl.textContent = 'נא להעלות תמונת פנים';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> שולח...';
+
+    try {
+      const formData = new FormData();
+      formData.append('buildingCode', verifiedCode);
+      formData.append('firstName', firstName);
+      formData.append('lastName', lastName);
+      formData.append('apartment', apartment);
+      formData.append('phone', phone);
+      formData.append('photo', photoFile);
+
+      const res = await fetch('/api/residents/register', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (data.success) {
+        document.getElementById('formStep').style.display = 'none';
+        document.getElementById('buildingInfo').style.display = 'none';
+        document.getElementById('successScreen').style.display = 'block';
+      } else {
+        errEl.textContent = data.error || 'שגיאה בשליחה';
+        btn.disabled = false;
+        btn.innerHTML = '<span>📝</span> שלח רישום';
+      }
+    } catch(e) {
+      errEl.textContent = 'שגיאת תקשורת: ' + e.message;
+      btn.disabled = false;
+      btn.innerHTML = '<span>📝</span> שלח רישום';
+    }
+  }
+</script>
+</body>
+</html>
