@@ -2450,13 +2450,33 @@ app.post('/api/committee/panel-faces', async (req, res) => {
     if (!token) return res.json({ success: false, error: 'Panel login failed' });
 
     const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
-    const list = (listData?.data?.list || []).map(p => ({
-      id: p.id,
-      name: p.label,
-      type: p.type,
-      validFloor: p.valid_floor,
-      createdTime: p.created_time,
-    }));
+    const rawList = listData?.data?.list || [];
+
+    // Fetch each face image as base64 (panel serves them at /api/v1/access/image/{file})
+    const list = [];
+    for (const p of rawList) {
+      let photoBase64 = null;
+      const imgFile = p.content || p.face_picture_name || (p.id + '.jpg');
+      try {
+        const imgUrl = `http://${host}:${port}/api/v1/access/image/${imgFile}`;
+        const imgRes = await axios.get(imgUrl, {
+          responseType: 'arraybuffer',
+          timeout: 15000,
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        photoBase64 = 'data:image/jpeg;base64,' + Buffer.from(imgRes.data).toString('base64');
+      } catch (e) {
+        // image fetch failed — leave null, show placeholder
+      }
+      list.push({
+        id: p.id,
+        name: p.label,
+        type: p.type,
+        validFloor: p.valid_floor,
+        createdTime: p.created_time,
+        photo: photoBase64,
+      });
+    }
 
     res.json({ success: true, faces: list, total: list.length });
   } catch (err) {
