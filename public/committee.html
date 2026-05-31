@@ -467,8 +467,11 @@
       } else {
         grid.innerHTML = data.faces.map(function(f) {
           var dateStr = f.createdTime ? new Date(f.createdTime).toLocaleDateString('he-IL') : '';
+          var photoHtml = f.photo
+            ? '<img src="' + f.photo + '" alt="' + (f.name||'') + '"/>'
+            : '<div class="no-photo">👤</div>';
           return '<div class="resident-card">' +
-            '<div class="resident-photo"><div class="no-photo">👤</div></div>' +
+            '<div class="resident-photo">' + photoHtml + '</div>' +
             '<div class="resident-info">' +
               '<div class="resident-name">' + (f.name || '—') + '</div>' +
               '<div class="resident-apt">🆔 ' + f.id + '</div>' +
