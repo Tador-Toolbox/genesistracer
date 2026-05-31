@@ -2456,17 +2456,21 @@ app.post('/api/committee/panel-faces', async (req, res) => {
     const list = [];
     for (const p of rawList) {
       let photoBase64 = null;
-      const imgFile = p.content || p.face_picture_name || (p.id + '.jpg');
       try {
-        const imgUrl = `http://${host}:${port}/api/v1/access/image/${imgFile}`;
+        // Image URL uses the record id (e.g. 31.jpg) with ?id= query — no auth header needed
+        const imgUrl = `http://${host}:${port}/api/v1/access/image/${p.id}.jpg?id=${p.id}`;
         const imgRes = await axios.get(imgUrl, {
           responseType: 'arraybuffer',
           timeout: 15000,
-          headers: { Authorization: 'Bearer ' + token },
+          headers: { 'Referer': `http://${host}:${port}/`, 'Accept': 'application/json, text/plain, */*' },
         });
-        photoBase64 = 'data:image/jpeg;base64,' + Buffer.from(imgRes.data).toString('base64');
+        const buf = Buffer.from(imgRes.data);
+        if (buf.length > 100) {
+          photoBase64 = 'data:image/jpeg;base64,' + buf.toString('base64');
+        }
+        console.log(`📷 Face ${p.id} (${p.label}): ${buf.length} bytes`);
       } catch (e) {
-        // image fetch failed — leave null, show placeholder
+        console.log(`📷 Face ${p.id} image failed: ${e.message}`);
       }
       list.push({
         id: p.id,
