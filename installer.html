@@ -687,6 +687,12 @@
           <div id="rebootResult" class="status-msg"></div>
         </button>
 
+        <!-- Temporary Code -->
+        <button class="action-card" id="tempCodeBtn" onclick="openTempCode()">
+          <span class="material-symbols-outlined">password</span>
+          <span class="action-card-label">קוד זמני</span>
+        </button>
+
         <!-- Catalog -->
         <button class="action-card" id="catalogSection" onclick="openCatalog()">
           <span class="material-symbols-outlined">download</span>
@@ -699,7 +705,20 @@
           <span class="action-card-label">רשימת דיירים לדוגמא</span>
         </button>
 
+        <!-- Announcements -->
+        <button class="action-card" id="announcementsBtn" onclick="openAnnouncements()" style="position:relative;">
+          <span class="material-symbols-outlined">campaign</span>
+          <span class="action-card-label">הודעות</span>
+          <span id="announcementsBadge" style="display:none;position:absolute;top:8px;left:8px;background:var(--red);color:white;border-radius:50%;width:18px;height:18px;font-size:10px;line-height:18px;text-align:center;font-weight:800;"></span>
+        </button>
+
         <!-- Tutorials -->
+        <!-- Resident Update -->
+        <button class="action-card" onclick="openResidentUpdate()">
+          <span class="material-symbols-outlined">person_edit</span>
+          <span class="action-card-label">עדכון דייר</span>
+        </button>
+
         <button class="action-card" onclick="openTutorials()">
           <span class="material-symbols-outlined">play_circle</span>
           <span class="action-card-label">סרטוני הדרכה</span>
@@ -805,6 +824,7 @@
   let installerData = null;
   let selectedMac = null;
   let lastPanelAddress = null;
+  let selectedExpiry = 'unlimited';
   let catalogUrl = 'https://www.tador.com';
 
   // ── Language ──
@@ -957,7 +977,7 @@
     resultDiv.innerHTML = '<p style="color:var(--gray-500);font-size:13px;padding:8px 0;text-align:center;">מחפש...</p>';
     const res  = await fetch('/api/lookup', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ mac: selectedMac })
+      body: JSON.stringify({ mac: selectedMac, installerPhone: installerData?.phoneNumber })
     });
     const data = await res.json();
     const t    = translations[currentLang];
@@ -1001,7 +1021,7 @@
     try {
       const r    = await fetch('/api/installer/reboot', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ mac: selectedMac })
+        body: JSON.stringify({ mac: selectedMac, installerPhone: installerData?.phoneNumber })
       });
       const data = await r.json();
       msg.style.color = data.success ? '#16a34a' : 'var(--red)';
@@ -1014,32 +1034,37 @@
   }
 
   // ── Relay (Always On) ──
+  // relay state: null = unknown, 'alwayson' | 'normal' = known
+  let relayKnownMode = null;
+
   function resetRelayBadge() {
+    relayKnownMode = null;
+    window.relayConfigCache = null;
     const badge = document.getElementById('relayBadge');
     badge.textContent = '—';
     badge.className = 'action-badge badge-loading';
+    const label = document.getElementById('relayBtnLabel');
+    if (label) label.textContent = 'פתיחת דלת חירום';
   }
 
   async function loadRelayStatus(panelAddress) {
-    if (!panelAddress) return;
-    const badge = document.getElementById('relayBadge');
-    badge.textContent = '...';
-    try {
-      const r = await fetch('/api/installer/relay-status?panelAddress=' + encodeURIComponent(panelAddress));
-      const data = await r.json();
-      if (data.success) updateRelayBadge(data.mode);
-      else badge.textContent = '—';
-    } catch(e) { badge.textContent = '—'; }
+    // Called after lookup — just silently loads, doesn't update relayKnownMode
+    // (user must click to check)
+    resetRelayBadge();
   }
 
   function updateRelayBadge(mode) {
+    relayKnownMode = mode;
     const badge = document.getElementById('relayBadge');
+    const label = document.getElementById('relayBtnLabel');
     if (mode === 'alwayson') {
       badge.textContent = '● פעיל';
       badge.className = 'action-badge badge-on';
+      if (label) label.textContent = 'לחץ לכיבוי';
     } else {
       badge.textContent = '○ כבוי';
       badge.className = 'action-badge badge-off';
+      if (label) label.textContent = 'לחץ להפעלה';
     }
   }
 
@@ -1048,18 +1073,18 @@
     const btn  = document.getElementById('relayBtn');
     const badge = document.getElementById('relayBadge');
     const msg  = document.getElementById('relayResult');
+    const label = document.getElementById('relayBtnLabel');
     btn.disabled = true;
-    badge.textContent = '...';
-    badge.className = 'action-badge badge-loading';
     msg.textContent = '';
 
-    try {
-      if (!lastPanelAddress) {
-        msg.style.color = 'var(--gray-500)';
-        msg.textContent = 'מחפש...';
+    // Ensure we have panel address
+    if (!lastPanelAddress) {
+      badge.textContent = '...';
+      badge.className = 'action-badge badge-loading';
+      try {
         const lr = await fetch('/api/lookup', {
           method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ mac: selectedMac })
+          body: JSON.stringify({ mac: selectedMac, installerPhone: installerData?.phoneNumber })
         });
         const ld = await lr.json();
         if (!ld.success || !ld.fullAddress) {
@@ -1070,28 +1095,83 @@
           return;
         }
         lastPanelAddress = ld.fullAddress;
-        msg.textContent = '';
+      } catch(e) {
+        badge.textContent = '⚠';
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ שגיאת תקשורת';
+        btn.disabled = false;
+        return;
       }
+    }
 
+    // STATE 0: status unknown → check first
+    if (relayKnownMode === null) {
+      badge.textContent = '...';
+      badge.className = 'action-badge badge-loading';
+      if (label) label.textContent = 'בודק סטטוס...';
+      try {
+        const r = await fetch('/api/installer/relay-status?panelAddress=' + encodeURIComponent(lastPanelAddress) + '&installerPhone=' + encodeURIComponent(installerData?.phoneNumber || ''));
+        const data = await r.json();
+        if (data.success) {
+          updateRelayBadge(data.mode);
+          // Store full config so toggle can skip the GET
+          window.relayConfigCache = { relayList: data.relayList, relayCount: data.relayCount };
+          msg.style.color = 'var(--gray-500)';
+          msg.textContent = 'לחץ שוב להחלפה';
+        } else {
+          badge.textContent = '⚠';
+          badge.className = 'action-badge badge-loading';
+          if (label) label.textContent = 'פתיחת דלת חירום';
+          msg.style.color = 'var(--red)';
+          msg.textContent = '❌ ' + (data.error || 'שגיאה');
+        }
+      } catch(e) {
+        badge.textContent = '⚠';
+        badge.className = 'action-badge badge-loading';
+        if (label) label.textContent = 'פתיחת דלת חירום';
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ ' + e.message;
+      }
+      btn.disabled = false;
+      return;
+    }
+
+    // STATE 1: status known → toggle (pass cached relay config to skip GET on server)
+    badge.textContent = '...';
+    badge.className = 'action-badge badge-loading';
+    if (label) label.textContent = 'מחליף...';
+    try {
+      const cache = window.relayConfigCache || {};
       const r = await fetch('/api/installer/relay-toggle', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ mac: selectedMac, panelAddress: lastPanelAddress })
+        body: JSON.stringify({ mac: selectedMac, panelAddress: lastPanelAddress, installerPhone: installerData?.phoneNumber, relayList: cache.relayList, relayCount: cache.relayCount })
       });
       const data = await r.json();
       if (data.success) {
         updateRelayBadge(data.newMode);
+        // Update cache with new mode so next toggle sends correct state
+        if (window.relayConfigCache && window.relayConfigCache.relayList) {
+          window.relayConfigCache.relayList = window.relayConfigCache.relayList.map(function(r) {
+            return r.relay_id === 'relay1' ? Object.assign({}, r, { relay_mode: data.newMode }) : r;
+          });
+        }
         msg.style.color = '#16a34a';
         msg.textContent = data.newMode === 'alwayson' ? '✅ הופעל' : '✅ כובה';
       } else {
+        relayKnownMode = null;
         badge.textContent = '⚠';
         badge.className = 'action-badge badge-loading';
+        if (label) label.textContent = 'פתיחת דלת חירום';
         msg.style.color = 'var(--red)';
         msg.textContent = '❌ ' + (data.error || 'שגיאה');
       }
     } catch(e) {
+      relayKnownMode = null;
       badge.textContent = '⚠';
+      badge.className = 'action-badge badge-loading';
+      if (label) label.textContent = 'פתיחת דלת חירום';
       msg.style.color = 'var(--red)';
-      msg.textContent = '❌ שגיאת תקשורת';
+      msg.textContent = '❌ ' + e.message;
     }
     btn.disabled = false;
   }
@@ -1162,6 +1242,8 @@
   async function loadManagerNote(phoneNumber) {
     await checkInstallerUnread();
     setInterval(checkInstallerUnread, 30000);
+    checkAnnouncementsBadge();
+    setInterval(checkAnnouncementsBadge, 60000);
   }
 
   // ── Catalog ──
@@ -1172,7 +1254,14 @@
       if (data.url) catalogUrl = data.url;
     } catch(e) {}
   }
-  function openCatalog() { window.open(catalogUrl, '_blank'); }
+  function openCatalog() {
+    window.open(catalogUrl, '_blank');
+    fetch('/api/installer/log-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'catalog', installerPhone: installerData?.phoneNumber, details: { url: catalogUrl } })
+    }).catch(() => {});
+  }
 
   // ── Resident Example ──
   async function loadResidentExampleInstaller() {
@@ -1311,6 +1400,190 @@
   </div>
 </div>
 
+<!-- ══ TEMP CODE MODAL ══ -->
+<div id="tempCodeModal" class="overlay">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">password</span>
+        קוד זמני חדש
+      </h3>
+      <button class="modal-close" onclick="closeTempCode()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px;">
+
+      <!-- Days selection -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">ימים בשבוע</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="dayCheckboxes">
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-0">
+            <input type="checkbox" value="0" onchange="toggleDayLabel(0)" style="accent-color:var(--red);width:16px;height:16px;"> ראשון
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-1">
+            <input type="checkbox" value="1" onchange="toggleDayLabel(1)" style="accent-color:var(--red);width:16px;height:16px;"> שני
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-2">
+            <input type="checkbox" value="2" onchange="toggleDayLabel(2)" style="accent-color:var(--red);width:16px;height:16px;"> שלישי
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-3">
+            <input type="checkbox" value="3" onchange="toggleDayLabel(3)" style="accent-color:var(--red);width:16px;height:16px;"> רביעי
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-4">
+            <input type="checkbox" value="4" onchange="toggleDayLabel(4)" style="accent-color:var(--red);width:16px;height:16px;"> חמישי
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-5">
+            <input type="checkbox" value="5" onchange="toggleDayLabel(5)" style="accent-color:var(--red);width:16px;height:16px;"> שישי
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-6">
+            <input type="checkbox" value="6" onchange="toggleDayLabel(6)" style="accent-color:var(--red);width:16px;height:16px;"> שבת
+          </label>
+        </div>
+      </div>
+
+      <!-- Expiry type selection -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">סוג תוקף</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <label id="expiry-unlimited" onclick="selectExpiry('unlimited')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border:2px solid var(--red);background:#fff5f5;border-radius:8px;cursor:pointer;text-align:center;">
+            <span class="material-symbols-outlined" style="font-size:22px;color:var(--red);">all_inclusive</span>
+            <span style="font-size:12px;font-weight:800;color:var(--red);">ללא הגבלה</span>
+            <span style="font-size:10px;color:var(--gray-500);">עובד כל שבוע</span>
+          </label>
+          <label id="expiry-daily" onclick="selectExpiry('daily')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border:1.5px solid var(--gray-200);background:none;border-radius:8px;cursor:pointer;text-align:center;">
+            <span class="material-symbols-outlined" style="font-size:22px;color:var(--gray-500);">today</span>
+            <span style="font-size:12px;font-weight:800;color:var(--black);">יומי</span>
+            <span style="font-size:10px;color:var(--gray-500);">תוקף לאותו היום בלבד</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Valid Hours -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;color:var(--gray-700,#374151);">שעות כניסה</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:13px;color:var(--gray-500);font-weight:600;">מ-</span>
+          <input type="time" id="tempCodeHourStart" value="00:00"
+            style="padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:14px;width:130px;"/>
+          <span style="font-size:13px;color:var(--gray-500);font-weight:600;">עד</span>
+          <input type="time" id="tempCodeHourEnd" value="23:59"
+            style="padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:14px;width:130px;"/>
+        </div>
+      </div>
+
+      <!-- Info box -->
+      <div style="background:var(--gray-50);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--gray-500);margin-bottom:16px;line-height:1.7;">
+        🔢 הקוד יווצר אוטומטית — 4 ספרות
+      </div>
+
+      <!-- Error msg -->
+      <div id="tempCodeError" style="font-size:13px;color:var(--red);font-weight:600;min-height:18px;margin-bottom:12px;text-align:center;"></div>
+
+      <!-- Submit button -->
+      <button class="btn-red" onclick="createTempCode()" id="tempCodeSubmitBtn">
+        <span class="material-symbols-outlined">add_circle</span>
+        צור קוד זמני
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TEMP CODE RESULT MODAL ══ -->
+<div id="tempCodeResultModal" class="overlay">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;color:#16a34a;">check_circle</span>
+        קוד נוצר בהצלחה!
+      </h3>
+      <button class="modal-close" onclick="closeTempCodeResult()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:24px;text-align:center;">
+      <div style="font-size:13px;color:var(--gray-500);margin-bottom:8px;" id="tempCodeResultLabel"></div>
+      <div style="font-family:'Courier New',monospace;font-size:52px;font-weight:800;color:var(--black);letter-spacing:12px;margin:16px 0;" id="tempCodeResultPin"></div>
+      <div style="display:none;" id="tempCodeResultDays"></div>
+      <button onclick="copyTempCode()" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:12px;border:1.5px solid var(--gray-200);border-radius:8px;background:none;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">
+        <span class="material-symbols-outlined" style="font-size:18px;">content_copy</span>
+        העתק קוד
+      </button>
+      <button onclick="shareWhatsApp()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border:none;border-radius:8px;background:#25D366;color:white;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        שתף בווצאפ
+      </button>
+      <button class="btn-red" onclick="closeTempCodeResult()">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ANNOUNCEMENTS MODAL ══ -->
+<div id="announcementsModal" class="overlay">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">campaign</span>
+        הודעות מהמנהל
+      </h3>
+      <button class="modal-close" onclick="closeAnnouncements()">✕</button>
+    </div>
+    <div class="modal-body" id="announcementsList" style="max-height:70vh;overflow-y:auto;padding:16px;">
+      <div class="chat-empty">טוען...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ RESIDENT UPDATE MODAL ══ -->
+<div id="residentUpdateModal" class="overlay">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">person_edit</span>
+        עדכון דיירים
+      </h3>
+      <button class="modal-close" onclick="closeResidentUpdate()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:18px;max-height:75vh;overflow-y:auto;">
+
+      <!-- Leaving residents -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:#E31B23;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">logout</span>
+          דיירים עוזבים
+        </div>
+        <div id="leavingResidents">
+          <div class="resident-row" data-type="leaving">
+            <input type="text" placeholder="שם פרטי ושם משפחה" class="res-name" style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;margin-bottom:6px;width:100%;"/>
+            <input type="text" placeholder="מספר דירה" class="res-apt" style="width:120px;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;"/>
+          </div>
+        </div>
+        <button onclick="addResidentRow('leaving')" id="addLeavingBtn" style="margin-top:8px;padding:6px 14px;border:1px dashed var(--gray-200);border-radius:7px;background:none;font-family:inherit;font-size:12px;cursor:pointer;color:var(--gray-500);">+ הוסף דייר עוזב</button>
+      </div>
+
+      <!-- Entering residents -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:#16a34a;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">login</span>
+          דיירים נכנסים
+        </div>
+        <div id="enteringResidents">
+          <div class="resident-row" data-type="entering">
+            <input type="text" placeholder="שם פרטי ושם משפחה" class="res-name" style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;margin-bottom:6px;width:100%;"/>
+            <input type="text" placeholder="מספר דירה" class="res-apt" style="width:120px;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;"/>
+          </div>
+        </div>
+        <button onclick="addResidentRow('entering')" id="addEnteringBtn" style="margin-top:8px;padding:6px 14px;border:1px dashed var(--gray-200);border-radius:7px;background:none;font-family:inherit;font-size:12px;cursor:pointer;color:var(--gray-500);">+ הוסף דייר נכנס</button>
+      </div>
+
+      <!-- Error msg -->
+      <div id="residentUpdateError" style="font-size:13px;color:var(--red);font-weight:600;min-height:18px;margin-bottom:12px;text-align:center;"></div>
+
+      <!-- Submit -->
+      <button class="btn-red" onclick="submitResidentUpdate()" id="residentUpdateSubmitBtn">
+        <span class="material-symbols-outlined">send</span>
+        שלח עדכון למנהל
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ LIGHTBOX ══ -->
 <div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:12px;" onclick="closeLightbox()">
   <img id="lightboxImg" style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;" />
@@ -1318,15 +1591,339 @@
 </div>
 
 <script>
+  // ── Resident Update ──
+  function openResidentUpdate() {
+    document.getElementById('residentUpdateModal').classList.add('open');
+    document.getElementById('residentUpdateError').textContent = '';
+    document.getElementById('residentUpdateSubmitBtn').disabled = false;
+    // Reset to 1 row each
+    document.getElementById('leavingResidents').innerHTML = buildResidentRow('leaving');
+    document.getElementById('enteringResidents').innerHTML = buildResidentRow('entering');
+    updateAddButtons();
+  }
+
+  function closeResidentUpdate() {
+    document.getElementById('residentUpdateModal').classList.remove('open');
+  }
+
+  function buildResidentRow(type) {
+    return '<div class="resident-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">' +
+      '<input type="text" placeholder="שם פרטי ושם משפחה" class="res-name" style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;"/>' +
+      '<input type="text" placeholder='+"'דירה'" + ' class="res-apt" style="width:90px;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;"/>' +
+      '</div>';
+  }
+
+  function addResidentRow(type) {
+    var container = document.getElementById(type === 'leaving' ? 'leavingResidents' : 'enteringResidents');
+    var rows = container.querySelectorAll('.resident-row');
+    if (rows.length >= 5) return;
+    container.insertAdjacentHTML('beforeend', buildResidentRow(type));
+    updateAddButtons();
+  }
+
+  function updateAddButtons() {
+    var leavingCount = document.getElementById('leavingResidents').querySelectorAll('.resident-row').length;
+    var enteringCount = document.getElementById('enteringResidents').querySelectorAll('.resident-row').length;
+    document.getElementById('addLeavingBtn').style.display = leavingCount >= 5 ? 'none' : 'inline-block';
+    document.getElementById('addEnteringBtn').style.display = enteringCount >= 5 ? 'none' : 'inline-block';
+  }
+
+  async function submitResidentUpdate() {
+    var errEl = document.getElementById('residentUpdateError');
+    var btn = document.getElementById('residentUpdateSubmitBtn');
+    errEl.textContent = '';
+
+    // Collect leaving
+    var leaving = [];
+    document.getElementById('leavingResidents').querySelectorAll('.resident-row').forEach(function(row) {
+      var name = row.querySelector('.res-name').value.trim();
+      var apt = row.querySelector('.res-apt').value.trim();
+      if (name || apt) leaving.push({ name: name || '-', apt: apt || '-' });
+    });
+
+    // Collect entering
+    var entering = [];
+    document.getElementById('enteringResidents').querySelectorAll('.resident-row').forEach(function(row) {
+      var name = row.querySelector('.res-name').value.trim();
+      var apt = row.querySelector('.res-apt').value.trim();
+      if (name || apt) entering.push({ name: name || '-', apt: apt || '-' });
+    });
+
+    if (!leaving.length && !entering.length) {
+      errEl.textContent = 'נא למלא לפחות שורה אחת';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined">hourglass_empty</span> שולח...';
+
+    // Build message text
+    var panelInfo = selectedMac || 'לא ידוע';
+    var lines = ['עדכון דיירים מהמתקין ' + installerData.phoneNumber, 'פנל: ' + panelInfo, ''];
+    if (leaving.length) {
+      lines.push('דיירים עוזבים:');
+      leaving.forEach(function(r) { lines.push('  • ' + r.name + ' | דירה ' + r.apt); });
+      lines.push('');
+    }
+    if (entering.length) {
+      lines.push('דיירים נכנסים:');
+      entering.forEach(function(r) { lines.push('  • ' + r.name + ' | דירה ' + r.apt); });
+    }
+    var msgText = lines.join('\n');
+
+    try {
+      var res = await fetch('/api/manager/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: msgText,
+          audience: 'specific',
+          specificPhone: 'admin',
+          imageUrl: null,
+        })
+      });
+      var data = await res.json();
+      if (data.success) {
+        closeResidentUpdate();
+        alert('העדכון נשלח למנהל בהצלחה!');
+        // Log action
+        fetch('/api/installer/log-action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'resident_update', installerPhone: installerData.phoneNumber, details: { leaving: leaving.length, entering: entering.length } })
+        }).catch(function(){});
+      } else {
+        errEl.textContent = '❌ ' + (data.error || 'שגיאה בשליחה');
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined">send</span> שלח עדכון למנהל';
+      }
+    } catch(e) {
+      errEl.textContent = '❌ שגיאת תקשורת';
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">send</span> שלח עדכון למנהל';
+    }
+  }
+
+  document.getElementById('residentUpdateModal').addEventListener('click', function(e) {
+    if (e.target === this) closeResidentUpdate();
+  });
+
+  // ── Announcements ──
+  async function openAnnouncements() {
+    document.getElementById('announcementsModal').classList.add('open');
+    const list = document.getElementById('announcementsList');
+    list.innerHTML = '<div class="chat-empty">טוען...</div>';
+    try {
+      const accountType = installerData?.accountType || 'installer';
+      const res = await fetch('/api/installer/announcements?phoneNumber=' + encodeURIComponent(installerData.phoneNumber) + '&accountType=' + accountType);
+      const data = await res.json();
+      if (!data.announcements.length) {
+        list.innerHTML = '<div class="chat-empty">אין הודעות כרגע</div>';
+      } else {
+        list.innerHTML = data.announcements.map(a => {
+          const date = new Date(a.createdAt).toLocaleDateString('he-IL', { day:'numeric', month:'numeric', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+          const isNew = !a.readBy.includes(installerData.phoneNumber);
+          return '<div style="padding:14px 0;border-bottom:1px solid var(--gray-200);">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
+            (isNew ? '<span style="width:8px;height:8px;background:var(--red);border-radius:50%;flex-shrink:0;"></span>' : '<span style="width:8px;"></span>') +
+            '<span style="font-size:11px;color:var(--gray-400);">' + date + '</span>' +
+            '</div>' +
+            (a.text ? '<div style="font-size:14px;line-height:1.6;color:var(--black);padding-right:16px;margin-bottom:8px;">' + a.text.split('\n').join('<br/>') + '</div>' : '') +
+            (a.imageUrl ? '<img src="' + a.imageUrl + '" style="max-width:100%;border-radius:8px;margin-top:4px;" />' : '') +
+            '</div>';
+        }).join('');
+      }
+      // Mark all as read
+      await fetch('/api/installer/announcements/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: installerData.phoneNumber })
+      });
+      document.getElementById('announcementsBadge').style.display = 'none';
+    } catch(e) {
+      list.innerHTML = '<div class="chat-empty">שגיאה בטעינה</div>';
+    }
+  }
+
+  function closeAnnouncements() {
+    document.getElementById('announcementsModal').classList.remove('open');
+  }
+
+  async function checkAnnouncementsBadge() {
+    if (!installerData?.phoneNumber) return;
+    try {
+      const accountType = installerData?.accountType || 'installer';
+      const res = await fetch('/api/installer/announcements?phoneNumber=' + encodeURIComponent(installerData.phoneNumber) + '&accountType=' + accountType);
+      const data = await res.json();
+      const badge = document.getElementById('announcementsBadge');
+      if (data.unread > 0) {
+        badge.textContent = data.unread;
+        badge.style.display = 'block';
+      } else {
+        badge.style.display = 'none';
+      }
+    } catch(e) {}
+  }
+
+  document.getElementById('announcementsModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAnnouncements();
+  });
+
   // ── Portfolio ──
   function openPortfolio() {
     document.getElementById('portfolioModal').classList.add('open');
     loadPortfolioImages();
+    fetch('/api/installer/log-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'portfolio', installerPhone: installerData?.phoneNumber, details: {} })
+    }).catch(() => {});
   }
   function closePortfolio() {
     document.getElementById('portfolioModal').classList.remove('open');
     cancelPortfolioPreview();
   }
+  // ── Temp Code ──
+  function selectExpiry(type) {
+    selectedExpiry = type;
+    const unlimitedEl = document.getElementById('expiry-unlimited');
+    const dailyEl = document.getElementById('expiry-daily');
+    if (type === 'unlimited') {
+      unlimitedEl.style.border = '2px solid var(--red)';
+      unlimitedEl.style.background = '#fff5f5';
+      unlimitedEl.querySelector('.material-symbols-outlined').style.color = 'var(--red)';
+      unlimitedEl.querySelector('span:nth-child(2)').style.color = 'var(--red)';
+      dailyEl.style.border = '1.5px solid var(--gray-200)';
+      dailyEl.style.background = 'none';
+      dailyEl.querySelector('.material-symbols-outlined').style.color = 'var(--gray-500)';
+      dailyEl.querySelector('span:nth-child(2)').style.color = 'var(--black)';
+    } else {
+      dailyEl.style.border = '2px solid var(--red)';
+      dailyEl.style.background = '#fff5f5';
+      dailyEl.querySelector('.material-symbols-outlined').style.color = 'var(--red)';
+      dailyEl.querySelector('span:nth-child(2)').style.color = 'var(--red)';
+      unlimitedEl.style.border = '1.5px solid var(--gray-200)';
+      unlimitedEl.style.background = 'none';
+      unlimitedEl.querySelector('.material-symbols-outlined').style.color = 'var(--gray-500)';
+      unlimitedEl.querySelector('span:nth-child(2)').style.color = 'var(--black)';
+    }
+  }
+
+  function openTempCode() {
+    if (!lastPanelAddress) {
+      alert('יש לבצע התחברות מרחוק תחילה כדי לאמת שהפנל מחובר לאינטרנט');
+      return;
+    }
+    document.getElementById('tempCodeModal').classList.add('open');
+    document.getElementById('tempCodeError').textContent = '';
+    document.getElementById('tempCodeSubmitBtn').disabled = false;
+    // Reset checkboxes
+    document.querySelectorAll('#dayCheckboxes input[type=checkbox]').forEach(cb => {
+      cb.checked = false;
+      toggleDayLabel(parseInt(cb.value));
+    });
+    // Reset expiry
+    selectedExpiry = 'unlimited';
+    selectExpiry('unlimited');
+  }
+
+  function closeTempCode() {
+    document.getElementById('tempCodeModal').classList.remove('open');
+  }
+
+  function closeTempCodeResult() {
+    document.getElementById('tempCodeResultModal').classList.remove('open');
+  }
+
+  function toggleDayLabel(dayIndex) {
+    const label = document.getElementById(`day-label-${dayIndex}`);
+    const cb = label.querySelector('input');
+    if (cb.checked) {
+      label.style.borderColor = 'var(--red)';
+      label.style.background = '#fff5f5';
+    } else {
+      label.style.borderColor = 'var(--gray-200)';
+      label.style.background = '';
+    }
+  }
+
+  async function createTempCode() {
+    const checkboxes = document.querySelectorAll('#dayCheckboxes input[type=checkbox]:checked');
+    if (checkboxes.length === 0) {
+      document.getElementById('tempCodeError').textContent = 'יש לבחור לפחות יום אחד';
+      return;
+    }
+
+    const validWeekdays = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    const btn = document.getElementById('tempCodeSubmitBtn');
+    const errEl = document.getElementById('tempCodeError');
+    btn.disabled = true;
+    errEl.textContent = '';
+    btn.innerHTML = '<span class="material-symbols-outlined">hourglass_empty</span> יוצר קוד...';
+
+    try {
+      const res = await fetch('/api/installer/temp-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+              panelAddress: lastPanelAddress,
+              validWeekdays,
+              expiryType: selectedExpiry,
+              installerPhone: installerData?.phoneNumber,
+              validHourStart: document.getElementById('tempCodeHourStart').value,
+              validHourEnd: document.getElementById('tempCodeHourEnd').value,
+            })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        closeTempCode();
+        const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+        const daysStr = data.validWeekdays.map(d => dayNames[d]).join(', ');
+        document.getElementById('tempCodeResultLabel').textContent = data.label;
+        document.getElementById('tempCodeResultPin').textContent = data.pin;
+        const expiryLabel = data.expiryType === 'daily' ? '· היום בלבד' : '· ללא הגבלה';
+        document.getElementById('tempCodeResultDays').textContent = `ימים: ${daysStr} · כל היום ${expiryLabel}`;
+        document.getElementById('tempCodeResultModal').classList.add('open');
+      } else {
+        errEl.textContent = '❌ ' + (data.error || 'שגיאה');
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined">add_circle</span> צור קוד זמני';
+      }
+    } catch(e) {
+      errEl.textContent = '❌ שגיאת תקשורת';
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">add_circle</span> צור קוד זמני';
+    }
+  }
+
+  function copyTempCode() {
+    const pin = document.getElementById('tempCodeResultPin').textContent;
+    navigator.clipboard.writeText(pin).then(() => {
+      const btn = event.target.closest('button');
+      btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;">check</span> הועתק!';
+      setTimeout(() => {
+        btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;">content_copy</span> העתק קוד';
+      }, 2000);
+    });
+  }
+
+  function shareWhatsApp() {
+    const pin = document.getElementById('tempCodeResultPin').textContent.trim();
+    const label = document.getElementById('tempCodeResultLabel').textContent.trim();
+    const days = document.getElementById('tempCodeResultDays').textContent.trim();
+    const lines = ['הונפק קוד גישה זמני', '', '*' + pin + '*', '', days];
+    const msg = encodeURIComponent(lines.join('\n'));
+    window.open('https://wa.me/?text=' + msg, '_blank');
+  }
+
+  document.getElementById('tempCodeModal').addEventListener('click', function(e) {
+    if (e.target === this) closeTempCode();
+  });
+  document.getElementById('tempCodeResultModal').addEventListener('click', function(e) {
+    if (e.target === this) closeTempCodeResult();
+  });
+
   document.getElementById('portfolioModal').addEventListener('click', function(e) {
     if (e.target === this) closePortfolio();
   });
