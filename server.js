@@ -2517,6 +2517,113 @@ app.post('/api/committee/delete-panel-id', async (req, res) => {
   }
 });
 
+
+// Committee: import panel faces into residents collection (save permanently)
+app.post('/api/committee/import-faces', async (req, res) => {
+  try {
+    const { buildingCode, password } = req.body;
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode, password });
+    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const cleanMac = building.mac.replace(/[:\-\s]/g, '').toUpperCase();
+    const panelAddress = await resolvePanelAddress(cleanMac);
+    if (!panelAddress) return res.json({ success: false, error: 'Panel not found / offline' });
+
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes?.data?.token;
+    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+
+    const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
+    const rawList = listData?.data?.list || [];
+
+    // Existing residents for this building (avoid duplicates by name)
+    const existing = await database.collection('residents').find({ buildingCode }).toArray();
+    const existingNames = new Set(existing.map(r => (r.firstName + ' ' + r.lastName).trim()));
+
+    let imported = 0, skipped = 0, failed = 0;
+    for (const p of rawList) {
+      const fullName = (p.label || '').trim();
+      if (!fullName) { failed++; continue; }
+      if (existingNames.has(fullName)) { skipped++; continue; }
+
+      // Download face image from panel
+      let photoUrl = null;
+      try {
+        const imgUrl = `http://${host}:${port}/api/v1/access/image/${p.id}.jpg?id=${p.id}`;
+        const imgRes = await axios.get(imgUrl, {
+          responseType: 'arraybuffer',
+          timeout: 15000,
+          headers: { 'Referer': `http://${host}:${port}/`, 'Accept': 'application/json, text/plain, */*' },
+        });
+        const buf = Buffer.from(imgRes.data);
+        if (buf.length > 100) {
+          // Upload to Cloudinary so it persists
+          const uploadResult = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              { folder: 'genesistracer-residents', resource_type: 'image' },
+              (error, result) => error ? reject(error) : resolve(result)
+            );
+            stream.end(buf);
+          });
+          photoUrl = uploadResult.secure_url;
+        }
+      } catch (e) { /* no photo */ }
+
+      // Split name into first + last (first word = first name, rest = last)
+      const parts = fullName.split(/\s+/);
+      const firstName = parts[0] || fullName;
+      const lastName = parts.slice(1).join(' ') || '';
+
+      await database.collection('residents').insertOne({
+        buildingCode,
+        mac: building.mac,
+        firstName,
+        lastName,
+        phone: '',
+        apartment: '',
+        photoUrl,
+        importedFromPanel: true,
+        panelFaceId: p.id,
+        createdAt: new Date(),
+      });
+      imported++;
+    }
+
+    res.json({ success: true, imported, skipped, failed });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+// Committee: edit a resident's apartment / phone / name
+app.post('/api/committee/edit-resident', async (req, res) => {
+  try {
+    const { buildingCode, password, residentId, firstName, lastName, apartment, phone } = req.body;
+    const { ObjectId } = require('mongodb');
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode, password });
+    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const update = {};
+    if (firstName !== undefined) update.firstName = firstName.trim();
+    if (lastName !== undefined) update.lastName = lastName.trim();
+    if (apartment !== undefined) update.apartment = apartment.trim();
+    if (phone !== undefined) update.phone = phone.trim();
+
+    await database.collection('residents').updateOne(
+      { _id: new ObjectId(residentId), buildingCode },
+      { $set: update }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
   console.log(`🌐 Main: http://localhost:${PORT}`);
