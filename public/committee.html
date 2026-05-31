@@ -382,7 +382,36 @@
 
   async function deleteResident(id, name) {
     if (!confirm('למחוק את הדייר ' + name + '?')) return;
+
+    // Ask whether to also remove the face from the panel
+    const alsoPanel = confirm('האם למחוק גם את הפנים מהפנל Genesis?\n\nאישור = מחיקה מהמערכת + מהפנל\nביטול = מחיקה מהמערכת בלבד');
+
     try {
+      // If requested, delete face from panel first
+      if (alsoPanel) {
+        const status = document.getElementById('uploadStatus');
+        if (status) { status.style.color = '#2563eb'; status.textContent = '⏳ מוחק פנים מהפנל...'; }
+        try {
+          const pres = await fetch('/api/committee/delete-faces', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentIds: [id] })
+          });
+          const pdata = await pres.json();
+          if (status) {
+            if (pdata.success && pdata.deleted) {
+              status.style.color = '#16a34a'; status.textContent = '✅ הפנים נמחקו מהפנל';
+            } else {
+              status.style.color = '#f59e0b';
+              status.textContent = '⚠️ ' + (pdata.results?.[0]?.error || 'לא נמצא בפנל') + ' — נמחק מהמערכת בלבד';
+            }
+          }
+        } catch(e) {
+          if (status) { status.style.color = '#f59e0b'; status.textContent = '⚠️ מחיקה מהפנל נכשלה — נמחק מהמערכת בלבד'; }
+        }
+      }
+
+      // Delete from GenesisTracer DB
       const res = await fetch('/api/committee/residents/' + id + '?password=' + encodeURIComponent(sessionPass) + '&buildingCode=' + sessionCode, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) loadResidents();
