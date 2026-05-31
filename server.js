@@ -1285,7 +1285,7 @@ app.get('/api/installer/relay-status', async (req, res) => {
 
 // ==================== TEMPORARY CODE ====================
 app.post('/api/installer/temp-code', async (req, res) => {
-  const { panelAddress, validWeekdays } = req.body;
+  const { panelAddress, validWeekdays, validHourStart, validHourEnd } = req.body;
   if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
   if (!Array.isArray(validWeekdays) || validWeekdays.length === 0)
     return res.status(400).json({ success: false, error: 'validWeekdays required' });
@@ -1332,7 +1332,7 @@ app.post('/api/installer/temp-code', async (req, res) => {
     if (!pin) return res.status(500).json({ success: false, error: 'Could not generate unique PIN after 20 attempts' });
 
     // Step 4: Create the temporary code
-    const { expiryType } = req.body; // 'unlimited' | 'daily'
+    const { expiryType, installerPhone } = req.body; // 'unlimited' | 'daily'
 
     // Calculate Israel timezone — find next occurrence of selected weekday(s)
     function getTargetDayTimestamps(weekdays) {
