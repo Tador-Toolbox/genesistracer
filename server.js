@@ -2283,12 +2283,17 @@ function uploadFaceToPanel(host, port, token, name, photoUrl) {
           if (!serverFile) { fs.unlink(tmpImg, () => {}); return reject(new Error('no filename in: ' + (stdout || '').slice(0,100))); }
           console.log('📁 Server filename:', serverFile);
 
-          // Step C: create the access record with the face
+          // Step C: create the access record with the face (exact body from panel HAR)
           const accessBody = JSON.stringify({
             label: name,
-            type: 'face',
-            face_picture_name: serverFile,
-            valid_type: 'forever',
+            effective_date: Date.now(),
+            expired_date: 7258175999000,
+            valid_weekdays: [0, 1, 2, 3, 4, 5, 6],
+            valid_count: -1,
+            facePictureName: serverFile,
+            content: serverFile,
+            valid_periods: JSON.stringify([{ begin: '00:00:00', end: '23:59:59' }]),
+            valid_door: '',
           });
           const tmpJson = path.join(os.tmpdir(), `access_${Date.now()}.json`);
           fs.writeFileSync(tmpJson, accessBody);
