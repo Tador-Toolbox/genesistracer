@@ -2327,6 +2327,95 @@ function uploadFaceToPanel(host, port, token, name, photoUrl) {
 }
 
 
+
+// Committee: delete resident face(s) from the panel
+app.post('/api/committee/delete-faces', async (req, res) => {
+  try {
+    const { buildingCode, password, residentIds } = req.body;
+    if (!buildingCode || !password || !Array.isArray(residentIds) || !residentIds.length) {
+      return res.status(400).json({ success: false, error: 'buildingCode, password and residentIds required' });
+    }
+    const { ObjectId } = require('mongodb');
+    const database = await require('./db').connectDB();
+
+    const building = await database.collection('buildings').findOne({ buildingCode, password });
+    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const cleanMac = building.mac.replace(/[:\-\s]/g, '').toUpperCase();
+    let panelAddress;
+    try {
+      panelAddress = await resolvePanelAddress(cleanMac);
+    } catch (e) {
+      return res.json({ success: false, error: 'Could not reach panel: ' + e.message });
+    }
+    if (!panelAddress) return res.json({ success: false, error: 'Panel not found / offline' });
+
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes?.data?.token;
+    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+
+    // Get the full access list from the panel (to map name → id)
+    const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: `Bearer ${token}` });
+    const panelList = listData?.data?.list || [];
+
+    const residents = await database.collection('residents')
+      .find({ _id: { $in: residentIds.map(id => new ObjectId(id)) }, buildingCode })
+      .toArray();
+
+    const results = [];
+    for (const r of residents) {
+      const name = (r.firstName + ' ' + r.lastName).trim();
+      try {
+        // Find matching access record(s) by label
+        const matches = panelList.filter(p => (p.label || '').trim() === name);
+        if (!matches.length) {
+          results.push({ id: r._id, name, success: false, error: 'Not found on panel' });
+          continue;
+        }
+        // Delete all matching records (in case of duplicates)
+        for (const m of matches) {
+          await deleteFaceFromPanel(host, port, token, m.id);
+        }
+        results.push({ id: r._id, name, success: true, deleted: matches.length });
+      } catch (e) {
+        results.push({ id: r._id, name, success: false, error: e.message });
+      }
+    }
+
+    const ok = results.filter(x => x.success).length;
+    const fail = results.length - ok;
+    res.json({ success: true, deleted: ok, failed: fail, results });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Delete a single access record from the panel by id (via curl)
+function deleteFaceFromPanel(host, port, token, accessId) {
+  return new Promise((resolve, reject) => {
+    const cmd = `curl -s --max-time 15 -X DELETE ` +
+      `-H "Authorization: Bearer ${token}" ` +
+      `-H "Content-Type: application/json;charset=UTF-8" ` +
+      `"http://${host}:${port}/api/v1/access/${accessId}"`;
+    console.log(`\u{1F5D1} Deleting face id=${accessId} from ${host}:${port}`);
+    exec(cmd, { maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      console.log('Delete response:', (stdout || '').slice(0, 200));
+      if (err) return reject(new Error('delete failed: ' + err.message));
+      try {
+        const parsed = JSON.parse(stdout);
+        if (parsed?.status && parsed.status !== 'OK' && parsed?.error) {
+          return reject(new Error(parsed.error.message || parsed.error));
+        }
+      } catch(e) { /* assume ok */ }
+      resolve(true);
+    });
+  });
+}
+
+
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
   console.log(`🌐 Main: http://localhost:${PORT}`);
