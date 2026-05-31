@@ -2176,6 +2176,146 @@ app.delete('/api/committee/residents/:id', async (req, res) => {
 });
 
 
+
+// Committee: upload resident face(s) to the panel
+app.post('/api/committee/upload-faces', async (req, res) => {
+  try {
+    const { buildingCode, password, residentIds } = req.body;
+    if (!buildingCode || !password || !Array.isArray(residentIds) || !residentIds.length) {
+      return res.status(400).json({ success: false, error: 'buildingCode, password and residentIds required' });
+    }
+    const { ObjectId } = require('mongodb');
+    const database = await require('./db').connectDB();
+
+    // Verify committee credentials
+    const building = await database.collection('buildings').findOne({ buildingCode, password });
+    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    // Resolve panel address via NexHome lookup (same flow as /api/lookup)
+    const cleanMac = building.mac.replace(/[:\-\s]/g, '').toUpperCase();
+    let panelAddress;
+    try {
+      panelAddress = await resolvePanelAddress(cleanMac);
+    } catch (e) {
+      return res.json({ success: false, error: 'Could not reach panel: ' + e.message });
+    }
+    if (!panelAddress) return res.json({ success: false, error: 'Panel not found / offline' });
+
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    // Login to panel
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes?.data?.token;
+    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+
+    // Fetch the residents
+    const residents = await database.collection('residents')
+      .find({ _id: { $in: residentIds.map(id => new ObjectId(id)) }, buildingCode })
+      .toArray();
+
+    const results = [];
+    for (const r of residents) {
+      const name = (r.firstName + ' ' + r.lastName).trim();
+      try {
+        if (!r.photoUrl) { results.push({ id: r._id, name, success: false, error: 'No photo' }); continue; }
+        await uploadFaceToPanel(host, port, token, name, r.photoUrl);
+        results.push({ id: r._id, name, success: true });
+      } catch (e) {
+        results.push({ id: r._id, name, success: false, error: e.message });
+      }
+    }
+
+    const ok = results.filter(x => x.success).length;
+    const fail = results.length - ok;
+    res.json({ success: true, uploaded: ok, failed: fail, results });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Resolve a MAC to panel host:port via NexHome (reuses lookup logic)
+async function resolvePanelAddress(cleanMac) {
+  const auth = await getAuthToken('face-upload');
+  const macData = await searchMac(auth, cleanMac);
+  const macEntry = (macData?.result?.elements || macData?.result?.list || [])[0];
+  if (!macEntry) return null;
+  const communityId = macEntry.usedCommunityId || macEntry.communityId;
+  const deviceData = await getDeviceByMac(auth, cleanMac, communityId);
+  const deviceEntry = (deviceData?.result?.elements || deviceData?.result?.list || [])[0];
+  if (!deviceEntry) return null;
+  const reverseLoginData = await getReverseLoginInfo(auth, deviceEntry.id, communityId);
+  const ip = reverseLoginData?.result?.targetHost || null;
+  const port = reverseLoginData?.result?.targetPort || null;
+  return ip && port ? `${ip}:${port}` : null;
+}
+
+// Upload a single face: download from Cloudinary, then panel 2-step (image + access record) via curl
+function uploadFaceToPanel(host, port, token, name, photoUrl) {
+  return new Promise((resolve, reject) => {
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    const tmpImg = path.join(os.tmpdir(), `face_${Date.now()}.jpg`);
+
+    // Step A: download image from Cloudinary to temp file
+    axios.get(photoUrl, { responseType: 'arraybuffer', timeout: 20000 })
+      .then(imgRes => {
+        fs.writeFileSync(tmpImg, Buffer.from(imgRes.data));
+
+        // Step B: upload image to panel (multipart) via curl
+        const uploadCmd = `curl -s --max-time 20 -X POST ` +
+          `-H "Authorization: Bearer ${token}" ` +
+          `-F "file=@${tmpImg};type=image/jpeg" ` +
+          `"http://${host}:${port}/api/v1/access/image/jpg"`;
+
+        exec(uploadCmd, { maxBuffer: 1024 * 1024 }, (err, stdout) => {
+          if (err) { fs.unlink(tmpImg, () => {}); return reject(new Error('image upload failed')); }
+          let serverFile;
+          try {
+            const parsed = JSON.parse(stdout);
+            serverFile = parsed?.data?.name || parsed?.data?.filename || parsed?.name;
+          } catch(e) {
+            fs.unlink(tmpImg, () => {});
+            return reject(new Error('bad image upload response'));
+          }
+          if (!serverFile) { fs.unlink(tmpImg, () => {}); return reject(new Error('no filename returned')); }
+
+          // Step C: create the access record with the face
+          const accessBody = JSON.stringify({
+            label: name,
+            type: 'face',
+            face_picture_name: serverFile,
+            valid_type: 'forever',
+          });
+          const tmpJson = path.join(os.tmpdir(), `access_${Date.now()}.json`);
+          fs.writeFileSync(tmpJson, accessBody);
+
+          const accessCmd = `curl -s --max-time 15 -X POST ` +
+            `-H "Authorization: Bearer ${token}" ` +
+            `-H "Content-Type: application/json;charset=UTF-8" ` +
+            `--data @${tmpJson} ` +
+            `"http://${host}:${port}/api/v1/access"`;
+
+          exec(accessCmd, { maxBuffer: 1024 * 1024 }, (err2, stdout2) => {
+            fs.unlink(tmpImg, () => {});
+            fs.unlink(tmpJson, () => {});
+            if (err2) return reject(new Error('access record failed'));
+            try {
+              const parsed2 = JSON.parse(stdout2);
+              if (parsed2?.status && parsed2.status !== 'OK' && parsed2?.error) {
+                return reject(new Error(parsed2.error));
+              }
+            } catch(e) { /* assume ok */ }
+            resolve(true);
+          });
+        });
+      })
+      .catch(e => reject(new Error('photo download failed')));
+  });
+}
+
+
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
   console.log(`🌐 Main: http://localhost:${PORT}`);
