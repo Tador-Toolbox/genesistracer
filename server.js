@@ -2424,6 +2424,75 @@ function deleteFaceFromPanel(host, port, token, accessId) {
 }
 
 
+
+// Committee: list all faces currently on the panel
+app.post('/api/committee/panel-faces', async (req, res) => {
+  try {
+    const { buildingCode, password } = req.body;
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode, password });
+    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const cleanMac = building.mac.replace(/[:\-\s]/g, '').toUpperCase();
+    let panelAddress;
+    try {
+      panelAddress = await resolvePanelAddress(cleanMac);
+    } catch (e) {
+      return res.json({ success: false, error: 'Could not reach panel: ' + e.message });
+    }
+    if (!panelAddress) return res.json({ success: false, error: 'Panel not found / offline' });
+
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes?.data?.token;
+    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+
+    const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
+    const list = (listData?.data?.list || []).map(p => ({
+      id: p.id,
+      name: p.label,
+      type: p.type,
+      validFloor: p.valid_floor,
+      createdTime: p.created_time,
+    }));
+
+    res.json({ success: true, faces: list, total: list.length });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+// Committee: delete a face from the panel by its panel ID directly
+app.post('/api/committee/delete-panel-id', async (req, res) => {
+  try {
+    const { buildingCode, password, panelId } = req.body;
+    if (!buildingCode || !password || panelId === undefined) {
+      return res.status(400).json({ success: false, error: 'buildingCode, password, panelId required' });
+    }
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode, password });
+    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const cleanMac = building.mac.replace(/[:\-\s]/g, '').toUpperCase();
+    const panelAddress = await resolvePanelAddress(cleanMac);
+    if (!panelAddress) return res.json({ success: false, error: 'Panel not found / offline' });
+
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes?.data?.token;
+    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+
+    await deleteFaceFromPanel(host, port, token, panelId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
   console.log(`🌐 Main: http://localhost:${PORT}`);
