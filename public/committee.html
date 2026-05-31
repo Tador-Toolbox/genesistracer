@@ -156,6 +156,11 @@
         <button onclick="importAllToResidents()" id="importAllBtn" style="padding:11px 20px;background:#16a34a;color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px;">💾 שמור הכל לרשימת הדיירים</button>
       </div>
       <div id="panelFacesStatus" style="font-size:13px;font-weight:600;margin-bottom:12px;"></div>
+      <div id="panelDeleteToolbar" style="display:none;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;padding:12px 14px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;">
+        <button onclick="togglePanelSelectMode()" id="panelSelectBtn" style="padding:9px 16px;background:#c2410c;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">✓ בחר למחיקה</button>
+        <button onclick="panelSelectAll()" id="panelSelectAllBtn" style="display:none;padding:9px 16px;background:white;color:#c2410c;border:1.5px solid #c2410c;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">בחר הכל</button>
+        <button onclick="deleteSelectedPanel()" id="panelDeleteBtn" style="display:none;padding:9px 18px;background:#dc2626;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">🗑 מחק נבחרים (<span id="panelSelCount">0</span>)</button>
+      </div>
       <div class="residents-grid" id="panelFacesGrid"></div>
     </div>
 
@@ -465,32 +470,110 @@
       }
       status.style.color = '#16a34a';
       status.textContent = '✅ נמצאו ' + data.total + ' פנים בפנל';
-      if (!data.faces.length) {
-        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="icon">👤</div><div>אין פנים בפנל</div></div>';
-      } else {
-        grid.innerHTML = data.faces.map(function(f) {
-          var dateStr = f.createdTime ? new Date(f.createdTime).toLocaleDateString('he-IL') : '';
-          var photoHtml = f.photo
-            ? '<img src="' + f.photo + '" alt="' + (f.name||'') + '"/>'
-            : '<div class="no-photo">👤</div>';
-          return '<div class="resident-card">' +
-            '<div class="resident-photo">' + photoHtml + '</div>' +
-            '<div class="resident-info">' +
-              '<div class="resident-name">' + (f.name || '—') + '</div>' +
-              '<div class="resident-apt">🆔 ' + f.id + '</div>' +
-              '<div style="display:inline-block;margin-top:6px;padding:3px 10px;background:#eff6ff;color:#2563eb;border-radius:20px;font-size:11px;font-weight:700;">⬇ יובא מפנל</div>' +
-            '</div>' +
-            '<div class="resident-actions">' +
-              '<button class="act-btn act-panel-del" onclick="deletePanelById(' + f.id + ', &quot;' + (f.name||'') + '&quot;)">🗑 מחק מהפנל</button>' +
-            '</div>' +
-          '</div>';
-        }).join('');
-      }
+      panelFacesData = data.faces || [];
+      document.getElementById('panelDeleteToolbar').style.display = panelFacesData.length ? 'flex' : 'none';
+      panelSelectMode = false;
+      panelSelectedIds.clear();
+      resetPanelToolbar();
+      renderPanelFaces();
     } catch(e) {
       status.style.color = '#ef4444';
       status.textContent = '❌ שגיאת תקשורת';
     }
     btn.disabled = false; btn.textContent = origText;
+  }
+
+  var panelFacesData = [];
+  var panelSelectMode = false;
+  var panelSelectedIds = new Set();
+
+  function renderPanelFaces() {
+    var grid = document.getElementById('panelFacesGrid');
+    if (!panelFacesData.length) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="icon">👤</div><div>אין פנים בפנל</div></div>';
+      return;
+    }
+    grid.innerHTML = panelFacesData.map(function(f) {
+      var photoHtml = f.photo
+        ? '<img src="' + f.photo + '" alt="' + (f.name||'') + '"/>'
+        : '<div class="no-photo">👤</div>';
+      var checkHtml = panelSelectMode
+        ? '<div onclick="togglePanelCard(' + f.id + ')" style="position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:50%;background:' + (panelSelectedIds.has(f.id) ? '#dc2626' : 'rgba(255,255,255,0.9)') + ';border:2px solid ' + (panelSelectedIds.has(f.id) ? '#dc2626' : '#d1d5db') + ';display:flex;align-items:center;justify-content:center;z-index:5;font-size:14px;color:white;cursor:pointer;">' + (panelSelectedIds.has(f.id) ? '✓' : '') + '</div>'
+        : '';
+      return '<div class="resident-card" style="position:relative;' + (panelSelectMode ? 'cursor:pointer;' : '') + '"' + (panelSelectMode ? ' onclick="togglePanelCard(' + f.id + ')"' : '') + '>' +
+        checkHtml +
+        '<div class="resident-photo">' + photoHtml + '</div>' +
+        '<div class="resident-info">' +
+          '<div class="resident-name">' + (f.name || '—') + '</div>' +
+          '<div class="resident-apt">🆔 ' + f.id + '</div>' +
+          '<div style="display:inline-block;margin-top:6px;padding:3px 10px;background:#eff6ff;color:#2563eb;border-radius:20px;font-size:11px;font-weight:700;">⬇ יובא מפנל</div>' +
+        '</div>' +
+        (panelSelectMode ? '' :
+        '<div class="resident-actions">' +
+          '<button class="act-btn act-panel-del" onclick="event.stopPropagation();deletePanelById(' + f.id + ', &quot;' + (f.name||'') + '&quot;)">🗑 מחק מהפנל</button>' +
+        '</div>') +
+      '</div>';
+    }).join('');
+  }
+
+  function resetPanelToolbar() {
+    var btn = document.getElementById('panelSelectBtn');
+    btn.textContent = '✓ בחר למחיקה';
+    btn.style.background = '#c2410c';
+    document.getElementById('panelSelectAllBtn').style.display = 'none';
+    document.getElementById('panelDeleteBtn').style.display = 'none';
+    document.getElementById('panelSelCount').textContent = '0';
+  }
+
+  function togglePanelSelectMode() {
+    panelSelectMode = !panelSelectMode;
+    panelSelectedIds.clear();
+    var btn = document.getElementById('panelSelectBtn');
+    btn.textContent = panelSelectMode ? '✕ בטל' : '✓ בחר למחיקה';
+    btn.style.background = panelSelectMode ? '#6b7280' : '#c2410c';
+    document.getElementById('panelSelectAllBtn').style.display = panelSelectMode ? 'inline-block' : 'none';
+    document.getElementById('panelDeleteBtn').style.display = panelSelectMode ? 'inline-block' : 'none';
+    document.getElementById('panelSelCount').textContent = '0';
+    renderPanelFaces();
+  }
+
+  function togglePanelCard(id) {
+    if (panelSelectedIds.has(id)) panelSelectedIds.delete(id);
+    else panelSelectedIds.add(id);
+    document.getElementById('panelSelCount').textContent = panelSelectedIds.size;
+    renderPanelFaces();
+  }
+
+  function panelSelectAll() {
+    var allSelected = panelFacesData.every(function(f) { return panelSelectedIds.has(f.id); });
+    if (allSelected) panelSelectedIds.clear();
+    else panelFacesData.forEach(function(f) { panelSelectedIds.add(f.id); });
+    document.getElementById('panelSelCount').textContent = panelSelectedIds.size;
+    renderPanelFaces();
+  }
+
+  async function deleteSelectedPanel() {
+    if (!panelSelectedIds.size) { alert('נא לבחור לפחות פרצוף אחד'); return; }
+    if (!confirm('למחוק ' + panelSelectedIds.size + ' פנים מהפנל?')) return;
+    var status = document.getElementById('panelFacesStatus');
+    var ids = Array.from(panelSelectedIds);
+    var ok = 0, fail = 0;
+    status.style.color = '#2563eb';
+    for (var i = 0; i < ids.length; i++) {
+      status.textContent = '⏳ מוחק ' + (i+1) + ' מתוך ' + ids.length + '...';
+      try {
+        var res = await fetch('/api/committee/delete-panel-id', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelId: ids[i] })
+        });
+        var data = await res.json();
+        if (data.success) ok++; else fail++;
+      } catch(e) { fail++; }
+    }
+    status.style.color = ok ? '#16a34a' : '#ef4444';
+    status.textContent = '✅ נמחקו ' + ok + (fail ? ', ' + fail + ' נכשלו' : '');
+    loadPanelFaces();
   }
 
   async function deletePanelById(panelId, name) {
