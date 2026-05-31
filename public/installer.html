@@ -1853,7 +1853,14 @@
       const res = await fetch('/api/installer/temp-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ panelAddress: lastPanelAddress, validWeekdays, expiryType: selectedExpiry, installerPhone: installerData?.phoneNumber })
+        body: JSON.stringify({
+              panelAddress: lastPanelAddress,
+              validWeekdays,
+              expiryType: selectedExpiry,
+              installerPhone: installerData?.phoneNumber,
+              validHourStart: document.getElementById('tempCodeHourStart').value,
+              validHourEnd: document.getElementById('tempCodeHourEnd').value,
+            })
       });
       const data = await res.json();
 
