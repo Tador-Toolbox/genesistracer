@@ -2393,15 +2393,23 @@ app.post('/api/committee/delete-faces', async (req, res) => {
   }
 });
 
-// Delete a single access record from the panel by id (via curl)
+// Delete access record(s) from the panel via batchdelete (via curl)
 function deleteFaceFromPanel(host, port, token, accessId) {
   return new Promise((resolve, reject) => {
-    const cmd = `curl -s --max-time 15 -X DELETE ` +
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    const tmpJson = path.join(os.tmpdir(), `del_${Date.now()}.json`);
+    fs.writeFileSync(tmpJson, JSON.stringify({ list: [accessId] }));
+
+    const cmd = `curl -s --max-time 15 -X POST ` +
       `-H "Authorization: Bearer ${token}" ` +
       `-H "Content-Type: application/json;charset=UTF-8" ` +
-      `"http://${host}:${port}/api/v1/access/${accessId}"`;
-    console.log(`\u{1F5D1} Deleting face id=${accessId} from ${host}:${port}`);
+      `--data @${tmpJson} ` +
+      `"http://${host}:${port}/api/v1/access/batchdelete"`;
+    console.log(`🗑 Deleting face id=${accessId} from ${host}:${port}`);
     exec(cmd, { maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      fs.unlink(tmpJson, () => {});
       console.log('Delete response:', (stdout || '').slice(0, 200));
       if (err) return reject(new Error('delete failed: ' + err.message));
       try {
