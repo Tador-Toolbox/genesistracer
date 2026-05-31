@@ -2602,7 +2602,7 @@ app.post('/api/committee/import-faces', async (req, res) => {
 // Committee: edit a resident's apartment / phone / name
 app.post('/api/committee/edit-resident', async (req, res) => {
   try {
-    const { buildingCode, password, residentId, firstName, lastName, apartment, phone } = req.body;
+    const { buildingCode, password, residentId, firstName, lastName, apartment, phone, notes } = req.body;
     const { ObjectId } = require('mongodb');
     const database = await require('./db').connectDB();
     const building = await database.collection('buildings').findOne({ buildingCode, password });
@@ -2613,6 +2613,7 @@ app.post('/api/committee/edit-resident', async (req, res) => {
     if (lastName !== undefined) update.lastName = lastName.trim();
     if (apartment !== undefined) update.apartment = apartment.trim();
     if (phone !== undefined) update.phone = phone.trim();
+    if (notes !== undefined) update.notes = notes.trim();
 
     await database.collection('residents').updateOne(
       { _id: new ObjectId(residentId), buildingCode },
