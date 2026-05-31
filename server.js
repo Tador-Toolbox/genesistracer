@@ -1711,9 +1711,7 @@ app.get('/api/buildings/info/:code', async (req, res) => {
 });
 
 // Resident: self-register (multipart with photo)
-const residentUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
-
-app.post('/api/residents/register', residentUpload.single('photo'), async (req, res) => {
+app.post('/api/residents/register', upload.single('photo'), async (req, res) => {
   try {
     const { buildingCode, firstName, lastName, phone, apartment } = req.body;
     if (!buildingCode || !firstName || !lastName || !phone || !apartment) {
