@@ -52,6 +52,7 @@
     .act-btn{width:100%;padding:8px;border:none;border-radius:7px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .2s;}
     .act-btn:hover{opacity:0.85;}
     .act-upload{background:#16a34a;color:white;}
+    .act-edit{background:#eff6ff;color:#2563eb;border:1.5px solid #bfdbfe;}
     .act-panel-del{background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;}
     .act-sys-del{background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;}
     .resident-date{font-size:10px;color:var(--gray-400);}
@@ -152,6 +153,7 @@
           <p style="font-size:13px;color:var(--gray-500);">כל הפנים הרשומים כרגע בפנל עצמו</p>
         </div>
         <button onclick="loadPanelFaces()" id="loadPanelBtn" style="padding:11px 20px;background:var(--black);color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">⬇ ייבא מהפנל</button>
+        <button onclick="importAllToResidents()" id="importAllBtn" style="padding:11px 20px;background:#16a34a;color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px;">💾 שמור הכל לרשימת הדיירים</button>
       </div>
       <div id="panelFacesStatus" style="font-size:13px;font-weight:600;margin-bottom:12px;"></div>
       <div class="residents-grid" id="panelFacesGrid"></div>
@@ -281,12 +283,13 @@
         </div>
         <div class="resident-info">
           <div class="resident-name">${r.firstName} ${r.lastName}</div>
-          <div class="resident-apt">🏠 דירה ${r.apartment}</div>
-          <div class="resident-phone">📱 ${r.phone}</div>
+          <div class="resident-apt">🏠 ${r.apartment ? 'דירה ' + r.apartment : '<span style="color:#f59e0b;">— ללא דירה</span>'}</div>
+          <div class="resident-phone">📱 ${r.phone || '<span style="color:#f59e0b;">— ללא טלפון</span>'}</div>
         </div>
-        <div class="resident-date" style="padding:8px 14px 0;">${new Date(r.createdAt).toLocaleDateString('he-IL')}</div>
+        <div class="resident-date" style="padding:8px 14px 0;">${new Date(r.createdAt).toLocaleDateString('he-IL')}${r.importedFromPanel ? ' · <span style="color:#2563eb;">מהפנל</span>' : ''}</div>
         <div class="resident-actions">
           ${!selectMode ? `
+            <button class="act-btn act-edit" onclick="event.stopPropagation();editResidentField('${r._id}', '${r.firstName} ${r.lastName}', '${r.apartment || ''}', '${r.phone || ''}')" title="ערוך דירה/טלפון">✏️ ערוך דירה/טלפון</button>
             <button class="act-btn act-upload" onclick="event.stopPropagation();uploadSingle('${r._id}')" title="העלה פנים לפנל">⬆ העלה לפנל</button>
             <button class="act-btn act-panel-del" onclick="event.stopPropagation();deletePanelFace('${r._id}', '${r.firstName} ${r.lastName}')" title="מחק פנים מהפנל">🗑 מהפנל</button>
             <button class="act-btn act-sys-del" onclick="event.stopPropagation();deleteFromSystem('${r._id}', '${r.firstName} ${r.lastName}')" title="מחק מהמערכת">✕ מהמערכת</button>
@@ -514,6 +517,55 @@
       status.style.color = '#ef4444';
       status.textContent = '❌ שגיאת תקשורת';
     }
+  }
+
+  async function importAllToResidents() {
+    if (!confirm('לשמור את כל הפנים מהפנל לרשימת הדיירים?\n\nדיירים שכבר קיימים (לפי שם) ידולגו.\nתוכל לערוך דירה/טלפון אחרי כן.')) return;
+    const btn = document.getElementById('importAllBtn');
+    const status = document.getElementById('panelFacesStatus');
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = '⏳ שומר...';
+    status.style.color = '#2563eb';
+    status.textContent = 'מייבא פנים ושומר תמונות — עשוי לקחת כמה שניות...';
+    try {
+      const res = await fetch('/api/committee/import-faces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass })
+      });
+      const data = await res.json();
+      if (data.success) {
+        status.style.color = '#16a34a';
+        status.textContent = '✅ נשמרו ' + data.imported + ' דיירים' + (data.skipped ? ', ' + data.skipped + ' כבר קיימים' : '') + (data.failed ? ', ' + data.failed + ' נכשלו' : '');
+        loadResidents();
+      } else {
+        status.style.color = '#ef4444';
+        status.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      status.style.color = '#ef4444';
+      status.textContent = '❌ שגיאת תקשורת';
+    }
+    btn.disabled = false; btn.textContent = orig;
+  }
+
+  // Edit resident apartment/phone inline
+  async function editResidentField(id, name, currentApt, currentPhone) {
+    const apt = prompt('מספר דירה עבור ' + name + ':', currentApt || '');
+    if (apt === null) return;
+    const phone = prompt('מספר טלפון עבור ' + name + ':', currentPhone || '');
+    if (phone === null) return;
+    try {
+      const res = await fetch('/api/committee/edit-resident', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentId: id, apartment: apt, phone: phone })
+      });
+      const data = await res.json();
+      if (data.success) loadResidents();
+      else alert('שגיאה: ' + (data.error || 'unknown'));
+    } catch(e) { alert('שגיאת תקשורת'); }
   }
 </script>
 </body>
