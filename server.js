@@ -2270,16 +2270,18 @@ function uploadFaceToPanel(host, port, token, name, photoUrl) {
           `"http://${host}:${port}/api/v1/access/image/jpg"`;
 
         exec(uploadCmd, { maxBuffer: 1024 * 1024 }, (err, stdout) => {
-          if (err) { fs.unlink(tmpImg, () => {}); return reject(new Error('image upload failed')); }
+          console.log('📤 Image upload response:', (stdout || '').slice(0, 300));
+          if (err) { fs.unlink(tmpImg, () => {}); return reject(new Error('image upload failed: ' + err.message)); }
           let serverFile;
           try {
             const parsed = JSON.parse(stdout);
-            serverFile = parsed?.data?.name || parsed?.data?.filename || parsed?.name;
+            serverFile = parsed?.data?.name || parsed?.data?.filename || parsed?.name || parsed?.data?.face_picture_name || parsed?.data;
           } catch(e) {
             fs.unlink(tmpImg, () => {});
-            return reject(new Error('bad image upload response'));
+            return reject(new Error('bad image response: ' + (stdout || '').slice(0,100)));
           }
-          if (!serverFile) { fs.unlink(tmpImg, () => {}); return reject(new Error('no filename returned')); }
+          if (!serverFile) { fs.unlink(tmpImg, () => {}); return reject(new Error('no filename in: ' + (stdout || '').slice(0,100))); }
+          console.log('📁 Server filename:', serverFile);
 
           // Step C: create the access record with the face
           const accessBody = JSON.stringify({
@@ -2298,15 +2300,19 @@ function uploadFaceToPanel(host, port, token, name, photoUrl) {
             `"http://${host}:${port}/api/v1/access"`;
 
           exec(accessCmd, { maxBuffer: 1024 * 1024 }, (err2, stdout2) => {
+            console.log('📥 Access record response:', (stdout2 || '').slice(0, 300));
             fs.unlink(tmpImg, () => {});
             fs.unlink(tmpJson, () => {});
-            if (err2) return reject(new Error('access record failed'));
+            if (err2) return reject(new Error('access record failed: ' + err2.message));
             try {
               const parsed2 = JSON.parse(stdout2);
-              if (parsed2?.status && parsed2.status !== 'OK' && parsed2?.error) {
-                return reject(new Error(parsed2.error));
+              if (parsed2?.status && parsed2.status !== 'OK' && parsed2.status !== 0 && parsed2.status !== '0') {
+                return reject(new Error('panel: ' + (parsed2.error || parsed2.status || JSON.stringify(parsed2).slice(0,80))));
               }
-            } catch(e) { /* assume ok */ }
+              if (parsed2?.error) {
+                return reject(new Error('panel: ' + parsed2.error));
+              }
+            } catch(e) { /* non-JSON, assume ok */ }
             resolve(true);
           });
         });
