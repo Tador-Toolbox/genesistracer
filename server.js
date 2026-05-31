@@ -1375,7 +1375,7 @@ app.post('/api/installer/temp-code', async (req, res) => {
       expired_date,
       valid_weekdays: validWeekdays,
       valid_count: -1,
-      valid_periods: '[{"begin":"00:00:00","end":"23:59:59"}]',
+      valid_periods: JSON.stringify([{ begin: (validHourStart || '00:00') + ':00', end: (validHourEnd || '23:59') + ':59' }]),
       valid_door: '1',
     };
 
