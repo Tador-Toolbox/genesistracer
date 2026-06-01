@@ -76,6 +76,7 @@
     .edit-input{width:100%;padding:6px 8px;border:1.5px solid var(--gray-200);border-radius:6px;font-family:inherit;font-size:13px;}
     .edit-input:focus{outline:none;border-color:var(--green);}
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -145,7 +146,7 @@
     <div style="display:flex;align-items:center;gap:8px;">
       <button class="btn btn-sm" onclick="exportResidents()" style="background:#0891b2;font-size:12px;padding:7px 14px;">⬇ ייצוא CSV</button>
       <button class="btn btn-sm" onclick="document.getElementById('importCsvInput').click()" style="background:#7c3aed;font-size:12px;padding:7px 14px;">⬆ ייבוא CSV</button>
-      <input type="file" id="importCsvInput" accept=".csv,.txt" style="display:none;" onchange="importCsv(this)"/>
+      <input type="file" id="importCsvInput" accept=".csv,.xlsx,.xls,.ods,.txt" style="display:none;" onchange="importCsv(this)"/>
       <button class="drawer-close" onclick="closeDrawer()">✕</button>
     </div>
   </div>
@@ -383,29 +384,38 @@
   async function importCsv(input) {
     const file = input.files[0];
     if (!file) return;
-    const text = await file.text();
-    // Remove BOM
-    const clean = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
-    const lines = clean.split(/\r?\n/).filter(l => l.trim());
-    if (lines.length < 2) { alert('הקובץ ריק או לא תקין'); input.value = ''; return; }
 
-    const sep = lines[0].includes('\t') ? '\t' : ',';
-    const header = lines[0].split(sep).map(h => h.replace(/^"|"$/g,'').trim().toLowerCase());
-    const nameIdx = header.findIndex(h => ['name','שם','שם מלא','שם פרטי'].includes(h));
-    const phoneIdx = header.findIndex(h => ['phone','טלפון','מספר טלפון','נייד'].includes(h));
-    const aptIdx = header.findIndex(h => ['apartment','דירה','מספר דירה','apt'].includes(h));
+    let rows = [];
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      // header:1 → first row as header keys
+      rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    } catch(e) {
+      alert('לא ניתן לפתוח את הקובץ: ' + e.message);
+      input.value = ''; return;
+    }
+
+    if (rows.length < 2) { alert('הקובץ ריק או לא תקין'); input.value = ''; return; }
+
+    // Map headers (Hebrew or English, any case)
+    const headerRow = rows[0].map(h => String(h).trim().toLowerCase());
+    const nameIdx  = headerRow.findIndex(h => ['name','שם','שם מלא','שם פרטי'].includes(h));
+    const phoneIdx = headerRow.findIndex(h => ['phone','טלפון','מספר טלפון','נייד'].includes(h));
+    const aptIdx   = headerRow.findIndex(h => ['apartment','דירה','מספר דירה','apt'].includes(h));
 
     if (nameIdx === -1 || phoneIdx === -1) {
-      alert('כותרות לא נמצאו. נדרש: שם, טלפון (ודירה אופציונלי)');
+      alert('כותרות לא נמצאו. נדרש עמודת שם ועמודת טלפון.\nכותרות שנמצאו: ' + headerRow.join(', '));
       input.value = ''; return;
     }
 
     let added = 0, skipped = 0, errors = [];
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(sep).map(c => c.replace(/^"|"$/g,'').trim());
-      const name = cols[nameIdx] || '';
-      const phone = (cols[phoneIdx] || '').replace(/[\-\s]/g,'');
-      const apt = aptIdx !== -1 ? (cols[aptIdx] || '') : '';
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const name  = String(row[nameIdx]  || '').trim();
+      const phone = String(row[phoneIdx] || '').replace(/[\-\s]/g, '').trim();
+      const apt   = aptIdx !== -1 ? String(row[aptIdx] || '').trim() : '';
       if (!name || !phone) continue;
       const parts = name.split(/\s+/);
       try {
