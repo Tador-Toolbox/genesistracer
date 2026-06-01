@@ -2209,17 +2209,32 @@ app.post('/api/committee/upload-faces', async (req, res) => {
     const token = loginRes?.data?.token;
     if (!token) return res.json({ success: false, error: 'Panel login failed' });
 
+    // Get existing faces on panel to prevent duplicates
+    const existingData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
+    const existingNames = new Set((existingData?.data?.list || []).map(p => (p.label || '').trim().toLowerCase()));
+
     // Fetch the residents
     const residents = await database.collection('residents')
       .find({ _id: { $in: residentIds.map(id => new ObjectId(id)) }, buildingCode })
       .toArray();
 
     const results = [];
+    let skipped = 0;
     for (const r of residents) {
       const name = (r.firstName + ' ' + r.lastName).trim();
       try {
         if (!r.photoUrl) { results.push({ id: r._id, name, success: false, error: 'No photo' }); continue; }
+        // Skip if name already exists on panel
+        if (existingNames.has(name.toLowerCase())) {
+          results.push({ id: r._id, name, success: false, error: 'Already on panel' });
+          skipped++;
+          // Still mark as uploaded since they're already there
+          await database.collection('residents').updateOne({ _id: r._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date() } });
+          continue;
+        }
         await uploadFaceToPanel(host, port, token, name, r.photoUrl);
+        // Mark as uploaded in DB
+        await database.collection('residents').updateOne({ _id: r._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date() } });
         results.push({ id: r._id, name, success: true });
       } catch (e) {
         results.push({ id: r._id, name, success: false, error: e.message });
@@ -2227,8 +2242,8 @@ app.post('/api/committee/upload-faces', async (req, res) => {
     }
 
     const ok = results.filter(x => x.success).length;
-    const fail = results.length - ok;
-    res.json({ success: true, uploaded: ok, failed: fail, results });
+    const fail = results.length - ok - skipped;
+    res.json({ success: true, uploaded: ok, skipped, failed: fail, results });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
