@@ -2093,14 +2093,29 @@ app.get('/api/buildings/info/:code', async (req, res) => {
 // Resident: self-register (multipart with photo)
 app.post('/api/residents/register', upload.single('photo'), async (req, res) => {
   try {
-    const { buildingCode, firstName, lastName, phone, apartment } = req.body;
-    if (!buildingCode || !firstName || !lastName || !phone || !apartment) {
-      return res.status(400).json({ success: false, error: 'All fields required' });
+    const { buildingCode, phone, residentId } = req.body;
+    if (!buildingCode || !phone) {
+      return res.status(400).json({ success: false, error: 'buildingCode and phone required' });
     }
+    const cleanPhone = phone.replace(/[\-\s]/g, '');
     const database = await require('./db').connectDB();
     const building = await database.collection('buildings').findOne({ buildingCode });
     if (!building) return res.json({ success: false, error: 'Building code not found' });
 
+    // Find the approved resident by phone
+    const { ObjectId } = require('mongodb');
+    let resident;
+    if (residentId) {
+      resident = await database.collection('residents').findOne({ _id: new ObjectId(residentId), buildingCode });
+    }
+    if (!resident) {
+      resident = await database.collection('residents').findOne({ buildingCode, phone: cleanPhone });
+    }
+
+    if (!resident) return res.json({ success: false, error: 'not_found' });
+    if (resident.status === 'registered') return res.json({ success: false, error: 'already_registered' });
+
+    // Upload photo to Cloudinary
     let photoUrl = null;
     if (req.file) {
       const result = await new Promise((resolve, reject) => {
@@ -2113,17 +2128,11 @@ app.post('/api/residents/register', upload.single('photo'), async (req, res) => 
       photoUrl = result.secure_url;
     }
 
-    const { ObjectId } = require('mongodb');
-    await database.collection('residents').insertOne({
-      buildingCode,
-      mac: building.mac,
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      phone: phone.trim(),
-      apartment: apartment.trim(),
-      photoUrl,
-      createdAt: new Date(),
-    });
+    // Update the approved record to registered
+    await database.collection('residents').updateOne(
+      { _id: resident._id },
+      { $set: { status: 'registered', photoUrl, registeredAt: new Date() } }
+    );
 
     res.json({ success: true });
   } catch (err) {
@@ -2635,6 +2644,108 @@ app.post('/api/committee/edit-resident', async (req, res) => {
       { $set: update }
     );
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+// ==================== APPROVED RESIDENTS (Excel/CSV whitelist) ====================
+
+// Manager: upload CSV of approved residents for a building
+// Expects: name, phone, apartment (Hebrew or English headers)
+app.post('/api/buildings/:code/upload-residents', upload.single('file'), async (req, res) => {
+  try {
+    const { code } = req.params;
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode: code });
+    if (!building) return res.json({ success: false, error: 'Building not found' });
+
+    if (!req.file) return res.json({ success: false, error: 'No file uploaded' });
+
+    // Parse CSV (handles both comma and tab separated, UTF-8 + BOM)
+    let text = req.file.buffer.toString('utf8');
+    // Remove BOM
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return res.json({ success: false, error: 'File must have header + at least 1 row' });
+
+    // Detect separator (comma or tab)
+    const sep = lines[0].includes('\t') ? '\t' : ',';
+    const header = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g, '').trim().toLowerCase());
+
+    // Map Hebrew/English headers to fields
+    const nameIdx = header.findIndex(h => h === 'name' || h === 'שם' || h === 'שם מלא' || h === 'שם פרטי');
+    const phoneIdx = header.findIndex(h => h === 'phone' || h === 'טלפון' || h === 'מספר טלפון' || h === 'נייד');
+    const aptIdx = header.findIndex(h => h === 'apartment' || h === 'דירה' || h === 'מספר דירה' || h === 'apt');
+
+    if (nameIdx === -1 || phoneIdx === -1) {
+      return res.json({ success: false, error: 'Headers must include name/שם and phone/טלפון. Found: ' + header.join(', ') });
+    }
+
+    const col = database.collection('residents');
+    let added = 0, skipped = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(sep).map(c => c.trim().replace(/^"|"$/g, '').trim());
+      const fullName = cols[nameIdx] || '';
+      const phone = cols[phoneIdx] || '';
+      const apartment = aptIdx !== -1 ? (cols[aptIdx] || '') : '';
+
+      if (!fullName || !phone) continue;
+
+      // Clean phone — remove dashes, spaces
+      const cleanPhone = phone.replace(/[\-\s]/g, '');
+
+      // Check if already exists
+      const existing = await col.findOne({ buildingCode: code, phone: cleanPhone });
+      if (existing) { skipped++; continue; }
+
+      const parts = fullName.split(/\s+/);
+      const firstName = parts[0] || fullName;
+      const lastName = parts.slice(1).join(' ') || '';
+
+      await col.insertOne({
+        buildingCode: code,
+        mac: building.mac,
+        firstName,
+        lastName,
+        phone: cleanPhone,
+        apartment,
+        photoUrl: null,
+        status: 'approved',
+        createdAt: new Date(),
+      });
+      added++;
+    }
+
+    res.json({ success: true, added, skipped, total: added + skipped });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Public: verify phone for registration
+app.post('/api/residents/verify-phone', async (req, res) => {
+  try {
+    const { buildingCode, phone } = req.body;
+    if (!buildingCode || !phone) return res.json({ success: false, error: 'Missing fields' });
+
+    const cleanPhone = phone.replace(/[\-\s]/g, '');
+    const database = await require('./db').connectDB();
+
+    const resident = await database.collection('residents').findOne({ buildingCode, phone: cleanPhone });
+    if (!resident) return res.json({ success: false, error: 'not_found' });
+    if (resident.status === 'registered') return res.json({ success: false, error: 'already_registered' });
+
+    res.json({
+      success: true,
+      firstName: resident.firstName,
+      lastName: resident.lastName,
+      apartment: resident.apartment,
+      residentId: resident._id,
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
