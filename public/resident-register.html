@@ -73,15 +73,9 @@
 
   <!-- Registration form -->
   <div id="formStep" style="display:none;">
-    <div style="display:flex;gap:10px;">
-      <div class="field" style="flex:1;">
-        <label>שם פרטי</label>
-        <input type="text" id="firstName" placeholder="שם פרטי"/>
-      </div>
-      <div class="field" style="flex:1;">
-        <label>שם משפחה</label>
-        <input type="text" id="lastName" placeholder="שם משפחה"/>
-      </div>
+    <div class="field">
+      <label>שם מלא</label>
+      <input type="text" id="fullName" placeholder="שם פרטי ומשפחה"/>
     </div>
 
     <div style="display:flex;gap:10px;">
@@ -171,8 +165,7 @@
   }
 
   async function submitRegistration() {
-    const firstName = document.getElementById('firstName').value.trim();
-    const lastName = document.getElementById('lastName').value.trim();
+    const fullName = document.getElementById('fullName').value.trim();
     const apartment = document.getElementById('apartment').value.trim();
     const phone = document.getElementById('phone').value.trim();
     const photoFile = document.getElementById('photoInput').files[0];
@@ -181,10 +174,14 @@
 
     errEl.textContent = '';
 
-    if (!firstName || !lastName || !apartment || !phone) {
+    if (!fullName || !apartment || !phone) {
       errEl.textContent = 'נא למלא את כל השדות';
       return;
     }
+
+    const parts = fullName.split(/\s+/);
+    const firstName = parts[0];
+    const lastName = parts.slice(1).join(' ') || '';
     if (!photoFile) {
       errEl.textContent = 'נא להעלות תמונת פנים';
       return;
