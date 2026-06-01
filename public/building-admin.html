@@ -47,14 +47,14 @@
     .err{color:var(--red);font-size:13px;margin-top:8px;font-weight:600;}
     #mainPanel{display:none;}
 
-    /* Residents drawer */
-    .drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;}
-    .drawer{position:fixed;top:0;left:0;bottom:0;width:min(600px,100vw);background:white;z-index:101;overflow-y:auto;transform:translateX(-100%);transition:transform .3s ease;box-shadow:4px 0 24px rgba(0,0,0,.15);}
-    .drawer.open{transform:translateX(0);}
-    .drawer-header{padding:20px 24px;border-bottom:1px solid var(--gray-200);position:sticky;top:0;background:white;z-index:2;display:flex;align-items:center;justify-content:space-between;}
+    /* Residents modal */
+    .drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;align-items:flex-start;justify-content:center;padding:20px;}
+    .drawer-overlay.open{display:flex;}
+    .drawer{background:white;border-radius:14px;width:100%;max-width:780px;max-height:calc(100vh - 40px);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+    .drawer-header{padding:18px 24px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
     .drawer-header h3{font-size:17px;font-weight:900;}
-    .drawer-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray-400);}
-    .drawer-body{padding:20px 24px;}
+    .drawer-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray-400);line-height:1;}
+    .drawer-body{padding:20px 24px;overflow-y:auto;flex:1;}
 
     /* Add resident row */
     .add-row{display:grid;grid-template-columns:2fr 1.3fr 0.8fr auto;gap:8px;margin-bottom:16px;align-items:end;}
@@ -134,15 +134,20 @@
   </div>
 </div>
 
-<!-- Residents Drawer -->
-<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<!-- Residents Modal -->
+<div class="drawer-overlay" id="drawerOverlay">
 <div class="drawer" id="residentsDrawer">
   <div class="drawer-header">
     <div>
       <h3 id="drawerTitle">רשימת דיירים</h3>
       <div id="drawerSubtitle" style="font-size:12px;color:var(--gray-500);margin-top:2px;"></div>
     </div>
-    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="btn btn-sm" onclick="exportResidents()" style="background:#0891b2;font-size:12px;padding:7px 14px;">⬇ ייצוא CSV</button>
+      <button class="btn btn-sm" onclick="document.getElementById('importCsvInput').click()" style="background:#7c3aed;font-size:12px;padding:7px 14px;">⬆ ייבוא CSV</button>
+      <input type="file" id="importCsvInput" accept=".csv,.txt" style="display:none;" onchange="importCsv(this)"/>
+      <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    </div>
   </div>
   <div class="drawer-body">
 
@@ -261,8 +266,7 @@
     drawerCode = code;
     document.getElementById('drawerTitle').textContent = 'דיירים — ' + address;
     document.getElementById('drawerSubtitle').textContent = 'קוד: ' + code;
-    document.getElementById('drawerOverlay').style.display = 'block';
-    document.getElementById('residentsDrawer').classList.add('open');
+    document.getElementById('drawerOverlay').classList.add('open');
     document.getElementById('addName').value = '';
     document.getElementById('addPhone').value = '';
     document.getElementById('addApt').value = '';
@@ -271,8 +275,7 @@
   }
 
   function closeDrawer() {
-    document.getElementById('drawerOverlay').style.display = 'none';
-    document.getElementById('residentsDrawer').classList.remove('open');
+    document.getElementById('drawerOverlay').classList.remove('open');
     drawerCode = null;
   }
 
@@ -352,6 +355,76 @@
     if (data.success) loadDrawerResidents();
     else alert('שגיאה: ' + data.error);
   }
+
+  function exportResidents() {
+    const container = document.getElementById('drawerResidents');
+    const rows = container.querySelectorAll('tbody tr');
+    if (!rows.length) { alert('אין דיירים לייצוא'); return; }
+    const bom = '\uFEFF';
+    let csv = bom + 'שם,טלפון,דירה,סטטוס\n';
+    rows.forEach(row => {
+      const cells = row.querySelectorAll('td');
+      if (cells.length < 4) return;
+      const name = cells[0].textContent.trim();
+      const phone = cells[1].textContent.trim();
+      const apt = cells[2].textContent.trim();
+      const status = cells[3].textContent.trim().includes('נרשם') ? 'נרשם' : 'ממתין';
+      csv += [name, phone, apt, status].map(v => '"' + v + '"').join(',') + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'residents-' + drawerCode + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importCsv(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const text = await file.text();
+    // Remove BOM
+    const clean = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+    const lines = clean.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) { alert('הקובץ ריק או לא תקין'); input.value = ''; return; }
+
+    const sep = lines[0].includes('\t') ? '\t' : ',';
+    const header = lines[0].split(sep).map(h => h.replace(/^"|"$/g,'').trim().toLowerCase());
+    const nameIdx = header.findIndex(h => ['name','שם','שם מלא','שם פרטי'].includes(h));
+    const phoneIdx = header.findIndex(h => ['phone','טלפון','מספר טלפון','נייד'].includes(h));
+    const aptIdx = header.findIndex(h => ['apartment','דירה','מספר דירה','apt'].includes(h));
+
+    if (nameIdx === -1 || phoneIdx === -1) {
+      alert('כותרות לא נמצאו. נדרש: שם, טלפון (ודירה אופציונלי)');
+      input.value = ''; return;
+    }
+
+    let added = 0, skipped = 0, errors = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(sep).map(c => c.replace(/^"|"$/g,'').trim());
+      const name = cols[nameIdx] || '';
+      const phone = (cols[phoneIdx] || '').replace(/[\-\s]/g,'');
+      const apt = aptIdx !== -1 ? (cols[aptIdx] || '') : '';
+      if (!name || !phone) continue;
+      const parts = name.split(/\s+/);
+      try {
+        const res = await fetch('/api/residents/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ buildingCode: drawerCode, firstName: parts[0], lastName: parts.slice(1).join(' '), phone, apartment: apt, username: authUser, password: authPass })
+        });
+        const data = await res.json();
+        if (data.success) added++;
+        else if (data.error === 'duplicate_phone') skipped++;
+        else errors.push(name);
+      } catch(e) { errors.push(name); }
+    }
+    alert('✅ נוספו ' + added + ' דיירים' + (skipped ? '\n⏭ ' + skipped + ' כבר קיימים' : '') + (errors.length ? '\n❌ נכשלו: ' + errors.join(', ') : ''));
+    input.value = '';
+    loadDrawerResidents();
+  }
 </script>
+</div>
 </body>
 </html>
