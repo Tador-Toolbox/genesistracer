@@ -2155,9 +2155,15 @@ app.post('/api/committee/login', async (req, res) => {
 
 app.get('/api/committee/residents/:code', async (req, res) => {
   try {
-    const { password } = req.query;
+    const { password, username, managerPass } = req.query;
     const database = await require('./db').connectDB();
-    const building = await database.collection('buildings').findOne({ buildingCode: req.params.code, password });
+    let building;
+    // Manager bypass (from building-admin drawer)
+    if (username && managerPass && username === process.env.ADMIN_USER && managerPass === process.env.ADMIN_PASS) {
+      building = await database.collection('buildings').findOne({ buildingCode: req.params.code });
+    } else {
+      building = await database.collection('buildings').findOne({ buildingCode: req.params.code, password });
+    }
     if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
     const residents = await database.collection('residents')
       .find({ buildingCode: req.params.code })
@@ -2172,10 +2178,15 @@ app.get('/api/committee/residents/:code', async (req, res) => {
 // Committee: delete resident
 app.delete('/api/committee/residents/:id', async (req, res) => {
   try {
-    const { password, buildingCode } = req.query;
+    const { password, buildingCode, username } = req.query;
     const { ObjectId } = require('mongodb');
     const database = await require('./db').connectDB();
-    const building = await database.collection('buildings').findOne({ buildingCode, password });
+    let building;
+    if (username && username === process.env.ADMIN_USER) {
+      building = await database.collection('buildings').findOne({ buildingCode });
+    } else {
+      building = await database.collection('buildings').findOne({ buildingCode, password });
+    }
     if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
     await database.collection('residents').deleteOne({ _id: new ObjectId(req.params.id), buildingCode });
     res.json({ success: true });
@@ -2746,6 +2757,45 @@ app.post('/api/residents/verify-phone', async (req, res) => {
       apartment: resident.apartment,
       residentId: resident._id,
     });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+// Manager: add a single resident directly (from building-admin drawer)
+app.post('/api/residents/add', async (req, res) => {
+  try {
+    const { buildingCode, firstName, lastName, phone, apartment, username, password } = req.body;
+    if (!buildingCode || !firstName || !phone) {
+      return res.status(400).json({ success: false, error: 'buildingCode, firstName and phone required' });
+    }
+    // Verify manager credentials
+    if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASS) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode });
+    if (!building) return res.json({ success: false, error: 'Building not found' });
+
+    const cleanPhone = (phone || '').replace(/[\-\s]/g, '');
+
+    // Check duplicate phone
+    const existing = await database.collection('residents').findOne({ buildingCode, phone: cleanPhone });
+    if (existing) return res.json({ success: false, error: 'duplicate_phone' });
+
+    await database.collection('residents').insertOne({
+      buildingCode,
+      mac: building.mac,
+      firstName: firstName.trim(),
+      lastName: (lastName || '').trim(),
+      phone: cleanPhone,
+      apartment: (apartment || '').trim(),
+      photoUrl: null,
+      status: 'approved',
+      createdAt: new Date(),
+    });
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
