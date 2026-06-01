@@ -108,6 +108,21 @@
       </div>
     </div>
 
+    <!-- CSV Format Info -->
+    <div class="card" style="background:#faf5ff;border-color:#e9d5ff;">
+      <h2 style="color:#7c3aed;">📊 העלאת רשימת דיירים</h2>
+      <p style="font-size:13px;color:var(--gray-500);line-height:1.7;margin-bottom:12px;">
+        לחץ <strong>📊 העלה רשימה</strong> ליד הבניין הרצוי. שמור מ-Excel כ-CSV (קובץ → שמירה בשם → CSV UTF-8).
+      </p>
+      <div style="background:white;border-radius:8px;padding:14px;font-family:monospace;font-size:13px;border:1px solid #e9d5ff;direction:ltr;">
+        שם,טלפון,דירה<br/>
+        ישראל ישראלי,0501234567,4<br/>
+        דנה כהן,0521234567,7<br/>
+        אבי לוי,0541234567,12
+      </div>
+      <p style="font-size:12px;color:var(--gray-400);margin-top:8px;">עמודות: שם / טלפון / דירה. כותרת בשורה ראשונה (עברית או אנגלית).</p>
+    </div>
+
     <!-- Buildings list -->
     <div class="card">
       <h2>📋 כל הבניינים</h2>
@@ -116,6 +131,7 @@
       </div>
     </div>
   </div>
+  <input type="file" id="csvFileInput" accept=".csv,.xlsx,.xls,.txt" style="display:none;" onchange="handleCsvUpload(this)"/>
 </div>
 
 <script>
@@ -233,6 +249,7 @@
                 <td style="font-size:12px;color:var(--gray-500);">${new Date(b.createdAt).toLocaleDateString('he-IL')}</td>
                 <td>
                   <button onclick="viewResidents('${b.buildingCode}')" style="padding:5px 10px;background:#0891b2;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;margin-left:4px;">דיירים</button>
+                  <button onclick="uploadResidentsList('${b.buildingCode}')" style="padding:5px 10px;background:#7c3aed;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;margin-left:4px;">📊 העלה רשימה</button>
                   <button onclick="deleteBuilding('${b.buildingCode}')" style="padding:5px 10px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;">מחק</button>
                 </td>
               </tr>
@@ -252,6 +269,36 @@
     if (!confirm('למחוק את הבניין וכל הדיירים שלו?')) return;
     await fetch('/api/buildings/' + code, { method: 'DELETE' });
     loadBuildings();
+  }
+
+  // CSV upload
+  let uploadTargetCode = null;
+  function uploadResidentsList(code) {
+    uploadTargetCode = code;
+    document.getElementById('csvFileInput').click();
+  }
+
+  async function handleCsvUpload(input) {
+    const file = input.files[0];
+    if (!file || !uploadTargetCode) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch('/api/buildings/' + uploadTargetCode + '/upload-residents', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ נוספו ' + data.added + ' דיירים' + (data.skipped ? ', ' + data.skipped + ' כבר קיימים' : ''));
+      } else {
+        alert('❌ ' + (data.error || 'שגיאה'));
+      }
+    } catch(e) {
+      alert('❌ שגיאת תקשורת');
+    }
+    input.value = '';
+    uploadTargetCode = null;
   }
 </script>
 </body>

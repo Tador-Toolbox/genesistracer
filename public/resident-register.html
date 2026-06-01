@@ -21,7 +21,7 @@
     .field label{display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);margin-bottom:6px;}
     .field input{width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:15px;color:var(--black);background:var(--gray-50);}
     .field input:focus{outline:none;border-color:var(--red);background:white;}
-    .field input.err-input{border-color:var(--red);}
+    .field input:disabled{background:var(--gray-100);color:var(--gray-500);}
     .photo-wrap{border:2px dashed var(--gray-200);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:16px;position:relative;}
     .photo-wrap:hover{border-color:var(--red);}
     .photo-wrap input{display:none;}
@@ -31,16 +31,19 @@
     .btn{width:100%;padding:15px;background:var(--red);color:white;border:none;border-radius:10px;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;}
     .btn:hover{opacity:0.9;}
     .btn:disabled{opacity:0.6;cursor:not-allowed;}
+    .btn-dark{background:var(--black);}
     .err-msg{color:var(--red);font-size:13px;font-weight:600;text-align:center;margin-top:12px;min-height:18px;}
     .success-screen{display:none;text-align:center;padding:32px 16px;}
     .success-screen .icon{font-size:64px;margin-bottom:16px;}
     .success-screen h2{font-size:22px;font-weight:900;margin-bottom:8px;color:var(--green);}
     .success-screen p{font-size:15px;color:var(--gray-500);line-height:1.6;}
-    #formScreen{}
-    .code-input-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:20px;}
-    .code-input-row input{flex:1;}
-    .code-input-row button{padding:12px 18px;background:var(--black);color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;}
-    .code-err{font-size:13px;color:var(--red);font-weight:600;margin-top:-12px;margin-bottom:12px;}
+    .resident-preview{background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:16px;margin-bottom:20px;}
+    .resident-preview .name{font-size:18px;font-weight:800;margin-bottom:6px;}
+    .resident-preview .detail{font-size:14px;color:var(--gray-500);margin-top:4px;}
+    .error-box{background:#fef2f2;border:1.5px solid #fecaca;border-radius:10px;padding:20px;text-align:center;display:none;}
+    .error-box .icon{font-size:40px;margin-bottom:10px;}
+    .error-box .title{font-size:16px;font-weight:800;color:#dc2626;margin-bottom:6px;}
+    .error-box .desc{font-size:14px;color:var(--gray-500);line-height:1.6;}
   </style>
 </head>
 <body>
@@ -48,21 +51,21 @@
 <div class="header">
   <div class="logo">T</div>
   <h1>רישום דייר</h1>
-  <p>מלא את הפרטים להצטרפות לרשימת הדיירים בבניין</p>
+  <p>הכנס את מספר הטלפון שלך כדי להירשם</p>
 </div>
 
 <div class="card">
 
-  <!-- Building code step -->
+  <!-- Step 1: Building code -->
   <div id="codeStep">
     <div class="field">
       <label>קוד בניין</label>
-      <div class="code-input-row">
+      <div style="display:flex;gap:8px;">
         <input type="text" id="buildingCodeInput" placeholder="הכנס קוד 6 ספרות" maxlength="6" inputmode="numeric"/>
-        <button onclick="verifyCode()">אמת</button>
+        <button onclick="verifyCode()" style="padding:12px 18px;background:var(--black);color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;">אמת</button>
       </div>
     </div>
-    <div class="code-err" id="codeErr"></div>
+    <div class="err-msg" id="codeErr"></div>
   </div>
 
   <!-- Building confirmed -->
@@ -71,25 +74,40 @@
     <div class="code" id="buildingCodeLabel"></div>
   </div>
 
-  <!-- Registration form -->
-  <div id="formStep" style="display:none;">
+  <!-- Step 2: Phone verification -->
+  <div id="phoneStep" style="display:none;">
     <div class="field">
-      <label>שם מלא</label>
-      <input type="text" id="fullName" placeholder="שם פרטי ומשפחה"/>
-    </div>
-
-    <div style="display:flex;gap:10px;">
-      <div class="field" style="flex:1;">
-        <label>מספר דירה</label>
-        <input type="text" id="apartment" placeholder="למשל: 4" inputmode="numeric"/>
-      </div>
-      <div class="field" style="flex:1;">
-        <label>מספר טלפון</label>
-        <input type="tel" id="phone" placeholder="05X-XXXXXXX" inputmode="tel"/>
+      <label>מספר טלפון</label>
+      <div style="display:flex;gap:8px;">
+        <input type="tel" id="phoneInput" placeholder="05X-XXXXXXX" inputmode="tel"/>
+        <button onclick="verifyPhone()" id="verifyPhoneBtn" style="padding:12px 18px;background:var(--black);color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;">בדוק</button>
       </div>
     </div>
+    <div class="err-msg" id="phoneErr"></div>
 
-    <!-- Photo -->
+    <!-- Error: not found -->
+    <div class="error-box" id="notFoundBox">
+      <div class="icon">🚫</div>
+      <div class="title">אינך רשום במערכת</div>
+      <div class="desc">פנה לוועד הבית כדי שיוסיף אותך לרשימת הדיירים המאושרים.</div>
+    </div>
+
+    <!-- Error: already registered -->
+    <div class="error-box" id="alreadyBox">
+      <div class="icon">✅</div>
+      <div class="title">כבר נרשמת</div>
+      <div class="desc">מספר הטלפון הזה כבר רשום במערכת. אם יש בעיה פנה לוועד הבית.</div>
+    </div>
+  </div>
+
+  <!-- Step 3: Confirmed — show info + photo upload -->
+  <div id="photoStep" style="display:none;">
+    <div class="resident-preview">
+      <div class="name" id="residentName"></div>
+      <div class="detail" id="residentApt"></div>
+      <div class="detail" id="residentPhone"></div>
+    </div>
+
     <label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);margin-bottom:6px;">תמונת פנים</label>
     <div class="photo-wrap" onclick="document.getElementById('photoInput').click()">
       <input type="file" id="photoInput" accept="image/*" onchange="previewPhoto(event)"/>
@@ -120,8 +138,10 @@
 
 <script>
   let verifiedCode = null;
+  let verifiedResidentId = null;
+  let verifiedPhone = null;
 
-  // Auto-fill from URL if code param exists
+  // Auto-fill from URL
   const urlCode = new URLSearchParams(window.location.search).get('code');
   if (urlCode) {
     document.getElementById('buildingCodeInput').value = urlCode;
@@ -141,7 +161,7 @@
         document.getElementById('buildingAddr').textContent = '🏢 ' + data.address;
         document.getElementById('buildingCodeLabel').textContent = 'קוד בניין: ' + code;
         document.getElementById('buildingInfo').style.display = 'block';
-        document.getElementById('formStep').style.display = 'block';
+        document.getElementById('phoneStep').style.display = 'block';
         document.getElementById('codeStep').style.display = 'none';
       } else {
         errEl.textContent = 'קוד בניין לא נמצא';
@@ -149,6 +169,49 @@
     } catch(e) {
       errEl.textContent = 'שגיאת תקשורת';
     }
+  }
+
+  async function verifyPhone() {
+    const phone = document.getElementById('phoneInput').value.trim();
+    const errEl = document.getElementById('phoneErr');
+    errEl.textContent = '';
+    document.getElementById('notFoundBox').style.display = 'none';
+    document.getElementById('alreadyBox').style.display = 'none';
+
+    if (!phone || phone.length < 7) { errEl.textContent = 'נא להזין מספר טלפון תקין'; return; }
+
+    const btn = document.getElementById('verifyPhoneBtn');
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    try {
+      const res = await fetch('/api/residents/verify-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: verifiedCode, phone })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        verifiedResidentId = data.residentId;
+        verifiedPhone = phone;
+        document.getElementById('residentName').textContent = (data.firstName + ' ' + data.lastName).trim();
+        document.getElementById('residentApt').textContent = data.apartment ? '🏠 דירה ' + data.apartment : '';
+        document.getElementById('residentPhone').textContent = '📱 ' + phone;
+        document.getElementById('phoneStep').style.display = 'none';
+        document.getElementById('photoStep').style.display = 'block';
+      } else if (data.error === 'not_found') {
+        document.getElementById('notFoundBox').style.display = 'block';
+      } else if (data.error === 'already_registered') {
+        document.getElementById('alreadyBox').style.display = 'block';
+      } else {
+        errEl.textContent = data.error || 'שגיאה';
+      }
+    } catch(e) {
+      errEl.textContent = 'שגיאת תקשורת';
+    }
+    btn.disabled = false;
+    btn.textContent = 'בדוק';
   }
 
   function previewPhoto(event) {
@@ -165,23 +228,11 @@
   }
 
   async function submitRegistration() {
-    const fullName = document.getElementById('fullName').value.trim();
-    const apartment = document.getElementById('apartment').value.trim();
-    const phone = document.getElementById('phone').value.trim();
     const photoFile = document.getElementById('photoInput').files[0];
     const errEl = document.getElementById('errMsg');
     const btn = document.getElementById('submitBtn');
-
     errEl.textContent = '';
 
-    if (!fullName || !apartment || !phone) {
-      errEl.textContent = 'נא למלא את כל השדות';
-      return;
-    }
-
-    const parts = fullName.split(/\s+/);
-    const firstName = parts[0];
-    const lastName = parts.slice(1).join(' ') || '';
     if (!photoFile) {
       errEl.textContent = 'נא להעלות תמונת פנים';
       return;
@@ -193,26 +244,30 @@
     try {
       const formData = new FormData();
       formData.append('buildingCode', verifiedCode);
-      formData.append('firstName', firstName);
-      formData.append('lastName', lastName);
-      formData.append('apartment', apartment);
-      formData.append('phone', phone);
+      formData.append('phone', verifiedPhone);
+      formData.append('residentId', verifiedResidentId);
       formData.append('photo', photoFile);
 
       const res = await fetch('/api/residents/register', { method: 'POST', body: formData });
       const data = await res.json();
 
       if (data.success) {
-        document.getElementById('formStep').style.display = 'none';
+        document.getElementById('photoStep').style.display = 'none';
         document.getElementById('buildingInfo').style.display = 'none';
         document.getElementById('successScreen').style.display = 'block';
       } else {
-        errEl.textContent = data.error || 'שגיאה בשליחה';
+        if (data.error === 'already_registered') {
+          errEl.textContent = 'כבר נרשמת עם מספר זה';
+        } else if (data.error === 'not_found') {
+          errEl.textContent = 'אינך רשום במערכת';
+        } else {
+          errEl.textContent = data.error || 'שגיאה בשליחה';
+        }
         btn.disabled = false;
         btn.innerHTML = '<span>📝</span> שלח רישום';
       }
     } catch(e) {
-      errEl.textContent = 'שגיאת תקשורת: ' + e.message;
+      errEl.textContent = 'שגיאת תקשורת';
       btn.disabled = false;
       btn.innerHTML = '<span>📝</span> שלח רישום';
     }
