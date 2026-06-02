@@ -615,22 +615,27 @@
     if (!confirm('למחוק ' + panelSelectedIds.size + ' פנים מהפנל?')) return;
     var status = document.getElementById('panelFacesStatus');
     var ids = Array.from(panelSelectedIds);
-    var ok = 0, fail = 0;
     status.style.color = '#2563eb';
-    for (var i = 0; i < ids.length; i++) {
-      status.textContent = '⏳ מוחק ' + (i+1) + ' מתוך ' + ids.length + '...';
-      try {
-        var res = await fetch('/api/committee/delete-panel-id', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelId: ids[i], panelMac: currentPanelFacesMac || selectedPanel })
-        });
-        var data = await res.json();
-        if (data.success) ok++; else fail++;
-      } catch(e) { fail++; }
+    status.textContent = '⏳ מתחבר לפנל ומוחק ' + ids.length + ' פנים...';
+    try {
+      // Single batch call — one panel login, all deletes in sequence
+      var res = await fetch('/api/committee/delete-panel-ids', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelIds: ids, panelMac: currentPanelFacesMac || selectedPanel })
+      });
+      var data = await res.json();
+      if (data.success) {
+        status.style.color = data.failed ? '#f59e0b' : '#16a34a';
+        status.textContent = '✅ נמחקו ' + data.deleted + (data.failed ? ', ' + data.failed + ' נכשלו' : '');
+      } else {
+        status.style.color = '#ef4444';
+        status.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      status.style.color = '#ef4444';
+      status.textContent = '❌ שגיאת תקשורת';
     }
-    status.style.color = ok ? '#16a34a' : '#ef4444';
-    status.textContent = '✅ נמחקו ' + ok + (fail ? ', ' + fail + ' נכשלו' : '');
     loadPanelFaces();
   }
 
