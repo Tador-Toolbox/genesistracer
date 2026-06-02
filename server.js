@@ -2901,6 +2901,57 @@ app.post('/api/buildings/:code/rename-panel', async (req, res) => {
   }
 });
 
+
+// Committee: delete multiple faces from panel in ONE connection (resolve + login once)
+app.post('/api/committee/delete-panel-ids', async (req, res) => {
+  try {
+    const { buildingCode, password, panelIds, panelMac } = req.body;
+    if (!buildingCode || !password || !Array.isArray(panelIds) || !panelIds.length) {
+      return res.status(400).json({ success: false, error: 'buildingCode, password, panelIds[] required' });
+    }
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode, password });
+    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    // Resolve panel address ONCE
+    const rawMac = panelMac || building.mac;
+    const cleanMac = rawMac.replace(/[:\-\s]/g,'').toUpperCase();
+    console.log(`🗑 batch-delete: ${panelIds.length} faces, mac=${cleanMac}`);
+
+    const panelAddress = await resolvePanelAddress(cleanMac);
+    if (!panelAddress) return res.json({ success: false, error: 'פנל לא נמצא / לא מקוון' });
+
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    // Login ONCE
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes?.data?.token;
+    if (!token) return res.json({ success: false, error: 'התחברות לפנל נכשלה' });
+
+    console.log(`✅ batch-delete: logged into ${host}:${port}, deleting ${panelIds.length} faces`);
+
+    // Delete all faces using the SAME connection
+    const results = [];
+    for (const id of panelIds) {
+      try {
+        await deleteFaceFromPanel(host, port, token, id);
+        results.push({ id, success: true });
+      } catch(e) {
+        console.log(`❌ batch-delete: id=${id} failed: ${e.message}`);
+        results.push({ id, success: false, error: e.message });
+      }
+    }
+
+    const ok = results.filter(r => r.success).length;
+    const fail = results.length - ok;
+    console.log(`✅ batch-delete: done — ${ok} ok, ${fail} failed`);
+    res.json({ success: true, deleted: ok, failed: fail, results });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
   console.log(`🌐 Main: http://localhost:${PORT}`);
