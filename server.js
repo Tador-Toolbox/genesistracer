@@ -3023,6 +3023,65 @@ app.post('/api/committee/delete-resident-all-panels', async (req, res) => {
   }
 });
 
+
+// Committee: save a single panel face to the residents collection
+app.post('/api/committee/save-panel-face', async (req, res) => {
+  try {
+    const { buildingCode, password, name, photoBase64, panelFaceId } = req.body;
+    if (!buildingCode || !password || !name) {
+      return res.status(400).json({ success: false, error: 'buildingCode, password, name required' });
+    }
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode, password });
+    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    // Check duplicate by name
+    const parts = name.trim().split(/\s+/);
+    const firstName = parts[0] || name;
+    const lastName = parts.slice(1).join(' ') || '';
+    const existing = await database.collection('residents').findOne({
+      buildingCode,
+      firstName: firstName.trim(),
+      lastName: lastName.trim()
+    });
+    if (existing) return res.json({ success: false, error: 'already_exists', residentId: existing._id });
+
+    // Upload base64 photo to Cloudinary
+    let photoUrl = null;
+    if (photoBase64) {
+      try {
+        const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, '');
+        const buf = Buffer.from(base64Data, 'base64');
+        const uploadResult = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { folder: 'genesistracer-residents', resource_type: 'image' },
+            (error, result) => error ? reject(error) : resolve(result)
+          );
+          stream.end(buf);
+        });
+        photoUrl = uploadResult.secure_url;
+      } catch(e) { console.log('Cloudinary upload failed:', e.message); }
+    }
+
+    const result = await database.collection('residents').insertOne({
+      buildingCode,
+      mac: building.mac,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phone: '',
+      apartment: '',
+      photoUrl,
+      importedFromPanel: true,
+      panelFaceId: panelFaceId || null,
+      createdAt: new Date(),
+    });
+
+    res.json({ success: true, residentId: result.insertedId });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
   console.log(`🌐 Main: http://localhost:${PORT}`);
