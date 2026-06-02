@@ -128,6 +128,12 @@
       <input type="text" id="searchInput" placeholder="חפש לפי שם, דירה או טלפון..." oninput="filterResidents()"/>
     </div>
 
+    <!-- Panel selector (shown when building has multiple panels) -->
+    <div id="panelSelectorWrap" style="display:none;align-items:center;gap:10px;margin-bottom:12px;padding:12px 16px;background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;">
+      <span style="font-size:13px;font-weight:800;color:#0369a1;">🚪 פנל פעיל:</span>
+      <select id="panelSelector" onchange="selectedPanel=this.value" style="flex:1;padding:8px 12px;border:1.5px solid #bae6fd;border-radius:7px;font-family:inherit;font-size:14px;font-weight:600;background:white;color:#0a0a0a;"></select>
+    </div>
+
     <!-- Upload toolbar -->
     <div id="uploadToolbar" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;padding:14px 16px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;">
       <button onclick="toggleSelectMode()" id="selectModeBtn" style="padding:9px 16px;background:#2563eb;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">✓ בחר דיירים</button>
@@ -258,6 +264,24 @@
 
   async function loadResidents() {
     const grid = document.getElementById('residentsGrid');
+
+    // Load panels for this building
+    try {
+      const pb = await fetch('/api/committee/building-panels/' + sessionCode + '?password=' + encodeURIComponent(sessionPass));
+      const pd = await pb.json();
+      if (pd.success && pd.panels && pd.panels.length > 0) {
+        const wrap = document.getElementById('panelSelectorWrap');
+        const sel = document.getElementById('panelSelector');
+        sel.innerHTML = pd.panels.map(p =>
+          '<option value="' + p.mac + '">' + p.label + '  ·  ' + p.mac + '</option>'
+        ).join('');
+        if (!selectedPanel) selectedPanel = pd.panels[0].mac;
+        sel.value = selectedPanel;
+        // Show selector only if multiple panels
+        wrap.style.display = pd.panels.length > 1 ? 'flex' : 'none';
+      }
+    } catch(e) { console.warn('panels load failed:', e); }
+
     try {
       const res = await fetch('/api/committee/residents/' + sessionCode + '?password=' + encodeURIComponent(sessionPass));
       const data = await res.json();
@@ -390,7 +414,7 @@
       const res = await fetch('/api/committee/upload-faces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentIds: ids })
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentIds: ids, panelMac: selectedPanel })
       });
       const data = await res.json();
       if (data.success) {
@@ -423,7 +447,7 @@
       const res = await fetch('/api/committee/delete-faces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentIds: [id] })
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentIds: [id], panelMac: selectedPanel })
       });
       const data = await res.json();
       if (status) {
@@ -571,7 +595,7 @@
         var res = await fetch('/api/committee/delete-panel-id', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelId: ids[i] })
+          body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelId: ids[i], panelMac: selectedPanel })
         });
         var data = await res.json();
         if (data.success) ok++; else fail++;
@@ -591,7 +615,7 @@
       const res = await fetch('/api/committee/delete-panel-id', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelId: panelId })
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelId: panelId, panelMac: selectedPanel })
       });
       const data = await res.json();
       if (data.success) {
@@ -621,7 +645,7 @@
       const res = await fetch('/api/committee/import-faces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass })
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelMac: selectedPanel })
       });
       const data = await res.json();
       if (data.success) {
