@@ -127,7 +127,7 @@
       <h2>📋 כל הבניינים</h2>
       <table>
         <thead><tr>
-          <th>כתובת</th><th>MAC</th><th>קוד בניין</th><th>סיסמת ועד</th><th>תאריך</th><th>פעולות</th>
+          <th>כתובת</th><th>פנלים</th><th>קוד בניין</th><th>סיסמת ועד</th><th>תאריך</th><th>פעולות</th>
         </tr></thead>
         <tbody id="buildingsBody"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-400);">טוען...</td></tr></tbody>
       </table>
@@ -173,6 +173,24 @@
         </div>
       </div>
       <div id="addErr" style="font-size:12px;color:var(--red);font-weight:600;min-height:16px;"></div>
+    </div>
+
+    <!-- Panels section -->
+    <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:800;color:#0369a1;margin-bottom:12px;">🚪 פנלים (כניסות)</div>
+      <div id="panelsList" style="margin-bottom:12px;display:flex;flex-direction:column;gap:6px;"></div>
+      <div style="display:grid;grid-template-columns:1.5fr 1fr auto;gap:8px;align-items:end;">
+        <div>
+          <label style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);display:block;margin-bottom:4px;">MAC של פנל חדש</label>
+          <input type="text" id="panelMacInput" placeholder="2875D8C16B0F" style="width:100%;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;"/>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);display:block;margin-bottom:4px;">תווית (כניסה)</label>
+          <input type="text" id="panelLabelInput" placeholder="כניסה אחורית" style="width:100%;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;"/>
+        </div>
+        <button class="btn btn-sm" onclick="addPanel()" style="background:#0369a1;height:38px;">+ הוסף</button>
+      </div>
+      <div id="panelErr" style="font-size:12px;color:var(--red);font-weight:600;margin-top:6px;min-height:16px;"></div>
     </div>
 
     <!-- Residents list -->
@@ -272,6 +290,7 @@
     document.getElementById('addPhone').value = '';
     document.getElementById('addApt').value = '';
     document.getElementById('addErr').textContent = '';
+    loadPanels();
     loadDrawerResidents();
   }
 
@@ -280,6 +299,62 @@
     drawerCode = null;
   }
 
+
+  async function loadPanels() {
+    const res = await fetch('/api/buildings?username=' + encodeURIComponent(authUser) + '&password=' + encodeURIComponent(authPass));
+    const data = await res.json();
+    if (!data.success) return;
+    const b = data.buildings.find(b => b.buildingCode === drawerCode);
+    if (!b) return;
+    const panels = b.panels || [{ mac: b.mac, label: 'כניסה ראשית' }];
+    const container = document.getElementById('panelsList');
+    container.innerHTML = panels.map(p =>
+      '<div style="display:flex;align-items:center;justify-content:space-between;background:white;border:1px solid #bae6fd;border-radius:7px;padding:8px 12px;">' +
+        '<div>' +
+          '<span style="font-size:13px;font-weight:700;">' + p.label + '</span>' +
+          '<span style="font-family:monospace;font-size:12px;color:var(--gray-500);margin-right:10px;"> · ' + p.mac + '</span>' +
+        '</div>' +
+        (panels.length > 1 ?
+          '<button onclick="removePanel(\" + p.mac + \")" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;">×</button>' :
+          '<span style="font-size:11px;color:var(--gray-400);">ראשי</span>'
+        ) +
+      '</div>'
+    ).join('');
+  }
+
+  async function addPanel() {
+    const mac = document.getElementById('panelMacInput').value.trim();
+    const label = document.getElementById('panelLabelInput').value.trim();
+    const errEl = document.getElementById('panelErr');
+    errEl.textContent = '';
+    if (!mac) { errEl.textContent = 'נא להזין MAC'; return; }
+    try {
+      const res = await fetch('/api/buildings/' + drawerCode + '/add-panel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mac, label, username: authUser, password: authPass })
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('panelMacInput').value = '';
+        document.getElementById('panelLabelInput').value = '';
+        loadPanels();
+        loadBuildings();
+      } else {
+        errEl.textContent = data.error === 'MAC already exists' ? 'הפנל הזה כבר מחובר לבניין' : (data.error || 'שגיאה');
+      }
+    } catch(e) { errEl.textContent = 'שגיאת תקשורת'; }
+  }
+
+  async function removePanel(mac) {
+    if (!confirm('להסיר את הפנל ' + mac + '?')) return;
+    try {
+      const res = await fetch('/api/buildings/' + drawerCode + '/panel/' + mac + '?username=' + encodeURIComponent(authUser) + '&password=' + encodeURIComponent(authPass), { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) { loadPanels(); loadBuildings(); }
+      else alert('שגיאה: ' + data.error);
+    } catch(e) { alert('שגיאת תקשורת'); }
+  }
   async function loadDrawerResidents() {
     const container = document.getElementById('drawerResidents');
     const badge = document.getElementById('resCountBadge');
@@ -341,7 +416,8 @@
         document.getElementById('addPhone').value = '';
         document.getElementById('addApt').value = '';
         document.getElementById('addName').focus();
-        loadDrawerResidents();
+        loadPanels();
+    loadDrawerResidents();
       } else {
         errEl.textContent = data.error === 'duplicate_phone' ? 'מספר הטלפון הזה כבר קיים' : (data.error || 'שגיאה');
       }
@@ -432,6 +508,7 @@
     }
     alert('✅ נוספו ' + added + ' דיירים' + (skipped ? '\n⏭ ' + skipped + ' כבר קיימים' : '') + (errors.length ? '\n❌ נכשלו: ' + errors.join(', ') : ''));
     input.value = '';
+    loadPanels();
     loadDrawerResidents();
   }
 </script>
