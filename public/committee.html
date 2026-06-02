@@ -56,6 +56,7 @@
     .act-note{background:#fffbeb;color:#92400e;border:1.5px solid #fde68a;}
     .act-panel-del{background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;}
     .act-sys-del{background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;}
+    .act-full-del{background:#dc2626;color:white;border:none;}
     .resident-date{font-size:10px;color:var(--gray-400);}
     .delete-btn{background:none;border:none;color:#ef4444;cursor:pointer;font-size:18px;padding:2px 6px;border-radius:4px;}
     .delete-btn:hover{background:#fff5f5;}
@@ -341,8 +342,8 @@
             <button class="act-btn act-edit" onclick="event.stopPropagation();editResidentField('${r._id}', '${r.firstName} ${r.lastName}', '${r.apartment || ''}', '${r.phone || ''}')" title="ערוך דירה/טלפון">✏️ ערוך דירה/טלפון</button>
             <button class="act-btn act-note" onclick="event.stopPropagation();editResidentNote('${r._id}', '${r.firstName} ${r.lastName}', &quot;${(r.notes||'').replace(/"/g,'&#34;').replace(/'/g,'&#39;')}&quot;)" title="הערה">📝 הערה</button>
             <button class="act-btn act-upload" onclick="event.stopPropagation();uploadSingle('${r._id}')" title="העלה פנים לפנל">⬆ העלה לפנל</button>
-            <button class="act-btn act-panel-del" onclick="event.stopPropagation();deletePanelFace('${r._id}', '${r.firstName} ${r.lastName}')" title="מחק פנים מהפנל">🗑 מהפנל</button>
-            <button class="act-btn act-sys-del" onclick="event.stopPropagation();deleteFromSystem('${r._id}', '${r.firstName} ${r.lastName}')" title="מחק מהמערכת">✕ מהמערכת</button>
+            <button class="act-btn act-panel-del" onclick="event.stopPropagation();deletePanelFace('${r._id}', '${r.firstName} ${r.lastName}')" title="מחק פנים מהפנל בלבד">🗑 מהפנל בלבד</button>
+            <button class="act-btn act-full-del" onclick="event.stopPropagation();deleteResidentFull('${r._id}', '${r.firstName} ${r.lastName}', ${r.uploadedToPanel ? 'true' : 'false'})" title="מחק מהפנל + מהמערכת">🗑 מחק דייר</button>
           ` : ''}
         </div>
       </div>
@@ -747,6 +748,42 @@
       if (data.success) loadResidents();
       else alert('שגיאה: ' + (data.error || 'unknown'));
     } catch(e) { alert('שגיאת תקשורת'); }
+  }
+
+  // Full delete: remove from panel + system in one action
+  async function deleteResidentFull(id, name, uploadedToPanel) {
+    const msg = uploadedToPanel
+      ? 'למחוק את ' + name + ' לחלוטין?\n\n✓ ימחק מהפנל (פנים לא יזוהו)\n✓ ימחק מהמערכת'
+      : 'למחוק את ' + name + ' מהמערכת?\n\n(לא נמצאו פנים בפנל — ימחק מהמערכת בלבד)';
+    if (!confirm(msg)) return;
+
+    const status = document.getElementById('uploadStatus');
+    if (status) { status.style.color = '#2563eb'; status.textContent = '⏳ מוחק ' + name + '...'; }
+
+    // Step 1: delete from panel (if uploaded)
+    if (uploadedToPanel) {
+      try {
+        await fetch('/api/committee/delete-faces', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentIds: [id], panelMac: selectedPanel })
+        });
+      } catch(e) { /* continue even if panel delete fails */ }
+    }
+
+    // Step 2: delete from system
+    try {
+      const res = await fetch('/api/committee/residents/' + id + '?password=' + encodeURIComponent(sessionPass) + '&buildingCode=' + sessionCode, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        if (status) { status.style.color = '#16a34a'; status.textContent = '✅ ' + name + ' נמחק'; }
+        loadResidents();
+      } else {
+        if (status) { status.style.color = '#ef4444'; status.textContent = '❌ ' + (data.error || 'שגיאה'); }
+      }
+    } catch(e) {
+      if (status) { status.style.color = '#ef4444'; status.textContent = '❌ שגיאת תקשורת'; }
+    }
   }
 </script>
 </body>
