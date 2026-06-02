@@ -2954,6 +2954,75 @@ app.post('/api/committee/delete-panel-ids', async (req, res) => {
   }
 });
 
+
+// Delete a resident's face from ALL panels of the building (used when resident leaves)
+app.post('/api/committee/delete-resident-all-panels', async (req, res) => {
+  try {
+    const { buildingCode, password, residentIds } = req.body;
+    if (!buildingCode || !password || !Array.isArray(residentIds) || !residentIds.length) {
+      return res.status(400).json({ success: false, error: 'buildingCode, password, residentIds required' });
+    }
+    const { ObjectId } = require('mongodb');
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode, password });
+    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const panels = building.panels || [{ mac: building.mac, label: 'כניסה ראשית' }];
+
+    // Get resident names to delete
+    const residents = await database.collection('residents')
+      .find({ _id: { $in: residentIds.map(id => new ObjectId(id)) }, buildingCode })
+      .toArray();
+    const namesToDelete = residents.map(r => (r.firstName + ' ' + r.lastName).trim().toLowerCase());
+
+    const panelResults = [];
+
+    // Loop through every panel in the building
+    for (const panel of panels) {
+      const cleanMac = panel.mac.replace(/[:\-\s]/g, '').toUpperCase();
+      try {
+        const panelAddress = await resolvePanelAddress(cleanMac);
+        if (!panelAddress) {
+          panelResults.push({ panel: panel.label, mac: cleanMac, success: false, error: 'not found/offline' });
+          continue;
+        }
+        const [host, portStr] = panelAddress.split(':');
+        const port = parseInt(portStr) || 80;
+
+        const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+        const token = loginRes?.data?.token;
+        if (!token) {
+          panelResults.push({ panel: panel.label, mac: cleanMac, success: false, error: 'login failed' });
+          continue;
+        }
+
+        // Get face list from this panel
+        const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
+        const faceList = listData?.data?.list || [];
+
+        // Find matching faces by name
+        const toDelete = faceList.filter(f => namesToDelete.includes((f.label || '').trim().toLowerCase()));
+        let deleted = 0;
+        for (const face of toDelete) {
+          try {
+            await deleteFaceFromPanel(host, port, token, face.id);
+            deleted++;
+          } catch(e) { /* continue */ }
+        }
+        console.log(`🗑 delete-all-panels: panel=${panel.label} mac=${cleanMac} deleted=${deleted}/${toDelete.length}`);
+        panelResults.push({ panel: panel.label, mac: cleanMac, success: true, deleted, notFound: toDelete.length === 0 });
+      } catch(e) {
+        panelResults.push({ panel: panel.label, mac: cleanMac, success: false, error: e.message });
+      }
+    }
+
+    const totalDeleted = panelResults.reduce((sum, p) => sum + (p.deleted || 0), 0);
+    res.json({ success: true, panelResults, totalDeleted });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
   console.log(`🌐 Main: http://localhost:${PORT}`);
