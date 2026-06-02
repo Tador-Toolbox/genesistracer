@@ -2060,6 +2060,8 @@ app.get('/api/buildings', async (req, res) => {
   try {
     const database = await require('./db').connectDB();
     const buildings = await database.collection('buildings').find({}).sort({ createdAt: -1 }).toArray();
+    // Normalize: ensure panels array exists on all buildings
+    buildings.forEach(b => { if (!b.panels) b.panels = [{ mac: b.mac, label: 'כניסה ראשית' }]; });
     res.json({ success: true, buildings });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -2796,6 +2798,71 @@ app.post('/api/residents/add', async (req, res) => {
       createdAt: new Date(),
     });
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+// Manager: add a panel (entrance) to an existing building
+app.post('/api/buildings/:code/add-panel', async (req, res) => {
+  try {
+    const { mac, label, username, password } = req.body;
+    if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASS) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!mac) return res.json({ success: false, error: 'MAC required' });
+    const database = await require('./db').connectDB();
+    const cleanMac = mac.replace(/[:\-\s]/g,'').toUpperCase();
+    const building = await database.collection('buildings').findOne({ buildingCode: req.params.code });
+    if (!building) return res.json({ success: false, error: 'Building not found' });
+    // Check duplicate MAC
+    const panels = building.panels || [{ mac: building.mac, label: 'כניסה ראשית' }];
+    if (panels.find(p => p.mac === cleanMac)) return res.json({ success: false, error: 'MAC already exists' });
+    panels.push({ mac: cleanMac, label: label || ('כניסה ' + (panels.length + 1)) });
+    await database.collection('buildings').updateOne(
+      { buildingCode: req.params.code },
+      { $set: { panels } }
+    );
+    res.json({ success: true, panels });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Manager: remove a panel from a building
+app.delete('/api/buildings/:code/panel/:mac', async (req, res) => {
+  try {
+    const { username, password } = req.query;
+    if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASS) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode: req.params.code });
+    if (!building) return res.json({ success: false, error: 'Building not found' });
+    const panels = (building.panels || [{ mac: building.mac, label: 'כניסה ראשית' }])
+      .filter(p => p.mac !== req.params.mac.toUpperCase());
+    if (!panels.length) return res.json({ success: false, error: 'חייב להיות לפחות פנל אחד' });
+    await database.collection('buildings').updateOne(
+      { buildingCode: req.params.code },
+      { $set: { panels } }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+// Committee: get panels for a building
+app.get('/api/committee/building-panels/:code', async (req, res) => {
+  try {
+    const { password } = req.query;
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode: req.params.code, password });
+    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    const panels = building.panels || [{ mac: building.mac, label: 'כניסה ראשית' }];
+    res.json({ success: true, panels });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
