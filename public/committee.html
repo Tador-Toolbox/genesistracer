@@ -101,7 +101,10 @@
         <div style="font-size:11px;font-weight:800;color:var(--green);margin-bottom:4px;">🔗 קישור לרישום דיירים — שתף עם הדיירים</div>
         <div class="link" id="regLink"></div>
       </div>
-      <button onclick="copyRegLink()">📋 העתק</button>
+      <div style="display:flex;gap:8px;">
+        <button onclick="copyRegLink()">📋 העתק</button>
+        <button onclick="showQrCommittee()" style="background:#7c3aed;color:white;border:none;border-radius:6px;padding:5px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">📱 QR</button>
+      </div>
     </div>
 
     <div class="panel-header">
@@ -828,6 +831,68 @@
       status.textContent = '❌ שגיאת תקשורת';
     }
   }
+
+  function showQrCommittee() {
+    const url = document.getElementById('regLink').textContent.trim();
+    if (!url) return;
+    const addr = document.getElementById('buildingSubtitle').textContent || sessionCode;
+    document.getElementById('qrModalTitle').textContent = addr;
+    document.getElementById('qrModalUrl').textContent = url;
+    const apiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&format=png&data=' + encodeURIComponent(url);
+    document.getElementById('qrModalCanvas').innerHTML = '<img src="' + apiUrl + '" width="220" height="220" style="border:1px solid #eee;border-radius:8px;padding:8px;" alt="QR Code"/>';
+    document.getElementById('qrModal').style.display = 'flex';
+  }
+
+  function downloadQrCommittee() {
+    const img = document.querySelector('#qrModalCanvas img');
+    if (!img) return;
+    const a = document.createElement('a');
+    a.href = img.src;
+    a.download = 'qr-building-' + sessionCode + '.png';
+    a.target = '_blank';
+    a.click();
+  }
+
+  function printQrCommittee() {
+    const url = document.getElementById('qrModalUrl').textContent;
+    const title = document.getElementById('qrModalTitle').textContent;
+    const img = document.querySelector('#qrModalCanvas img');
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/><title>QR</title>
+    <style>
+      body{font-family:sans-serif;text-align:center;padding:40px;direction:rtl;}
+      h1{font-size:20px;font-weight:900;margin:16px 0 4px;}
+      p{font-size:13px;color:#555;margin-bottom:20px;}
+      img{border:1px solid #eee;border-radius:8px;padding:8px;}
+      .instructions{margin-top:20px;font-size:14px;color:#333;line-height:1.8;}
+      .url{margin-top:12px;font-size:10px;color:#999;word-break:break-all;}
+      @media print{body{padding:20px;}}
+    </style></head><body>
+    <div style="font-size:22px;font-weight:900;letter-spacing:2px;">TADOR <span style="background:#E31B23;color:white;padding:2px 8px;border-radius:4px;font-size:13px;">GENESIS</span></div>
+    <h1>${title}</h1>
+    <p>סרוק את הקוד כדי להירשם לרשימת הדיירים</p>
+    <img src="${img ? img.src : ''}" width="220" height="220"/>
+    <div class="instructions">📱 כיצד להירשם?<br/>סרוק · מלא פרטים · צלם תמונה · שלח</div>
+    <div class="url">${url}</div>
+    <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`);
+    win.document.close();
+  }
 </script>
+
+<!-- QR Code Modal -->
+<div id="qrModal" onclick="if(event.target===this)document.getElementById('qrModal').style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:white;border-radius:16px;padding:28px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <h3 style="font-size:17px;font-weight:900;margin-bottom:4px;" id="qrModalTitle"></h3>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:16px;">סרוק להירשם</p>
+    <div id="qrModalCanvas" style="display:flex;justify-content:center;margin-bottom:12px;"></div>
+    <p style="font-size:10px;color:#9ca3af;margin-bottom:18px;word-break:break-all;" id="qrModalUrl"></p>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <button onclick="printQrCommittee()" style="padding:10px 20px;background:#0a0a0a;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">🖨️ הדפס</button>
+      <button onclick="downloadQrCommittee()" style="padding:10px 20px;background:#7c3aed;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">⬇ הורד QR</button>
+      <button onclick="document.getElementById('qrModal').style.display='none'" style="padding:10px 20px;background:#f3f3f3;color:#0a0a0a;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">סגור</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

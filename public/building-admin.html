@@ -91,6 +91,17 @@
     document.getElementById('qrOverlay').style.display = 'flex';
   }
 
+  function downloadQr() {
+    const qrImg = document.querySelector('#qrCanvas img');
+    if (!qrImg) return;
+    const code = document.getElementById('qrSubtitle').textContent.match(/\d+/)?.[0] || 'qr';
+    const a = document.createElement('a');
+    a.href = qrImg.src;
+    a.download = 'qr-building-' + code + '.png';
+    a.target = '_blank';
+    a.click();
+  }
+
   function closeQr() {
     document.getElementById('qrOverlay').style.display = 'none';
   }
@@ -780,6 +791,7 @@
     <p style="font-size:11px;color:var(--gray-400);margin-bottom:20px;word-break:break-all;" id="qrUrl"></p>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
       <button onclick="printQr()" style="padding:11px 24px;background:var(--black);color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">🖨️ הדפס</button>
+      <button onclick="downloadQr()" style="padding:11px 24px;background:#7c3aed;color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">⬇ הורד QR</button>
       <button onclick="closeQr()" style="padding:11px 24px;background:var(--gray-100);color:var(--black);border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">סגור</button>
     </div>
   </div>
