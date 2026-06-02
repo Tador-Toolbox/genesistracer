@@ -750,25 +750,32 @@
     } catch(e) { alert('שגיאת תקשורת'); }
   }
 
-  // Full delete: remove from panel + system in one action
+  // Full delete: remove from ALL panels + system in one action
   async function deleteResidentFull(id, name, uploadedToPanel) {
     const msg = uploadedToPanel
-      ? 'למחוק את ' + name + ' לחלוטין?\n\n✓ ימחק מהפנל (פנים לא יזוהו)\n✓ ימחק מהמערכת'
-      : 'למחוק את ' + name + ' מהמערכת?\n\n(לא נמצאו פנים בפנל — ימחק מהמערכת בלבד)';
+      ? 'למחוק את ' + name + ' לחלוטין?\n\n✓ ימחק מכל הפנלים בבניין\n✓ ימחק מהמערכת'
+      : 'למחוק את ' + name + ' מהמערכת?\n\n(לא הועלה לפנל — ימחק מהמערכת בלבד)';
     if (!confirm(msg)) return;
 
     const status = document.getElementById('uploadStatus');
-    if (status) { status.style.color = '#2563eb'; status.textContent = '⏳ מוחק ' + name + '...'; }
+    if (status) { status.style.color = '#2563eb'; status.textContent = '⏳ מוחק ' + name + ' מכל הפנלים...'; }
 
-    // Step 1: delete from panel (if uploaded)
+    // Step 1: delete from ALL panels in the building
     if (uploadedToPanel) {
       try {
-        await fetch('/api/committee/delete-faces', {
+        const pres = await fetch('/api/committee/delete-resident-all-panels', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentIds: [id], panelMac: selectedPanel })
+          body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentIds: [id] })
         });
-      } catch(e) { /* continue even if panel delete fails */ }
+        const pdata = await pres.json();
+        if (pdata.success) {
+          const summary = (pdata.panelResults || []).map(p =>
+            p.panel + ': ' + (p.notFound ? 'לא נמצא' : p.deleted + ' נמחקו')
+          ).join(', ');
+          if (status) { status.style.color = '#0369a1'; status.textContent = '🚪 ' + summary; }
+        }
+      } catch(e) { /* continue to system delete even if panel fails */ }
     }
 
     // Step 2: delete from system
@@ -776,7 +783,7 @@
       const res = await fetch('/api/committee/residents/' + id + '?password=' + encodeURIComponent(sessionPass) + '&buildingCode=' + sessionCode, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
-        if (status) { status.style.color = '#16a34a'; status.textContent = '✅ ' + name + ' נמחק'; }
+        if (status) { status.style.color = '#16a34a'; status.textContent = '✅ ' + name + ' נמחק לחלוטין'; }
         loadResidents();
       } else {
         if (status) { status.style.color = '#ef4444'; status.textContent = '❌ ' + (data.error || 'שגיאה'); }
