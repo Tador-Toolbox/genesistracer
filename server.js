@@ -2545,6 +2545,7 @@ app.post('/api/committee/delete-panel-id', async (req, res) => {
 
     const rawMac = panelMac || building.mac;
     const cleanMac = rawMac.replace(/[:\-\s]/g, '').toUpperCase();
+    console.log(`🗑 delete-panel-id: id=${panelId} mac=${cleanMac} (requested panelMac=${panelMac||'none'})`);
     const panelAddress = await resolvePanelAddress(cleanMac);
     if (!panelAddress) return res.json({ success: false, error: 'Panel not found / offline' });
 
