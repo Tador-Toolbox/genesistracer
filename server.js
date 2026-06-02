@@ -2868,6 +2868,31 @@ app.get('/api/committee/building-panels/:code', async (req, res) => {
   }
 });
 
+
+// Manager: rename a panel label
+app.post('/api/buildings/:code/rename-panel', async (req, res) => {
+  try {
+    const { mac, label, username, password } = req.body;
+    if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASS) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!mac || !label) return res.json({ success: false, error: 'mac and label required' });
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode: req.params.code });
+    if (!building) return res.json({ success: false, error: 'Building not found' });
+    const cleanMac = mac.replace(/[:\-\s]/g,'').toUpperCase();
+    const panels = (building.panels || [{ mac: building.mac, label: 'כניסה ראשית' }])
+      .map(p => p.mac === cleanMac ? { ...p, label: label.trim() } : p);
+    await database.collection('buildings').updateOne(
+      { buildingCode: req.params.code },
+      { $set: { panels } }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
   console.log(`🌐 Main: http://localhost:${PORT}`);
