@@ -370,18 +370,19 @@
     .action-card {
       border: 1px solid var(--gray-200);
       border-radius: 8px;
-      padding: 18px 12px;
+      padding: 12px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 6px;
       cursor: pointer;
       background: none;
       font-family: inherit;
       transition: border-color 0.15s, transform 0.1s;
       position: relative;
-      min-height: 90px;
+      height: 100px;
+      overflow: hidden;
     }
     .action-card:hover { border-color: var(--black); }
     .action-card:active { transform: scale(0.97); }
