@@ -2566,12 +2566,14 @@ app.post('/api/committee/delete-panel-id', async (req, res) => {
 // Committee: import panel faces into residents collection (save permanently)
 app.post('/api/committee/import-faces', async (req, res) => {
   try {
-    const { buildingCode, password } = req.body;
+    const { buildingCode, password, panelMac } = req.body;
     const database = await require('./db').connectDB();
     const building = await database.collection('buildings').findOne({ buildingCode, password });
     if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
-    const cleanMac = building.mac.replace(/[:\-\s]/g, '').toUpperCase();
+    const rawMac = panelMac || building.mac;
+    const cleanMac = rawMac.replace(/[:\-\s]/g, '').toUpperCase();
+    console.log(`💾 import-faces: mac=${cleanMac}`);
     const panelAddress = await resolvePanelAddress(cleanMac);
     if (!panelAddress) return res.json({ success: false, error: 'Panel not found / offline' });
 
