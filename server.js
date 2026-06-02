@@ -2214,7 +2214,9 @@ app.post('/api/committee/upload-faces', async (req, res) => {
     if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     // Resolve panel address via NexHome lookup (same flow as /api/lookup)
-    const cleanMac = building.mac.replace(/[:\-\s]/g, '').toUpperCase();
+    // Use selected panel MAC if provided, otherwise fall back to building's primary MAC
+    const rawMac = req.body.panelMac || building.mac;
+    const cleanMac = rawMac.replace(/[:\-\s]/g, '').toUpperCase();
     let panelAddress;
     try {
       panelAddress = await resolvePanelAddress(cleanMac);
@@ -2378,7 +2380,9 @@ app.post('/api/committee/delete-faces', async (req, res) => {
     const building = await database.collection('buildings').findOne({ buildingCode, password });
     if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
-    const cleanMac = building.mac.replace(/[:\-\s]/g, '').toUpperCase();
+    // Use selected panel MAC if provided, otherwise fall back to building's primary MAC
+    const rawMac = req.body.panelMac || building.mac;
+    const cleanMac = rawMac.replace(/[:\-\s]/g, '').toUpperCase();
     let panelAddress;
     try {
       panelAddress = await resolvePanelAddress(cleanMac);
@@ -2470,7 +2474,9 @@ app.post('/api/committee/panel-faces', async (req, res) => {
     const building = await database.collection('buildings').findOne({ buildingCode, password });
     if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
-    const cleanMac = building.mac.replace(/[:\-\s]/g, '').toUpperCase();
+    // Use selected panel MAC if provided, otherwise fall back to building's primary MAC
+    const rawMac = req.body.panelMac || building.mac;
+    const cleanMac = rawMac.replace(/[:\-\s]/g, '').toUpperCase();
     let panelAddress;
     try {
       panelAddress = await resolvePanelAddress(cleanMac);
@@ -2529,7 +2535,7 @@ app.post('/api/committee/panel-faces', async (req, res) => {
 // Committee: delete a face from the panel by its panel ID directly
 app.post('/api/committee/delete-panel-id', async (req, res) => {
   try {
-    const { buildingCode, password, panelId } = req.body;
+    const { buildingCode, password, panelId, panelMac } = req.body;
     if (!buildingCode || !password || panelId === undefined) {
       return res.status(400).json({ success: false, error: 'buildingCode, password, panelId required' });
     }
@@ -2537,7 +2543,8 @@ app.post('/api/committee/delete-panel-id', async (req, res) => {
     const building = await database.collection('buildings').findOne({ buildingCode, password });
     if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
-    const cleanMac = building.mac.replace(/[:\-\s]/g, '').toUpperCase();
+    const rawMac = panelMac || building.mac;
+    const cleanMac = rawMac.replace(/[:\-\s]/g, '').toUpperCase();
     const panelAddress = await resolvePanelAddress(cleanMac);
     if (!panelAddress) return res.json({ success: false, error: 'Panel not found / offline' });
 
