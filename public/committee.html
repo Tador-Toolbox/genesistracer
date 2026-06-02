@@ -57,6 +57,7 @@
     .act-panel-del{background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;}
     .act-sys-del{background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;}
     .act-full-del{background:#dc2626;color:white;border:none;}
+    .act-import-one{background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;}
     .resident-date{font-size:10px;color:var(--gray-400);}
     .delete-btn{background:none;border:none;color:#ef4444;cursor:pointer;font-size:18px;padding:2px 6px;border-radius:4px;}
     .delete-btn:hover{background:#fff5f5;}
@@ -569,6 +570,7 @@
         '</div>' +
         (panelSelectMode ? '' :
         '<div class="resident-actions">' +
+          '<button class="act-btn act-import-one" onclick="event.stopPropagation();savePanelFace(' + f.id + ', &quot;' + (f.name||'') + '&quot;, ' + JSON.stringify(f.photo||null) + ')">📥 העבר למאגר</button>' +
           '<button class="act-btn act-panel-del" onclick="event.stopPropagation();deletePanelById(' + f.id + ', &quot;' + (f.name||'') + '&quot;)">🗑 מחק מהפנל</button>' +
         '</div>') +
       '</div>';
@@ -790,6 +792,40 @@
       }
     } catch(e) {
       if (status) { status.style.color = '#ef4444'; status.textContent = '❌ שגיאת תקשורת'; }
+    }
+  }
+
+  async function savePanelFace(panelId, name, photo) {
+    const status = document.getElementById('panelFacesStatus');
+    status.style.color = '#2563eb';
+    status.textContent = '⏳ שומר ' + name + ' למאגר...';
+    try {
+      const res = await fetch('/api/committee/save-panel-face', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buildingCode: sessionCode,
+          password: sessionPass,
+          name: name,
+          photoBase64: photo,
+          panelFaceId: panelId
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        status.style.color = '#16a34a';
+        status.textContent = '✅ ' + name + ' נשמר במאגר — תוכל כעת להעלות לפנל אחר';
+        loadResidents(); // refresh residents list so it shows the new entry
+      } else if (data.error === 'already_exists') {
+        status.style.color = '#f59e0b';
+        status.textContent = '⚠️ ' + name + ' כבר קיים במאגר';
+      } else {
+        status.style.color = '#ef4444';
+        status.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      status.style.color = '#ef4444';
+      status.textContent = '❌ שגיאת תקשורת';
     }
   }
 </script>
