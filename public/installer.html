@@ -699,6 +699,12 @@
           <span class="action-card-label" data-i18n="catalogBtn">קטלוג מוצרים</span>
         </button>
 
+        <!-- Face Management -->
+        <button class="action-card" id="faceManagementBtn" onclick="window.open('https://genesistracer.onrender.com/committee.html','_blank')">
+          <span class="material-symbols-outlined">face</span>
+          <span class="action-card-label">ניהול זיהוי פנים</span>
+        </button>
+
         <!-- Resident Example -->
         <button class="action-card" id="residentExampleBtn" onclick="downloadResidentExampleInstaller()" style="display:none;">
           <span class="material-symbols-outlined">people</span>
@@ -1500,7 +1506,7 @@
     <div class="modal-body" style="padding:24px;text-align:center;">
       <div style="font-size:13px;color:var(--gray-500);margin-bottom:8px;" id="tempCodeResultLabel"></div>
       <div style="font-family:'Courier New',monospace;font-size:52px;font-weight:800;color:var(--black);letter-spacing:12px;margin:16px 0;" id="tempCodeResultPin"></div>
-      <div style="font-size:12px;color:var(--gray-500);margin-bottom:20px;" id="tempCodeResultDays"></div>
+      <div style="display:none;" id="tempCodeResultDays"></div>
       <button onclick="copyTempCode()" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:12px;border:1.5px solid var(--gray-200);border-radius:8px;background:none;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">
         <span class="material-symbols-outlined" style="font-size:18px;">content_copy</span>
         העתק קוד
