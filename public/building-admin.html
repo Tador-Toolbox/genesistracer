@@ -76,7 +76,144 @@
     .edit-input{width:100%;padding:6px 8px;border:1.5px solid var(--gray-200);border-radius:6px;font-family:inherit;font-size:13px;}
     .edit-input:focus{outline:none;border-color:var(--green);}
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+  function showQr(code, address) {
+    const url = 'https://genesistracer.onrender.com/resident-register.html?code=' + code;
+    document.getElementById('qrTitle').textContent = address;
+    document.getElementById('qrSubtitle').textContent = 'קוד בניין: ' + code + ' · סרוק להירשם';
+    document.getElementById('qrUrl').textContent = url;
+
+    // Generate QR using free API — no JS library needed
+    const apiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&format=png&data=' + encodeURIComponent(url);
+    const canvas = document.getElementById('qrCanvas');
+    canvas.innerHTML = '<img src="' + apiUrl + '" width="220" height="220" style="border:1px solid #eee;border-radius:8px;padding:8px;" alt="QR Code"/>';
+
+    document.getElementById('qrOverlay').style.display = 'flex';
+  }
+
+  function closeQr() {
+    document.getElementById('qrOverlay').style.display = 'none';
+  }
+
+  function printQr() {
+    const url = document.getElementById('qrUrl').textContent;
+    const title = document.getElementById('qrTitle').textContent;
+    const subtitle = document.getElementById('qrSubtitle').textContent;
+    const qrImg = document.querySelector('#qrCanvas img');
+    const qrApiUrl = qrImg ? qrImg.src : '';
+
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl">
+      <head>
+        <meta charset="UTF-8"/>
+        <title>QR — ${title}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap');
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: 'Heebo', sans-serif; text-align: center; padding: 40px; direction: rtl; }
+          .logo { font-size: 28px; font-weight: 900; letter-spacing: 2px; margin-bottom: 8px; }
+          .logo span { background: #E31B23; color: white; padding: 2px 8px; border-radius: 4px; font-size: 14px; margin-right: 8px; }
+          h1 { font-size: 22px; font-weight: 900; margin: 24px 0 4px; }
+          p { font-size: 15px; color: #555; margin-bottom: 24px; }
+          img { border: 2px solid #eee; border-radius: 8px; padding: 12px; }
+          .instruction { margin-top: 24px; font-size: 14px; color: #333; line-height: 1.8; }
+          .instruction strong { font-size: 16px; }
+          .url { margin-top: 16px; font-size: 11px; color: #999; word-break: break-all; }
+          @media print { body { padding: 20px; } }
+        </style>
+      </head>
+      <body>
+        <div class="logo">TADOR <span>GENESIS</span></div>
+        <h1>${title}</h1>
+        <p>${subtitle}</p>
+        <img src="${qrApiUrl}" width="220" height="220" style="border:1px solid #eee;border-radius:8px;padding:8px;"/>
+        <div class="instruction">
+          <strong>📱 כיצד להירשם?</strong><br/>
+          סרוק את הקוד עם הטלפון<br/>
+          מלא שם, דירה וצלם תמונת פנים<br/>
+          שלח — הוועד יאשר את רישומך
+        </div>
+        <div class="url">${url}</div>
+        <script>window.onload = function(){ window.print(); }<\/script>
+      </body>
+      </html>
+    `);
+    win.document.close();
+  }
+
+  // Close QR modal on overlay click (onclick on overlay itself)
+</script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">
+  function showQr(code, address) {
+    const url = 'https://genesistracer.onrender.com/resident-register.html?code=' + code;
+    document.getElementById('qrTitle').textContent = address;
+    document.getElementById('qrSubtitle').textContent = 'קוד בניין: ' + code + ' · סרוק להירשם';
+    document.getElementById('qrUrl').textContent = url;
+
+    // Generate QR using free API — no JS library needed
+    const apiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&format=png&data=' + encodeURIComponent(url);
+    const canvas = document.getElementById('qrCanvas');
+    canvas.innerHTML = '<img src="' + apiUrl + '" width="220" height="220" style="border:1px solid #eee;border-radius:8px;padding:8px;" alt="QR Code"/>';
+
+    document.getElementById('qrOverlay').style.display = 'flex';
+  }
+
+  function closeQr() {
+    document.getElementById('qrOverlay').style.display = 'none';
+  }
+
+  function printQr() {
+    const url = document.getElementById('qrUrl').textContent;
+    const title = document.getElementById('qrTitle').textContent;
+    const subtitle = document.getElementById('qrSubtitle').textContent;
+    const qrImg = document.querySelector('#qrCanvas img');
+    const qrApiUrl = qrImg ? qrImg.src : '';
+
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl">
+      <head>
+        <meta charset="UTF-8"/>
+        <title>QR — ${title}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap');
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: 'Heebo', sans-serif; text-align: center; padding: 40px; direction: rtl; }
+          .logo { font-size: 28px; font-weight: 900; letter-spacing: 2px; margin-bottom: 8px; }
+          .logo span { background: #E31B23; color: white; padding: 2px 8px; border-radius: 4px; font-size: 14px; margin-right: 8px; }
+          h1 { font-size: 22px; font-weight: 900; margin: 24px 0 4px; }
+          p { font-size: 15px; color: #555; margin-bottom: 24px; }
+          img { border: 2px solid #eee; border-radius: 8px; padding: 12px; }
+          .instruction { margin-top: 24px; font-size: 14px; color: #333; line-height: 1.8; }
+          .instruction strong { font-size: 16px; }
+          .url { margin-top: 16px; font-size: 11px; color: #999; word-break: break-all; }
+          @media print { body { padding: 20px; } }
+        </style>
+      </head>
+      <body>
+        <div class="logo">TADOR <span>GENESIS</span></div>
+        <h1>${title}</h1>
+        <p>${subtitle}</p>
+        <img src="${qrApiUrl}" width="220" height="220" style="border:1px solid #eee;border-radius:8px;padding:8px;"/>
+        <div class="instruction">
+          <strong>📱 כיצד להירשם?</strong><br/>
+          סרוק את הקוד עם הטלפון<br/>
+          מלא שם, דירה וצלם תמונת פנים<br/>
+          שלח — הוועד יאשר את רישומך
+        </div>
+        <div class="url">${url}</div>
+        <script>window.onload = function(){ window.print(); }<\/script>
+      </body>
+      </html>
+    `);
+    win.document.close();
+  }
+
+  // Close QR modal on overlay click (onclick on overlay itself)
+</script>
 </head>
 <body>
 
@@ -266,6 +403,7 @@
         <td style="font-size:12px;color:var(--gray-500);">${new Date(b.createdAt).toLocaleDateString('he-IL')}</td>
         <td>
           <button class="btn btn-black btn-sm" onclick="openDrawer('${b.buildingCode}','${b.address}')" style="margin-left:6px;">👥 דיירים</button>
+          <button class="btn btn-sm" onclick="showQr('${b.buildingCode}','${b.address}')" style="background:#7c3aed;margin-left:6px;">📱 QR</button>
           <button class="btn btn-danger btn-sm" onclick="deleteBuilding('${b.buildingCode}')">מחק</button>
         </td>
       </tr>
@@ -563,7 +701,89 @@
     loadPanels();
     loadDrawerResidents();
   }
+
+  function showQr(code, address) {
+    const url = 'https://genesistracer.onrender.com/resident-register.html?code=' + code;
+    document.getElementById('qrTitle').textContent = address;
+    document.getElementById('qrSubtitle').textContent = 'קוד בניין: ' + code + ' · סרוק להירשם';
+    document.getElementById('qrUrl').textContent = url;
+
+    // Generate QR using free API — no JS library needed
+    const apiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&format=png&data=' + encodeURIComponent(url);
+    const canvas = document.getElementById('qrCanvas');
+    canvas.innerHTML = '<img src="' + apiUrl + '" width="220" height="220" style="border:1px solid #eee;border-radius:8px;padding:8px;" alt="QR Code"/>';
+
+    document.getElementById('qrOverlay').style.display = 'flex';
+  }
+
+  function closeQr() {
+    document.getElementById('qrOverlay').style.display = 'none';
+  }
+
+  function printQr() {
+    const url = document.getElementById('qrUrl').textContent;
+    const title = document.getElementById('qrTitle').textContent;
+    const subtitle = document.getElementById('qrSubtitle').textContent;
+    const qrImg = document.querySelector('#qrCanvas img');
+    const qrApiUrl = qrImg ? qrImg.src : '';
+
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl">
+      <head>
+        <meta charset="UTF-8"/>
+        <title>QR — ${title}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap');
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: 'Heebo', sans-serif; text-align: center; padding: 40px; direction: rtl; }
+          .logo { font-size: 28px; font-weight: 900; letter-spacing: 2px; margin-bottom: 8px; }
+          .logo span { background: #E31B23; color: white; padding: 2px 8px; border-radius: 4px; font-size: 14px; margin-right: 8px; }
+          h1 { font-size: 22px; font-weight: 900; margin: 24px 0 4px; }
+          p { font-size: 15px; color: #555; margin-bottom: 24px; }
+          img { border: 2px solid #eee; border-radius: 8px; padding: 12px; }
+          .instruction { margin-top: 24px; font-size: 14px; color: #333; line-height: 1.8; }
+          .instruction strong { font-size: 16px; }
+          .url { margin-top: 16px; font-size: 11px; color: #999; word-break: break-all; }
+          @media print { body { padding: 20px; } }
+        </style>
+      </head>
+      <body>
+        <div class="logo">TADOR <span>GENESIS</span></div>
+        <h1>${title}</h1>
+        <p>${subtitle}</p>
+        <img src="${qrApiUrl}" width="220" height="220" style="border:1px solid #eee;border-radius:8px;padding:8px;"/>
+        <div class="instruction">
+          <strong>📱 כיצד להירשם?</strong><br/>
+          סרוק את הקוד עם הטלפון<br/>
+          מלא שם, דירה וצלם תמונת פנים<br/>
+          שלח — הוועד יאשר את רישומך
+        </div>
+        <div class="url">${url}</div>
+        <script>window.onload = function(){ window.print(); }<\/script>
+      </body>
+      </html>
+    `);
+    win.document.close();
+  }
+
+  // Close QR modal on overlay click (onclick on overlay itself)
 </script>
 </div>
+<!-- QR Code Modal -->
+<div id="qrOverlay" onclick="if(event.target===this)closeQr()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:16px;padding:32px;max-width:400px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <h3 style="font-size:18px;font-weight:900;margin-bottom:4px;" id="qrTitle"></h3>
+    <p style="font-size:13px;color:var(--gray-500);margin-bottom:20px;" id="qrSubtitle"></p>
+    <div id="qrCanvas" style="display:flex;justify-content:center;margin-bottom:20px;"></div>
+    <p style="font-size:11px;color:var(--gray-400);margin-bottom:20px;word-break:break-all;" id="qrUrl"></p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <button onclick="printQr()" style="padding:11px 24px;background:var(--black);color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">🖨️ הדפס</button>
+      <button onclick="closeQr()" style="padding:11px 24px;background:var(--gray-100);color:var(--black);border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">סגור</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
