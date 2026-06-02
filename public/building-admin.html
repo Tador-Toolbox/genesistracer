@@ -308,21 +308,73 @@
     if (!b) return;
     const panels = b.panels || [{ mac: b.mac, label: 'כניסה ראשית' }];
     const container = document.getElementById('panelsList');
-    container.innerHTML = panels.map(p =>
-      '<div style="display:flex;align-items:center;justify-content:space-between;background:white;border:1px solid #bae6fd;border-radius:7px;padding:8px 12px;">' +
-        '<div>' +
-          '<span style="font-size:13px;font-weight:700;">' + p.label + '</span>' +
-          '<span style="font-family:monospace;font-size:12px;color:var(--gray-500);margin-right:10px;"> · ' + p.mac + '</span>' +
-        '</div>' +
-        (panels.length > 1 ?
-          '<button onclick="removePanel(\" + p.mac + \")" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;">×</button>' :
-          '<span style="font-size:11px;color:var(--gray-400);">ראשי</span>'
-        ) +
-      '</div>'
-    ).join('');
+    container.innerHTML = '';
+    panels.forEach(function(p, idx) {
+      const row = document.createElement('div');
+      row.id = 'panel-row-' + idx;
+      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:white;border:1px solid #bae6fd;border-radius:7px;padding:8px 12px;gap:8px;';
+
+      const left = document.createElement('div');
+      left.style.cssText = 'flex:1;display:flex;align-items:center;gap:8px;';
+
+      const labelSpan = document.createElement('span');
+      labelSpan.id = 'panel-label-' + idx;
+      labelSpan.style.cssText = 'font-size:13px;font-weight:700;';
+      labelSpan.textContent = p.label;
+
+      const editInput = document.createElement('input');
+      editInput.id = 'panel-input-' + idx;
+      editInput.type = 'text';
+      editInput.value = p.label;
+      editInput.style.cssText = 'display:none;flex:1;padding:5px 8px;border:1.5px solid #0369a1;border-radius:6px;font-family:inherit;font-size:13px;';
+      editInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') saveEditPanel(idx, p.mac); });
+
+      const macSpan = document.createElement('span');
+      macSpan.style.cssText = 'font-family:monospace;font-size:12px;color:var(--gray-500);';
+      macSpan.textContent = ' · ' + p.mac;
+
+      left.appendChild(labelSpan);
+      left.appendChild(editInput);
+      left.appendChild(macSpan);
+
+      const right = document.createElement('div');
+      right.style.cssText = 'display:flex;align-items:center;gap:6px;';
+
+      const editBtn = document.createElement('button');
+      editBtn.id = 'panel-edit-btn-' + idx;
+      editBtn.textContent = '✏️ ערוך';
+      editBtn.style.cssText = 'background:none;border:1px solid #bae6fd;border-radius:5px;color:#0369a1;cursor:pointer;font-size:12px;font-weight:700;padding:3px 8px;';
+      editBtn.onclick = function() { startEditPanel(idx, p.mac); };
+
+      const saveBtn = document.createElement('button');
+      saveBtn.id = 'panel-save-btn-' + idx;
+      saveBtn.textContent = 'שמור';
+      saveBtn.style.cssText = 'display:none;background:#0369a1;border:none;border-radius:5px;color:white;cursor:pointer;font-size:12px;font-weight:700;padding:3px 8px;';
+      saveBtn.onclick = function() { saveEditPanel(idx, p.mac); };
+
+      right.appendChild(editBtn);
+      right.appendChild(saveBtn);
+
+      if (panels.length > 1) {
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '×';
+        delBtn.style.cssText = 'background:none;border:none;color:#ef4444;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;';
+        delBtn.onclick = function() { removePanel(p.mac); };
+        right.appendChild(delBtn);
+      } else {
+        const mainTag = document.createElement('span');
+        mainTag.textContent = 'ראשי';
+        mainTag.style.cssText = 'font-size:11px;color:var(--gray-400);';
+        right.appendChild(mainTag);
+      }
+
+      row.appendChild(left);
+      row.appendChild(right);
+      container.appendChild(row);
+    });
   }
 
-  async function addPanel() {
+    async function addPanel() {
     const mac = document.getElementById('panelMacInput').value.trim();
     const label = document.getElementById('panelLabelInput').value.trim();
     const errEl = document.getElementById('panelErr');
