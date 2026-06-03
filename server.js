@@ -3082,6 +3082,47 @@ app.post('/api/committee/save-panel-face', async (req, res) => {
   }
 });
 
+
+// Manager: get face count for each panel in a building
+app.post('/api/buildings/:code/panel-stats', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASS) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode: req.params.code });
+    if (!building) return res.json({ success: false, error: 'Building not found' });
+
+    const panels = building.panels || [{ mac: building.mac, label: 'כניסה ראשית' }];
+    const stats = [];
+
+    for (const panel of panels) {
+      const cleanMac = panel.mac.replace(/[:\-\s]/g, '').toUpperCase();
+      try {
+        const panelAddress = await resolvePanelAddress(cleanMac);
+        if (!panelAddress) {
+          stats.push({ mac: cleanMac, label: panel.label, faceCount: null, error: 'offline' });
+          continue;
+        }
+        const [host, portStr] = panelAddress.split(':');
+        const port = parseInt(portStr) || 80;
+        const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+        const token = loginRes?.data?.token;
+        if (!token) { stats.push({ mac: cleanMac, label: panel.label, faceCount: null, error: 'login failed' }); continue; }
+        const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
+        const count = listData?.data?.total ?? (listData?.data?.list || []).length;
+        stats.push({ mac: cleanMac, label: panel.label, faceCount: count });
+      } catch(e) {
+        stats.push({ mac: cleanMac, label: panel.label, faceCount: null, error: e.message });
+      }
+    }
+    res.json({ success: true, stats });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
   console.log(`🌐 Main: http://localhost:${PORT}`);
