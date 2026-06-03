@@ -325,7 +325,10 @@
 
     <!-- Panels section -->
     <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:16px;margin-bottom:20px;">
-      <div style="font-size:13px;font-weight:800;color:#0369a1;margin-bottom:12px;">🚪 פנלים (כניסות)</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:800;color:#0369a1;">🚪 פנלים (כניסות)</div>
+        <button onclick="checkPanelStats()" id="statsBtn" style="padding:5px 12px;background:white;border:1.5px solid #bae6fd;border-radius:6px;font-family:inherit;font-size:12px;font-weight:700;color:#0369a1;cursor:pointer;">🔍 בדוק פנים</button>
+      </div>
       <div id="panelsList" style="margin-bottom:12px;display:flex;flex-direction:column;gap:6px;"></div>
       <div style="display:grid;grid-template-columns:1.5fr 1fr auto;gap:8px;align-items:end;">
         <div>
@@ -482,9 +485,14 @@
       macSpan.style.cssText = 'font-family:monospace;font-size:12px;color:var(--gray-500);';
       macSpan.textContent = ' · ' + p.mac;
 
+      const countBadge = document.createElement('span');
+      countBadge.id = 'panel-count-' + p.mac;
+      countBadge.style.cssText = 'display:none;margin-right:8px;padding:2px 8px;background:#dbeafe;color:#1e40af;border-radius:12px;font-size:11px;font-weight:700;';
+
       left.appendChild(labelSpan);
       left.appendChild(editInput);
       left.appendChild(macSpan);
+      left.appendChild(countBadge);
 
       const right = document.createElement('div');
       right.style.cssText = 'display:flex;align-items:center;gap:6px;';
@@ -523,7 +531,47 @@
     });
   }
 
-    async function addPanel() {
+  
+  async function checkPanelStats() {
+    const btn = document.getElementById('statsBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ בודק...';
+    try {
+      const res = await fetch('/api/buildings/' + drawerCode + '/panel-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: authUser, password: authPass })
+      });
+      const data = await res.json();
+      if (data.success) {
+        data.stats.forEach(function(s) {
+          const badge = document.getElementById('panel-count-' + s.mac);
+          if (badge) {
+            if (s.faceCount !== null && s.faceCount !== undefined) {
+              badge.textContent = s.faceCount + ' פנים';
+              badge.style.display = 'inline-block';
+              badge.style.background = s.faceCount === 0 ? '#f3f4f6' : '#dbeafe';
+              badge.style.color = s.faceCount === 0 ? '#6b7280' : '#1e40af';
+            } else {
+              badge.textContent = s.error === 'offline' ? '⚫ מנותק' : '⚠️ שגיאה';
+              badge.style.display = 'inline-block';
+              badge.style.background = '#fef2f2';
+              badge.style.color = '#dc2626';
+            }
+          }
+        });
+        btn.textContent = '✅ עודכן';
+        setTimeout(function() { btn.textContent = '🔍 בדוק פנים'; btn.disabled = false; }, 2000);
+      } else {
+        btn.textContent = '❌ שגיאה';
+        setTimeout(function() { btn.textContent = '🔍 בדוק פנים'; btn.disabled = false; }, 2000);
+      }
+    } catch(e) {
+      btn.textContent = '❌ שגיאת תקשורת';
+      setTimeout(function() { btn.textContent = '🔍 בדוק פנים'; btn.disabled = false; }, 2000);
+    }
+  }
+  async function addPanel() {
     const mac = document.getElementById('panelMacInput').value.trim();
     const label = document.getElementById('panelLabelInput').value.trim();
     const errEl = document.getElementById('panelErr');
