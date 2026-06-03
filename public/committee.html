@@ -573,7 +573,7 @@
         '</div>' +
         (panelSelectMode ? '' :
         '<div class="resident-actions">' +
-          '<button class="act-btn act-import-one" onclick="event.stopPropagation();savePanelFace(' + f.id + ', &quot;' + (f.name||'') + '&quot;, ' + JSON.stringify(f.photo||null) + ')">📥 העבר למאגר</button>' +
+          '<button class="act-btn act-import-one" onclick="event.stopPropagation();savePanelFace(' + f.id + ')">📥 העבר למאגר</button>' +
           '<button class="act-btn act-panel-del" onclick="event.stopPropagation();deletePanelById(' + f.id + ', &quot;' + (f.name||'') + '&quot;)">🗑 מחק מהפנל</button>' +
         '</div>') +
       '</div>';
@@ -798,7 +798,12 @@
     }
   }
 
-  async function savePanelFace(panelId, name, photo) {
+  async function savePanelFace(panelId) {
+    // Look up the face from the already-loaded panelFacesData array
+    const face = panelFacesData.find(function(f) { return f.id === panelId; });
+    if (!face) { alert('פנים לא נמצאו — ייבא מחדש מהפנל'); return; }
+    const name = face.name || '';
+    const photo = face.photo || null;
     const status = document.getElementById('panelFacesStatus');
     status.style.color = '#2563eb';
     status.textContent = '⏳ שומר ' + name + ' למאגר...';
