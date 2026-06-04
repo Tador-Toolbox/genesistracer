@@ -130,7 +130,7 @@
       <div id="panelCardsStatus" class="status-bar"></div>
       <div style="overflow-x:auto;max-height:300px;overflow-y:auto;">
         <table class="swipe-table">
-          <thead><tr><th>שם</th><th>כרטיס</th><th>פעולה</th></tr></thead>
+          <thead><tr><th>שם</th><th>כרטיס</th><th>פעולות</th></tr></thead>
           <tbody id="panelCardsTable"><tr><td colspan="3" class="empty-msg">לחץ "טען כרטיסים"</td></tr></tbody>
         </table>
       </div>
@@ -145,6 +145,8 @@
         <input type="text" id="searchInput" placeholder="חפש לפי שם או מספר כרטיס..." oninput="renderCardsDB()"/>
       </div>
       <button class="btn btn-green" onclick="uploadAllToPanel()" id="uploadAllBtn" disabled>⬆ העלה הכל לפנל</button>
+      <button class="btn btn-blue" onclick="exportCardsFile()">⬇ ייצוא JSON</button>
+      <label class="btn" style="background:#7c3aed;color:white;cursor:pointer;margin:0;">⬆ ייבוא JSON<input type="file" accept=".json" onchange="importCardsFile(this)" style="display:none;"/></label>
     </div>
     <div id="dbStatus" class="status-bar"></div>
     <div style="overflow-x:auto;">
@@ -462,6 +464,69 @@
 
   // Init
   loadCardsDB();
+
+  // Save a card from panel list to DB
+  async function savePanelCardToDB(cardNum, label) {
+    if (!cardNum || cardNum === '—') { alert('מספר כרטיס לא תקין'); return; }
+    const parts = (label || '').trim().split(/\s+/);
+    const firstName = parts[0] || '';
+    const lastName = parts.slice(1).join(' ') || '';
+    try {
+      const res = await fetch('/api/rfid/cards', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ cardNumber: cardNum, firstName, lastName }) });
+      const data = await res.json();
+      if (data.success) {
+        showStatus('panelCardsStatus', 'ok', '✅ כרטיס ' + cardNum + ' נשמר במאגר');
+        loadCardsDB();
+      } else if (data.error === 'duplicate') {
+        showStatus('panelCardsStatus', 'error', '⚠️ כרטיס ' + cardNum + ' כבר קיים במאגר');
+      } else {
+        showStatus('panelCardsStatus', 'error', '❌ ' + (data.error || 'שגיאה'));
+      }
+    } catch(e) { showStatus('panelCardsStatus', 'error', '❌ שגיאת תקשורת'); }
+  }
+
+  // Export cards database to JSON file
+  function exportCardsFile() {
+    if (!allCardsDB.length) { alert('אין כרטיסים לייצוא'); return; }
+    const exportData = allCardsDB.map(function(c) {
+      return { card_number: c.cardNumber, first_name: c.firstName || '', family_name: c.lastName || '', added_at: c.createdAt };
+    });
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'rfid-cards-' + new Date().toISOString().slice(0,10) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Import cards from JSON file
+  async function importCardsFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!Array.isArray(data)) { alert('קובץ לא תקין — נדרש מערך JSON'); input.value = ''; return; }
+      let added = 0, skipped = 0, failed = 0;
+      for (const entry of data) {
+        const cardNum = (entry.card_number || entry.cardNumber || '').toUpperCase().trim();
+        if (!cardNum) continue;
+        try {
+          const res = await fetch('/api/rfid/cards', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ cardNumber: cardNum, firstName: entry.first_name || entry.firstName || '', lastName: entry.family_name || entry.lastName || '' }) });
+          const d = await res.json();
+          if (d.success) added++;
+          else if (d.error === 'duplicate') skipped++;
+          else failed++;
+        } catch(e) { failed++; }
+      }
+      showStatus('dbStatus', 'ok', '✅ יובאו ' + added + ' כרטיסים' + (skipped ? ', ' + skipped + ' כבר קיימים' : '') + (failed ? ', ' + failed + ' נכשלו' : ''));
+      loadCardsDB();
+    } catch(e) { alert('שגיאה בקריאת הקובץ: ' + e.message); }
+    input.value = '';
+  }
 </script>
 </body>
 </html>
