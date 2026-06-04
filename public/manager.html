@@ -310,6 +310,51 @@
     }
     .installer-link:hover { text-decoration: underline; }
 
+    /* Quick Access Grid */
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+    }
+    .quick-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 16px 10px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.08);
+      transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+      cursor: pointer;
+      line-height: 1.3;
+    }
+    .quick-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+      filter: brightness(1.1);
+      text-decoration: none;
+    }
+    .quick-btn:active { transform: translateY(0); }
+    .quick-btn .qb-icon { font-size: 22px; line-height: 1; }
+    .quick-btn .qb-label { font-size: 11.5px; }
+
+    .qb-red    { background: linear-gradient(135deg,#e31b23,#b8151c); }
+    .qb-purple { background: linear-gradient(135deg,#7c3aed,#5b21b6); }
+    .qb-teal   { background: linear-gradient(135deg,#0891b2,#0e7490); }
+    .qb-blue   { background: linear-gradient(135deg,#2563eb,#1d4ed8); }
+    .qb-sky    { background: linear-gradient(135deg,#0ea5e9,#0369a1); }
+    .qb-green  { background: linear-gradient(135deg,#16a34a,#15803d); }
+    .qb-emerald{ background: linear-gradient(135deg,#1a7a4a,#12593a); }
+    .qb-navy   { background: linear-gradient(135deg,#0369a1,#0284c7); }
+    .qb-gray   { background: linear-gradient(135deg,#475569,#334155); }
+
     .success-msg {
       background: rgba(16, 185, 129, 0.1);
       border: 1px solid var(--green);
@@ -419,59 +464,59 @@
 
       <!-- Quick Link -->
       <div class="card">
-        <h2 data-i18n="quickAccess">🔗 Quick Access</h2>
-        <div style="display: flex; gap: 24px; flex-wrap: wrap;">
-          <a href="/installer.html" target="_blank" class="installer-link">
-            <span>🔧</span>
-            <span data-i18n="installerPanelLink">Open Installer Panel</span>
+        <h2 data-i18n="quickAccess">🔗 גישה מהירה</h2>
+        <div class="quick-grid">
+          <a href="/installer.html" target="_blank" class="quick-btn qb-gray">
+            <span class="qb-icon">🔧</span>
+            <span class="qb-label" data-i18n="installerPanelLink">פתח פאנל מתקין</span>
           </a>
-          <a href="/index.html" target="_blank" class="installer-link">
-            <span>🔍</span>
-            <span data-i18n="deviceLookupLink">Open Device Lookup</span>
+          <a href="/index.html" target="_blank" class="quick-btn qb-gray">
+            <span class="qb-icon">🔍</span>
+            <span class="qb-label" data-i18n="deviceLookupLink">פתח חיפוש מכשיר</span>
           </a>
-          <a href="#" onclick="downloadBackup(); return false;" class="installer-link">
-            <span>📥</span>
-            <span data-i18n="downloadBackup">Download Database Backup</span>
+          <a href="#" onclick="downloadBackup(); return false;" class="quick-btn qb-gray">
+            <span class="qb-icon">📥</span>
+            <span class="qb-label" data-i18n="downloadBackup">הורד גיבוי מסד נתונים</span>
           </a>
-          <a href="https://eu1.voipbell.net/index.php?lang=en_gb" target="_blank" class="installer-link">
-            <span>☎️</span>
-            <span data-i18n="voipbellServer">Voipbell Server Login</span>
+          <a href="https://eu1.voipbell.net/index.php?lang=en_gb" target="_blank" class="quick-btn qb-gray">
+            <span class="qb-icon">☎️</span>
+            <span class="qb-label" data-i18n="voipbellServer">התחברות לשרת Voipbell</span>
           </a>
-          <a href="https://nexsmart-us.nexhome.ai/login" target="_blank" class="installer-link" style="background:linear-gradient(135deg,#0ea5e9,#0369a1);color:white;">
-            <span>🌐</span>
-            <span>Nexhome Login</span>
+          <a href="https://nexsmart-us.nexhome.ai/login" target="_blank" class="quick-btn qb-sky">
+            <span class="qb-icon">🌐</span>
+            <span class="qb-label">Nexhome Login</span>
           </a>
-          <a href="#" onclick="exportExcel(); return false;" class="installer-link" style="background:linear-gradient(135deg,#1a7a4a,#12593a);color:white;">
-            <span>📊</span>
-            <span>ייצוא Excel</span>
+          <a href="#" onclick="exportExcel(); return false;" class="quick-btn qb-emerald">
+            <span class="qb-icon">📊</span>
+            <span class="qb-label">ייצוא Excel</span>
           </a>
-          <a href="/stats.html" target="_blank" class="installer-link" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;">
-            <span>📈</span>
-            <span>סטטיסטיקה</span>
+          <a href="/stats.html" target="_blank" class="quick-btn qb-blue">
+            <span class="qb-icon">📈</span>
+            <span class="qb-label">סטטיסטיקה</span>
           </a>
-          <a href="/notes.html" target="_blank" class="installer-link" style="background:linear-gradient(135deg,#0891b2,#0e7490);color:white;">
-            <span>📝</span>
-            <span>תכנותים נוספים</span>
+          <a href="/notes.html" target="_blank" class="quick-btn qb-teal">
+            <span class="qb-icon">📝</span>
+            <span class="qb-label">תכנותים נוספים</span>
           </a>
-          <a href="#" onclick="openMergeModal(); return false;" class="installer-link" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;">
-            <span>🔀</span>
-            <span>מיזוג חשבונות</span>
+          <a href="#" onclick="openMergeModal(); return false;" class="quick-btn qb-purple">
+            <span class="qb-icon">🔀</span>
+            <span class="qb-label">מיזוג חשבונות</span>
           </a>
-          <a href="#" onclick="scrollToAnnouncements(); return false;" class="installer-link" style="background:linear-gradient(135deg,#e31b23,#b8151c);color:white;">
-            <span>📢</span>
-            <span>שלח הודעה</span>
+          <a href="#" onclick="scrollToAnnouncements(); return false;" class="quick-btn qb-red">
+            <span class="qb-icon">📢</span>
+            <span class="qb-label">שלח הודעה</span>
           </a>
-          <a href="/rfid-cards.html" target="_blank" class="installer-link" style="background:linear-gradient(135deg,#0891b2,#0e7490);color:white;">
-            <span>🪪</span>
-            <span>ניהול כרטיסי RFID</span>
+          <a href="/rfid-cards.html" target="_blank" class="quick-btn qb-teal">
+            <span class="qb-icon">🪪</span>
+            <span class="qb-label">ניהול כרטיסי RFID</span>
           </a>
-          <a href="/building-admin.html" target="_blank" class="installer-link" style="background:linear-gradient(135deg,#0369a1,#0284c7);color:white;">
-            <span>🏢</span>
-            <span>ניהול בניינים</span>
+          <a href="/building-admin.html" target="_blank" class="quick-btn qb-navy">
+            <span class="qb-icon">🏢</span>
+            <span class="qb-label">ניהול בניינים</span>
           </a>
-          <a href="/committee.html" target="_blank" class="installer-link" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;">
-            <span>👥</span>
-            <span>פנל ועד דיירים</span>
+          <a href="/committee.html" target="_blank" class="quick-btn qb-green">
+            <span class="qb-icon">👥</span>
+            <span class="qb-label">פנל ועד דיירים</span>
           </a>
         </div>
       </div>
