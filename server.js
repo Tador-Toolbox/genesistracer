@@ -3316,8 +3316,9 @@ app.post('/api/rfid/panel-cards', async (req, res) => {
 const plUpload = multer({ storage: multer.memoryStorage() });
 
 function requireManagerAuth(req, res, next) {
-  const { user, pass } = req.headers;
-  if (user === process.env.ADMIN_USER && pass === process.env.ADMIN_PASS) return next();
+  const username = req.body?.username || req.headers['x-manager-user'];
+  const password = req.body?.password || req.headers['x-manager-pass'];
+  if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) return next();
   res.status(401).json({ error: 'Unauthorized' });
 }
 
@@ -3345,7 +3346,8 @@ app.post('/api/pricelist/meta', requireManagerAuth, async (req, res) => {
 });
 
 // POST /api/pricelist/logo
-app.post('/api/pricelist/logo', requireManagerAuth, plUpload.single('logo'), async (req, res) => {
+app.post('/api/pricelist/logo', plUpload.single('logo'), async (req, res) => {
+  if(req.body?.username !== process.env.ADMIN_USER || req.body?.password !== process.env.ADMIN_PASS) return res.status(401).json({error:'Unauthorized'});
   try {
     if (!req.file) return res.status(400).json({ error: 'No file' });
     const { Readable } = require('stream');
@@ -3377,7 +3379,8 @@ app.delete('/api/pricelist/logo', requireManagerAuth, async (req, res) => {
 });
 
 // POST /api/pricelist/product-image/:productId
-app.post('/api/pricelist/product-image/:productId', requireManagerAuth, plUpload.single('image'), async (req, res) => {
+app.post('/api/pricelist/product-image/:productId', plUpload.single('image'), async (req, res) => {
+  if(req.body?.username !== process.env.ADMIN_USER || req.body?.password !== process.env.ADMIN_PASS) return res.status(401).json({error:'Unauthorized'});
   try {
     if (!req.file) return res.status(400).json({ error: 'No file' });
     const { productId } = req.params;
