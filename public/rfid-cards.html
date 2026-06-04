@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ניהול כרטיסי RFID — GenesisTracer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    :root{--red:#E31B23;--black:#0A0A0A;--gray-50:#F9F9F9;--gray-100:#F3F3F3;--gray-200:#E5E5E5;--gray-400:#9CA3AF;--gray-500:#6B7280;--green:#16a34a;--blue:#2563eb;}
+    body{font-family:'Heebo',sans-serif;background:#F0F2F5;min-height:100vh;direction:rtl;color:var(--black);}
+    .topbar{background:var(--black);padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+    .topbar-logo{color:white;font-size:18px;font-weight:900;letter-spacing:1px;display:flex;align-items:center;gap:10px;}
+    .topbar-logo span{background:var(--red);color:white;font-size:11px;font-weight:800;padding:2px 8px;border-radius:4px;}
+    .topbar a{color:var(--gray-400);font-size:13px;text-decoration:none;cursor:pointer;}
+    .container{max-width:1100px;margin:0 auto;padding:28px 20px;}
+    h1{font-size:26px;font-weight:900;margin-bottom:4px;}
+    .subtitle{font-size:14px;color:var(--gray-500);margin-bottom:28px;}
+    .card{background:white;border-radius:12px;border:1px solid var(--gray-200);padding:22px;margin-bottom:20px;}
+    .card h2{font-size:16px;font-weight:800;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+    .creds-bar{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:end;}
+    .field label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);margin-bottom:5px;}
+    .field input{width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:14px;color:var(--black);background:var(--gray-50);}
+    .field input:focus{outline:none;border-color:var(--blue);background:white;}
+    .btn{padding:10px 20px;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .2s;}
+    .btn:hover{opacity:0.85;}
+    .btn:disabled{opacity:0.5;cursor:not-allowed;}
+    .btn-black{background:var(--black);color:white;}
+    .btn-red{background:var(--red);color:white;}
+    .btn-green{background:var(--green);color:white;}
+    .btn-blue{background:var(--blue);color:white;}
+    .btn-orange{background:#ea580c;color:white;}
+    .btn-sm{padding:6px 14px;font-size:12px;}
+    .status-bar{padding:10px 14px;border-radius:8px;font-size:13px;font-weight:700;margin-bottom:14px;display:none;}
+    .status-ok{background:#f0fdf4;color:var(--green);border:1px solid #bbf7d0;}
+    .status-err{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
+    .status-info{background:#eff6ff;color:var(--blue);border:1px solid #bfdbfe;}
+    .connected-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:#f0fdf4;color:var(--green);border:1px solid #bbf7d0;border-radius:20px;font-size:12px;font-weight:700;}
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite;}
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+    /* Discover section */
+    .discover-controls{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+    .counter-badge{padding:6px 16px;background:#1e293b;color:white;border-radius:20px;font-size:14px;font-weight:800;font-family:monospace;}
+    .swipe-table{width:100%;border-collapse:collapse;}
+    .swipe-table th{padding:8px 12px;text-align:right;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);border-bottom:2px solid var(--gray-200);}
+    .swipe-table td{padding:10px 12px;border-bottom:1px solid var(--gray-100);font-size:14px;vertical-align:middle;}
+    .swipe-table tr.new-row{animation:highlightRow 1s ease;}
+    @keyframes highlightRow{0%{background:#fef9c3;}100%{background:transparent;}}
+    .badge-success{padding:3px 10px;background:#dcfce7;color:#16a34a;border-radius:12px;font-size:11px;font-weight:700;}
+    .badge-fail{padding:3px 10px;background:#fef2f2;color:#dc2626;border-radius:12px;font-size:11px;font-weight:700;}
+    .badge-card{padding:3px 10px;background:#eff6ff;color:var(--blue);border-radius:12px;font-size:11px;font-weight:700;font-family:monospace;}
+
+    /* Cards DB */
+    .search-bar{display:flex;gap:10px;margin-bottom:16px;}
+    .search-bar input{flex:1;padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:14px;}
+    .search-bar input:focus{outline:none;border-color:var(--blue);}
+    .cards-table{width:100%;border-collapse:collapse;}
+    .cards-table th{padding:8px 12px;text-align:right;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);border-bottom:2px solid var(--gray-200);}
+    .cards-table td{padding:10px 12px;border-bottom:1px solid var(--gray-100);font-size:14px;}
+    .empty-msg{text-align:center;padding:40px;color:var(--gray-400);font-size:14px;}
+    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+    @media(max-width:700px){.two-col{grid-template-columns:1fr;}.creds-bar{grid-template-columns:1fr 1fr;}}
+    .inline-edit{display:none;gap:6px;align-items:center;}
+    .inline-edit input{padding:4px 8px;border:1.5px solid var(--blue);border-radius:6px;font-family:inherit;font-size:13px;width:120px;}
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">TADOR <span>RFID</span></div>
+  <a href="/installer.html">← חזרה לפאנל</a>
+</div>
+
+<div class="container">
+  <h1>🪪 ניהול כרטיסי RFID</h1>
+  <p class="subtitle">גילוי, שמירה והעלאת כרטיסי EM/RFID לפנל Genesis</p>
+
+  <!-- Panel Connection -->
+  <div class="card">
+    <h2>🔌 התחברות לפנל</h2>
+    <div class="creds-bar">
+      <div class="field">
+        <label>כתובת IP של הפנל</label>
+        <input type="text" id="panelIp" placeholder="192.168.1.100" value=""/>
+      </div>
+      <div class="field">
+        <label>שם משתמש</label>
+        <input type="text" id="panelUser" value="admin" placeholder="admin"/>
+      </div>
+      <div class="field">
+        <label>סיסמה</label>
+        <input type="password" id="panelPass" value="123456" placeholder="123456"/>
+      </div>
+      <button class="btn btn-black" id="connectBtn" onclick="connectPanel()">התחבר</button>
+    </div>
+    <div id="connStatus" class="status-bar" style="margin-top:12px;margin-bottom:0;"></div>
+  </div>
+
+  <div class="two-col">
+
+    <!-- RFID Discover -->
+    <div class="card">
+      <h2>📡 גילוי כרטיסים בזמן אמת</h2>
+      <p style="font-size:13px;color:var(--gray-500);margin-bottom:14px;">לחץ <strong>התחל</strong> ואז הצמד כרטיס לקורא הפנל — הכרטיס יופיע כאן תוך 2 שניות</p>
+      <div class="discover-controls">
+        <button class="btn btn-green" id="startBtn" onclick="startDiscover()" disabled>▶ התחל גילוי</button>
+        <button class="btn btn-red" id="stopBtn" onclick="stopDiscover()" style="display:none;">■ עצור</button>
+        <div class="counter-badge" id="counterBadge">0 כרטיסים</div>
+      </div>
+      <div id="discoverStatus" class="status-bar"></div>
+      <div style="overflow-x:auto;">
+        <table class="swipe-table">
+          <thead><tr>
+            <th>כרטיס</th><th>שעה</th><th>סטטוס</th><th>שמור</th>
+          </tr></thead>
+          <tbody id="swipeTable"><tr><td colspan="4" class="empty-msg">ממתין לגילוי...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Panel Cards Live -->
+    <div class="card">
+      <h2>🔎 כרטיסים בפנל</h2>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+        <button class="btn btn-blue" onclick="loadPanelCards()" id="loadPanelCardsBtn" disabled>⬇ טען כרטיסים מהפנל</button>
+        <input type="text" id="deleteCardQuery" placeholder="חפש שם למחיקה..." style="flex:1;padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:13px;min-width:120px;"/>
+        <button class="btn btn-red btn-sm" onclick="deletePanelCard()" style="align-self:flex-end;">🗑 מחק מהפנל</button>
+      </div>
+      <div id="panelCardsStatus" class="status-bar"></div>
+      <div style="overflow-x:auto;max-height:300px;overflow-y:auto;">
+        <table class="swipe-table">
+          <thead><tr><th>שם</th><th>כרטיס</th><th>פעולה</th></tr></thead>
+          <tbody id="panelCardsTable"><tr><td colspan="3" class="empty-msg">לחץ "טען כרטיסים"</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cards Database -->
+  <div class="card">
+    <h2>🗄️ מאגר הכרטיסים</h2>
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+      <div class="search-bar" style="flex:1;margin-bottom:0;">
+        <input type="text" id="searchInput" placeholder="חפש לפי שם או מספר כרטיס..." oninput="renderCardsDB()"/>
+      </div>
+      <button class="btn btn-green" onclick="uploadAllToPanel()" id="uploadAllBtn" disabled>⬆ העלה הכל לפנל</button>
+    </div>
+    <div id="dbStatus" class="status-bar"></div>
+    <div style="overflow-x:auto;">
+      <table class="cards-table">
+        <thead><tr>
+          <th>מספר כרטיס</th><th>שם פרטי</th><th>שם משפחה</th><th>תאריך הוספה</th><th>פעולות</th>
+        </tr></thead>
+        <tbody id="cardsTable"><tr><td colspan="5" class="empty-msg">טוען...</td></tr></tbody>
+      </table>
+    </div>
+    <div id="dbCount" style="font-size:12px;color:var(--gray-400);margin-top:10px;text-align:left;"></div>
+  </div>
+</div>
+
+<!-- Save Card Modal -->
+<div id="saveModal" onclick="if(event.target===this)closeSaveModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:white;border-radius:14px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+    <h3 style="font-size:17px;font-weight:900;margin-bottom:16px;">💾 שמור כרטיס</h3>
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-family:monospace;font-size:16px;font-weight:800;color:var(--blue);" id="saveCardNum"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div class="field"><label>שם פרטי</label><input type="text" id="saveFirstName" placeholder="ישראל"/></div>
+      <div class="field"><label>שם משפחה</label><input type="text" id="saveLastName" placeholder="ישראלי"/></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-black" onclick="confirmSaveCard()">💾 שמור</button>
+      <button class="btn" style="background:var(--gray-100);color:var(--black);" onclick="closeSaveModal()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let panelToken = null;
+  let panelIpVal = '';
+  let pollInterval = null;
+  let sinceMs = 0;
+  let seenKeys = new Set();
+  let swipedCards = [];
+  let allCardsDB = [];
+  let savingCardNum = '';
+
+  // ── Connection ──
+  async function connectPanel() {
+    const ip = document.getElementById('panelIp').value.trim();
+    const user = document.getElementById('panelUser').value.trim();
+    const pass = document.getElementById('panelPass').value.trim();
+    if (!ip || !user || !pass) { showStatus('connStatus', 'error', 'נא למלא את כל השדות'); return; }
+    const btn = document.getElementById('connectBtn');
+    btn.disabled = true; btn.textContent = '...';
+    showStatus('connStatus', 'info', 'מתחבר לפנל...');
+    try {
+      const res = await fetch('/api/rfid/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({panelIp:ip, username:user, password:pass}) });
+      const data = await res.json();
+      if (data.success) {
+        panelToken = data.token;
+        panelIpVal = ip;
+        showStatus('connStatus', 'ok', '✅ מחובר לפנל ' + ip);
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('loadPanelCardsBtn').disabled = false;
+        document.getElementById('uploadAllBtn').disabled = false;
+      } else {
+        showStatus('connStatus', 'error', '❌ ' + (data.error || 'שגיאת התחברות'));
+      }
+    } catch(e) { showStatus('connStatus', 'error', '❌ ' + e.message); }
+    btn.disabled = false; btn.textContent = 'התחבר';
+  }
+
+  let autoStopTimeout = null;
+  let countdownInterval = null;
+  let secondsLeft = 0;
+
+  // ── RFID Discover ──
+  function startDiscover() {
+    if (!panelToken) { alert('התחבר לפנל תחילה'); return; }
+    sinceMs = Date.now();
+    seenKeys.clear();
+    swipedCards = [];
+    document.getElementById('swipeTable').innerHTML = '<tr><td colspan="4" class="empty-msg" style="color:#0369a1;">📡 מאזין... הצמד כרטיס לקורא</td></tr>';
+    document.getElementById('counterBadge').textContent = '0 כרטיסים';
+    document.getElementById('startBtn').style.display = 'none';
+    document.getElementById('stopBtn').style.display = 'inline-block';
+    showStatus('discoverStatus', 'info', '📡 גילוי פעיל — הצמד כרטיס לפנל');
+    pollInterval = setInterval(doPoll, 2000);
+    doPoll();
+
+    // Auto-stop after 5 minutes
+    secondsLeft = 300;
+    updateCountdown();
+    countdownInterval = setInterval(function() {
+      secondsLeft--;
+      updateCountdown();
+      if (secondsLeft <= 0) stopDiscover();
+    }, 1000);
+    autoStopTimeout = setTimeout(stopDiscover, 300000);
+  }
+
+  function updateCountdown() {
+    const btn = document.getElementById('stopBtn');
+    const m = Math.floor(secondsLeft / 60);
+    const s = secondsLeft % 60;
+    btn.textContent = '■ עצור (' + m + ':' + (s < 10 ? '0' : '') + s + ')';
+  }
+
+  function stopDiscover() {
+    clearInterval(pollInterval); pollInterval = null;
+    clearInterval(countdownInterval); countdownInterval = null;
+    clearTimeout(autoStopTimeout); autoStopTimeout = null;
+    document.getElementById('startBtn').style.display = 'inline-block';
+    document.getElementById('stopBtn').style.display = 'none';
+    document.getElementById('stopBtn').textContent = '■ עצור';
+    const msg = secondsLeft <= 0
+      ? '⏱️ גילוי הופסק אוטומטית (5 דקות) · ' + swipedCards.length + ' כרטיסים זוהו'
+      : '✅ גילוי הופסק · ' + swipedCards.length + ' כרטיסים זוהו';
+    showStatus('discoverStatus', 'ok', msg);
+    secondsLeft = 0;
+  }
+
+  async function doPoll() {
+    try {
+      const res = await fetch('/api/rfid/poll', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ panelIp: panelIpVal, token: panelToken, sinceMs }) });
+      const data = await res.json();
+      if (!data.success) return;
+      let newFound = 0;
+      (data.records || []).forEach(function(r) {
+        const cardNum = (r.access_content || '').toUpperCase();
+        const unlockTime = r.unlock_time;
+        const key = cardNum + '_' + unlockTime;
+        if (!cardNum || seenKeys.has(key)) return;
+        seenKeys.add(key);
+        newFound++;
+        const isNew = !swipedCards.find(function(c) { return c.cardNum === cardNum; });
+        swipedCards.push({ cardNum, unlockTime, status: r.status, label: r.access_label });
+        addSwipeRow(cardNum, unlockTime, r.status, isNew);
+      });
+      if (newFound > 0) {
+        const unique = new Set(swipedCards.map(function(c) { return c.cardNum; })).size;
+        document.getElementById('counterBadge').textContent = unique + ' כרטיס' + (unique !== 1 ? 'ים' : '');
+      }
+    } catch(e) {}
+  }
+
+  function addSwipeRow(cardNum, unlockTime, status, isNew) {
+    const tbody = document.getElementById('swipeTable');
+    if (tbody.querySelector('.empty-msg')) tbody.innerHTML = '';
+    const time = new Date(unlockTime).toLocaleTimeString('he-IL');
+    const statusHtml = status === 'success'
+      ? '<span class="badge-success">✅ פתח</span>'
+      : '<span class="badge-fail">❌ נכשל</span>';
+    const row = document.createElement('tr');
+    row.className = 'new-row';
+    row.innerHTML = '<td><span class="badge-card">' + cardNum + '</span></td>' +
+      '<td>' + time + '</td>' +
+      '<td>' + statusHtml + '</td>' +
+      '<td><button class="btn btn-blue btn-sm" onclick="openSaveModal(\'' + cardNum + '\')">💾 שמור</button></td>';
+    tbody.insertBefore(row, tbody.firstChild);
+  }
+
+  // ── Save Modal ──
+  function openSaveModal(cardNum) {
+    savingCardNum = cardNum;
+    document.getElementById('saveCardNum').textContent = cardNum;
+    document.getElementById('saveFirstName').value = '';
+    document.getElementById('saveLastName').value = '';
+    document.getElementById('saveModal').style.display = 'flex';
+    document.getElementById('saveFirstName').focus();
+  }
+
+  function closeSaveModal() { document.getElementById('saveModal').style.display = 'none'; }
+
+  async function confirmSaveCard() {
+    const firstName = document.getElementById('saveFirstName').value.trim();
+    const lastName = document.getElementById('saveLastName').value.trim();
+    try {
+      const res = await fetch('/api/rfid/cards', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ cardNumber: savingCardNum, firstName, lastName }) });
+      const data = await res.json();
+      if (data.success) {
+        closeSaveModal();
+        showStatus('discoverStatus', 'ok', '✅ כרטיס ' + savingCardNum + ' נשמר במאגר');
+        loadCardsDB();
+      } else if (data.error === 'duplicate') {
+        closeSaveModal();
+        showStatus('discoverStatus', 'error', '⚠️ כרטיס ' + savingCardNum + ' כבר קיים במאגר');
+      } else {
+        alert('שגיאה: ' + data.error);
+      }
+    } catch(e) { alert('שגיאת תקשורת'); }
+  }
+
+  // ── Cards DB ──
+  async function loadCardsDB() {
+    try {
+      const res = await fetch('/api/rfid/cards');
+      const data = await res.json();
+      if (data.success) { allCardsDB = data.cards; renderCardsDB(); }
+    } catch(e) {}
+  }
+
+  function renderCardsDB() {
+    const query = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = allCardsDB.filter(function(c) {
+      return (c.cardNumber || '').toLowerCase().includes(query) ||
+             (c.firstName || '').toLowerCase().includes(query) ||
+             (c.lastName || '').toLowerCase().includes(query);
+    });
+    const tbody = document.getElementById('cardsTable');
+    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">אין כרטיסים' + (query ? ' תואמים' : '') + '</td></tr>'; return; }
+    tbody.innerHTML = filtered.map(function(c) {
+      const date = new Date(c.createdAt).toLocaleDateString('he-IL');
+      return '<tr>' +
+        '<td><span class="badge-card">' + c.cardNumber + '</span></td>' +
+        '<td>' + (c.firstName || '—') + '</td>' +
+        '<td>' + (c.lastName || '—') + '</td>' +
+        '<td style="font-size:12px;color:var(--gray-400);">' + date + '</td>' +
+        '<td><button class="btn btn-blue btn-sm" onclick="uploadOneCard(\'' + c._id + '\',\'' + c.cardNumber + '\',\'' + (c.firstName||'') + '\',\'' + (c.lastName||'') + '\')" style="margin-left:4px;">⬆ לפנל</button>' +
+            '<button class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;margin-left:4px;" onclick="deleteCardDB(\'' + c._id + '\')">🗑</button>' +
+        '</td>' +
+        '</tr>';
+    }).join('');
+    document.getElementById('dbCount').textContent = filtered.length + ' כרטיסים' + (query ? ' מסוננים' : ' במאגר');
+  }
+
+  async function deleteCardDB(id) {
+    if (!confirm('למחוק כרטיס מהמאגר?')) return;
+    await fetch('/api/rfid/cards/' + id, { method:'DELETE' });
+    loadCardsDB();
+  }
+
+  async function uploadOneCard(id, cardNum, firstName, lastName) {
+    if (!panelToken) { alert('התחבר לפנל תחילה'); return; }
+    showStatus('dbStatus', 'info', '⏳ מעלה ' + cardNum + '...');
+    const res = await fetch('/api/rfid/upload-card', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ panelIp: panelIpVal, token: panelToken, cardNumber: cardNum, firstName, lastName }) });
+    const data = await res.json();
+    if (data.success) showStatus('dbStatus', 'ok', '✅ כרטיס ' + cardNum + ' הועלה לפנל');
+    else showStatus('dbStatus', 'error', '❌ ' + (data.error || 'שגיאה'));
+  }
+
+  async function uploadAllToPanel() {
+    if (!panelToken) { alert('התחבר לפנל תחילה'); return; }
+    if (!confirm('להעלות את כל הכרטיסים מהמאגר לפנל?')) return;
+    showStatus('dbStatus', 'info', '⏳ מעלה כרטיסים...');
+    const btn = document.getElementById('uploadAllBtn');
+    btn.disabled = true;
+    const res = await fetch('/api/rfid/upload-all', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ panelIp: panelIpVal, token: panelToken }) });
+    const data = await res.json();
+    if (data.success) showStatus('dbStatus', 'ok', '✅ הועלו ' + data.ok + ', ' + data.skipped + ' כבר קיימים, ' + data.failed + ' נכשלו');
+    else showStatus('dbStatus', 'error', '❌ ' + (data.error || 'שגיאה'));
+    btn.disabled = false;
+  }
+
+  // ── Panel Cards ──
+  async function loadPanelCards() {
+    if (!panelToken) { alert('התחבר לפנל תחילה'); return; }
+    showStatus('panelCardsStatus', 'info', '⏳ טוען כרטיסים מהפנל...');
+    const btn = document.getElementById('loadPanelCardsBtn');
+    btn.disabled = true;
+    const res = await fetch('/api/rfid/panel-cards', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ panelIp: panelIpVal, token: panelToken }) });
+    const data = await res.json();
+    const tbody = document.getElementById('panelCardsTable');
+    if (data.success) {
+      showStatus('panelCardsStatus', 'ok', '✅ ' + data.total + ' כרטיסים בפנל');
+      if (!data.cards.length) { tbody.innerHTML = '<tr><td colspan="3" class="empty-msg">אין כרטיסים בפנל</td></tr>'; }
+      else tbody.innerHTML = data.cards.map(function(c) {
+        return '<tr><td>' + (c.label || '—') + '</td>' +
+          '<td><span class="badge-card">' + (c.card_number || c.content || '—') + '</span></td>' +
+          '<td><button class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;" onclick="deleteSinglePanelCard(' + c.id + ',\'' + (c.label||'') + '\')">🗑</button></td>' +
+          '</tr>';
+      }).join('');
+    } else { showStatus('panelCardsStatus', 'error', '❌ ' + (data.error || 'שגיאה')); }
+    btn.disabled = false;
+  }
+
+  async function deleteSinglePanelCard(panelId, label) {
+    if (!confirm('למחוק כרטיס של ' + label + ' מהפנל?')) return;
+    showStatus('panelCardsStatus', 'info', '⏳ מוחק...');
+    try {
+      const res = await fetch('/api/rfid/delete-panel-card', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ panelIp: panelIpVal, token: panelToken, query: label }) });
+      const data = await res.json();
+      if (data.success) { showStatus('panelCardsStatus', 'ok', '✅ נמחק'); loadPanelCards(); }
+      else showStatus('panelCardsStatus', 'error', '❌ ' + (data.error || 'שגיאה'));
+    } catch(e) { showStatus('panelCardsStatus', 'error', '❌ שגיאת תקשורת'); }
+  }
+
+  async function deletePanelCard() {
+    if (!panelToken) { alert('התחבר לפנל תחילה'); return; }
+    const query = document.getElementById('deleteCardQuery').value.trim();
+    if (!query) { alert('הכנס שם לחיפוש'); return; }
+    if (!confirm('למחוק מהפנל את כל הכרטיסים של "' + query + '"?')) return;
+    showStatus('panelCardsStatus', 'info', '⏳ מחפש ומוחק...');
+    const res = await fetch('/api/rfid/delete-panel-card', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ panelIp: panelIpVal, token: panelToken, query }) });
+    const data = await res.json();
+    if (data.success) {
+      if (data.found === 0) showStatus('panelCardsStatus', 'error', '⚠️ לא נמצאו כרטיסים עבור "' + query + '"');
+      else { showStatus('panelCardsStatus', 'ok', '✅ נמחקו ' + data.deleted + ' כרטיסים'); loadPanelCards(); }
+    } else showStatus('panelCardsStatus', 'error', '❌ ' + (data.error || 'שגיאה'));
+  }
+
+  // ── Helpers ──
+  function showStatus(id, type, msg) {
+    const el = document.getElementById(id);
+    el.className = 'status-bar ' + (type === 'ok' ? 'status-ok' : type === 'error' ? 'status-err' : 'status-info');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  // Enter key support
+  document.getElementById('panelIp').addEventListener('keydown', function(e) { if(e.key==='Enter') connectPanel(); });
+  document.getElementById('saveFirstName').addEventListener('keydown', function(e) { if(e.key==='Enter') document.getElementById('saveLastName').focus(); });
+  document.getElementById('saveLastName').addEventListener('keydown', function(e) { if(e.key==='Enter') confirmSaveCard(); });
+
+  // Init
+  loadCardsDB();
+</script>
+</body>
+</html>
