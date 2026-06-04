@@ -3123,6 +3123,191 @@ app.post('/api/buildings/:code/panel-stats', async (req, res) => {
   }
 });
 
+
+// ==================== RFID CARD MANAGEMENT ====================
+
+// RFID: Login to panel directly (by IP — NOT via NexHome tunnel)
+app.post('/api/rfid/login', async (req, res) => {
+  try {
+    const { panelIp, username, password } = req.body;
+    if (!panelIp || !username || !password)
+      return res.status(400).json({ success: false, error: 'panelIp, username, password required' });
+    const resp = await axios.post(`http://${panelIp}/api/v1/accounts/tokens`,
+      { username, password },
+      { headers: { 'Content-Type': 'application/json;charset=UTF-8' }, timeout: 8000 }
+    );
+    if (resp.data?.status !== 'OK') return res.json({ success: false, error: resp.data?.error || 'Login failed' });
+    res.json({ success: true, token: resp.data.data.token });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// RFID: Poll unlock records for new card swipes since a timestamp
+app.post('/api/rfid/poll', async (req, res) => {
+  try {
+    const { panelIp, token, sinceMs } = req.body;
+    const resp = await axios.get(
+      `http://${panelIp}/api/v1/records/unlock?page_num=1&page_size=50&type=card&label=`,
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 6000 }
+    );
+    const records = resp.data?.data?.list || [];
+    const newCards = records.filter(r =>
+      r.access_type?.toLowerCase() === 'card' && r.unlock_time >= sinceMs
+    );
+    res.json({ success: true, records: newCards });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// RFID: Get all saved cards from MongoDB
+app.get('/api/rfid/cards', async (req, res) => {
+  try {
+    const database = await require('./db').connectDB();
+    const cards = await database.collection('rfid_cards').find({}).sort({ createdAt: -1 }).toArray();
+    res.json({ success: true, cards });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// RFID: Save a card to MongoDB
+app.post('/api/rfid/cards', async (req, res) => {
+  try {
+    const { cardNumber, firstName, lastName } = req.body;
+    if (!cardNumber) return res.status(400).json({ success: false, error: 'cardNumber required' });
+    const database = await require('./db').connectDB();
+    const existing = await database.collection('rfid_cards').findOne({ cardNumber: cardNumber.toUpperCase() });
+    if (existing) return res.json({ success: false, error: 'duplicate', card: existing });
+    const result = await database.collection('rfid_cards').insertOne({
+      cardNumber: cardNumber.toUpperCase(),
+      firstName: (firstName || '').trim(),
+      lastName: (lastName || '').trim(),
+      createdAt: new Date()
+    });
+    res.json({ success: true, id: result.insertedId });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// RFID: Update card name
+app.patch('/api/rfid/cards/:id', async (req, res) => {
+  try {
+    const { firstName, lastName } = req.body;
+    const { ObjectId } = require('mongodb');
+    const database = await require('./db').connectDB();
+    await database.collection('rfid_cards').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { firstName: firstName || '', lastName: lastName || '' } }
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// RFID: Delete card from MongoDB
+app.delete('/api/rfid/cards/:id', async (req, res) => {
+  try {
+    const { ObjectId } = require('mongodb');
+    const database = await require('./db').connectDB();
+    await database.collection('rfid_cards').deleteOne({ _id: new ObjectId(req.params.id) });
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// RFID: Upload single card to panel
+app.post('/api/rfid/upload-card', async (req, res) => {
+  try {
+    const { panelIp, token, cardNumber, firstName, lastName } = req.body;
+    const label = `${firstName || ''} ${lastName || ''}`.trim() || cardNumber;
+    const now = Date.now();
+    const body = {
+      label,
+      effective_date: now,
+      expired_date: 7258175999000,
+      valid_weekdays: [0,1,2,3,4,5,6],
+      valid_count: -1,
+      cardNum: cardNumber.toUpperCase(),
+      valid_periods: JSON.stringify([{ begin: '00:00:00', end: '23:59:59' }]),
+      valid_door: '',      // empty for cards (not '1' — that's for face/relay)
+    };
+    const resp = await axios.post(`http://${panelIp}/api/v1/access`, body,
+      { headers: { 'Content-Type': 'application/json;charset=UTF-8', Authorization: `Bearer ${token}` }, timeout: 8000 }
+    );
+    if (resp.data?.status !== 'OK') return res.json({ success: false, error: resp.data?.error || 'Upload failed' });
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// RFID: Upload all cards from DB to panel
+app.post('/api/rfid/upload-all', async (req, res) => {
+  try {
+    const { panelIp, token } = req.body;
+    const database = await require('./db').connectDB();
+    const cards = await database.collection('rfid_cards').find({}).toArray();
+    let ok = 0, fail = 0, skipped = 0;
+
+    // Get existing cards on panel to skip duplicates
+    const listResp = await axios.get(
+      `http://${panelIp}/api/v1/access?page_num=1&page_size=500&type=card&label=`,
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }
+    );
+    const existingNums = new Set((listResp.data?.data?.list || []).map(r => (r.card_number || r.content || '').toUpperCase()));
+
+    for (const card of cards) {
+      if (existingNums.has(card.cardNumber)) { skipped++; continue; }
+      const label = `${card.firstName || ''} ${card.lastName || ''}`.trim() || card.cardNumber;
+      try {
+        const body = {
+          label,
+          effective_date: Date.now(),
+          expired_date: 7258175999000,
+          valid_weekdays: [0,1,2,3,4,5,6],
+          valid_count: -1,
+          cardNum: card.cardNumber,
+          valid_periods: JSON.stringify([{ begin: '00:00:00', end: '23:59:59' }]),
+          valid_door: '',
+        };
+        const resp = await axios.post(`http://${panelIp}/api/v1/access`, body,
+          { headers: { 'Content-Type': 'application/json;charset=UTF-8', Authorization: `Bearer ${token}` }, timeout: 8000 }
+        );
+        if (resp.data?.status === 'OK') ok++; else fail++;
+      } catch(e) { fail++; }
+    }
+    res.json({ success: true, ok, fail, skipped, total: cards.length });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// RFID: Search panel access list and delete cards by name
+app.post('/api/rfid/delete-panel-card', async (req, res) => {
+  try {
+    const { panelIp, token, query } = req.body;
+    // Get full access list
+    const listResp = await axios.get(
+      `http://${panelIp}/api/v1/access?page_num=1&page_size=500&type=card&label=`,
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }
+    );
+    const list = listResp.data?.data?.list || [];
+    const matches = list.filter(r => (r.label || '').toLowerCase().includes((query || '').toLowerCase()));
+    let deleted = 0, failed = 0;
+    for (const m of matches) {
+      try {
+        await axios.delete(`http://${panelIp}/api/v1/access/${m.id}`,
+          { headers: { Authorization: `Bearer ${token}` }, timeout: 8000 }
+        );
+        deleted++;
+      } catch(e) { failed++; }
+    }
+    res.json({ success: true, found: matches.length, deleted, failed });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// RFID: List all cards on the panel
+app.post('/api/rfid/panel-cards', async (req, res) => {
+  try {
+    const { panelIp, token } = req.body;
+    const resp = await axios.get(
+      `http://${panelIp}/api/v1/access?page_num=1&page_size=500&type=card&label=`,
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }
+    );
+    const list = resp.data?.data?.list || [];
+    res.json({ success: true, cards: list, total: list.length });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
   console.log(`🌐 Main: http://localhost:${PORT}`);
