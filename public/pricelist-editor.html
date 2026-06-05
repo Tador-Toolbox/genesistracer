@@ -151,6 +151,13 @@ textarea{resize:vertical;min-height:52px}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 .save-st{font-size:11px;font-weight:700;color:rgba(255,255,255,.65);letter-spacing:.03em}
 .save-st.ok{color:#7effcc}
+
+/* DRAG & DROP */
+.drag-over{background:rgba(186,0,19,.06)!important;border-color:var(--pr)!important}
+.dragging{opacity:.4;border:2px dashed var(--pr)!important}
+.cat-tab-item{cursor:default}
+.cat-drag,.prod-drag{cursor:grab;touch-action:none}
+.cat-drag:active,.prod-drag:active{cursor:grabbing}
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-thumb{background:var(--outv);border-radius:3px}
 </style>
@@ -167,7 +174,7 @@ textarea{resize:vertical;min-height:52px}
       <span class="save-st" id="save-st">טוען...</span>
       <button class="btn btn-w" onclick="saveAll()"><span class="ms">save</span> שמור הכל</button>
       <a class="btn btn-w" href="/pricelist.html" target="_blank"><span class="ms">open_in_new</span> תצוגת לקוח</a>
-      <a class="btn btn-w" href="/manager.html"><span class="ms">arrow_back</span> חזרה</a>
+      <button class="btn btn-w" onclick="logout()"><span class="ms">logout</span> יציאה</button><a class="btn btn-w" href="/manager.html"><span class="ms">arrow_back</span> חזרה</a>
     </div>
   </header>
 
@@ -249,26 +256,16 @@ textarea{resize:vertical;min-height:52px}
 let AUTH={username:'',password:''};
 
 function promptLogin(){
-  const saved_u = sessionStorage.getItem('pl_user');
-  const saved_p = sessionStorage.getItem('pl_pass');
-  if(saved_u && saved_p){AUTH.username=saved_u;AUTH.password=saved_p;return;}
-  const u = prompt('שם משתמש מנג׳ר:','');
-  const p = prompt('סיסמה:','');
-  if(!u||!p){alert('נדרשים פרטי כניסה');promptLogin();return;}
-  AUTH.username=u; AUTH.password=p;
-  sessionStorage.setItem('pl_user',u);
-  sessionStorage.setItem('pl_pass',p);
+  const u=sessionStorage.getItem('pl_user');
+  const p=sessionStorage.getItem('pl_pass');
+  if(u&&p){AUTH.username=u;AUTH.password=p;return;}
+  // לא מחובר — חזרה לעמוד הלוגין
+  window.location.href='/pricelist-login.html';
 }
 
+function logout(){sessionStorage.removeItem('pl_user');sessionStorage.removeItem('pl_pass');window.location.href='/pricelist-login.html';}
 function authBody(extra){return JSON.stringify({...extra,username:AUTH.username,password:AUTH.password});}
 function authFD(fd){fd.append('username',AUTH.username);fd.append('password',AUTH.password);return fd;}
-
-async function verifyAuth(){
-  try{
-    const r=await fetch('/api/pricelist/meta',{method:'POST',headers:{'Content-Type':'application/json'},body:authBody({meta:AUTH._test||{},notes:[],cols:4,categories:[]})});
-    if(r.status===401){sessionStorage.removeItem('pl_user');sessionStorage.removeItem('pl_pass');promptLogin();await verifyAuth();}
-  }catch(e){}
-}
 let isMob=false;
 let previewCatIdx=0;
 
@@ -316,12 +313,12 @@ async function saveAll(){
   try{
     const cats=S.categories.map(c=>({...c,products:c.products.map(p=>({...p,imgDataUrl:undefined}))}));
     const saveRes=await fetch('/api/pricelist/meta',{method:'POST',headers:{'Content-Type':'application/json'},body:authBody({meta:S.meta,notes:S.notes,cols:S.cols,categories:cats})});
-    if(saveRes.status===401){sessionStorage.clear();promptLogin();throw new Error('401');}
+    if(saveRes.status===401){sessionStorage.clear();window.location.href='/pricelist-login.html';throw new Error('401');}
     if(!saveRes.ok) throw new Error('save failed');
     setSS('נשמר ✓','ok');document.getElementById('saved-chip').style.display='inline-flex';
     showToast('המחירון נשמר ✓');
   }catch(e){
-    if(e.message&&e.message.includes('401')){sessionStorage.clear();showToast('סיסמה שגויה — רענן את הדף ✗');}
+    if(e.message&&e.message.includes('401')){sessionStorage.clear();window.location.href='/pricelist-login.html';}
     else{setSS('שגיאה','');showToast('שגיאה בשמירה ✗');}
   }
 }
@@ -359,7 +356,7 @@ function renderCats(){
   let total=0;
   S.categories.forEach((cat,ci)=>{
     total+=cat.products.length;
-    const el=document.createElement('div');el.className='cat-tab-item'+(ci===previewCatIdx?' active':'');el.id='cat-'+cat.id;
+    const el=document.createElement('div');el.className='cat-tab-item'+(ci===previewCatIdx?' active':'');el.id='cat-'+cat.id;el.setAttribute('draggable','true');el.dataset.ci=ci;
     el.innerHTML=`
       <div class="cat-tab-header" onclick="selectCat(${ci})">
         <span class="ms cat-drag">drag_indicator</span>
@@ -376,6 +373,34 @@ function renderCats(){
         <div class="prod-list" id="prods-${cat.id}"></div>
         <button class="add-btn" onclick="addProd(${ci})"><span class="ms" style="font-size:14px">add</span> הוסף מוצר</button>
       </div>`;
+    // Cat drag events
+    el.addEventListener('dragstart',e=>{
+      if(e.target.closest('.acts')){e.preventDefault();return;}
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('type','cat');
+      e.dataTransfer.setData('ci',ci);
+      el.classList.add('dragging');
+    });
+    el.addEventListener('dragend',()=>el.classList.remove('dragging'));
+    el.addEventListener('dragover',e=>{
+      e.preventDefault();e.dataTransfer.dropEffect='move';
+      el.classList.add('drag-over');
+    });
+    el.addEventListener('dragleave',()=>el.classList.remove('drag-over'));
+    el.addEventListener('drop',e=>{
+      e.preventDefault();el.classList.remove('drag-over');
+      const type=e.dataTransfer.getData('type');
+      if(type!=='cat')return;
+      const from=parseInt(e.dataTransfer.getData('ci'));
+      const to=ci;
+      if(from===to)return;
+      const moved=S.categories.splice(from,1)[0];
+      S.categories.splice(to,0,moved);
+      if(previewCatIdx===from) previewCatIdx=to;
+      else if(previewCatIdx>from&&previewCatIdx<=to) previewCatIdx--;
+      else if(previewCatIdx<from&&previewCatIdx>=to) previewCatIdx++;
+      renderCats();rp();
+    });
     l.appendChild(el);
     if(cat.open) renderProds(ci);
   });
@@ -402,8 +427,10 @@ function renderProds(ci){
   const cat=S.categories[ci];
   const l=document.getElementById('prods-'+cat.id);if(!l)return;
   l.innerHTML='';
+  // Drop zone at list level for dragging into empty category
+  l.addEventListener('dragover',e=>{e.preventDefault();});
   cat.products.forEach((p,pi)=>{
-    const el=document.createElement('div');el.className='pie';
+    const el=document.createElement('div');el.className='pie';el.setAttribute('draggable','true');el.dataset.ci=ci;el.dataset.pi=pi;
     el.innerHTML=`
       <div class="pih" onclick="toggleProd(${ci},${pi})">
         <div class="pth">${p.imgUrl?`<img src="${p.imgUrl}" alt=""/>`:`<span class="ms" style="font-size:16px;color:var(--outv)">image</span>`}</div>
@@ -435,6 +462,33 @@ function renderProds(ci){
         </div>
         ${p.imgUrl?`<button class="btn-ic d" style="font-size:11px;gap:4px" onclick="delImg('${p.id}',${ci},${pi})"><span class="ms">delete</span> הסר תמונה</button>`:''}
       </div>`;
+    // Prod drag events
+    el.addEventListener('dragstart',e=>{
+      if(e.target.closest('.acts')||e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'){e.preventDefault();return;}
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('type','prod');
+      e.dataTransfer.setData('from_ci',ci);
+      e.dataTransfer.setData('from_pi',pi);
+      el.classList.add('dragging');
+    });
+    el.addEventListener('dragend',()=>el.classList.remove('dragging'));
+    el.addEventListener('dragover',e=>{
+      e.preventDefault();e.dataTransfer.dropEffect='move';
+      el.classList.add('drag-over');
+    });
+    el.addEventListener('dragleave',()=>el.classList.remove('drag-over'));
+    el.addEventListener('drop',e=>{
+      e.preventDefault();el.classList.remove('drag-over');
+      const type=e.dataTransfer.getData('type');
+      if(type!=='prod')return;
+      const from_ci=parseInt(e.dataTransfer.getData('from_ci'));
+      const from_pi=parseInt(e.dataTransfer.getData('from_pi'));
+      const to_ci=ci;
+      const to_pi=pi;
+      const moved=S.categories[from_ci].products.splice(from_pi,1)[0];
+      S.categories[to_ci].products.splice(to_pi,0,moved);
+      renderCats();rp();
+    });
     l.appendChild(el);
   });
 }

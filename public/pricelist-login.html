@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>כניסה – עורך מחירון</title>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --pr:#ba0013;--prd:#8a000e;
+  --sf:#f9f9f9;--sf-w:#fff;--on-sf:#1a1c1c;--on-sfv:#5d3f3c;
+  --outv:#e7bdb8;--err:#ba1a1a;
+  --font:'Hanken Grotesk',sans-serif;
+}
+body{font-family:var(--font);background:var(--sf);color:var(--on-sf);min-height:100vh;direction:rtl;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+
+/* BG pattern */
+body::before{content:'';position:fixed;inset:0;background:linear-gradient(135deg,#1a0004 0%,#2f0008 50%,#1a1c1c 100%);z-index:0}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 40px,rgba(186,0,19,.04) 40px,rgba(186,0,19,.04) 41px);z-index:0}
+
+.card{position:relative;z-index:1;background:var(--sf-w);border-radius:16px;padding:40px 36px;width:100%;max-width:400px;box-shadow:0 24px 64px rgba(0,0,0,.4)}
+
+.logo-wrap{text-align:center;margin-bottom:32px}
+.logo-icon{width:56px;height:56px;background:var(--pr);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;box-shadow:0 4px 16px rgba(186,0,19,.4)}
+.logo-icon .ms{font-family:'Material Symbols Outlined';font-size:28px;color:#fff;line-height:1}
+.logo-brand{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--on-sfv);margin-bottom:4px}
+.logo-title{font-size:22px;font-weight:800;color:var(--on-sf)}
+
+.field{margin-bottom:18px}
+.field label{font-size:12px;font-weight:700;color:var(--on-sfv);display:block;margin-bottom:6px;letter-spacing:.03em}
+.field-wrap{position:relative}
+.field input{width:100%;padding:11px 14px;padding-right:42px;font-family:var(--font);font-size:14px;border:1.5px solid var(--outv);border-radius:10px;background:#fff;color:var(--on-sf);outline:none;transition:border-color .15s,box-shadow .15s;direction:rtl}
+.field input:focus{border-color:var(--pr);box-shadow:0 0 0 3px rgba(186,0,19,.1)}
+.field-icon{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-family:'Material Symbols Outlined';font-size:18px;color:var(--outv);pointer-events:none;line-height:1}
+.toggle-pass{position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-family:'Material Symbols Outlined';font-size:18px;color:var(--outv);line-height:1;padding:2px;transition:color .15s}
+.toggle-pass:hover{color:var(--on-sf)}
+
+.btn-login{width:100%;padding:13px;background:var(--pr);color:#fff;border:none;border-radius:10px;font-family:var(--font);font-size:15px;font-weight:800;cursor:pointer;transition:all .2s;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-login:hover{background:var(--prd);transform:translateY(-1px);box-shadow:0 4px 16px rgba(186,0,19,.35)}
+.btn-login:active{transform:translateY(0)}
+.btn-login .ms{font-family:'Material Symbols Outlined';font-size:20px;line-height:1}
+.btn-login.loading{opacity:.7;pointer-events:none}
+
+.error-msg{background:#ffdad6;color:var(--err);padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;margin-bottom:16px;display:none;align-items:center;gap:8px;border-right:4px solid var(--err)}
+.error-msg.show{display:flex}
+.error-msg .ms{font-family:'Material Symbols Outlined';font-size:18px;line-height:1;flex-shrink:0}
+
+.footer-note{text-align:center;margin-top:24px;font-size:12px;color:rgba(255,255,255,.4);position:relative;z-index:1}
+.footer-note a{color:rgba(255,255,255,.6);text-decoration:none;font-weight:600}
+.footer-note a:hover{color:#fff}
+
+/* Shake animation on error */
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.card.shake{animation:shake .4s ease}
+</style>
+</head>
+<body>
+
+<div class="card" id="card">
+  <div class="logo-wrap">
+    <div class="logo-icon"><span class="ms">menu_book</span></div>
+    <div class="logo-brand">GenesisTracer</div>
+    <div class="logo-title">עורך מחירון</div>
+  </div>
+
+  <div class="error-msg" id="error-msg">
+    <span class="ms">error</span>
+    <span id="error-text">שם משתמש או סיסמה שגויים</span>
+  </div>
+
+  <div class="field">
+    <label>שם משתמש</label>
+    <div class="field-wrap">
+      <span class="field-icon">person</span>
+      <input type="text" id="username" placeholder="הכנס שם משתמש" autocomplete="username" onkeydown="if(event.key==='Enter')login()"/>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>סיסמה</label>
+    <div class="field-wrap">
+      <span class="field-icon">lock</span>
+      <input type="password" id="password" placeholder="הכנס סיסמה" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"/>
+      <button class="toggle-pass" onclick="togglePass()" id="toggle-btn" title="הצג/הסתר סיסמה">visibility</button>
+    </div>
+  </div>
+
+  <button class="btn-login" id="login-btn" onclick="login()">
+    <span class="ms">login</span> כניסה לעורך
+  </button>
+</div>
+
+<div class="footer-note">
+  <a href="/pricelist.html" target="_blank">תצוגת לקוח ←</a>
+</div>
+
+<script>
+function togglePass(){
+  const inp=document.getElementById('password');
+  const btn=document.getElementById('toggle-btn');
+  if(inp.type==='password'){inp.type='text';btn.textContent='visibility_off';}
+  else{inp.type='password';btn.textContent='visibility';}
+}
+
+function showError(msg){
+  const el=document.getElementById('error-msg');
+  document.getElementById('error-text').textContent=msg||'שם משתמש או סיסמה שגויים';
+  el.classList.add('show');
+  const card=document.getElementById('card');
+  card.classList.remove('shake');
+  void card.offsetWidth; // reflow to restart animation
+  card.classList.add('shake');
+  setTimeout(()=>card.classList.remove('shake'),400);
+}
+
+async function login(){
+  const username=document.getElementById('username').value.trim();
+  const password=document.getElementById('password').value;
+  if(!username||!password){showError('נא למלא שם משתמש וסיסמה');return;}
+
+  const btn=document.getElementById('login-btn');
+  btn.classList.add('loading');
+  btn.innerHTML='<span class="ms">hourglass_empty</span> מתחבר...';
+  document.getElementById('error-msg').classList.remove('show');
+
+  try{
+    // Verify credentials against the pricelist/meta endpoint
+    const r=await fetch('/api/pricelist/meta',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username,password,meta:{},notes:[],cols:4,categories:[]})
+    });
+
+    if(r.status===401){
+      showError('שם משתמש או סיסמה שגויים');
+      btn.classList.remove('loading');
+      btn.innerHTML='<span class="ms">login</span> כניסה לעורך';
+      return;
+    }
+
+    // Success — save to sessionStorage and redirect
+    sessionStorage.setItem('pl_user',username);
+    sessionStorage.setItem('pl_pass',password);
+    btn.innerHTML='<span class="ms">check_circle</span> מתחבר...';
+
+    // Small delay for visual feedback then redirect
+    setTimeout(()=>{window.location.href='/pricelist-editor.html';},400);
+
+  }catch(e){
+    showError('שגיאת רשת — נסה שוב');
+    btn.classList.remove('loading');
+    btn.innerHTML='<span class="ms">login</span> כניסה לעורך';
+  }
+}
+
+// Auto-focus username
+window.onload=()=>{
+  // If already logged in, skip to editor
+  if(sessionStorage.getItem('pl_user')&&sessionStorage.getItem('pl_pass')){
+    window.location.href='/pricelist-editor.html';
+    return;
+  }
+  document.getElementById('username').focus();
+};
+</script>
+</body>
+</html>
