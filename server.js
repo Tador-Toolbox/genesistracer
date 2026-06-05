@@ -3353,7 +3353,7 @@ app.post('/api/pricelist/logo', plUpload.single('logo'), async (req, res) => {
     const { Readable } = require('stream');
     const result = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
-        { folder: 'tador/pricelist', public_id: 'logo', overwrite: true, resource_type: 'image' },
+        { folder: 'tador/pricelist', public_id: 'logo', overwrite: true, resource_type: 'image', transformation: [{width:400, crop:'limit', quality:'auto:good', fetch_format:'auto'}] },
         (err, r) => err ? reject(err) : resolve(r)
       );
       Readable.from(req.file.buffer).pipe(stream);
@@ -3387,7 +3387,7 @@ app.post('/api/pricelist/product-image/:productId', plUpload.single('image'), as
     const { Readable } = require('stream');
     const result = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
-        { folder: 'tador/pricelist/products', public_id: `product_${productId}`, overwrite: true, resource_type: 'image' },
+        { folder: 'tador/pricelist/products', public_id: `product_${productId}`, overwrite: true, resource_type: 'image', transformation: [{width:800, height:800, crop:'limit', quality:'auto:good', fetch_format:'auto'}] },
         (err, r) => err ? reject(err) : resolve(r)
       );
       Readable.from(req.file.buffer).pipe(stream);
