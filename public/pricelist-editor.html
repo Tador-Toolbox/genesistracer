@@ -245,15 +245,30 @@ textarea{resize:vertical;min-height:52px}
 <div class="toast" id="toast"></div>
 
 <script>
-// Read manager credentials from localStorage (set by manager.html login)
-const AUTH={
-  username: localStorage.getItem('managerUser') || localStorage.getItem('adminUsername') || '',
-  password: localStorage.getItem('managerPass') || localStorage.getItem('adminPassword') || ''
-};
-// For JSON requests: merge credentials into body
-function authBody(extra){return JSON.stringify({...extra, username:AUTH.username, password:AUTH.password});}
-// For multipart: append to FormData
+// ── AUTH: prompt on load, store in memory only ──
+let AUTH={username:'',password:''};
+
+function promptLogin(){
+  const saved_u = sessionStorage.getItem('pl_user');
+  const saved_p = sessionStorage.getItem('pl_pass');
+  if(saved_u && saved_p){AUTH.username=saved_u;AUTH.password=saved_p;return;}
+  const u = prompt('שם משתמש מנג׳ר:','');
+  const p = prompt('סיסמה:','');
+  if(!u||!p){alert('נדרשים פרטי כניסה');promptLogin();return;}
+  AUTH.username=u; AUTH.password=p;
+  sessionStorage.setItem('pl_user',u);
+  sessionStorage.setItem('pl_pass',p);
+}
+
+function authBody(extra){return JSON.stringify({...extra,username:AUTH.username,password:AUTH.password});}
 function authFD(fd){fd.append('username',AUTH.username);fd.append('password',AUTH.password);return fd;}
+
+async function verifyAuth(){
+  try{
+    const r=await fetch('/api/pricelist/meta',{method:'POST',headers:{'Content-Type':'application/json'},body:authBody({meta:AUTH._test||{},notes:[],cols:4,categories:[]})});
+    if(r.status===401){sessionStorage.removeItem('pl_user');sessionStorage.removeItem('pl_pass');promptLogin();await verifyAuth();}
+  }catch(e){}
+}
 let isMob=false;
 let previewCatIdx=0;
 
@@ -268,7 +283,7 @@ let S={
 function makeCat(name){return{id:'c'+Date.now()+Math.random().toString(36).slice(2),name:name||'',subtitle:'',products:[],open:true};}
 function makeProd(){return{id:'p'+Date.now()+Math.random().toString(36).slice(2),name:'',sku:'',price:'',desc:'',link:'',imgUrl:null,open:false};}
 
-window.onload=async()=>{await load();syncUI();renderCats();rp();};
+window.onload=async()=>{promptLogin();await load();syncUI();renderCats();rp();};
 
 async function load(){
   try{
@@ -300,10 +315,15 @@ async function saveAll(){
   rm();setSS('שומר...','');
   try{
     const cats=S.categories.map(c=>({...c,products:c.products.map(p=>({...p,imgDataUrl:undefined}))}));
-    await fetch('/api/pricelist/meta',{method:'POST',headers:{'Content-Type':'application/json'},body:authBody({meta:S.meta,notes:S.notes,cols:S.cols,categories:cats})});
+    const saveRes=await fetch('/api/pricelist/meta',{method:'POST',headers:{'Content-Type':'application/json'},body:authBody({meta:S.meta,notes:S.notes,cols:S.cols,categories:cats})});
+    if(saveRes.status===401){sessionStorage.clear();promptLogin();throw new Error('401');}
+    if(!saveRes.ok) throw new Error('save failed');
     setSS('נשמר ✓','ok');document.getElementById('saved-chip').style.display='inline-flex';
     showToast('המחירון נשמר ✓');
-  }catch(e){setSS('שגיאה','');showToast('שגיאה בשמירה ✗');}
+  }catch(e){
+    if(e.message&&e.message.includes('401')){sessionStorage.clear();showToast('סיסמה שגויה — רענן את הדף ✗');}
+    else{setSS('שגיאה','');showToast('שגיאה בשמירה ✗');}
+  }
 }
 
 /* LOGO */
