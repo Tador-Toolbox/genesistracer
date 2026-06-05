@@ -528,8 +528,8 @@ function buildPL(){
     `<div class="pl-cat-tab${i===previewCatIdx?' active':''}" onclick="previewCatIdx=${i};rp();renderCats()">${esc(c.name||'קטגוריה')}</div>`
   ).join('');
 
-  const visProds=(cat.products||[]).filter(p=>!p.hidden).sort((a,b)=>(a.order||0)-(b.order||0));
-  const cards=visProds.map(p=>`
+  const sortedProds=(cat.products||[]).sort((a,b)=>(a.order||0)-(b.order||0));
+  const cards=sortedProds.map(p=>p.hidden?`<div class="pl-empty-card" style="opacity:0;pointer-events:none"></div>`:`
     <div class="pl-card">
       <div class="pl-card-img">
         ${p.link
@@ -546,7 +546,8 @@ function buildPL(){
       </div>
     </div>`).join('');
 
-  const rem=visProds.length%cols;
+  const visCount=sortedProds.filter(p=>!p.hidden).length+(sortedProds.length-sortedProds.filter(p=>!p.hidden).length);
+  const rem=sortedProds.length%cols;
   const fillers=rem===0?'':Array(cols-rem).fill('<div class="pl-empty-card"></div>').join('');
   const notes=S.notes.filter(n=>n.trim());
   const notesHTML=notes.length?`<section class="pl-notes"><div class="pl-notes-t">הערות כלליות:</div><ul>${notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></section>`:'';
