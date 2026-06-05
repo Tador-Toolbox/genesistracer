@@ -278,7 +278,7 @@ let S={
 };
 
 function makeCat(name){return{id:'c'+Date.now()+Math.random().toString(36).slice(2),name:name||'',subtitle:'',products:[],open:true};}
-function makeProd(){return{id:'p'+Date.now()+Math.random().toString(36).slice(2),name:'',sku:'',price:'',desc:'',link:'',imgUrl:null,open:false};}
+function makeProd(n){return{id:'p'+Date.now()+Math.random().toString(36).slice(2),name:'',sku:'',price:'',desc:'',link:'',imgUrl:null,hidden:false,order:n||0,open:false};}
 
 window.onload=async()=>{promptLogin();await load();syncUI();renderCats();rp();};
 
@@ -434,7 +434,7 @@ function renderProds(ci){
     el.innerHTML=`
       <div class="pih" onclick="toggleProd(${ci},${pi})">
         <div class="pth">${p.imgUrl?`<img src="${p.imgUrl}" alt=""/>`:`<span class="ms" style="font-size:16px;color:var(--outv)">image</span>`}</div>
-        <div class="info"><div class="iname">${p.name||'מוצר חדש'}</div><div class="iprice">${p.price?'₪'+p.price:'—'}</div></div>
+        <div class="info"><div class="iname" style="${p.hidden?'opacity:.45':''}">${p.hidden?'👁 ':''  }${p.name||'מוצר חדש'}</div><div class="iprice">${p.price?'₪'+p.price:'—'}</div></div>
         <div class="acts" onclick="event.stopPropagation()">
           <button class="btn-ic" onclick="document.getElementById('img-${p.id}').click()"><span class="ms">photo_camera</span></button>
           <button class="btn-ic d" onclick="rmProd(${ci},${pi})"><span class="ms">delete</span></button>
@@ -460,6 +460,11 @@ function renderProds(ci){
           </div>
           ${p.link?`<div style="margin-top:4px"><a href="${esc(p.link)}" target="_blank" style="font-size:11px;color:var(--pr);font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:3px"><span class="ms" style="font-size:13px">open_in_new</span> בדוק קישור</a></div>`:''}
         </div>
+        <div style="display:grid;grid-template-columns:80px 1fr;gap:9px;align-items:end">
+          <div><label>מס׳ סדר</label><input type="number" value="${p.order||0}" min="1" oninput="updP(${ci},${pi},'order',parseInt(this.value)||0);sortProds(${ci})" style="font-family:var(--mono)"/></div>
+          <div style="display:flex;align-items:center;gap:7px;padding:9px 0"><input type="checkbox" id="hid-${p.id}" ${p.hidden?'checked':''} onchange="updP(${ci},${pi},'hidden',this.checked)" style="width:15px;height:15px;accent-color:var(--pr);cursor:pointer"/><label for="hid-${p.id}" style="margin:0;cursor:pointer;font-size:12px;font-weight:600">הסתר מוצר במחירון</label></div>
+        </div>
+        ${p.hidden?'<div style="background:#fff8e1;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:600;color:#b45309;display:flex;align-items:center;gap:5px"><span class=\"ms\" style=\"font-size:14px\">visibility_off</span> מוצר זה לא יוצג</div>':''}
         ${p.imgUrl?`<button class="btn-ic d" style="font-size:11px;gap:4px" onclick="delImg('${p.id}',${ci},${pi})"><span class="ms">delete</span> הסר תמונה</button>`:''}
       </div>`;
     // Prod drag events
@@ -510,7 +515,7 @@ async function delImg(pid,ci,pi){
 }
 function toggleProd(ci,pi){S.categories[ci].products[pi].open=!S.categories[ci].products[pi].open;renderProds(ci);}
 function updP(ci,pi,k,v){S.categories[ci].products[pi][k]=v;updateCatHeader(ci);rp();}
-function addProd(ci){S.categories[ci].products.unshift(makeProd());renderCats();rp();}
+function addProd(ci){const n=S.categories[ci].products.length+1;S.categories[ci].products.push(makeProd(n));renderCats();rp();}
 function rmProd(ci,pi){S.categories[ci].products.splice(pi,1);renderCats();rp();}
 
 /* PREVIEW */
@@ -523,7 +528,8 @@ function buildPL(){
     `<div class="pl-cat-tab${i===previewCatIdx?' active':''}" onclick="previewCatIdx=${i};rp();renderCats()">${esc(c.name||'קטגוריה')}</div>`
   ).join('');
 
-  const cards=(cat.products||[]).map(p=>`
+  const visProds=(cat.products||[]).filter(p=>!p.hidden).sort((a,b)=>(a.order||0)-(b.order||0));
+  const cards=visProds.map(p=>`
     <div class="pl-card">
       <div class="pl-card-img">
         ${p.link
@@ -540,7 +546,7 @@ function buildPL(){
       </div>
     </div>`).join('');
 
-  const rem=(cat.products||[]).length%cols;
+  const rem=visProds.length%cols;
   const fillers=rem===0?'':Array(cols-rem).fill('<div class="pl-empty-card"></div>').join('');
   const notes=S.notes.filter(n=>n.trim());
   const notesHTML=notes.length?`<section class="pl-notes"><div class="pl-notes-t">הערות כלליות:</div><ul>${notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></section>`:'';
@@ -568,6 +574,7 @@ function buildPL(){
     </div>`;
 }
 
+function sortProds(ci){S.categories[ci].products.sort((a,b)=>(a.order||0)-(b.order||0));renderProds(ci);rp();}
 function updateCatHeader(ci){
   const cat=S.categories[ci];if(!cat)return;
   const el=document.querySelector(`#cat-list .cat-tab-item:nth-child(${ci+1}) .cat-count`);

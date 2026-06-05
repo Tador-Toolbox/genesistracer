@@ -206,7 +206,7 @@ function showCat(idx){
   document.getElementById('sec-title').textContent=cat.name||'';
   document.getElementById('sec-sub').textContent=cat.subtitle||'';
   document.getElementById('sec-sub').style.display=cat.subtitle?'block':'none';
-  const prods=cat.products||[];
+  const prods=(cat.products||[]).filter(p=>!p.hidden).sort((a,b)=>(a.order||0)-(b.order||0));
   document.getElementById('prod-count').textContent=prods.length+' מוצרים';
   document.getElementById('prod-count').style.display=prods.length?'inline-flex':'none';
 
