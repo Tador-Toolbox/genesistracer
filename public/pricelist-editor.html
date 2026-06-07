@@ -124,8 +124,8 @@ textarea{resize:vertical;min-height:52px}
 .pl-sec-title{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
 .pl-sec-sub{font-size:12px;color:var(--on-sfv);margin-top:3px}
 .pl-grid{display:grid;gap:11px}
-.pl-card{border:1px solid var(--outv);border-radius:8px;overflow:hidden;background:#fff;transition:box-shadow .2s}
-.pl-card:hover{box-shadow:0 4px 18px rgba(0,0,0,.1)}
+.pl-card{border:1px solid var(--outv);border-radius:8px;overflow:hidden;background:#fff;transition:box-shadow .2s,border-color .2s;cursor:pointer}
+.pl-card:hover{box-shadow:0 4px 18px rgba(0,0,0,.1);border-color:var(--pr)}.pl-card:hover::after{content:"✏ לחץ לעריכה";position:absolute;bottom:0;left:0;right:0;background:rgba(186,0,19,.85);color:#fff;font-size:11px;font-weight:700;padding:5px;text-align:center;font-family:var(--font)}.pl-card{position:relative}
 .pl-card-img{aspect-ratio:1;background:var(--sf-low);position:relative;overflow:hidden}
 .pl-card-img img{width:100%;height:100%;object-fit:cover;display:block}
 .pl-sku{position:absolute;top:6px;right:6px;background:var(--pr);color:#fff;font-size:8px;font-weight:700;padding:2px 5px;border-radius:4px;font-family:var(--mono)}
@@ -443,7 +443,7 @@ function renderProds(ci){
   // Drop zone at list level for dragging into empty category
   l.addEventListener('dragover',e=>{e.preventDefault();});
   cat.products.forEach((p,pi)=>{
-    const el=document.createElement('div');el.className='pie';el.setAttribute('draggable','true');el.dataset.ci=ci;el.dataset.pi=pi;
+    const el=document.createElement('div');el.className='pie';el.id='pie-'+p.id;el.setAttribute('draggable','true');el.dataset.ci=ci;el.dataset.pi=pi;
     el.innerHTML=`
       <div class="pih" onclick="toggleProd(${ci},${pi})">
         <div class="pth">${p.imgUrl?`<img src="${p.imgUrl}" alt=""/>`:`<span class="ms" style="font-size:16px;color:var(--outv)">image</span>`}</div>
@@ -542,8 +542,9 @@ function buildPL(){
   ).join('');
 
   const sortedProds=(cat.products||[]).sort((a,b)=>(a.order||0)-(b.order||0));
-  const cards=sortedProds.map(p=>p.hidden?`<div class="pl-empty-card" style="opacity:0;pointer-events:none"></div>`:`
-    <div class="pl-card">
+  const catId=cat.id;
+  const cards=sortedProds.map((p)=>p.hidden?`<div class="pl-empty-card" style="opacity:0;pointer-events:none"></div>`:`
+    <div class="pl-card" onclick="jumpToProduct('${catId}','${p.id}')">
       <div class="pl-card-img">
         ${p.link
           ? `<a href="${esc(p.link)}" target="_blank" rel="noopener" style="display:block;width:100%;height:100%;position:absolute;inset:0;z-index:1"></a>`
@@ -592,6 +593,31 @@ function buildPL(){
     </div>`;
 }
 
+function jumpToProduct(catId, prodId){
+  // Find cat index
+  const ci = S.categories.findIndex(c=>c.id===catId);
+  if(ci===-1) return;
+  // Open that category
+  S.categories[ci].open = true;
+  previewCatIdx = ci;
+  // Find product and open it
+  const pi = S.categories[ci].products.findIndex(p=>p.id===prodId);
+  if(pi!==-1) S.categories[ci].products[pi].open = true;
+  renderCats();
+  rp();
+  // Scroll editor to that product
+  setTimeout(()=>{
+    const prodEl = document.getElementById('pie-'+prodId) || 
+                   document.querySelector(`[id^="pie-"]`);
+    if(prodEl){
+      prodEl.scrollIntoView({behavior:'smooth', block:'center'});
+      // Flash highlight
+      prodEl.style.borderColor='var(--pr)';
+      prodEl.style.boxShadow='0 0 0 3px rgba(186,0,19,.2)';
+      setTimeout(()=>{prodEl.style.borderColor='';prodEl.style.boxShadow='';},1500);
+    }
+  },120);
+}
 function scrollCatList(dy){
   const el=document.getElementById('cat-list-wrap');
   if(el) el.scrollTop+=dy;
