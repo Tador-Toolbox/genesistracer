@@ -3331,11 +3331,16 @@ app.get('/api/pricelist', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// POST /api/pricelist/verify — בדיקת credentials בלבד
+app.post('/api/pricelist/verify', requireManagerAuth, async (req, res) => {
+  res.json({ ok: true });
+});
+
 // POST /api/pricelist/meta
 app.post('/api/pricelist/meta', requireManagerAuth, async (req, res) => {
   try {
     const database = await require('./db').connectDB();
-    const { meta, notes, cols, categories } = req.body;
+    const { meta, notes, cols, categories } = req.body; // username/password already consumed by requireManagerAuth
     await database.collection('pricelist').updateOne(
       { _id: 'active' },
       { $set: { meta, notes, cols, categories, updatedAt: new Date() } },
