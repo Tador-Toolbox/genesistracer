@@ -28,13 +28,14 @@ body{font-family:var(--font);background:var(--sf);color:var(--on-sf);min-height:
 .tb-right{text-align:right}
 .tb-title{font-size:15px;font-weight:800;line-height:1.2}
 .tb-sub{font-size:9px;opacity:.65;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
-.tb-print{background:transparent;border:1.5px solid rgba(255,255,255,.35);color:#fff;padding:6px 11px;border-radius:8px;font-family:var(--font);font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background .15s}
-.tb-print:hover{background:rgba(255,255,255,.12)}
+
 
 /* CATEGORY TABS */
-.cat-nav{background:#fff;border-bottom:2px solid var(--sf-hi);position:sticky;top:59px;z-index:40;box-shadow:0 1px 4px rgba(0,0,0,.06)}
-.cat-nav-inner{max-width:960px;margin:0 auto;display:flex;overflow-x:auto;scrollbar-width:none;padding:0 20px}
-.cat-nav-inner::-webkit-scrollbar{display:none}
+.cat-nav{background:#fff;border-bottom:2px solid var(--sf-hi);position:sticky;top:59px;z-index:40;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:stretch}
+.cat-nav-inner{flex:1;display:flex;overflow-x:auto;scrollbar-width:none;scroll-behavior:smooth}.cat-arrow{background:#fff;border:none;padding:0 10px;cursor:pointer;color:var(--on-sfv);font-family:"Material Symbols Outlined";font-size:20px;line-height:1;flex-shrink:0;border-left:1px solid var(--sf-hi);transition:background .15s;display:flex;align-items:center}
+.cat-arrow:first-child{border-left:none;border-right:1px solid var(--sf-hi)}
+.cat-arrow:hover{background:var(--sf-low);color:var(--pr)}
+
 .cat-tab{padding:13px 20px;font-size:14px;font-weight:700;color:var(--on-sfv);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s;flex-shrink:0;user-select:none}
 .cat-tab:hover{color:var(--on-sf);background:var(--sf-low)}
 .cat-tab.active{color:var(--pr);border-bottom-color:var(--pr)}
@@ -89,7 +90,11 @@ body{font-family:var(--font);background:var(--sf);color:var(--on-sf);min-height:
 /* MOBILE */
 @media(max-width:600px){
   .sec-title{font-size:22px}
-  .cat-tab{padding:11px 14px;font-size:13px}
+  .cat-arrow{background:#fff;border:none;padding:0 10px;cursor:pointer;color:var(--on-sfv);font-family:"Material Symbols Outlined";font-size:20px;line-height:1;flex-shrink:0;border-left:1px solid var(--sf-hi);transition:background .15s;display:flex;align-items:center}
+.cat-arrow:first-child{border-left:none;border-right:1px solid var(--sf-hi)}
+.cat-arrow:hover{background:var(--sf-low);color:var(--pr)}
+
+.cat-tab{padding:11px 14px;font-size:13px}
   .pl-card-price{font-size:15px}
 }
 
@@ -99,6 +104,12 @@ body{font-family:var(--font);background:var(--sf);color:var(--on-sf);min-height:
   .pl-card{break-inside:avoid}
   @page{size:A4;margin:15mm}
 }
+
+/* Fixed print button */
+.print-fab{position:fixed;bottom:24px;left:24px;z-index:99;background:var(--pr);color:#fff;border:none;border-radius:99px;padding:12px 20px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;box-shadow:0 4px 16px rgba(186,0,19,.35);transition:all .2s}
+.print-fab:hover{background:var(--prd);transform:translateY(-2px);box-shadow:0 6px 20px rgba(186,0,19,.4)}
+.print-fab .ms{font-family:"Material Symbols Outlined";font-size:18px;line-height:1}
+@media print{.print-fab{display:none}}
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-thumb{background:var(--outv);border-radius:3px}
 </style>
@@ -113,13 +124,14 @@ body{font-family:var(--font);background:var(--sf);color:var(--on-sf);min-height:
       <div class="tb-sub" id="tb-sub"></div>
     </div>
     <div class="tb-logo-l" id="tb-logo"></div>
-    <button class="tb-print" onclick="window.print()"><span class="ms">print</span> הדפסה</button>
   </div>
 </nav>
 
 <!-- CATEGORY TABS -->
 <div class="cat-nav" id="cat-nav" style="display:none">
+  <button class="cat-arrow" id="cat-arrow-r" onclick="scrollCats(-200)">chevron_right</button>
   <div class="cat-nav-inner" id="cat-tabs"></div>
+  <button class="cat-arrow" id="cat-arrow-l" onclick="scrollCats(200)">chevron_left</button>
 </div>
 
 <!-- SKELETON -->
@@ -187,11 +199,13 @@ function buildTopbar(){
 function buildCatTabs(){
   const cats=getCats();
   if(cats.length<=1){document.getElementById('cat-nav').style.display='none';return;}
-  document.getElementById('cat-nav').style.display='block';
+  document.getElementById('cat-nav').style.display='flex';
   const tabsEl=document.getElementById('cat-tabs');
+  tabsEl.addEventListener('scroll',updateArrows);
   tabsEl.innerHTML=cats.map((c,i)=>
     `<div class="cat-tab${i===0?' active':''}" data-idx="${i}" onclick="showCat(${i})">${esc(c.name||'קטגוריה')}</div>`
   ).join('');
+  setTimeout(updateArrows,50);
 }
 
 function showCat(idx){
@@ -252,9 +266,24 @@ function getCats(){
   return [];
 }
 
+function scrollCats(dx){
+  const el=document.getElementById('cat-tabs');
+  el.scrollLeft+=dx;
+  updateArrows();
+}
+function updateArrows(){
+  const el=document.getElementById('cat-tabs');
+  if(!el)return;
+  const rArrow=document.getElementById('cat-arrow-r');
+  const lArrow=document.getElementById('cat-arrow-l');
+  if(!rArrow||!lArrow)return;
+  rArrow.classList.toggle('visible', el.scrollLeft>0);
+  lArrow.classList.toggle('visible', el.scrollLeft<el.scrollWidth-el.clientWidth-2);
+}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 init();
 </script>
+<button class="print-fab" onclick="window.print()"><span class="ms">print</span> הדפסה</button>
 </body>
 </html>
