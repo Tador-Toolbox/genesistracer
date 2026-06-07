@@ -127,10 +127,10 @@ async function login(){
 
   try{
     // Verify credentials against the pricelist/meta endpoint
-    const r=await fetch('/api/pricelist/meta',{
+    const r=await fetch('/api/pricelist/verify',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({username,password,meta:{},notes:[],cols:4,categories:[]})
+      body:JSON.stringify({username,password})
     });
 
     if(r.status===401){
