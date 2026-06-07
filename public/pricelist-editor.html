@@ -24,7 +24,7 @@ body{font-family:var(--font);background:var(--sf);color:var(--on-sf);min-height:
 .tb h1{font-size:17px;font-weight:800}
 .tb-brand{font-size:10px;font-weight:700;opacity:.6;letter-spacing:.07em;text-transform:uppercase}
 .tb-acts{display:flex;gap:8px}
-.ws{display:grid;grid-template-columns:360px 1fr;overflow:hidden}
+.ws{display:grid;grid-template-columns:560px 1fr;overflow:hidden}
 
 /* EDITOR */
 .ed{background:var(--sf-w);border-left:1px solid var(--outv);display:flex;flex-direction:column;overflow:hidden}
@@ -40,10 +40,10 @@ textarea{resize:vertical;min-height:52px}
 
 /* CATEGORY TABS IN EDITOR */
 .cat-tabs{display:flex;flex-direction:column;gap:6px}
-.cat-tab-item{background:#fff;border:1.5px solid var(--outv);border-radius:var(--r);overflow:hidden;transition:border-color .15s;cursor:pointer}
+.cat-tab-item{background:#fff;border:1.5px solid var(--outv);border-radius:var(--r);overflow:hidden;transition:border-color .15s}
 .cat-tab-item.active{border-color:var(--pr);box-shadow:0 0 0 2px rgba(186,0,19,.12)}
 .cat-tab-item:hover{border-color:var(--pr)}
-.cat-tab-header{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--sf-low)}
+.cat-tab-header{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--sf-low);cursor:pointer;user-select:none}
 .cat-tab-header .cat-drag{color:var(--out);font-size:18px;cursor:grab}
 .cat-tab-header .cat-name{flex:1;font-size:13px;font-weight:700}
 .cat-tab-header .cat-count{font-size:11px;color:var(--out);font-weight:600}
@@ -358,14 +358,14 @@ function renderCats(){
     total+=cat.products.length;
     const el=document.createElement('div');el.className='cat-tab-item'+(ci===previewCatIdx?' active':'');el.id='cat-'+cat.id;el.setAttribute('draggable','true');el.dataset.ci=ci;
     el.innerHTML=`
-      <div class="cat-tab-header" onclick="selectCat(${ci})">
-        <span class="ms cat-drag">drag_indicator</span>
+      <div class="cat-tab-header" onclick="selectCat(${ci});toggleCatBody(${ci})">
+        <span class="ms cat-drag" onclick="event.stopPropagation()">drag_indicator</span>
         <span class="cat-name">${esc(cat.name)||'קטגוריה ללא שם'}</span>
         <span class="cat-count">${cat.products.length} מוצרים</span>
         <div class="cat-acts" onclick="event.stopPropagation()">
-          <button class="btn-ic" title="ערוך" onclick="toggleCatBody(${ci})"><span class="ms">edit</span></button>
           <button class="btn-ic d" title="מחק" onclick="rmCat(${ci})"><span class="ms">delete</span></button>
         </div>
+        <span class="ms" style="color:var(--out);font-size:18px;flex-shrink:0">${cat.open?'expand_less':'expand_more'}</span>
       </div>
       <div class="cat-tab-body ${cat.open?'open':''}" id="catbody-${cat.id}">
         <div><label>שם קטגוריה</label><input type="text" value="${esc(cat.name)}" oninput="S.categories[${ci}].name=this.value;updateCatHeader(${ci});rp()" placeholder="שם הקטגוריה..."/></div>
