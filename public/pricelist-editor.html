@@ -554,11 +554,11 @@ function buildPL(){
 
   return `
     <div class="pl-top">
-      <div class="pl-logo-l">${logo}</div>
-      <div class="pl-top-r">
+      <div class="pl-top-r" style="text-align:right">
         <div class="pl-top-title">${esc(S.meta.year||'מחירון')}</div>
         <div class="pl-top-sub">${esc(S.meta.company||'TADOR SYSTEMS')}</div>
       </div>
+      <div class="pl-logo-l">${logo}</div>
     </div>
     <nav class="pl-cats">${catTabsHTML}</nav>
     <div class="pl-main">
