@@ -112,6 +112,15 @@ body{font-family:var(--font);background:var(--sf);color:var(--on-sf);min-height:
 .print-fab:hover{background:var(--prd);transform:translateY(-2px);box-shadow:0 6px 20px rgba(186,0,19,.4)}
 .print-fab .ms{font-family:"Material Symbols Outlined";font-size:18px;line-height:1}
 @media print{.print-fab{display:none}}
+
+/* LIGHTBOX */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+.lightbox.open{display:flex}
+.lightbox-img{max-width:90vw;max-height:85vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+.lightbox-close{position:absolute;top:16px;left:16px;background:rgba(255,255,255,.15);border:none;color:#fff;font-family:'Material Symbols Outlined';font-size:28px;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.lightbox-close:hover{background:rgba(255,255,255,.25)}
+.lightbox-caption{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);color:#fff;font-size:14px;font-weight:700;text-align:center;opacity:.8}
+.pl-card-img img{cursor:zoom-in}
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-thumb{background:var(--outv);border-radius:3px}
 </style>
@@ -237,7 +246,7 @@ function showCat(idx){
       <div class="pl-card">
         <div class="pl-card-img">
           ${p.link ? `<a href="${esc(p.link)}" target="_blank" rel="noopener" style="display:block;position:absolute;inset:0;z-index:1" title="${esc(p.name)}"></a>` : ''}
-          ${p.imgUrl?`<img src="${p.imgUrl}" alt="${esc(p.name)}" loading="lazy"/>`:`<div class="no-img"><span class="ms">image_not_supported</span></div>`}
+          ${p.imgUrl?`<img src="${p.imgUrl}" alt="${esc(p.name)}" loading="lazy" onclick="openLightbox('${p.imgUrl}','${esc(p.name)}')" style="cursor:zoom-in"/>`:`<div class="no-img"><span class="ms">image_not_supported</span></div>`}
           ${p.sku?`<span class="pl-sku" style="position:relative;z-index:2">${esc(p.sku)}</span>`:''}
           ${p.link?`<span style="position:absolute;bottom:7px;left:7px;z-index:2;background:rgba(0,0,0,.55);border-radius:99px;padding:3px 7px;display:inline-flex;align-items:center;gap:3px"><span class="ms" style="font-size:13px;color:#fff">open_in_new</span></span>`:''}
         </div>
@@ -282,10 +291,29 @@ function updateArrows(){
   rArrow.classList.toggle('visible', el.scrollLeft>0);
   lArrow.classList.toggle('visible', el.scrollLeft<el.scrollWidth-el.clientWidth-2);
 }
+
+function openLightbox(src, caption){
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox-caption').textContent = caption || '';
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeLightbox(); });
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 init();
 </script>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">close</button>
+  <img class="lightbox-img" id="lightbox-img" src="" alt="" onclick="event.stopPropagation()"/>
+  <div class="lightbox-caption" id="lightbox-caption"></div>
+</div>
 <button class="print-fab" onclick="window.print()"><span class="ms">print</span> הדפסה</button>
 </body>
 </html>

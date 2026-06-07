@@ -66,6 +66,9 @@ textarea{resize:vertical;min-height:52px}
 .pib.open{display:flex}
 .img-zone{border:2px dashed var(--outv);border-radius:var(--r);padding:12px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;background:#fff;position:relative}
 .img-zone:hover{border-color:var(--pr);background:var(--sf-low)}
+.img-zone.has-img:hover .img-del-overlay{display:flex}
+.img-del-overlay{display:none;position:absolute;inset:0;background:rgba(186,0,19,.75);align-items:center;justify-content:center;flex-direction:column;gap:6px;cursor:pointer;color:#fff;font-family:var(--font);font-size:12px;font-weight:700;z-index:2}
+.img-del-overlay .ms{font-size:28px}
 .img-zone .prev{max-height:90px;object-fit:contain;border-radius:4px;display:block;margin:0 auto 5px}
 .img-zone .zlb{font-size:11px;color:var(--out);font-weight:600}
 .img-zone .zico{font-size:22px;color:var(--outv);display:block;margin-bottom:3px}
@@ -177,7 +180,7 @@ textarea{resize:vertical;min-height:52px}
     </div>
     <div style="display:flex;align-items:center;gap:9px">
       <span class="save-st" id="save-st">טוען...</span>
-      <button class="btn btn-w" onclick="saveAll()"><span class="ms">save</span> שמור הכל</button>
+      <button class="btn btn-w" id="undo-btn" onclick="undo()" disabled title="בטל פעולה אחרונה"><span class="ms">undo</span></button><button class="btn btn-w" onclick="saveAll()"><span class="ms">save</span> שמור הכל</button>
       <a class="btn btn-w" href="/pricelist.html" target="_blank"><span class="ms">open_in_new</span> תצוגת לקוח</a>
       <button class="btn btn-w" onclick="logout()"><span class="ms">logout</span> יציאה</button><a class="btn btn-w" href="/manager.html"><span class="ms">arrow_back</span> חזרה</a>
     </div>
@@ -295,7 +298,7 @@ let S={
 function makeCat(name){return{id:'c'+Date.now()+Math.random().toString(36).slice(2),name:name||'',subtitle:'',products:[],open:true};}
 function makeProd(n){return{id:'p'+Date.now()+Math.random().toString(36).slice(2),name:'',sku:'',price:'',desc:'',link:'',imgUrl:null,hidden:false,order:n||0,open:false};}
 
-window.onload=async()=>{promptLogin();await load();syncUI();renderCats();rp();};
+window.onload=async()=>{promptLogin();await load();syncUI();renderCats();rp();saveHistory();};
 
 async function load(){
   try{
@@ -410,6 +413,7 @@ function renderCats(){
       const to=ci;
       if(from===to)return;
       const moved=S.categories.splice(from,1)[0];
+      saveHistory();
       S.categories.splice(to,0,moved);
       if(previewCatIdx===from) previewCatIdx=to;
       else if(previewCatIdx>from&&previewCatIdx<=to) previewCatIdx--;
@@ -424,12 +428,12 @@ function renderCats(){
 
 function selectCat(ci){previewCatIdx=ci;renderCats();rp();}
 function toggleCatBody(ci){S.categories[ci].open=!S.categories[ci].open;renderCats();}
-function addCat(){
+function addCat(){saveHistory();
   const cat=makeCat('קטגוריה חדשה');cat.open=true;
   S.categories.push(cat);previewCatIdx=S.categories.length-1;
   renderCats();rp();
 }
-function rmCat(ci){
+function rmCat(ci){saveHistory();
   if(S.categories.length===1){showToast('חייב להיות לפחות קטגוריה אחת');return;}
   if(!confirm('למחוק קטגוריה זו ואת כל מוצריה?'))return;
   S.categories.splice(ci,1);
@@ -456,9 +460,15 @@ function renderProds(ci){
         </div>
       </div>
       <div class="pib ${p.open?'open':''}">
-        <div class="img-zone" id="iz-${p.id}" onclick="document.getElementById('img-${p.id}').click()">
+        <div class="img-zone ${p.imgUrl?'has-img':''}" id="iz-${p.id}" onclick="document.getElementById('img-${p.id}').click()" style="position:relative">
           <span class="upbadge">מעלה...</span>
-          ${p.imgUrl?`<img src="${p.imgUrl}" class="prev" alt=""/><div class="zlb">לחץ לשינוי תמונה</div>`:`<span class="ms zico">add_photo_alternate</span><div class="zlb">לחץ לבחירת תמונה</div>`}
+          ${p.imgUrl?`
+            <img src="${p.imgUrl}" class="prev" alt=""/>
+            <div class="zlb">לחץ לשינוי תמונה</div>
+            <div class="img-del-overlay" onclick="event.stopPropagation();delImg('${p.id}',${ci},${pi})">
+              <span class="ms">delete</span>מחק תמונה
+            </div>
+          `:`<span class="ms zico">add_photo_alternate</span><div class="zlb">לחץ לבחירת תמונה</div>`}
           <input type="file" accept="image/*" id="img-${p.id}" style="display:none" onchange="uploadImg(event,'${p.id}',${ci},${pi})"/>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
@@ -513,7 +523,7 @@ function renderProds(ci){
   });
 }
 
-async function uploadImg(e,pid,ci,pi){
+async function uploadImg(e,pid,ci,pi){saveHistory();
   const f=e.target.files[0];if(!f)return;
   const iz=document.getElementById('iz-'+pid);iz.classList.add('uploading');
   const fd=new FormData();fd.append('image',f);
@@ -524,14 +534,14 @@ async function uploadImg(e,pid,ci,pi){
   }catch{showToast('שגיאה ✗');}
   iz.classList.remove('uploading');e.target.value='';
 }
-async function delImg(pid,ci,pi){
+async function delImg(pid,ci,pi){saveHistory();
   await fetch(`/api/pricelist/product-image/${pid}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:authBody({})});
   S.categories[ci].products[pi].imgUrl=null;renderCats();rp();
 }
 function toggleProd(ci,pi){S.categories[ci].products[pi].open=!S.categories[ci].products[pi].open;renderProds(ci);}
 function updP(ci,pi,k,v){S.categories[ci].products[pi][k]=v;updateCatHeader(ci);rp();}
-function addProd(ci){const n=S.categories[ci].products.length+1;S.categories[ci].products.push(makeProd(n));renderCats();rp();}
-function rmProd(ci,pi){S.categories[ci].products.splice(pi,1);renderCats();rp();}
+function addProd(ci){saveHistory();const n=S.categories[ci].products.length+1;S.categories[ci].products.push(makeProd(n));renderCats();rp();}
+function rmProd(ci,pi){saveHistory();S.categories[ci].products.splice(pi,1);renderCats();rp();}
 
 /* PREVIEW */
 function buildPL(){
@@ -619,6 +629,32 @@ function jumpToProduct(catId, prodId){
       setTimeout(()=>{prodEl.style.borderColor='';prodEl.style.boxShadow='';},1500);
     }
   },120);
+}
+
+// ── UNDO HISTORY ──
+const history = [];
+let historyIdx = -1;
+
+function saveHistory(){
+  const snap = JSON.stringify(S);
+  // Remove future states if we branched
+  history.splice(historyIdx + 1);
+  history.push(snap);
+  if(history.length > 30) history.shift();
+  historyIdx = history.length - 1;
+  updateUndoBtn();
+}
+function undo(){
+  if(historyIdx <= 0) return;
+  historyIdx--;
+  S = JSON.parse(history[historyIdx]);
+  syncUI(); renderCats(); rp();
+  updateUndoBtn();
+  showToast('בוטלה הפעולה האחרונה');
+}
+function updateUndoBtn(){
+  const btn = document.getElementById('undo-btn');
+  if(btn) btn.disabled = historyIdx <= 0;
 }
 function scrollCatList(dy){
   const el=document.getElementById('cat-list-wrap');
