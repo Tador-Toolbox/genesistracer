@@ -217,7 +217,7 @@ textarea{resize:vertical;min-height:52px}
               <button class="btn-ic" onclick="scrollCatList(120)" title="גלול למטה"><span class="ms">arrow_downward</span></button>
             </div>
           </div>
-          <div id="cat-list-wrap" style="max-height:340px;overflow-y:auto;scroll-behavior:smooth;">
+          <div id="cat-list-wrap" style="max-height:600px;overflow-y:auto;scroll-behavior:smooth;">
             <div class="cat-tabs" id="cat-list"></div>
           </div>
         </div>
@@ -577,9 +577,9 @@ function buildPL(){
       <div class="pl-logo-l">${logo}</div>
     </div>
     <nav class="pl-cats" id="pl-cats-nav">
-      <button class="pl-cat-arrow" id="pl-arr-r" onclick="scrollPLCats(-160)">chevron_right</button>
+      <button class="pl-cat-arrow" id="pl-arr-r" onclick="scrollPLCats(160)">chevron_right</button>
       <div class="pl-cats-inner" id="pl-cats-inner">${catTabsHTML}</div>
-      <button class="pl-cat-arrow" id="pl-arr-l" onclick="scrollPLCats(160)">chevron_left</button>
+      <button class="pl-cat-arrow" id="pl-arr-l" onclick="scrollPLCats(-160)">chevron_left</button>
     </nav>
     <div class="pl-main">
       <div class="pl-sec-head">
