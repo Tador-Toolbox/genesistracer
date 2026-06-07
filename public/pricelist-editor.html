@@ -110,8 +110,12 @@ textarea{resize:vertical;min-height:52px}
 .pl-top-title{font-size:15px;font-weight:800;line-height:1.2}
 .pl-top-sub{font-size:9px;opacity:.65;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
 /* CATEGORY TABS */
-.pl-cats{background:#fff;border-bottom:2px solid var(--sf-hi);display:flex;gap:0;overflow-x:auto;scrollbar-width:none}
-.pl-cats::-webkit-scrollbar{display:none}
+.pl-cats{background:#fff;border-bottom:2px solid var(--sf-hi);display:flex;align-items:stretch;gap:0}
+.pl-cats-inner{flex:1;display:flex;overflow-x:auto;scrollbar-width:none;scroll-behavior:smooth}.pl-cats-inner::-webkit-scrollbar{display:none}
+.pl-cat-arrow{background:#fff;border:none;padding:0 8px;cursor:pointer;font-family:"Material Symbols Outlined";font-size:18px;line-height:1;flex-shrink:0;border-left:1px solid var(--sf-hi);color:var(--on-sfv);display:flex;align-items:center}
+.pl-cat-arrow:first-child{border-left:none;border-right:1px solid var(--sf-hi)}
+.pl-cat-arrow:hover{background:var(--sf-low);color:var(--pr)}
+
 .pl-cat-tab{padding:10px 18px;font-size:13px;font-weight:700;color:var(--on-sfv);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;flex-shrink:0}
 .pl-cat-tab:hover{color:var(--on-sf);background:var(--sf-low)}
 .pl-cat-tab.active{color:var(--pr);border-bottom-color:var(--pr)}
@@ -158,6 +162,7 @@ textarea{resize:vertical;min-height:52px}
 .cat-tab-item{cursor:default}
 .cat-drag,.prod-drag{cursor:grab;touch-action:none}
 .cat-drag:active,.prod-drag:active{cursor:grabbing}
+#cat-list-wrap::-webkit-scrollbar{width:4px}#cat-list-wrap::-webkit-scrollbar-thumb{background:var(--outv);border-radius:3px}
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-thumb{background:var(--outv);border-radius:3px}
 </style>
@@ -205,8 +210,16 @@ textarea{resize:vertical;min-height:52px}
 
         <!-- Categories -->
         <div class="sc" style="gap:0;padding-bottom:0">
-          <div class="sc-t" style="padding-bottom:10px">קטגוריות ומוצרים</div>
-          <div class="cat-tabs" id="cat-list"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:10px">
+            <div class="sc-t" style="margin:0">קטגוריות ומוצרים</div>
+            <div style="display:flex;gap:4px">
+              <button class="btn-ic" onclick="scrollCatList(-120)" title="גלול למעלה"><span class="ms">arrow_upward</span></button>
+              <button class="btn-ic" onclick="scrollCatList(120)" title="גלול למטה"><span class="ms">arrow_downward</span></button>
+            </div>
+          </div>
+          <div id="cat-list-wrap" style="max-height:340px;overflow-y:auto;scroll-behavior:smooth;">
+            <div class="cat-tabs" id="cat-list"></div>
+          </div>
           <button class="add-btn" style="margin:10px 0" onclick="addCat()"><span class="ms" style="font-size:15px">add_circle</span> הוסף קטגוריה</button>
         </div>
 
@@ -560,7 +573,11 @@ function buildPL(){
       </div>
       <div class="pl-logo-l">${logo}</div>
     </div>
-    <nav class="pl-cats">${catTabsHTML}</nav>
+    <nav class="pl-cats" id="pl-cats-nav">
+      <button class="pl-cat-arrow" id="pl-arr-r" onclick="scrollPLCats(-160)">chevron_right</button>
+      <div class="pl-cats-inner" id="pl-cats-inner">${catTabsHTML}</div>
+      <button class="pl-cat-arrow" id="pl-arr-l" onclick="scrollPLCats(160)">chevron_left</button>
+    </nav>
     <div class="pl-main">
       <div class="pl-sec-head">
         <div class="pl-sec-title">${esc(cat.name||'')}</div>
@@ -575,12 +592,20 @@ function buildPL(){
     </div>`;
 }
 
+function scrollCatList(dy){
+  const el=document.getElementById('cat-list-wrap');
+  if(el) el.scrollTop+=dy;
+}
 function sortProds(ci){S.categories[ci].products.sort((a,b)=>(a.order||0)-(b.order||0));renderProds(ci);rp();}
 function updateCatHeader(ci){
   const cat=S.categories[ci];if(!cat)return;
   const el=document.querySelector(`#cat-list .cat-tab-item:nth-child(${ci+1}) .cat-count`);
   if(el) el.textContent=cat.products.length+' מוצרים';
   document.getElementById('total-chip').textContent=S.categories.reduce((a,c)=>a+c.products.length,0)+' מוצרים';
+}
+function scrollPLCats(dx){
+  const el=document.getElementById('pl-cats-inner');
+  if(el){el.scrollLeft+=dx;}
 }
 function rp(){rm();document.getElementById('pl-render').innerHTML=buildPL();}
 function setVP(m,btn){isMob=m==='m';document.getElementById('pv-frame').className='pv-frame'+(isMob?' mob':'');document.querySelectorAll('.vp-tog button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');rp();}
