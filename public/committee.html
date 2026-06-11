@@ -104,6 +104,7 @@
       <div style="display:flex;gap:8px;">
         <button onclick="copyRegLink()">📋 העתק</button>
         <button onclick="showQrCommittee()" style="background:#7c3aed;color:white;border:none;border-radius:6px;padding:5px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">📱 QR</button>
+        <button onclick="shareWhatsAppCommittee()" style="background:#25D366;color:white;border:none;border-radius:6px;padding:5px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">💬 WhatsApp</button>
       </div>
     </div>
 
@@ -130,7 +131,13 @@
     <!-- Search -->
     <div class="search-bar">
       <span class="icon">🔍</span>
-      <input type="text" id="searchInput" placeholder="חפש לפי שם, דירה או טלפון..." oninput="filterResidents()"/>
+      <input type="text" id="searchInput" placeholder="חפש לפי שם, דירה או טלפון..." oninput="filterResidents()" onkeydown="if(event.key==='Escape')clearSearch()"/>
+      <button id="clearSearchBtn" onclick="clearSearch()" style="display:none;position:absolute;left:42px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:var(--gray-400);line-height:1;padding:4px;">✕</button>
+    </div>
+    <!-- Search results bar -->
+    <div id="searchResultsBar" style="display:none;align-items:center;justify-content:space-between;margin-bottom:12px;padding:10px 14px;background:#fefce8;border:1.5px solid #fde68a;border-radius:8px;gap:10px;flex-wrap:wrap;">
+      <span id="searchResultsCount" style="font-size:13px;font-weight:700;color:#92400e;"></span>
+      <button onclick="selectSearchResults()" style="padding:7px 16px;background:#92400e;color:white;border:none;border-radius:7px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">✓ סמן את כל תוצאות החיפוש</button>
     </div>
 
     <!-- Panel selector (shown when building has multiple panels) -->
@@ -355,14 +362,55 @@
   }
 
   function filterResidents() {
-    const q = document.getElementById('searchInput').value.toLowerCase();
-    if (!q) { renderResidents(allResidents); return; }
-    const filtered = allResidents.filter(r =>
-      (r.firstName + ' ' + r.lastName).toLowerCase().includes(q) ||
-      r.apartment.toLowerCase().includes(q) ||
-      r.phone.includes(q)
-    );
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    const clearBtn = document.getElementById('clearSearchBtn');
+    const resultsBar = document.getElementById('searchResultsBar');
+    const resultsCount = document.getElementById('searchResultsCount');
+
+    if (!q) {
+      clearBtn.style.display = 'none';
+      resultsBar.style.display = 'none';
+      renderResidents(allResidents);
+      return;
+    }
+
+    clearBtn.style.display = 'inline-block';
+    const filtered = getFiltered();
+    resultsBar.style.display = 'flex';
+    const withPhoto = filtered.filter(r => r.photoUrl).length;
+    resultsCount.textContent = 'נמצאו ' + filtered.length + ' דיירים' +
+      (withPhoto < filtered.length ? ' (' + withPhoto + ' עם תמונה)' : '');
     renderResidents(filtered);
+  }
+
+  function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('clearSearchBtn').style.display = 'none';
+    document.getElementById('searchResultsBar').style.display = 'none';
+    selectedIds.clear();
+    updateSelCount();
+    renderResidents(allResidents);
+  }
+
+  function selectSearchResults() {
+    const filtered = getFiltered();
+    if (!filtered.length) return;
+    // Enter select mode if not already in it
+    if (!selectMode) {
+      selectMode = true;
+      document.getElementById('selectModeBtn').textContent = '✕ בטל בחירה';
+      document.getElementById('selectModeBtn').style.background = '#6b7280';
+      document.getElementById('selectAllBtn').style.display = 'inline-block';
+      document.getElementById('uploadBtn').style.display = 'inline-block';
+      document.getElementById('uploadStatus').textContent = '';
+    }
+    // Select ALL filtered (with and without photo — let upload handle no-photo gracefully)
+    filtered.forEach(r => selectedIds.add(r._id));
+    updateSelCount();
+    renderResidents(filtered);
+    // Show feedback
+    document.getElementById('uploadStatus').style.color = '#92400e';
+    document.getElementById('uploadStatus').textContent = '✓ סומנו ' + filtered.length + ' דיירים מתוצאות החיפוש';
   }
 
   let selectMode = false;
@@ -500,11 +548,9 @@
     const status = document.getElementById('panelFacesStatus');
     const grid = document.getElementById('panelFacesGrid');
 
-    // Lock to whichever panel the dedicated selector shows
     const facesSel = document.getElementById('panelFacesSelector');
     currentPanelFacesMac = (facesSel && facesSel.value) ? facesSel.value : selectedPanel;
 
-    // Show active panel badge
     const badge = document.getElementById('activePanelBadge');
     if (badge && facesSel && facesSel.selectedIndex >= 0) {
       badge.textContent = '🔒 מציג פנל: ' + facesSel.options[facesSel.selectedIndex].text;
@@ -513,34 +559,74 @@
 
     btn.disabled = true;
     const origText = btn.textContent;
-    btn.textContent = '⏳ מתחבר לפנל...';
-    status.style.color = '#2563eb';
-    status.textContent = 'קורא פנים מהפנל — עשוי לקחת כמה שניות...';
+    btn.textContent = '⏳ טוען...';
     grid.innerHTML = '';
+
+    const setStatus = function(color, msg) {
+      status.style.color = color;
+      status.textContent = msg;
+    };
+
+    let panelSession = null;
     try {
-      const res = await fetch('/api/committee/panel-faces', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      // Step 1: Connect to panel
+      setStatus('#2563eb', '🔌 שלב 1/3 — מתחבר לפנל...');
+      const s1 = await fetch('/api/committee/panel-session', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelMac: currentPanelFacesMac })
       });
-      const data = await res.json();
-      if (!data.success) {
-        status.style.color = '#ef4444';
-        status.textContent = '❌ ' + (data.error || 'שגיאה');
-        btn.disabled = false; btn.textContent = origText;
-        return;
-      }
-      status.style.color = '#16a34a';
-      status.textContent = '✅ נמצאו ' + data.total + ' פנים בפנל';
-      panelFacesData = data.faces || [];
+      const session = await s1.json();
+      if (!session.success) { setStatus('#ef4444', '❌ ' + (session.error || 'שגיאת התחברות')); btn.disabled = false; btn.textContent = origText; return; }
+      panelSession = session;
+      setStatus('#0369a1', '✅ מחובר לפנל ' + session.host + ':' + session.port);
+
+      // Step 2: Get face list
+      await new Promise(r => setTimeout(r, 300));
+      setStatus('#2563eb', '📋 שלב 2/3 — קורא רשימת פנים...');
+      const s2 = await fetch('/api/committee/panel-face-list', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ host: session.host, port: session.port, token: session.token })
+      });
+      const listData = await s2.json();
+      if (!listData.success) { setStatus('#ef4444', '❌ ' + (listData.error || 'שגיאה')); btn.disabled = false; btn.textContent = origText; return; }
+
+      const total = listData.total;
+      setStatus('#0369a1', '📋 נמצאו ' + total + ' פנים — מוריד תמונות...');
+
+      // Initialize panelFacesData without photos, render placeholders immediately
+      panelFacesData = listData.faces.map(function(f) { return Object.assign({}, f, { photo: null }); });
       document.getElementById('panelDeleteToolbar').style.display = panelFacesData.length ? 'flex' : 'none';
-      panelSelectMode = false;
-      panelSelectedIds.clear();
-      resetPanelToolbar();
+      panelSelectMode = false; panelSelectedIds.clear(); resetPanelToolbar();
       renderPanelFaces();
+
+      // Step 3: Fetch photos one by one
+      let loaded = 0, failed = 0;
+      for (let i = 0; i < panelFacesData.length; i++) {
+        const face = panelFacesData[i];
+        setStatus('#2563eb', '📷 שלב 3/3 — מוריד תמונה ' + (i+1) + '/' + total + ' (' + face.name + ')...');
+        try {
+          const s3 = await fetch('/api/committee/panel-face-photo', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ host: session.host, port: session.port, token: session.token, faceId: face.id })
+          });
+          const photoData = await s3.json();
+          if (photoData.success && photoData.photo) {
+            panelFacesData[i].photo = photoData.photo;
+            loaded++;
+          } else { failed++; }
+        } catch(e) { failed++; }
+        // Re-render every 5 photos to show progress
+        if ((i+1) % 5 === 0 || i === panelFacesData.length - 1) renderPanelFaces();
+      }
+
+      const statusMsg = '✅ הושלם — ' + total + ' פנים' +
+        (loaded < total ? ', ' + loaded + ' תמונות' : '') +
+        (failed ? ', ' + failed + ' תמונות נכשלו' : '') +
+        ' · ' + session.host + ':' + session.port;
+      setStatus('#16a34a', statusMsg);
+
     } catch(e) {
-      status.style.color = '#ef4444';
-      status.textContent = '❌ שגיאת תקשורת';
+      setStatus('#ef4444', '❌ שגיאת תקשורת: ' + e.message);
     }
     btn.disabled = false; btn.textContent = origText;
   }
@@ -837,6 +923,14 @@
     }
   }
 
+
+  function shareWhatsAppCommittee() {
+    const url = document.getElementById('qrModalUrl').textContent ||
+                document.getElementById('regLink').textContent.trim();
+    const addr = document.getElementById('buildingSubtitle').textContent || '';
+    const msg = 'שלום דיירים יקרים 🏢\n\nהרישום לרשימת הדיירים של הבניין פתוח!\nלחצו על הקישור כדי להירשם:\n\n' + url + '\n\nלרישום תדרשו: שם, מספר דירה ותמונת פנים.\n\nועד הבית';
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+  }
   function showQrCommittee() {
     const url = document.getElementById('regLink').textContent.trim();
     if (!url) return;
@@ -895,6 +989,7 @@
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
       <button onclick="printQrCommittee()" style="padding:10px 20px;background:#0a0a0a;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">🖨️ הדפס</button>
       <button onclick="downloadQrCommittee()" style="padding:10px 20px;background:#7c3aed;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">⬇ הורד QR</button>
+      <button onclick="shareWhatsAppCommittee()" style="padding:10px 20px;background:#25D366;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">💬 WhatsApp</button>
       <button onclick="document.getElementById('qrModal').style.display='none'" style="padding:10px 20px;background:#f3f3f3;color:#0a0a0a;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">סגור</button>
     </div>
   </div>
