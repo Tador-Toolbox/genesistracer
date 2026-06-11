@@ -151,9 +151,23 @@
       <button onclick="toggleSelectMode()" id="selectModeBtn" style="padding:9px 16px;background:#2563eb;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">✓ בחר דיירים</button>
       <button onclick="selectAll()" id="selectAllBtn" style="display:none;padding:9px 16px;background:white;color:#2563eb;border:1.5px solid #2563eb;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">בחר הכל</button>
       <button onclick="uploadSelected()" id="uploadBtn" style="display:none;padding:9px 18px;background:#16a34a;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">⬆ העלה לפנל (<span id="selCount">0</span>)</button>
-      <span id="uploadStatus" style="font-size:13px;font-weight:600;"></span>
       <div style="flex:1;"></div>
       <span style="font-size:12px;color:#3b82f6;">💡 שלח תמונות פנים לפנל לזיהוי פנים בכניסה</span>
+    </div>
+
+    <!-- Upload progress bar (shown during upload) -->
+    <div id="uploadProgressWrap" style="display:none;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span id="uploadProgressLabel" style="font-size:13px;font-weight:700;color:#0a0a0a;"></span>
+        <span id="uploadProgressCount" style="font-size:13px;font-weight:800;color:#2563eb;font-family:monospace;"></span>
+      </div>
+      <div style="height:10px;background:#e5e7eb;border-radius:10px;overflow:hidden;">
+        <div id="uploadProgressBar" style="height:100%;background:linear-gradient(90deg,#16a34a,#22c55e);border-radius:10px;transition:width .3s ease;width:0%;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;">
+        <span id="uploadProgressSub" style="font-size:11px;color:#6b7280;"></span>
+        <span id="uploadStatus" style="font-size:12px;font-weight:600;"></span>
+      </div>
     </div>
 
     <!-- Grid -->
@@ -475,33 +489,101 @@
   async function doUpload(ids) {
     const status = document.getElementById('uploadStatus');
     const btn = document.getElementById('uploadBtn');
-    status.style.color = '#2563eb';
-    status.textContent = '⏳ מתחבר לפנל ומעלה ' + ids.length + ' דיירים...';
+    const wrap = document.getElementById('uploadProgressWrap');
+    const bar = document.getElementById('uploadProgressBar');
+    const label = document.getElementById('uploadProgressLabel');
+    const count = document.getElementById('uploadProgressCount');
+    const sub = document.getElementById('uploadProgressSub');
+
     if (btn) btn.disabled = true;
+    wrap.style.display = 'block';
+    bar.style.background = 'linear-gradient(90deg,#16a34a,#22c55e)';
+    bar.style.width = '0%';
+    label.textContent = '🔌 מתחבר לפנל...';
+    count.textContent = '0 / ' + ids.length;
+    sub.textContent = '';
+    if (status) status.textContent = '';
+
+    let ok = 0, skipped = 0, failed = 0, noPhoto = 0;
+
     try {
-      const res = await fetch('/api/committee/upload-faces', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentIds: ids, panelMac: selectedPanel })
+      // Step 1: Get panel session
+      label.textContent = '🔌 מתחבר לפנל...';
+      const s1 = await fetch('/api/committee/panel-session', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelMac: selectedPanel })
       });
-      const data = await res.json();
-      if (data.success) {
-        status.style.color = '#16a34a';
-        status.textContent = `✅ הועלו ${data.uploaded} בהצלחה` + (data.skipped ? `, ${data.skipped} כבר בפנל` : '') + (data.failed ? `, ${data.failed} נכשלו` : '');
-        if (data.failed) {
-          const failed = data.results.filter(r => !r.success).map(r => r.name + ' (' + r.error + ')').join(', ');
-          console.log('Failed:', failed);
-        }
-        selectedIds.clear();
-        updateSelCount();
-        loadResidents();
-      } else {
-        status.style.color = '#ef4444';
-        status.textContent = '❌ ' + (data.error || 'שגיאה');
+      const session = await s1.json();
+      if (!session.success) {
+        label.textContent = '❌ ' + (session.error || 'שגיאת התחברות');
+        bar.style.background = '#ef4444'; bar.style.width = '100%';
+        if (btn) btn.disabled = false; return;
       }
+
+      // Step 2: Get existing panel face names
+      label.textContent = '🔍 בודק כפילויות בפנל...';
+      const s2 = await fetch('/api/committee/panel-existing-names', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ host: session.host, port: session.port, token: session.token })
+      });
+      const namesData = await s2.json();
+      const existingNames = namesData.success ? namesData.names : [];
+
+      // Step 3: Upload one by one
+      label.textContent = '⬆ מעלה פנים לפנל...';
+      for (let i = 0; i < ids.length; i++) {
+        const pct = Math.round((i / ids.length) * 100);
+        bar.style.width = pct + '%';
+        count.textContent = (i + 1) + ' / ' + ids.length;
+
+        try {
+          const r = await fetch('/api/committee/upload-one-face', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+              host: session.host, port: session.port, token: session.token,
+              residentId: ids[i], buildingCode: sessionCode, password: sessionPass,
+              existingNames
+            })
+          });
+          const d = await r.json();
+          if (d.success) {
+            ok++;
+            sub.textContent = '✅ הועלה: ' + d.name;
+            existingNames.push((d.name || '').toLowerCase()); // prevent re-upload in same session
+          } else if (d.skipped) {
+            skipped++;
+            sub.textContent = '⏭ כבר בפנל: ' + (d.name || '');
+          } else {
+            failed++;
+            sub.textContent = '❌ נכשל: ' + (d.error || '');
+          }
+        } catch(e) { failed++; sub.textContent = '❌ שגיאה'; }
+
+        // Update count badge
+        count.textContent = (i + 1) + ' / ' + ids.length +
+          (ok ? '  ✅ ' + ok : '') +
+          (skipped ? '  ⏭ ' + skipped : '') +
+          (failed ? '  ❌ ' + failed : '');
+      }
+
+      // Done
+      bar.style.width = '100%';
+      const isAllGood = failed === 0;
+      bar.style.background = isAllGood ? 'linear-gradient(90deg,#16a34a,#22c55e)' : 'linear-gradient(90deg,#f59e0b,#fbbf24)';
+      label.textContent = isAllGood ? '✅ הושלם בהצלחה!' : '⚠️ הושלם עם שגיאות';
+      sub.textContent = 'הועלו ' + ok + (skipped ? ', כבר בפנל ' + skipped : '') + (failed ? ', נכשלו ' + failed : '');
+      count.textContent = ids.length + ' / ' + ids.length;
+
+      selectedIds.clear();
+      updateSelCount();
+      loadResidents();
+
+      // Hide progress bar after 5 seconds
+      setTimeout(function() { wrap.style.display = 'none'; }, 5000);
+
     } catch(e) {
-      status.style.color = '#ef4444';
-      status.textContent = '❌ שגיאת תקשורת';
+      label.textContent = '❌ שגיאת תקשורת: ' + e.message;
+      bar.style.background = '#ef4444'; bar.style.width = '100%';
     }
     if (btn) btn.disabled = false;
   }
