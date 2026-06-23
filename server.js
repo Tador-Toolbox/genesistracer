@@ -3124,7 +3124,10 @@ app.post('/api/buildings/:code/panel-stats', async (req, res) => {
 });
 
 
-// Transfer all faces from one panel to another panel (same building)
+// In-memory store for running face-transfer jobs (progress polling)
+const faceTransferJobs = {};
+
+// Start a face transfer job — returns jobId immediately, runs in background
 app.post('/api/buildings/:code/transfer-faces', async (req, res) => {
   try {
     const { username, password, sourceMac, targetMac } = req.body;
@@ -3144,69 +3147,121 @@ app.post('/api/buildings/:code/transfer-faces', async (req, res) => {
     const building = await database.collection('buildings').findOne({ buildingCode: req.params.code });
     if (!building) return res.json({ success: false, error: 'Building not found' });
 
-    // Resolve both panel addresses
-    const sourceAddr = await resolvePanelAddress(cleanSource);
-    if (!sourceAddr) return res.json({ success: false, error: 'Source panel not found / offline' });
-    const targetAddr = await resolvePanelAddress(cleanTarget);
-    if (!targetAddr) return res.json({ success: false, error: 'Target panel not found / offline' });
+    const jobId = 'xfer_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    faceTransferJobs[jobId] = {
+      status: 'starting',   // starting | running | done | error
+      stage: 'מתחבר לפנלים...',
+      done: 0,
+      total: 0,
+      transferred: 0,
+      skipped: 0,
+      failed: 0,
+      currentName: null,
+      results: [],
+      error: null,
+      startedAt: Date.now(),
+    };
+    res.json({ success: true, jobId });
 
-    const [srcHost, srcPortStr] = sourceAddr.split(':');
-    const srcPort = parseInt(srcPortStr) || 80;
-    const [tgtHost, tgtPortStr] = targetAddr.split(':');
-    const tgtPort = parseInt(tgtPortStr) || 80;
-
-    // Login to both panels
-    const srcLogin = await panelHttpPost(srcHost, srcPort, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
-    const srcToken = srcLogin?.data?.token;
-    if (!srcToken) return res.json({ success: false, error: 'Source panel login failed' });
-
-    const tgtLogin = await panelHttpPost(tgtHost, tgtPort, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
-    const tgtToken = tgtLogin?.data?.token;
-    if (!tgtToken) return res.json({ success: false, error: 'Target panel login failed' });
-
-    // Get face list from source panel
-    const srcListData = await panelHttpGetWithHeaders(srcHost, srcPort, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + srcToken });
-    const srcFaces = srcListData?.data?.list || [];
-
-    // Get existing names on target panel (skip duplicates)
-    const tgtListData = await panelHttpGetWithHeaders(tgtHost, tgtPort, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + tgtToken });
-    const existingTargetNames = new Set((tgtListData?.data?.list || []).map(p => (p.label || '').trim().toLowerCase()));
-
-    const results = [];
-    let skipped = 0;
-    for (const f of srcFaces) {
-      const name = (f.label || '').trim();
-      if (!name) { results.push({ name: '(ללא שם)', success: false, error: 'No label' }); continue; }
-      if (existingTargetNames.has(name.toLowerCase())) {
-        results.push({ name, success: false, error: 'Already on target' });
-        skipped++;
-        continue;
+    // Run the actual transfer in the background (not awaited by the response above)
+    runFaceTransferJob(jobId, cleanSource, cleanTarget).catch(e => {
+      if (faceTransferJobs[jobId]) {
+        faceTransferJobs[jobId].status = 'error';
+        faceTransferJobs[jobId].error = e.message;
       }
-      try {
-        // Download face image bytes from source panel
-        const imgUrl = `http://${srcHost}:${srcPort}/api/v1/access/image/${f.id}.jpg?id=${f.id}`;
-        const imgRes = await axios.get(imgUrl, {
-          responseType: 'arraybuffer',
-          timeout: 15000,
-          headers: { 'Referer': `http://${srcHost}:${srcPort}/`, 'Accept': 'application/json, text/plain, */*' },
-        });
-        const buf = Buffer.from(imgRes.data);
-        if (buf.length < 100) throw new Error('empty image from source');
-
-        await uploadFaceBufferToPanel(tgtHost, tgtPort, tgtToken, name, buf);
-        results.push({ name, success: true });
-      } catch (e) {
-        results.push({ name, success: false, error: e.message });
-      }
-    }
-
-    const ok = results.filter(x => x.success).length;
-    const fail = results.length - ok - skipped;
-    res.json({ success: true, transferred: ok, skipped, failed: fail, total: srcFaces.length, results });
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// Poll job progress
+app.get('/api/buildings/:code/transfer-faces/status/:jobId', (req, res) => {
+  const job = faceTransferJobs[req.params.jobId];
+  if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
+  res.json({ success: true, job });
+  // Clean up finished jobs after they've been read a while after completion
+  if ((job.status === 'done' || job.status === 'error') && Date.now() - (job.finishedAt || 0) > 5 * 60 * 1000) {
+    delete faceTransferJobs[req.params.jobId];
+  }
+});
+
+async function runFaceTransferJob(jobId, cleanSource, cleanTarget) {
+  const job = faceTransferJobs[jobId];
+  job.status = 'running';
+
+  job.stage = 'מאתר את הפנל המקור...';
+  const sourceAddr = await resolvePanelAddress(cleanSource);
+  if (!sourceAddr) { job.status = 'error'; job.error = 'Source panel not found / offline'; job.finishedAt = Date.now(); return; }
+
+  job.stage = 'מאתר את פנל היעד...';
+  const targetAddr = await resolvePanelAddress(cleanTarget);
+  if (!targetAddr) { job.status = 'error'; job.error = 'Target panel not found / offline'; job.finishedAt = Date.now(); return; }
+
+  const [srcHost, srcPortStr] = sourceAddr.split(':');
+  const srcPort = parseInt(srcPortStr) || 80;
+  const [tgtHost, tgtPortStr] = targetAddr.split(':');
+  const tgtPort = parseInt(tgtPortStr) || 80;
+
+  job.stage = 'מתחבר לפנל המקור...';
+  const srcLogin = await panelHttpPost(srcHost, srcPort, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+  const srcToken = srcLogin?.data?.token;
+  if (!srcToken) { job.status = 'error'; job.error = 'Source panel login failed'; job.finishedAt = Date.now(); return; }
+
+  job.stage = 'מתחבר לפנל היעד...';
+  const tgtLogin = await panelHttpPost(tgtHost, tgtPort, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+  const tgtToken = tgtLogin?.data?.token;
+  if (!tgtToken) { job.status = 'error'; job.error = 'Target panel login failed'; job.finishedAt = Date.now(); return; }
+
+  job.stage = 'שולף רשימת פנים מהמקור...';
+  const srcListData = await panelHttpGetWithHeaders(srcHost, srcPort, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + srcToken });
+  const srcFaces = srcListData?.data?.list || [];
+
+  job.stage = 'שולף רשימת פנים מהיעד...';
+  const tgtListData = await panelHttpGetWithHeaders(tgtHost, tgtPort, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + tgtToken });
+  const existingTargetNames = new Set((tgtListData?.data?.list || []).map(p => (p.label || '').trim().toLowerCase()));
+
+  job.total = srcFaces.length;
+  job.stage = 'מעביר פנים...';
+
+  for (const f of srcFaces) {
+    const name = (f.label || '').trim();
+    job.currentName = name || '(ללא שם)';
+    if (!name) {
+      job.results.push({ name: '(ללא שם)', success: false, error: 'No label' });
+      job.failed++; job.done++;
+      continue;
+    }
+    if (existingTargetNames.has(name.toLowerCase())) {
+      job.results.push({ name, success: false, error: 'Already on target' });
+      job.skipped++; job.done++;
+      continue;
+    }
+    try {
+      const imgUrl = `http://${srcHost}:${srcPort}/api/v1/access/image/${f.id}.jpg?id=${f.id}`;
+      const imgRes = await axios.get(imgUrl, {
+        responseType: 'arraybuffer',
+        timeout: 15000,
+        headers: { 'Referer': `http://${srcHost}:${srcPort}/`, 'Accept': 'application/json, text/plain, */*' },
+      });
+      const buf = Buffer.from(imgRes.data);
+      if (buf.length < 100) throw new Error('empty image from source');
+
+      await uploadFaceBufferToPanel(tgtHost, tgtPort, tgtToken, name, buf);
+      job.results.push({ name, success: true });
+      job.transferred++;
+    } catch (e) {
+      job.results.push({ name, success: false, error: e.message });
+      job.failed++;
+    }
+    job.done++;
+  }
+
+  job.currentName = null;
+  job.stage = 'הושלם';
+  job.status = 'done';
+  job.finishedAt = Date.now();
+}
 
 // Upload a face to a panel from an in-memory image buffer (used for panel-to-panel transfer)
 function uploadFaceBufferToPanel(host, port, token, name, imgBuffer) {
