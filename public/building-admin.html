@@ -513,6 +513,15 @@
       right.appendChild(saveBtn);
 
       if (panels.length > 1) {
+        const transferBtn = document.createElement('button');
+        transferBtn.textContent = '📤 העתק פנים';
+        transferBtn.title = 'העתק את כל הפנים מהפנל הזה לפנל אחר';
+        transferBtn.style.cssText = 'background:none;border:1px solid #86efac;border-radius:5px;color:#15803d;cursor:pointer;font-size:12px;font-weight:700;padding:3px 8px;';
+        transferBtn.onclick = function() { toggleTransferPicker(idx, p.mac, panels); };
+        right.appendChild(transferBtn);
+      }
+
+      if (panels.length > 1) {
         const delBtn = document.createElement('button');
         delBtn.textContent = '×';
         delBtn.style.cssText = 'background:none;border:none;color:#ef4444;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;';
@@ -528,7 +537,94 @@
       row.appendChild(left);
       row.appendChild(right);
       container.appendChild(row);
+
+      // Inline transfer picker row (hidden by default, shown via toggleTransferPicker)
+      const transferRow = document.createElement('div');
+      transferRow.id = 'transfer-row-' + idx;
+      transferRow.style.cssText = 'display:none;align-items:center;gap:8px;background:#f0fdf4;border:1px solid #86efac;border-radius:7px;padding:8px 12px;margin-top:-2px;flex-wrap:wrap;';
+      container.appendChild(transferRow);
     });
+  }
+
+  // Show/hide the inline "copy faces to another panel" picker under a given panel row
+  function toggleTransferPicker(idx, sourceMac, panels) {
+    // Close any other open picker first
+    document.querySelectorAll('[id^="transfer-row-"]').forEach(function(el) {
+      if (el.id !== 'transfer-row-' + idx) el.style.display = 'none';
+    });
+    const row = document.getElementById('transfer-row-' + idx);
+    if (row.style.display === 'flex') { row.style.display = 'none'; return; }
+
+    const others = panels.filter(function(p) { return p.mac !== sourceMac; });
+    if (!others.length) return;
+
+    row.innerHTML = '';
+    const label = document.createElement('span');
+    label.textContent = 'העבר את כל הפנים אל:';
+    label.style.cssText = 'font-size:12px;font-weight:700;color:#15803d;';
+
+    const select = document.createElement('select');
+    select.id = 'transfer-target-' + idx;
+    select.style.cssText = 'flex:1;min-width:140px;padding:5px 8px;border:1.5px solid #86efac;border-radius:6px;font-family:inherit;font-size:13px;background:white;';
+    others.forEach(function(p) {
+      const opt = document.createElement('option');
+      opt.value = p.mac;
+      opt.textContent = p.label + ' (' + p.mac + ')';
+      select.appendChild(opt);
+    });
+
+    const goBtn = document.createElement('button');
+    goBtn.id = 'transfer-go-btn-' + idx;
+    goBtn.textContent = '🚀 העבר';
+    goBtn.style.cssText = 'background:#15803d;border:none;border-radius:6px;color:white;cursor:pointer;font-size:12px;font-weight:700;padding:6px 14px;';
+    goBtn.onclick = function() { runTransferFaces(idx, sourceMac, select.value); };
+
+    const resultSpan = document.createElement('span');
+    resultSpan.id = 'transfer-result-' + idx;
+    resultSpan.style.cssText = 'font-size:12px;font-weight:600;';
+
+    row.appendChild(label);
+    row.appendChild(select);
+    row.appendChild(goBtn);
+    row.appendChild(resultSpan);
+    row.style.display = 'flex';
+  }
+
+  async function runTransferFaces(idx, sourceMac, targetMac) {
+    const goBtn = document.getElementById('transfer-go-btn-' + idx);
+    const resultSpan = document.getElementById('transfer-result-' + idx);
+    if (!targetMac) return;
+    if (!confirm('להעביר את כל הפנים מהפנל הנבחר לפנל היעד?\nפנים עם שם שכבר קיים בפנל היעד ידולגו אוטומטית.')) return;
+
+    goBtn.disabled = true;
+    goBtn.textContent = '⏳ מעביר...';
+    resultSpan.textContent = '';
+    resultSpan.style.color = '#6b7280';
+    try {
+      const res = await fetch('/api/buildings/' + drawerCode + '/transfer-faces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: authUser, password: authPass, sourceMac: sourceMac, targetMac: targetMac })
+      });
+      const data = await res.json();
+      if (data.success) {
+        resultSpan.style.color = '#15803d';
+        resultSpan.textContent = '✅ הועברו ' + data.transferred + ' · דולגו ' + data.skipped + (data.failed ? ' · נכשלו ' + data.failed : '');
+        goBtn.textContent = '🚀 העבר';
+        goBtn.disabled = false;
+        checkPanelStats();
+      } else {
+        resultSpan.style.color = '#dc2626';
+        resultSpan.textContent = '❌ ' + (data.error || 'שגיאה');
+        goBtn.textContent = '🚀 העבר';
+        goBtn.disabled = false;
+      }
+    } catch (e) {
+      resultSpan.style.color = '#dc2626';
+      resultSpan.textContent = '❌ שגיאת תקשורת';
+      goBtn.textContent = '🚀 העבר';
+      goBtn.disabled = false;
+    }
   }
 
   
