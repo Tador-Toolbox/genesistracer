@@ -560,7 +560,7 @@
 
     row.innerHTML = '';
     const label = document.createElement('span');
-    label.textContent = 'העבר את כל הפנים אל:';
+    label.textContent = 'העתק את כל הפנים אל:';
     label.style.cssText = 'font-size:12px;font-weight:700;color:#15803d;';
 
     const select = document.createElement('select');
@@ -575,7 +575,7 @@
 
     const goBtn = document.createElement('button');
     goBtn.id = 'transfer-go-btn-' + idx;
-    goBtn.textContent = '🚀 העבר';
+    goBtn.textContent = '📤 העתק';
     goBtn.style.cssText = 'background:#15803d;border:none;border-radius:6px;color:white;cursor:pointer;font-size:12px;font-weight:700;padding:6px 14px;';
     goBtn.onclick = function() { runTransferFaces(idx, sourceMac, select.value); };
 
@@ -594,12 +594,12 @@
     const goBtn = document.getElementById('transfer-go-btn-' + idx);
     const resultSpan = document.getElementById('transfer-result-' + idx);
     if (!targetMac) return;
-    if (!confirm('להעביר את כל הפנים מהפנל הנבחר לפנל היעד?\nפנים עם שם שכבר קיים בפנל היעד ידולגו אוטומטית.')) return;
+    if (!confirm('להעתיק את כל הפנים מהפנל הנבחר לפנל היעד?\nהפנים יישארו גם בפנל המקור - זו העתקה, לא מעבר.\nפנים עם שם שכבר קיים בפנל היעד ידולגו אוטומטית.')) return;
 
     goBtn.disabled = true;
-    goBtn.textContent = '⏳ מעביר...';
-    resultSpan.textContent = '';
+    goBtn.textContent = '⏳ מתחיל...';
     resultSpan.style.color = '#6b7280';
+    resultSpan.textContent = 'מתחיל...';
     try {
       const res = await fetch('/api/buildings/' + drawerCode + '/transfer-faces', {
         method: 'POST',
@@ -607,23 +607,60 @@
         body: JSON.stringify({ username: authUser, password: authPass, sourceMac: sourceMac, targetMac: targetMac })
       });
       const data = await res.json();
-      if (data.success) {
-        resultSpan.style.color = '#15803d';
-        resultSpan.textContent = '✅ הועברו ' + data.transferred + ' · דולגו ' + data.skipped + (data.failed ? ' · נכשלו ' + data.failed : '');
-        goBtn.textContent = '🚀 העבר';
-        goBtn.disabled = false;
-        checkPanelStats();
-      } else {
+      if (!data.success) {
         resultSpan.style.color = '#dc2626';
         resultSpan.textContent = '❌ ' + (data.error || 'שגיאה');
-        goBtn.textContent = '🚀 העבר';
+        goBtn.textContent = '📤 העתק';
         goBtn.disabled = false;
+        return;
       }
+      pollTransferStatus(idx, data.jobId, goBtn, resultSpan);
     } catch (e) {
       resultSpan.style.color = '#dc2626';
       resultSpan.textContent = '❌ שגיאת תקשורת';
-      goBtn.textContent = '🚀 העבר';
+      goBtn.textContent = '📤 העתק';
       goBtn.disabled = false;
+    }
+  }
+
+  async function pollTransferStatus(idx, jobId, goBtn, resultSpan) {
+    try {
+      const res = await fetch('/api/buildings/' + drawerCode + '/transfer-faces/status/' + jobId);
+      const data = await res.json();
+      if (!data.success) {
+        resultSpan.style.color = '#dc2626';
+        resultSpan.textContent = '❌ אבד המעקב אחרי התהליך';
+        goBtn.textContent = '📤 העתק';
+        goBtn.disabled = false;
+        return;
+      }
+      const job = data.job;
+      if (job.status === 'error') {
+        resultSpan.style.color = '#dc2626';
+        resultSpan.textContent = '❌ ' + (job.error || 'שגיאה');
+        goBtn.textContent = '📤 העתק';
+        goBtn.disabled = false;
+        return;
+      }
+      if (job.status === 'done') {
+        resultSpan.style.color = '#15803d';
+        resultSpan.textContent = '✅ הועתקו ' + job.transferred + ' · דולגו ' + job.skipped + (job.failed ? ' · נכשלו ' + job.failed : '');
+        goBtn.textContent = '📤 העתק';
+        goBtn.disabled = false;
+        checkPanelStats();
+        return;
+      }
+      // Still running — show live progress and poll again
+      goBtn.textContent = '⏳ מעביר...';
+      if (job.total > 0) {
+        resultSpan.textContent = '🔄 ' + job.done + '/' + job.total + (job.currentName ? ' · ' + job.currentName : '');
+      } else {
+        resultSpan.textContent = '🔄 ' + (job.stage || 'מתחבר...');
+      }
+      setTimeout(function() { pollTransferStatus(idx, jobId, goBtn, resultSpan); }, 1200);
+    } catch (e) {
+      // Network hiccup mid-poll — retry rather than failing immediately
+      setTimeout(function() { pollTransferStatus(idx, jobId, goBtn, resultSpan); }, 2000);
     }
   }
 
