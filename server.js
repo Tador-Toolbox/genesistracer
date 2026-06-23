@@ -1426,6 +1426,29 @@ function panelHttpGetWithHeaders(host, port, path, extraHeaders = {}) {
   });
 }
 
+// Fetch ALL face access records from a panel, paging past the 500-per-page limit.
+// Returns the full combined list (same shape as a single page's data.list).
+async function getAllPanelFaces(host, port, token, pageSize = 500) {
+  const all = [];
+  let pageNum = 1;
+  let total = Infinity;
+  while (all.length < total) {
+    const pageData = await panelHttpGetWithHeaders(
+      host, port,
+      `/api/v1/access?page_num=${pageNum}&page_size=${pageSize}&type=face&label=`,
+      { Authorization: 'Bearer ' + token }
+    );
+    const list = pageData?.data?.list || [];
+    total = pageData?.data?.total ?? list.length;
+    if (!list.length) break; // safety: stop if panel returns an empty page
+    all.push(...list);
+    if (list.length < pageSize) break; // last page was partial — no more pages
+    pageNum++;
+    if (pageNum > 50) break; // safety cap (50 * 500 = 25,000 records)
+  }
+  return all;
+}
+
 // Helper: panelHttpPost with custom headers
 function panelHttpPostWithHeaders(host, port, path, body, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
@@ -2233,9 +2256,9 @@ app.post('/api/committee/upload-faces', async (req, res) => {
     const token = loginRes?.data?.token;
     if (!token) return res.json({ success: false, error: 'Panel login failed' });
 
-    // Get existing faces on panel to prevent duplicates
-    const existingData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
-    const existingNames = new Set((existingData?.data?.list || []).map(p => (p.label || '').trim().toLowerCase()));
+    // Get existing faces on panel to prevent duplicates (paged — panel may have 500+ faces)
+    const existingFaces = await getAllPanelFaces(host, port, token);
+    const existingNames = new Set(existingFaces.map(p => (p.label || '').trim().toLowerCase()));
 
     // Fetch the residents
     const residents = await database.collection('residents')
@@ -2398,9 +2421,8 @@ app.post('/api/committee/delete-faces', async (req, res) => {
     const token = loginRes?.data?.token;
     if (!token) return res.json({ success: false, error: 'Panel login failed' });
 
-    // Get the full access list from the panel (to map name → id)
-    const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: `Bearer ${token}` });
-    const panelList = listData?.data?.list || [];
+    // Get the full access list from the panel (to map name → id) — paged
+    const panelList = await getAllPanelFaces(host, port, token);
 
     const residents = await database.collection('residents')
       .find({ _id: { $in: residentIds.map(id => new ObjectId(id)) }, buildingCode })
@@ -2492,8 +2514,7 @@ app.post('/api/committee/panel-faces', async (req, res) => {
     const token = loginRes?.data?.token;
     if (!token) return res.json({ success: false, error: 'Panel login failed' });
 
-    const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
-    const rawList = listData?.data?.list || [];
+    const rawList = await getAllPanelFaces(host, port, token);
 
     // Fetch each face image as base64 (panel serves them at /api/v1/access/image/{file})
     const list = [];
@@ -2583,8 +2604,7 @@ app.post('/api/committee/import-faces', async (req, res) => {
     const token = loginRes?.data?.token;
     if (!token) return res.json({ success: false, error: 'Panel login failed' });
 
-    const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
-    const rawList = listData?.data?.list || [];
+    const rawList = await getAllPanelFaces(host, port, token);
 
     // Existing residents for this building (avoid duplicates by name)
     const existing = await database.collection('residents').find({ buildingCode }).toArray();
@@ -2997,8 +3017,7 @@ app.post('/api/committee/delete-resident-all-panels', async (req, res) => {
         }
 
         // Get face list from this panel
-        const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
-        const faceList = listData?.data?.list || [];
+        const faceList = await getAllPanelFaces(host, port, token);
 
         // Find matching faces by name
         const toDelete = faceList.filter(f => namesToDelete.includes((f.label || '').trim().toLowerCase()));
@@ -3214,12 +3233,11 @@ async function runFaceTransferJob(jobId, cleanSource, cleanTarget) {
   if (!tgtToken) { job.status = 'error'; job.error = 'Target panel login failed'; job.finishedAt = Date.now(); return; }
 
   job.stage = 'שולף רשימת פנים מהמקור...';
-  const srcListData = await panelHttpGetWithHeaders(srcHost, srcPort, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + srcToken });
-  const srcFaces = srcListData?.data?.list || [];
+  const srcFaces = await getAllPanelFaces(srcHost, srcPort, srcToken);
 
   job.stage = 'שולף רשימת פנים מהיעד...';
-  const tgtListData = await panelHttpGetWithHeaders(tgtHost, tgtPort, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + tgtToken });
-  const existingTargetNames = new Set((tgtListData?.data?.list || []).map(p => (p.label || '').trim().toLowerCase()));
+  const tgtFaces = await getAllPanelFaces(tgtHost, tgtPort, tgtToken);
+  const existingTargetNames = new Set(tgtFaces.map(p => (p.label || '').trim().toLowerCase()));
 
   job.total = srcFaces.length;
   job.stage = 'מעביר פנים...';
