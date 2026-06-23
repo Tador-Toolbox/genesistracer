@@ -2229,18 +2229,9 @@ app.post('/api/committee/upload-faces', async (req, res) => {
     const port = parseInt(portStr) || 80;
 
     // Login to panel
-    let loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
-    let token = loginRes?.data?.token;
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes?.data?.token;
     if (!token) return res.json({ success: false, error: 'Panel login failed' });
-    let tokenObtainedAt = Date.now();
-
-    const refreshTokenIfNeeded = async () => {
-      if (Date.now() - tokenObtainedAt > 420000) { // refresh after 7 min (token valid 8 min)
-        console.log('🔑 Panel token expiring — refreshing mid-upload...');
-        const r = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
-        if (r?.data?.token) { token = r.data.token; tokenObtainedAt = Date.now(); console.log('✅ Panel token refreshed'); }
-      }
-    };
 
     // Get existing faces on panel to prevent duplicates
     const existingData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
@@ -2261,11 +2252,12 @@ app.post('/api/committee/upload-faces', async (req, res) => {
         if (existingNames.has(name.toLowerCase())) {
           results.push({ id: r._id, name, success: false, error: 'Already on panel' });
           skipped++;
+          // Still mark as uploaded since they're already there
           await database.collection('residents').updateOne({ _id: r._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date() } });
           continue;
         }
-        await refreshTokenIfNeeded(); // refresh token if close to expiry
         await uploadFaceToPanel(host, port, token, name, r.photoUrl);
+        // Mark as uploaded in DB
         await database.collection('residents').updateOne({ _id: r._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date() } });
         results.push({ id: r._id, name, success: true });
       } catch (e) {
@@ -2503,37 +2495,26 @@ app.post('/api/committee/panel-faces', async (req, res) => {
     const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
     const rawList = listData?.data?.list || [];
 
-    // Helper: small delay to avoid overwhelming the panel with rapid requests
-    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-    // Fetch each face image as base64 — with 150ms delay + one retry on failure
+    // Fetch each face image as base64 (panel serves them at /api/v1/access/image/{file})
     const list = [];
     for (const p of rawList) {
       let photoBase64 = null;
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          const imgUrl = `http://${host}:${port}/api/v1/access/image/${p.id}.jpg?id=${p.id}`;
-          const imgRes = await axios.get(imgUrl, {
-            responseType: 'arraybuffer',
-            timeout: 15000,
-            headers: { 'Referer': `http://${host}:${port}/`, 'Accept': 'application/json, text/plain, */*' },
-          });
-          const buf = Buffer.from(imgRes.data);
-          if (buf.length > 100) {
-            photoBase64 = 'data:image/jpeg;base64,' + buf.toString('base64');
-          }
-          console.log(`📷 Face ${p.id} (${p.label}): ${buf.length} bytes`);
-          break; // success — no retry needed
-        } catch (e) {
-          if (attempt === 2) {
-            console.log(`📷 Face ${p.id} image failed after retry: ${e.message}`);
-          } else {
-            console.log(`📷 Face ${p.id} retry after error: ${e.message}`);
-            await sleep(600); // wait before retry
-          }
+      try {
+        // Image URL uses the record id (e.g. 31.jpg) with ?id= query — no auth header needed
+        const imgUrl = `http://${host}:${port}/api/v1/access/image/${p.id}.jpg?id=${p.id}`;
+        const imgRes = await axios.get(imgUrl, {
+          responseType: 'arraybuffer',
+          timeout: 15000,
+          headers: { 'Referer': `http://${host}:${port}/`, 'Accept': 'application/json, text/plain, */*' },
+        });
+        const buf = Buffer.from(imgRes.data);
+        if (buf.length > 100) {
+          photoBase64 = 'data:image/jpeg;base64,' + buf.toString('base64');
         }
+        console.log(`📷 Face ${p.id} (${p.label}): ${buf.length} bytes`);
+      } catch (e) {
+        console.log(`📷 Face ${p.id} image failed: ${e.message}`);
       }
-      await sleep(150); // 150ms between each face to avoid overloading panel
       list.push({
         id: p.id,
         name: p.label,
@@ -2610,40 +2591,33 @@ app.post('/api/committee/import-faces', async (req, res) => {
     const existingNames = new Set(existing.map(r => (r.firstName + ' ' + r.lastName).trim()));
 
     let imported = 0, skipped = 0, failed = 0;
-    const sleep2 = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     for (const p of rawList) {
       const fullName = (p.label || '').trim();
       if (!fullName) { failed++; continue; }
       if (existingNames.has(fullName)) { skipped++; continue; }
 
-      // Download face image from panel — with retry
+      // Download face image from panel
       let photoUrl = null;
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          const imgUrl = `http://${host}:${port}/api/v1/access/image/${p.id}.jpg?id=${p.id}`;
-          const imgRes = await axios.get(imgUrl, {
-            responseType: 'arraybuffer',
-            timeout: 15000,
-            headers: { 'Referer': `http://${host}:${port}/`, 'Accept': 'application/json, text/plain, */*' },
-          });
-          const buf = Buffer.from(imgRes.data);
-          if (buf.length > 100) {
-            // Upload to Cloudinary so it persists
-            const uploadResult = await new Promise((resolve, reject) => {
-              const stream = cloudinary.uploader.upload_stream(
-                { folder: 'genesistracer-residents', resource_type: 'image' },
-                (error, result) => error ? reject(error) : resolve(result)
+      try {
+        const imgUrl = `http://${host}:${port}/api/v1/access/image/${p.id}.jpg?id=${p.id}`;
+        const imgRes = await axios.get(imgUrl, {
+          responseType: 'arraybuffer',
+          timeout: 15000,
+          headers: { 'Referer': `http://${host}:${port}/`, 'Accept': 'application/json, text/plain, */*' },
+        });
+        const buf = Buffer.from(imgRes.data);
+        if (buf.length > 100) {
+          // Upload to Cloudinary so it persists
+          const uploadResult = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              { folder: 'genesistracer-residents', resource_type: 'image' },
+              (error, result) => error ? reject(error) : resolve(result)
             );
             stream.end(buf);
           });
           photoUrl = uploadResult.secure_url;
-          }
-          break; // success
-        } catch(e) {
-          if (attempt < 2) await sleep2(600);
         }
-      }
-      await sleep2(150);
+      } catch (e) { /* no photo */ }
 
       // Split name into first + last (first word = first name, rest = last)
       const parts = fullName.split(/\s+/);
@@ -3150,6 +3124,156 @@ app.post('/api/buildings/:code/panel-stats', async (req, res) => {
 });
 
 
+// Transfer all faces from one panel to another panel (same building)
+app.post('/api/buildings/:code/transfer-faces', async (req, res) => {
+  try {
+    const { username, password, sourceMac, targetMac } = req.body;
+    if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASS) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!sourceMac || !targetMac) {
+      return res.status(400).json({ success: false, error: 'sourceMac and targetMac required' });
+    }
+    const cleanSource = sourceMac.replace(/[:\-\s]/g, '').toUpperCase();
+    const cleanTarget = targetMac.replace(/[:\-\s]/g, '').toUpperCase();
+    if (cleanSource === cleanTarget) {
+      return res.json({ success: false, error: 'Source and target panels are the same' });
+    }
+
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode: req.params.code });
+    if (!building) return res.json({ success: false, error: 'Building not found' });
+
+    // Resolve both panel addresses
+    const sourceAddr = await resolvePanelAddress(cleanSource);
+    if (!sourceAddr) return res.json({ success: false, error: 'Source panel not found / offline' });
+    const targetAddr = await resolvePanelAddress(cleanTarget);
+    if (!targetAddr) return res.json({ success: false, error: 'Target panel not found / offline' });
+
+    const [srcHost, srcPortStr] = sourceAddr.split(':');
+    const srcPort = parseInt(srcPortStr) || 80;
+    const [tgtHost, tgtPortStr] = targetAddr.split(':');
+    const tgtPort = parseInt(tgtPortStr) || 80;
+
+    // Login to both panels
+    const srcLogin = await panelHttpPost(srcHost, srcPort, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const srcToken = srcLogin?.data?.token;
+    if (!srcToken) return res.json({ success: false, error: 'Source panel login failed' });
+
+    const tgtLogin = await panelHttpPost(tgtHost, tgtPort, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const tgtToken = tgtLogin?.data?.token;
+    if (!tgtToken) return res.json({ success: false, error: 'Target panel login failed' });
+
+    // Get face list from source panel
+    const srcListData = await panelHttpGetWithHeaders(srcHost, srcPort, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + srcToken });
+    const srcFaces = srcListData?.data?.list || [];
+
+    // Get existing names on target panel (skip duplicates)
+    const tgtListData = await panelHttpGetWithHeaders(tgtHost, tgtPort, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + tgtToken });
+    const existingTargetNames = new Set((tgtListData?.data?.list || []).map(p => (p.label || '').trim().toLowerCase()));
+
+    const results = [];
+    let skipped = 0;
+    for (const f of srcFaces) {
+      const name = (f.label || '').trim();
+      if (!name) { results.push({ name: '(ללא שם)', success: false, error: 'No label' }); continue; }
+      if (existingTargetNames.has(name.toLowerCase())) {
+        results.push({ name, success: false, error: 'Already on target' });
+        skipped++;
+        continue;
+      }
+      try {
+        // Download face image bytes from source panel
+        const imgUrl = `http://${srcHost}:${srcPort}/api/v1/access/image/${f.id}.jpg?id=${f.id}`;
+        const imgRes = await axios.get(imgUrl, {
+          responseType: 'arraybuffer',
+          timeout: 15000,
+          headers: { 'Referer': `http://${srcHost}:${srcPort}/`, 'Accept': 'application/json, text/plain, */*' },
+        });
+        const buf = Buffer.from(imgRes.data);
+        if (buf.length < 100) throw new Error('empty image from source');
+
+        await uploadFaceBufferToPanel(tgtHost, tgtPort, tgtToken, name, buf);
+        results.push({ name, success: true });
+      } catch (e) {
+        results.push({ name, success: false, error: e.message });
+      }
+    }
+
+    const ok = results.filter(x => x.success).length;
+    const fail = results.length - ok - skipped;
+    res.json({ success: true, transferred: ok, skipped, failed: fail, total: srcFaces.length, results });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Upload a face to a panel from an in-memory image buffer (used for panel-to-panel transfer)
+function uploadFaceBufferToPanel(host, port, token, name, imgBuffer) {
+  return new Promise((resolve, reject) => {
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    const tmpImg = path.join(os.tmpdir(), `xferface_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
+    fs.writeFileSync(tmpImg, imgBuffer);
+
+    const uploadCmd = `curl -s --max-time 20 -X POST ` +
+      `-H "Authorization: Bearer ${token}" ` +
+      `-F "file=@${tmpImg};type=image/jpeg" ` +
+      `"http://${host}:${port}/api/v1/access/image/jpg"`;
+
+    exec(uploadCmd, { maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      if (err) { fs.unlink(tmpImg, () => {}); return reject(new Error('image upload failed: ' + err.message)); }
+      let serverFile;
+      try {
+        const parsed = JSON.parse(stdout);
+        serverFile = parsed?.data?.name || parsed?.data?.filename || parsed?.name || parsed?.data?.face_picture_name || parsed?.data;
+      } catch(e) {
+        fs.unlink(tmpImg, () => {});
+        return reject(new Error('bad image response: ' + (stdout || '').slice(0,100)));
+      }
+      if (!serverFile) { fs.unlink(tmpImg, () => {}); return reject(new Error('no filename in: ' + (stdout || '').slice(0,100))); }
+
+      const accessBody = JSON.stringify({
+        label: name,
+        effective_date: Date.now(),
+        expired_date: 7258175999000,
+        valid_weekdays: [0, 1, 2, 3, 4, 5, 6],
+        valid_count: -1,
+        facePictureName: serverFile,
+        content: serverFile,
+        valid_periods: JSON.stringify([{ begin: '00:00:00', end: '23:59:59' }]),
+        valid_door: '1',
+      });
+      const tmpJson = path.join(os.tmpdir(), `xferaccess_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+      fs.writeFileSync(tmpJson, accessBody);
+
+      const accessCmd = `curl -s --max-time 15 -X POST ` +
+        `-H "Authorization: Bearer ${token}" ` +
+        `-H "Content-Type: application/json;charset=UTF-8" ` +
+        `--data @${tmpJson} ` +
+        `"http://${host}:${port}/api/v1/access"`;
+
+      exec(accessCmd, { maxBuffer: 1024 * 1024 }, (err2, stdout2) => {
+        fs.unlink(tmpImg, () => {});
+        fs.unlink(tmpJson, () => {});
+        if (err2) return reject(new Error('access record failed: ' + err2.message));
+        try {
+          const parsed2 = JSON.parse(stdout2);
+          if (parsed2?.status && parsed2.status !== 'OK' && parsed2.status !== 0 && parsed2.status !== '0') {
+            return reject(new Error('panel: ' + (parsed2.error || parsed2.status || JSON.stringify(parsed2).slice(0,80))));
+          }
+          if (parsed2?.error) {
+            return reject(new Error('panel: ' + parsed2.error));
+          }
+        } catch(e) { /* non-JSON, assume ok */ }
+        resolve(true);
+      });
+    });
+  });
+}
+
+
 // ==================== RFID CARD MANAGEMENT ====================
 
 // RFID: Login to panel directly (by IP — NOT via NexHome tunnel)
@@ -3334,128 +3458,6 @@ app.post('/api/rfid/panel-cards', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-
-// ============================================================
-// PRICELIST ROUTES
-// ============================================================
-
-const plUpload = multer({ storage: multer.memoryStorage() });
-
-function requireManagerAuth(req, res, next) {
-  const username = req.body?.username || req.headers['x-manager-user'];
-  const password = req.body?.password || req.headers['x-manager-pass'];
-  if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) return next();
-  res.status(401).json({ error: 'Unauthorized' });
-}
-
-// GET /api/pricelist — ציבורי
-app.get('/api/pricelist', async (req, res) => {
-  try {
-    const database = await require('./db').connectDB();
-    const doc = await database.collection('pricelist').findOne({ _id: 'active' });
-    res.json(doc || { meta: {}, categories: [], notes: [], logoUrl: null, cols: 4 });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// POST /api/pricelist/verify — בדיקת credentials בלבד
-app.post('/api/pricelist/verify', requireManagerAuth, async (req, res) => {
-  res.json({ ok: true });
-});
-
-// POST /api/pricelist/meta
-app.post('/api/pricelist/meta', requireManagerAuth, async (req, res) => {
-  try {
-    const database = await require('./db').connectDB();
-    const { meta, notes, cols, categories } = req.body;
-    await database.collection('pricelist').updateOne(
-      { _id: 'active' },
-      { $set: { meta, notes, cols, categories, updatedAt: new Date() } },
-      { upsert: true }
-    );
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// POST /api/pricelist/logo
-app.post('/api/pricelist/logo', plUpload.single('logo'), async (req, res) => {
-  if(req.body?.username !== process.env.ADMIN_USER || req.body?.password !== process.env.ADMIN_PASS) return res.status(401).json({error:'Unauthorized'});
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No file' });
-    const { Readable } = require('stream');
-    const result = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: 'tador/pricelist', public_id: 'logo', overwrite: true, resource_type: 'image', transformation: [{width:400, crop:'limit', quality:'auto:good', fetch_format:'auto'}] },
-        (err, r) => err ? reject(err) : resolve(r)
-      );
-      Readable.from(req.file.buffer).pipe(stream);
-    });
-    const database = await require('./db').connectDB();
-    await database.collection('pricelist').updateOne(
-      { _id: 'active' },
-      { $set: { logoUrl: result.secure_url, updatedAt: new Date() } },
-      { upsert: true }
-    );
-    res.json({ logoUrl: result.secure_url });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// DELETE /api/pricelist/logo
-app.delete('/api/pricelist/logo', requireManagerAuth, async (req, res) => {
-  try {
-    await cloudinary.uploader.destroy('tador/pricelist/logo');
-    const database = await require('./db').connectDB();
-    await database.collection('pricelist').updateOne({ _id: 'active' }, { $set: { logoUrl: null } });
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// POST /api/pricelist/product-image/:productId
-app.post('/api/pricelist/product-image/:productId', plUpload.single('image'), async (req, res) => {
-  if(req.body?.username !== process.env.ADMIN_USER || req.body?.password !== process.env.ADMIN_PASS) return res.status(401).json({error:'Unauthorized'});
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No file' });
-    const { productId } = req.params;
-    const { Readable } = require('stream');
-    const result = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: 'tador/pricelist/products', public_id: `product_${productId}`, overwrite: true, resource_type: 'image', transformation: [{width:800, height:800, crop:'limit', quality:'auto:good', fetch_format:'auto'}] },
-        (err, r) => err ? reject(err) : resolve(r)
-      );
-      Readable.from(req.file.buffer).pipe(stream);
-    });
-    const database = await require('./db').connectDB();
-    const doc = await database.collection('pricelist').findOne({ _id: 'active' });
-    if (doc && doc.categories) {
-      doc.categories.forEach(cat => {
-        const p = (cat.products || []).find(p => p.id === productId);
-        if (p) p.imgUrl = result.secure_url;
-      });
-      await database.collection('pricelist').updateOne({ _id: 'active' }, { $set: { categories: doc.categories } });
-    }
-    res.json({ imgUrl: result.secure_url });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// DELETE /api/pricelist/product-image/:productId
-app.delete('/api/pricelist/product-image/:productId', requireManagerAuth, async (req, res) => {
-  try {
-    const { productId } = req.params;
-    await cloudinary.uploader.destroy(`tador/pricelist/products/product_${productId}`);
-    const database = await require('./db').connectDB();
-    const doc = await database.collection('pricelist').findOne({ _id: 'active' });
-    if (doc && doc.categories) {
-      doc.categories.forEach(cat => {
-        const p = (cat.products || []).find(p => p.id === productId);
-        if (p) p.imgUrl = null;
-      });
-      await database.collection('pricelist').updateOne({ _id: 'active' }, { $set: { categories: doc.categories } });
-    }
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// ============================================================
-
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
   console.log(`🌐 Main: http://localhost:${PORT}`);
@@ -3480,103 +3482,3 @@ app.listen(PORT, () => {
     }
   }, 10 * 60 * 1000); // כל 10 דקות
 });
-
-// Committee: Step 1 — login to panel, return session (host+port+token)
-app.post('/api/committee/panel-session', async (req, res) => {
-  try {
-    const { buildingCode, password, panelMac } = req.body;
-    const database = await require('./db').connectDB();
-    const building = await database.collection('buildings').findOne({ buildingCode, password });
-    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
-
-    const rawMac = panelMac || building.mac;
-    const cleanMac = rawMac.replace(/[:\-\s]/g, '').toUpperCase();
-    const panelAddress = await resolvePanelAddress(cleanMac);
-    if (!panelAddress) return res.json({ success: false, error: 'פנל לא נמצא / מנותק' });
-
-    const [host, portStr] = panelAddress.split(':');
-    const port = parseInt(portStr) || 80;
-    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
-    const token = loginRes?.data?.token;
-    if (!token) return res.json({ success: false, error: 'התחברות לפנל נכשלה' });
-
-    res.json({ success: true, host, port, token });
-  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
-});
-
-// Committee: Step 2 — get face list (no images, fast)
-app.post('/api/committee/panel-face-list', async (req, res) => {
-  try {
-    const { host, port, token } = req.body;
-    const listData = await panelHttpGetWithHeaders(host, port,
-      '/api/v1/access?page_num=1&page_size=500&type=face&label=',
-      { Authorization: 'Bearer ' + token }
-    );
-    const faces = (listData?.data?.list || []).map(p => ({
-      id: p.id, name: p.label, type: p.type, createdTime: p.created_time,
-    }));
-    res.json({ success: true, faces, total: faces.length });
-  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
-});
-
-// Committee: Step 3 — get single face photo
-app.post('/api/committee/panel-face-photo', async (req, res) => {
-  try {
-    const { host, port, token, faceId } = req.body;
-    const imgUrl = `http://${host}:${port}/api/v1/access/image/${faceId}.jpg?id=${faceId}`;
-    const imgRes = await axios.get(imgUrl, {
-      responseType: 'arraybuffer', timeout: 12000,
-      headers: { 'Referer': `http://${host}:${port}/`, 'Accept': '*/*' },
-    });
-    const buf = Buffer.from(imgRes.data);
-    if (buf.length < 100) return res.json({ success: false, error: 'empty' });
-    res.json({ success: true, photo: 'data:image/jpeg;base64,' + buf.toString('base64') });
-  } catch (err) { res.json({ success: false, error: err.message }); }
-});
-
-
-// Committee: upload ONE resident face to panel (for client-side progress loop)
-app.post('/api/committee/upload-one-face', async (req, res) => {
-  try {
-    const { host, port, token, residentId, buildingCode, password, existingNames } = req.body;
-    if (!host || !port || !token || !residentId) {
-      return res.status(400).json({ success: false, error: 'Missing params' });
-    }
-    const { ObjectId } = require('mongodb');
-    const database = await require('./db').connectDB();
-    const building = await database.collection('buildings').findOne({ buildingCode, password });
-    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
-
-    const resident = await database.collection('residents').findOne({ _id: new ObjectId(residentId), buildingCode });
-    if (!resident) return res.json({ success: false, error: 'Resident not found' });
-    if (!resident.photoUrl) return res.json({ success: false, skipped: true, reason: 'no_photo' });
-
-    const name = (resident.firstName + ' ' + resident.lastName).trim();
-
-    // Check duplicate (client passes known panel names to avoid re-checking)
-    if (Array.isArray(existingNames) && existingNames.includes(name.toLowerCase())) {
-      await database.collection('residents').updateOne({ _id: resident._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date() } });
-      return res.json({ success: false, skipped: true, reason: 'duplicate', name });
-    }
-
-    await uploadFaceToPanel(host, port, token, name, resident.photoUrl);
-    await database.collection('residents').updateOne({ _id: resident._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date() } });
-    res.json({ success: true, name });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Committee: get panel existing face names (for duplicate check)
-app.post('/api/committee/panel-existing-names', async (req, res) => {
-  try {
-    const { host, port, token } = req.body;
-    const listData = await panelHttpGetWithHeaders(host, port,
-      '/api/v1/access?page_num=1&page_size=500&type=face&label=',
-      { Authorization: 'Bearer ' + token }
-    );
-    const names = (listData?.data?.list || []).map(p => (p.label || '').trim().toLowerCase());
-    res.json({ success: true, names });
-  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
-});
-
