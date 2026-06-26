@@ -428,7 +428,7 @@
     const status = document.getElementById('uploadStatus');
     const btn = document.getElementById('uploadBtn');
     status.style.color = '#2563eb';
-    status.textContent = '⏳ מתחבר לפנל ומעלה ' + ids.length + ' דיירים...';
+    status.textContent = '⏳ מתחיל...';
     if (btn) btn.disabled = true;
     try {
       const res = await fetch('/api/committee/upload-faces', {
@@ -456,31 +456,66 @@
         return;
       }
 
-      if (!res.ok) {
-        console.error('upload-faces: HTTP error', { httpStatus: res.status, data });
-      }
-
-      if (data.success) {
-        status.style.color = '#16a34a';
-        status.textContent = `✅ הועלו ${data.uploaded} בהצלחה` + (data.skipped ? `, ${data.skipped} כבר בפנל` : '') + (data.failed ? `, ${data.failed} נכשלו` : '');
-        if (data.failed) {
-          const failed = data.results.filter(r => !r.success).map(r => r.name + ' (' + r.error + ')').join(', ');
-          console.log('Failed:', failed);
-        }
-        selectedIds.clear();
-        updateSelCount();
-        loadResidents();
-      } else {
-        console.error('upload-faces: success=false', data);
+      if (!res.ok || !data.success) {
+        console.error('upload-faces: start failed', { httpStatus: res.status, data });
         status.style.color = '#ef4444';
         status.textContent = '❌ ' + (data.error || 'שגיאה') + ' — פרטים ב-Console (F12)';
+        if (btn) btn.disabled = false;
+        return;
       }
+
+      pollUploadFacesStatus(data.jobId, btn, status);
     } catch(e) {
       console.error('upload-faces: network/fetch error', e);
       status.style.color = '#ef4444';
       status.textContent = '❌ שגיאת תקשורת (' + e.message + ') — פרטים ב-Console (F12)';
+      if (btn) btn.disabled = false;
     }
-    if (btn) btn.disabled = false;
+  }
+
+  async function pollUploadFacesStatus(jobId, btn, status) {
+    try {
+      const res = await fetch('/api/committee/upload-faces/status/' + jobId);
+      const data = await res.json();
+      if (!data.success) {
+        console.error('upload-faces: lost track of job', data);
+        status.style.color = '#ef4444';
+        status.textContent = '❌ אבד המעקב אחרי התהליך';
+        if (btn) btn.disabled = false;
+        return;
+      }
+      const job = data.job;
+      if (job.status === 'error') {
+        console.error('upload-faces: job error', job);
+        status.style.color = '#ef4444';
+        status.textContent = '❌ ' + (job.error || 'שגיאה') + ' — פרטים ב-Console (F12)';
+        if (btn) btn.disabled = false;
+        return;
+      }
+      if (job.status === 'done') {
+        status.style.color = '#16a34a';
+        status.textContent = `✅ הועלו ${job.uploaded} בהצלחה` + (job.skipped ? `, ${job.skipped} כבר בפנל` : '') + (job.failed ? `, ${job.failed} נכשלו` : '');
+        if (job.failed) {
+          const failed = job.results.filter(r => !r.success).map(r => r.name + ' (' + r.error + ')').join(', ');
+          console.log('Failed:', failed);
+        }
+        if (btn) btn.disabled = false;
+        selectedIds.clear();
+        updateSelCount();
+        loadResidents();
+        return;
+      }
+      // Still running — show live progress and poll again
+      if (job.total > 0) {
+        status.textContent = '⏳ ' + job.done + '/' + job.total + (job.currentName ? ' · ' + job.currentName : '');
+      } else {
+        status.textContent = '⏳ ' + (job.stage || 'מתחבר...');
+      }
+      setTimeout(function() { pollUploadFacesStatus(jobId, btn, status); }, 1200);
+    } catch (e) {
+      // Network hiccup mid-poll — retry rather than failing immediately
+      setTimeout(function() { pollUploadFacesStatus(jobId, btn, status); }, 2000);
+    }
   }
 
   // Delete face from PANEL only (keeps resident in system)
