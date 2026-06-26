@@ -2226,7 +2226,9 @@ app.delete('/api/committee/residents/:id', async (req, res) => {
 app.post('/api/committee/upload-faces', async (req, res) => {
   try {
     const { buildingCode, password, residentIds } = req.body;
+    console.log(`📤 [upload-faces] request: building=${buildingCode} residents=${(residentIds||[]).length} panelMac=${req.body.panelMac || '(building default)'}`);
     if (!buildingCode || !password || !Array.isArray(residentIds) || !residentIds.length) {
+      console.log('📤 [upload-faces] ❌ missing required fields');
       return res.status(400).json({ success: false, error: 'buildingCode, password and residentIds required' });
     }
     const { ObjectId } = require('mongodb');
@@ -2234,19 +2236,28 @@ app.post('/api/committee/upload-faces', async (req, res) => {
 
     // Verify committee credentials
     const building = await database.collection('buildings').findOne({ buildingCode, password });
-    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    if (!building) {
+      console.log(`📤 [upload-faces] ❌ unauthorized for building=${buildingCode}`);
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
 
     // Resolve panel address via NexHome lookup (same flow as /api/lookup)
     // Use selected panel MAC if provided, otherwise fall back to building's primary MAC
     const rawMac = req.body.panelMac || building.mac;
     const cleanMac = rawMac.replace(/[:\-\s]/g, '').toUpperCase();
+    console.log(`📤 [upload-faces] resolving panel mac=${cleanMac}`);
     let panelAddress;
     try {
       panelAddress = await resolvePanelAddress(cleanMac);
     } catch (e) {
+      console.log(`📤 [upload-faces] ❌ resolvePanelAddress threw: ${e.message}`);
       return res.json({ success: false, error: 'Could not reach panel: ' + e.message });
     }
-    if (!panelAddress) return res.json({ success: false, error: 'Panel not found / offline' });
+    if (!panelAddress) {
+      console.log(`📤 [upload-faces] ❌ panel not found/offline mac=${cleanMac}`);
+      return res.json({ success: false, error: 'Panel not found / offline' });
+    }
+    console.log(`📤 [upload-faces] panel resolved → ${panelAddress}`);
 
     const [host, portStr] = panelAddress.split(':');
     const port = parseInt(portStr) || 80;
@@ -2254,25 +2265,36 @@ app.post('/api/committee/upload-faces', async (req, res) => {
     // Login to panel
     const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
     const token = loginRes?.data?.token;
-    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+    if (!token) {
+      console.log(`📤 [upload-faces] ❌ panel login failed at ${host}:${port} — response: ${JSON.stringify(loginRes).slice(0,200)}`);
+      return res.json({ success: false, error: 'Panel login failed' });
+    }
+    console.log(`📤 [upload-faces] ✅ panel login OK at ${host}:${port}`);
 
     // Get existing faces on panel to prevent duplicates (paged — panel may have 500+ faces)
     const existingFaces = await getAllPanelFaces(host, port, token);
     const existingNames = new Set(existingFaces.map(p => (p.label || '').trim().toLowerCase()));
+    console.log(`📤 [upload-faces] existing faces on panel: ${existingFaces.length}`);
 
     // Fetch the residents
     const residents = await database.collection('residents')
       .find({ _id: { $in: residentIds.map(id => new ObjectId(id)) }, buildingCode })
       .toArray();
+    console.log(`📤 [upload-faces] matched ${residents.length}/${residentIds.length} residents in DB`);
 
     const results = [];
     let skipped = 0;
     for (const r of residents) {
       const name = (r.firstName + ' ' + r.lastName).trim();
       try {
-        if (!r.photoUrl) { results.push({ id: r._id, name, success: false, error: 'No photo' }); continue; }
+        if (!r.photoUrl) {
+          console.log(`📤 [upload-faces]   ⏭️ ${name}: no photoUrl`);
+          results.push({ id: r._id, name, success: false, error: 'No photo' });
+          continue;
+        }
         // Skip if name already exists on panel
         if (existingNames.has(name.toLowerCase())) {
+          console.log(`📤 [upload-faces]   ⏭️ ${name}: already on panel`);
           results.push({ id: r._id, name, success: false, error: 'Already on panel' });
           skipped++;
           // Still mark as uploaded since they're already there
@@ -2280,18 +2302,22 @@ app.post('/api/committee/upload-faces', async (req, res) => {
           continue;
         }
         await uploadFaceToPanel(host, port, token, name, r.photoUrl);
+        console.log(`📤 [upload-faces]   ✅ ${name}: uploaded`);
         // Mark as uploaded in DB
         await database.collection('residents').updateOne({ _id: r._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date() } });
         results.push({ id: r._id, name, success: true });
       } catch (e) {
+        console.log(`📤 [upload-faces]   ❌ ${name}: ${e.message}`);
         results.push({ id: r._id, name, success: false, error: e.message });
       }
     }
 
     const ok = results.filter(x => x.success).length;
     const fail = results.length - ok - skipped;
+    console.log(`📤 [upload-faces] done: uploaded=${ok} skipped=${skipped} failed=${fail} total=${results.length}`);
     res.json({ success: true, uploaded: ok, skipped, failed: fail, results });
   } catch (err) {
+    console.log(`📤 [upload-faces] ❌ UNHANDLED ERROR: ${err.message}\n${err.stack}`);
     res.status(500).json({ success: false, error: err.message });
   }
 });
