@@ -3615,6 +3615,127 @@ app.post('/api/rfid/panel-cards', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
+// ============================================================
+// PRICELIST ROUTES
+// ============================================================
+
+const plUpload = multer({ storage: multer.memoryStorage() });
+
+function requireManagerAuth(req, res, next) {
+  const username = req.body?.username || req.headers['x-manager-user'];
+  const password = req.body?.password || req.headers['x-manager-pass'];
+  if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) return next();
+  res.status(401).json({ error: 'Unauthorized' });
+}
+
+// GET /api/pricelist — ציבורי
+app.get('/api/pricelist', async (req, res) => {
+  try {
+    const database = await require('./db').connectDB();
+    const doc = await database.collection('pricelist').findOne({ _id: 'active' });
+    res.json(doc || { meta: {}, categories: [], notes: [], logoUrl: null, cols: 4 });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/pricelist/verify — בדיקת credentials בלבד
+app.post('/api/pricelist/verify', requireManagerAuth, async (req, res) => {
+  res.json({ ok: true });
+});
+
+// POST /api/pricelist/meta
+app.post('/api/pricelist/meta', requireManagerAuth, async (req, res) => {
+  try {
+    const database = await require('./db').connectDB();
+    const { meta, notes, cols, categories } = req.body;
+    await database.collection('pricelist').updateOne(
+      { _id: 'active' },
+      { $set: { meta, notes, cols, categories, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/pricelist/logo
+app.post('/api/pricelist/logo', plUpload.single('logo'), async (req, res) => {
+  if(req.body?.username !== process.env.ADMIN_USER || req.body?.password !== process.env.ADMIN_PASS) return res.status(401).json({error:'Unauthorized'});
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const { Readable } = require('stream');
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'tador/pricelist', public_id: 'logo', overwrite: true, resource_type: 'image', transformation: [{width:400, crop:'limit', quality:'auto:good', fetch_format:'auto'}] },
+        (err, r) => err ? reject(err) : resolve(r)
+      );
+      Readable.from(req.file.buffer).pipe(stream);
+    });
+    const database = await require('./db').connectDB();
+    await database.collection('pricelist').updateOne(
+      { _id: 'active' },
+      { $set: { logoUrl: result.secure_url, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    res.json({ logoUrl: result.secure_url });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/pricelist/logo
+app.delete('/api/pricelist/logo', requireManagerAuth, async (req, res) => {
+  try {
+    await cloudinary.uploader.destroy('tador/pricelist/logo');
+    const database = await require('./db').connectDB();
+    await database.collection('pricelist').updateOne({ _id: 'active' }, { $set: { logoUrl: null } });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/pricelist/product-image/:productId
+app.post('/api/pricelist/product-image/:productId', plUpload.single('image'), async (req, res) => {
+  if(req.body?.username !== process.env.ADMIN_USER || req.body?.password !== process.env.ADMIN_PASS) return res.status(401).json({error:'Unauthorized'});
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const { productId } = req.params;
+    const { Readable } = require('stream');
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'tador/pricelist/products', public_id: `product_${productId}`, overwrite: true, resource_type: 'image', transformation: [{width:800, height:800, crop:'limit', quality:'auto:good', fetch_format:'auto'}] },
+        (err, r) => err ? reject(err) : resolve(r)
+      );
+      Readable.from(req.file.buffer).pipe(stream);
+    });
+    const database = await require('./db').connectDB();
+    const doc = await database.collection('pricelist').findOne({ _id: 'active' });
+    if (doc && doc.categories) {
+      doc.categories.forEach(cat => {
+        const p = (cat.products || []).find(p => p.id === productId);
+        if (p) p.imgUrl = result.secure_url;
+      });
+      await database.collection('pricelist').updateOne({ _id: 'active' }, { $set: { categories: doc.categories } });
+    }
+    res.json({ imgUrl: result.secure_url });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/pricelist/product-image/:productId
+app.delete('/api/pricelist/product-image/:productId', requireManagerAuth, async (req, res) => {
+  try {
+    const { productId } = req.params;
+    await cloudinary.uploader.destroy(`tador/pricelist/products/product_${productId}`);
+    const database = await require('./db').connectDB();
+    const doc = await database.collection('pricelist').findOne({ _id: 'active' });
+    if (doc && doc.categories) {
+      doc.categories.forEach(cat => {
+        const p = (cat.products || []).find(p => p.id === productId);
+        if (p) p.imgUrl = null;
+      });
+      await database.collection('pricelist').updateOne({ _id: 'active' }, { $set: { categories: doc.categories } });
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
   console.log(`🌐 Main: http://localhost:${PORT}`);
