@@ -1426,6 +1426,29 @@ function panelHttpGetWithHeaders(host, port, path, extraHeaders = {}) {
   });
 }
 
+// Fetch ALL face access records from a panel, paging past the 500-per-page limit.
+// Returns the full combined list (same shape as a single page's data.list).
+async function getAllPanelFaces(host, port, token, pageSize = 500) {
+  const all = [];
+  let pageNum = 1;
+  let total = Infinity;
+  while (all.length < total) {
+    const pageData = await panelHttpGetWithHeaders(
+      host, port,
+      `/api/v1/access?page_num=${pageNum}&page_size=${pageSize}&type=face&label=`,
+      { Authorization: 'Bearer ' + token }
+    );
+    const list = pageData?.data?.list || [];
+    total = pageData?.data?.total ?? list.length;
+    if (!list.length) break; // safety: stop if panel returns an empty page
+    all.push(...list);
+    if (list.length < pageSize) break; // last page was partial — no more pages
+    pageNum++;
+    if (pageNum > 50) break; // safety cap (50 * 500 = 25,000 records)
+  }
+  return all;
+}
+
 // Helper: panelHttpPost with custom headers
 function panelHttpPostWithHeaders(host, port, path, body, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
@@ -2200,78 +2223,162 @@ app.delete('/api/committee/residents/:id', async (req, res) => {
 
 
 // Committee: upload resident face(s) to the panel
+// In-memory store for running committee face-upload jobs (progress polling)
+const uploadFacesJobs = {};
+
 app.post('/api/committee/upload-faces', async (req, res) => {
   try {
     const { buildingCode, password, residentIds } = req.body;
+    console.log(`📤 [upload-faces] request: building=${buildingCode} residents=${(residentIds||[]).length} panelMac=${req.body.panelMac || '(building default)'}`);
     if (!buildingCode || !password || !Array.isArray(residentIds) || !residentIds.length) {
+      console.log('📤 [upload-faces] ❌ missing required fields');
       return res.status(400).json({ success: false, error: 'buildingCode, password and residentIds required' });
     }
-    const { ObjectId } = require('mongodb');
     const database = await require('./db').connectDB();
 
     // Verify committee credentials
     const building = await database.collection('buildings').findOne({ buildingCode, password });
-    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
-
-    // Resolve panel address via NexHome lookup (same flow as /api/lookup)
-    // Use selected panel MAC if provided, otherwise fall back to building's primary MAC
-    const rawMac = req.body.panelMac || building.mac;
-    const cleanMac = rawMac.replace(/[:\-\s]/g, '').toUpperCase();
-    let panelAddress;
-    try {
-      panelAddress = await resolvePanelAddress(cleanMac);
-    } catch (e) {
-      return res.json({ success: false, error: 'Could not reach panel: ' + e.message });
+    if (!building) {
+      console.log(`📤 [upload-faces] ❌ unauthorized for building=${buildingCode}`);
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
-    if (!panelAddress) return res.json({ success: false, error: 'Panel not found / offline' });
 
-    const [host, portStr] = panelAddress.split(':');
-    const port = parseInt(portStr) || 80;
+    const jobId = 'upl_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    uploadFacesJobs[jobId] = {
+      status: 'starting',   // starting | running | done | error
+      stage: 'מתחבר לפנל...',
+      done: 0,
+      total: 0,
+      uploaded: 0,
+      skipped: 0,
+      failed: 0,
+      currentName: null,
+      results: [],
+      error: null,
+      startedAt: Date.now(),
+    };
+    res.json({ success: true, jobId });
 
-    // Login to panel
-    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
-    const token = loginRes?.data?.token;
-    if (!token) return res.json({ success: false, error: 'Panel login failed' });
-
-    // Get existing faces on panel to prevent duplicates
-    const existingData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
-    const existingNames = new Set((existingData?.data?.list || []).map(p => (p.label || '').trim().toLowerCase()));
-
-    // Fetch the residents
-    const residents = await database.collection('residents')
-      .find({ _id: { $in: residentIds.map(id => new ObjectId(id)) }, buildingCode })
-      .toArray();
-
-    const results = [];
-    let skipped = 0;
-    for (const r of residents) {
-      const name = (r.firstName + ' ' + r.lastName).trim();
-      try {
-        if (!r.photoUrl) { results.push({ id: r._id, name, success: false, error: 'No photo' }); continue; }
-        // Skip if name already exists on panel
-        if (existingNames.has(name.toLowerCase())) {
-          results.push({ id: r._id, name, success: false, error: 'Already on panel' });
-          skipped++;
-          // Still mark as uploaded since they're already there
-          await database.collection('residents').updateOne({ _id: r._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date() } });
-          continue;
-        }
-        await uploadFaceToPanel(host, port, token, name, r.photoUrl);
-        // Mark as uploaded in DB
-        await database.collection('residents').updateOne({ _id: r._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date() } });
-        results.push({ id: r._id, name, success: true });
-      } catch (e) {
-        results.push({ id: r._id, name, success: false, error: e.message });
+    runUploadFacesJob(jobId, buildingCode, building, residentIds, req.body.panelMac).catch(e => {
+      console.log(`📤 [upload-faces] ❌ UNHANDLED ERROR: ${e.message}\n${e.stack}`);
+      if (uploadFacesJobs[jobId]) {
+        uploadFacesJobs[jobId].status = 'error';
+        uploadFacesJobs[jobId].error = e.message;
+        uploadFacesJobs[jobId].finishedAt = Date.now();
       }
-    }
-
-    const ok = results.filter(x => x.success).length;
-    const fail = results.length - ok - skipped;
-    res.json({ success: true, uploaded: ok, skipped, failed: fail, results });
+    });
   } catch (err) {
+    console.log(`📤 [upload-faces] ❌ UNHANDLED ERROR: ${err.message}\n${err.stack}`);
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// Poll upload-faces job progress
+app.get('/api/committee/upload-faces/status/:jobId', (req, res) => {
+  const job = uploadFacesJobs[req.params.jobId];
+  if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
+  res.json({ success: true, job });
+  if ((job.status === 'done' || job.status === 'error') && Date.now() - (job.finishedAt || 0) > 5 * 60 * 1000) {
+    delete uploadFacesJobs[req.params.jobId];
+  }
+});
+
+async function runUploadFacesJob(jobId, buildingCode, building, residentIds, panelMac) {
+  const job = uploadFacesJobs[jobId];
+  job.status = 'running';
+  const { ObjectId } = require('mongodb');
+  const database = await require('./db').connectDB();
+
+  // Resolve panel address via NexHome lookup (same flow as /api/lookup)
+  // Use selected panel MAC if provided, otherwise fall back to building's primary MAC
+  const rawMac = panelMac || building.mac;
+  const cleanMac = rawMac.replace(/[:\-\s]/g, '').toUpperCase();
+  console.log(`📤 [upload-faces] resolving panel mac=${cleanMac}`);
+  job.stage = 'מאתר את הפנל...';
+  let panelAddress;
+  try {
+    panelAddress = await resolvePanelAddress(cleanMac);
+  } catch (e) {
+    console.log(`📤 [upload-faces] ❌ resolvePanelAddress threw: ${e.message}`);
+    job.status = 'error'; job.error = 'Could not reach panel: ' + e.message; job.finishedAt = Date.now();
+    return;
+  }
+  if (!panelAddress) {
+    console.log(`📤 [upload-faces] ❌ panel not found/offline mac=${cleanMac}`);
+    job.status = 'error'; job.error = 'Panel not found / offline'; job.finishedAt = Date.now();
+    return;
+  }
+  console.log(`📤 [upload-faces] panel resolved → ${panelAddress}`);
+
+  const [host, portStr] = panelAddress.split(':');
+  const port = parseInt(portStr) || 80;
+
+  // Login to panel
+  job.stage = 'מתחבר לפנל...';
+  const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+  const token = loginRes?.data?.token;
+  if (!token) {
+    console.log(`📤 [upload-faces] ❌ panel login failed at ${host}:${port} — response: ${JSON.stringify(loginRes).slice(0,200)}`);
+    job.status = 'error'; job.error = 'Panel login failed'; job.finishedAt = Date.now();
+    return;
+  }
+  console.log(`📤 [upload-faces] ✅ panel login OK at ${host}:${port}`);
+
+  // Get existing faces on panel to prevent duplicates (paged — panel may have 500+ faces)
+  job.stage = 'בודק פנים קיימים בפנל...';
+  const existingFaces = await getAllPanelFaces(host, port, token);
+  const existingNames = new Set(existingFaces.map(p => (p.label || '').trim().toLowerCase()));
+  console.log(`📤 [upload-faces] existing faces on panel: ${existingFaces.length}`);
+
+  // Fetch the residents
+  job.stage = 'שולף דיירים מהמערכת...';
+  const residents = await database.collection('residents')
+    .find({ _id: { $in: residentIds.map(id => new ObjectId(id)) }, buildingCode })
+    .toArray();
+  console.log(`📤 [upload-faces] matched ${residents.length}/${residentIds.length} residents in DB`);
+
+  job.total = residents.length;
+  job.stage = 'מעלה פנים...';
+
+  for (const r of residents) {
+    const name = (r.firstName + ' ' + r.lastName).trim();
+    job.currentName = name;
+    try {
+      if (!r.photoUrl) {
+        console.log(`📤 [upload-faces]   ⏭️ ${name}: no photoUrl`);
+        job.results.push({ id: r._id, name, success: false, error: 'No photo' });
+        job.failed++; job.done++;
+        continue;
+      }
+      // Skip if name already exists on panel
+      if (existingNames.has(name.toLowerCase())) {
+        console.log(`📤 [upload-faces]   ⏭️ ${name}: already on panel`);
+        job.results.push({ id: r._id, name, success: false, error: 'Already on panel' });
+        job.skipped++; job.done++;
+        // Still mark as uploaded since they're already there
+        await database.collection('residents').updateOne({ _id: r._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date() } });
+        continue;
+      }
+      await uploadFaceToPanel(host, port, token, name, r.photoUrl);
+      console.log(`📤 [upload-faces]   ✅ ${name}: uploaded`);
+      // Mark as uploaded in DB
+      await database.collection('residents').updateOne({ _id: r._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date() } });
+      job.results.push({ id: r._id, name, success: true });
+      job.uploaded++;
+    } catch (e) {
+      console.log(`📤 [upload-faces]   ❌ ${name}: ${e.message}`);
+      job.results.push({ id: r._id, name, success: false, error: e.message });
+      job.failed++;
+    }
+    job.done++;
+  }
+
+  console.log(`📤 [upload-faces] done: uploaded=${job.uploaded} skipped=${job.skipped} failed=${job.failed} total=${job.results.length}`);
+  job.currentName = null;
+  job.stage = 'הושלם';
+  job.status = 'done';
+  job.finishedAt = Date.now();
+}
 
 // Resolve a MAC to panel host:port via NexHome (reuses lookup logic)
 async function resolvePanelAddress(cleanMac) {
@@ -2398,9 +2505,8 @@ app.post('/api/committee/delete-faces', async (req, res) => {
     const token = loginRes?.data?.token;
     if (!token) return res.json({ success: false, error: 'Panel login failed' });
 
-    // Get the full access list from the panel (to map name → id)
-    const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: `Bearer ${token}` });
-    const panelList = listData?.data?.list || [];
+    // Get the full access list from the panel (to map name → id) — paged
+    const panelList = await getAllPanelFaces(host, port, token);
 
     const residents = await database.collection('residents')
       .find({ _id: { $in: residentIds.map(id => new ObjectId(id)) }, buildingCode })
@@ -2492,8 +2598,7 @@ app.post('/api/committee/panel-faces', async (req, res) => {
     const token = loginRes?.data?.token;
     if (!token) return res.json({ success: false, error: 'Panel login failed' });
 
-    const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
-    const rawList = listData?.data?.list || [];
+    const rawList = await getAllPanelFaces(host, port, token);
 
     // Fetch each face image as base64 (panel serves them at /api/v1/access/image/{file})
     const list = [];
@@ -2583,8 +2688,7 @@ app.post('/api/committee/import-faces', async (req, res) => {
     const token = loginRes?.data?.token;
     if (!token) return res.json({ success: false, error: 'Panel login failed' });
 
-    const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
-    const rawList = listData?.data?.list || [];
+    const rawList = await getAllPanelFaces(host, port, token);
 
     // Existing residents for this building (avoid duplicates by name)
     const existing = await database.collection('residents').find({ buildingCode }).toArray();
@@ -2997,8 +3101,7 @@ app.post('/api/committee/delete-resident-all-panels', async (req, res) => {
         }
 
         // Get face list from this panel
-        const listData = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + token });
-        const faceList = listData?.data?.list || [];
+        const faceList = await getAllPanelFaces(host, port, token);
 
         // Find matching faces by name
         const toDelete = faceList.filter(f => namesToDelete.includes((f.label || '').trim().toLowerCase()));
@@ -3124,7 +3227,10 @@ app.post('/api/buildings/:code/panel-stats', async (req, res) => {
 });
 
 
-// Transfer all faces from one panel to another panel (same building)
+// In-memory store for running face-transfer jobs (progress polling)
+const faceTransferJobs = {};
+
+// Start a face transfer job — returns jobId immediately, runs in background
 app.post('/api/buildings/:code/transfer-faces', async (req, res) => {
   try {
     const { username, password, sourceMac, targetMac } = req.body;
@@ -3144,69 +3250,120 @@ app.post('/api/buildings/:code/transfer-faces', async (req, res) => {
     const building = await database.collection('buildings').findOne({ buildingCode: req.params.code });
     if (!building) return res.json({ success: false, error: 'Building not found' });
 
-    // Resolve both panel addresses
-    const sourceAddr = await resolvePanelAddress(cleanSource);
-    if (!sourceAddr) return res.json({ success: false, error: 'Source panel not found / offline' });
-    const targetAddr = await resolvePanelAddress(cleanTarget);
-    if (!targetAddr) return res.json({ success: false, error: 'Target panel not found / offline' });
+    const jobId = 'xfer_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    faceTransferJobs[jobId] = {
+      status: 'starting',   // starting | running | done | error
+      stage: 'מתחבר לפנלים...',
+      done: 0,
+      total: 0,
+      transferred: 0,
+      skipped: 0,
+      failed: 0,
+      currentName: null,
+      results: [],
+      error: null,
+      startedAt: Date.now(),
+    };
+    res.json({ success: true, jobId });
 
-    const [srcHost, srcPortStr] = sourceAddr.split(':');
-    const srcPort = parseInt(srcPortStr) || 80;
-    const [tgtHost, tgtPortStr] = targetAddr.split(':');
-    const tgtPort = parseInt(tgtPortStr) || 80;
-
-    // Login to both panels
-    const srcLogin = await panelHttpPost(srcHost, srcPort, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
-    const srcToken = srcLogin?.data?.token;
-    if (!srcToken) return res.json({ success: false, error: 'Source panel login failed' });
-
-    const tgtLogin = await panelHttpPost(tgtHost, tgtPort, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
-    const tgtToken = tgtLogin?.data?.token;
-    if (!tgtToken) return res.json({ success: false, error: 'Target panel login failed' });
-
-    // Get face list from source panel
-    const srcListData = await panelHttpGetWithHeaders(srcHost, srcPort, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + srcToken });
-    const srcFaces = srcListData?.data?.list || [];
-
-    // Get existing names on target panel (skip duplicates)
-    const tgtListData = await panelHttpGetWithHeaders(tgtHost, tgtPort, '/api/v1/access?page_num=1&page_size=500&type=face&label=', { Authorization: 'Bearer ' + tgtToken });
-    const existingTargetNames = new Set((tgtListData?.data?.list || []).map(p => (p.label || '').trim().toLowerCase()));
-
-    const results = [];
-    let skipped = 0;
-    for (const f of srcFaces) {
-      const name = (f.label || '').trim();
-      if (!name) { results.push({ name: '(ללא שם)', success: false, error: 'No label' }); continue; }
-      if (existingTargetNames.has(name.toLowerCase())) {
-        results.push({ name, success: false, error: 'Already on target' });
-        skipped++;
-        continue;
+    // Run the actual transfer in the background (not awaited by the response above)
+    runFaceTransferJob(jobId, cleanSource, cleanTarget).catch(e => {
+      if (faceTransferJobs[jobId]) {
+        faceTransferJobs[jobId].status = 'error';
+        faceTransferJobs[jobId].error = e.message;
       }
-      try {
-        // Download face image bytes from source panel
-        const imgUrl = `http://${srcHost}:${srcPort}/api/v1/access/image/${f.id}.jpg?id=${f.id}`;
-        const imgRes = await axios.get(imgUrl, {
-          responseType: 'arraybuffer',
-          timeout: 15000,
-          headers: { 'Referer': `http://${srcHost}:${srcPort}/`, 'Accept': 'application/json, text/plain, */*' },
-        });
-        const buf = Buffer.from(imgRes.data);
-        if (buf.length < 100) throw new Error('empty image from source');
-
-        await uploadFaceBufferToPanel(tgtHost, tgtPort, tgtToken, name, buf);
-        results.push({ name, success: true });
-      } catch (e) {
-        results.push({ name, success: false, error: e.message });
-      }
-    }
-
-    const ok = results.filter(x => x.success).length;
-    const fail = results.length - ok - skipped;
-    res.json({ success: true, transferred: ok, skipped, failed: fail, total: srcFaces.length, results });
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// Poll job progress
+app.get('/api/buildings/:code/transfer-faces/status/:jobId', (req, res) => {
+  const job = faceTransferJobs[req.params.jobId];
+  if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
+  res.json({ success: true, job });
+  // Clean up finished jobs after they've been read a while after completion
+  if ((job.status === 'done' || job.status === 'error') && Date.now() - (job.finishedAt || 0) > 5 * 60 * 1000) {
+    delete faceTransferJobs[req.params.jobId];
+  }
+});
+
+async function runFaceTransferJob(jobId, cleanSource, cleanTarget) {
+  const job = faceTransferJobs[jobId];
+  job.status = 'running';
+
+  job.stage = 'מאתר את הפנל המקור...';
+  const sourceAddr = await resolvePanelAddress(cleanSource);
+  if (!sourceAddr) { job.status = 'error'; job.error = 'Source panel not found / offline'; job.finishedAt = Date.now(); return; }
+
+  job.stage = 'מאתר את פנל היעד...';
+  const targetAddr = await resolvePanelAddress(cleanTarget);
+  if (!targetAddr) { job.status = 'error'; job.error = 'Target panel not found / offline'; job.finishedAt = Date.now(); return; }
+
+  const [srcHost, srcPortStr] = sourceAddr.split(':');
+  const srcPort = parseInt(srcPortStr) || 80;
+  const [tgtHost, tgtPortStr] = targetAddr.split(':');
+  const tgtPort = parseInt(tgtPortStr) || 80;
+
+  job.stage = 'מתחבר לפנל המקור...';
+  const srcLogin = await panelHttpPost(srcHost, srcPort, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+  const srcToken = srcLogin?.data?.token;
+  if (!srcToken) { job.status = 'error'; job.error = 'Source panel login failed'; job.finishedAt = Date.now(); return; }
+
+  job.stage = 'מתחבר לפנל היעד...';
+  const tgtLogin = await panelHttpPost(tgtHost, tgtPort, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+  const tgtToken = tgtLogin?.data?.token;
+  if (!tgtToken) { job.status = 'error'; job.error = 'Target panel login failed'; job.finishedAt = Date.now(); return; }
+
+  job.stage = 'שולף רשימת פנים מהמקור...';
+  const srcFaces = await getAllPanelFaces(srcHost, srcPort, srcToken);
+
+  job.stage = 'שולף רשימת פנים מהיעד...';
+  const tgtFaces = await getAllPanelFaces(tgtHost, tgtPort, tgtToken);
+  const existingTargetNames = new Set(tgtFaces.map(p => (p.label || '').trim().toLowerCase()));
+
+  job.total = srcFaces.length;
+  job.stage = 'מעביר פנים...';
+
+  for (const f of srcFaces) {
+    const name = (f.label || '').trim();
+    job.currentName = name || '(ללא שם)';
+    if (!name) {
+      job.results.push({ name: '(ללא שם)', success: false, error: 'No label' });
+      job.failed++; job.done++;
+      continue;
+    }
+    if (existingTargetNames.has(name.toLowerCase())) {
+      job.results.push({ name, success: false, error: 'Already on target' });
+      job.skipped++; job.done++;
+      continue;
+    }
+    try {
+      const imgUrl = `http://${srcHost}:${srcPort}/api/v1/access/image/${f.id}.jpg?id=${f.id}`;
+      const imgRes = await axios.get(imgUrl, {
+        responseType: 'arraybuffer',
+        timeout: 15000,
+        headers: { 'Referer': `http://${srcHost}:${srcPort}/`, 'Accept': 'application/json, text/plain, */*' },
+      });
+      const buf = Buffer.from(imgRes.data);
+      if (buf.length < 100) throw new Error('empty image from source');
+
+      await uploadFaceBufferToPanel(tgtHost, tgtPort, tgtToken, name, buf);
+      job.results.push({ name, success: true });
+      job.transferred++;
+    } catch (e) {
+      job.results.push({ name, success: false, error: e.message });
+      job.failed++;
+    }
+    job.done++;
+  }
+
+  job.currentName = null;
+  job.stage = 'הושלם';
+  job.status = 'done';
+  job.finishedAt = Date.now();
+}
 
 // Upload a face to a panel from an in-memory image buffer (used for panel-to-panel transfer)
 function uploadFaceBufferToPanel(host, port, token, name, imgBuffer) {
@@ -3457,6 +3614,127 @@ app.post('/api/rfid/panel-cards', async (req, res) => {
     res.json({ success: true, cards: list, total: list.length });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
+
+// ============================================================
+// PRICELIST ROUTES
+// ============================================================
+
+const plUpload = multer({ storage: multer.memoryStorage() });
+
+function requireManagerAuth(req, res, next) {
+  const username = req.body?.username || req.headers['x-manager-user'];
+  const password = req.body?.password || req.headers['x-manager-pass'];
+  if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) return next();
+  res.status(401).json({ error: 'Unauthorized' });
+}
+
+// GET /api/pricelist — ציבורי
+app.get('/api/pricelist', async (req, res) => {
+  try {
+    const database = await require('./db').connectDB();
+    const doc = await database.collection('pricelist').findOne({ _id: 'active' });
+    res.json(doc || { meta: {}, categories: [], notes: [], logoUrl: null, cols: 4 });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/pricelist/verify — בדיקת credentials בלבד
+app.post('/api/pricelist/verify', requireManagerAuth, async (req, res) => {
+  res.json({ ok: true });
+});
+
+// POST /api/pricelist/meta
+app.post('/api/pricelist/meta', requireManagerAuth, async (req, res) => {
+  try {
+    const database = await require('./db').connectDB();
+    const { meta, notes, cols, categories } = req.body;
+    await database.collection('pricelist').updateOne(
+      { _id: 'active' },
+      { $set: { meta, notes, cols, categories, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/pricelist/logo
+app.post('/api/pricelist/logo', plUpload.single('logo'), async (req, res) => {
+  if(req.body?.username !== process.env.ADMIN_USER || req.body?.password !== process.env.ADMIN_PASS) return res.status(401).json({error:'Unauthorized'});
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const { Readable } = require('stream');
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'tador/pricelist', public_id: 'logo', overwrite: true, resource_type: 'image', transformation: [{width:400, crop:'limit', quality:'auto:good', fetch_format:'auto'}] },
+        (err, r) => err ? reject(err) : resolve(r)
+      );
+      Readable.from(req.file.buffer).pipe(stream);
+    });
+    const database = await require('./db').connectDB();
+    await database.collection('pricelist').updateOne(
+      { _id: 'active' },
+      { $set: { logoUrl: result.secure_url, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    res.json({ logoUrl: result.secure_url });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/pricelist/logo
+app.delete('/api/pricelist/logo', requireManagerAuth, async (req, res) => {
+  try {
+    await cloudinary.uploader.destroy('tador/pricelist/logo');
+    const database = await require('./db').connectDB();
+    await database.collection('pricelist').updateOne({ _id: 'active' }, { $set: { logoUrl: null } });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/pricelist/product-image/:productId
+app.post('/api/pricelist/product-image/:productId', plUpload.single('image'), async (req, res) => {
+  if(req.body?.username !== process.env.ADMIN_USER || req.body?.password !== process.env.ADMIN_PASS) return res.status(401).json({error:'Unauthorized'});
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const { productId } = req.params;
+    const { Readable } = require('stream');
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'tador/pricelist/products', public_id: `product_${productId}`, overwrite: true, resource_type: 'image', transformation: [{width:800, height:800, crop:'limit', quality:'auto:good', fetch_format:'auto'}] },
+        (err, r) => err ? reject(err) : resolve(r)
+      );
+      Readable.from(req.file.buffer).pipe(stream);
+    });
+    const database = await require('./db').connectDB();
+    const doc = await database.collection('pricelist').findOne({ _id: 'active' });
+    if (doc && doc.categories) {
+      doc.categories.forEach(cat => {
+        const p = (cat.products || []).find(p => p.id === productId);
+        if (p) p.imgUrl = result.secure_url;
+      });
+      await database.collection('pricelist').updateOne({ _id: 'active' }, { $set: { categories: doc.categories } });
+    }
+    res.json({ imgUrl: result.secure_url });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/pricelist/product-image/:productId
+app.delete('/api/pricelist/product-image/:productId', requireManagerAuth, async (req, res) => {
+  try {
+    const { productId } = req.params;
+    await cloudinary.uploader.destroy(`tador/pricelist/products/product_${productId}`);
+    const database = await require('./db').connectDB();
+    const doc = await database.collection('pricelist').findOne({ _id: 'active' });
+    if (doc && doc.categories) {
+      doc.categories.forEach(cat => {
+        const p = (cat.products || []).find(p => p.id === productId);
+        if (p) p.imgUrl = null;
+      });
+      await database.collection('pricelist').updateOne({ _id: 'active' }, { $set: { categories: doc.categories } });
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
 
 app.listen(PORT, () => {
   console.log('✅ GenesisTracer Server Running');
