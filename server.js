@@ -1283,6 +1283,209 @@ app.get('/api/installer/relay-status', async (req, res) => {
   }
 });
 
+// ==================== PERMANENT CODES ====================
+const PERM_CODE_PREFIX = 'קוד קבוע ';
+
+// CREATE permanent code
+app.post('/api/installer/permanent-codes', async (req, res) => {
+  const { panelAddress, name, code, installerPhone } = req.body;
+  if (!panelAddress || !name || !code) {
+    return res.status(400).json({ success: false, error: 'panelAddress, name, code required' });
+  }
+  if (!/^\d{4}$/.test(code)) {
+    return res.json({ success: false, error: 'קוד חייב להיות 4 ספרות' });
+  }
+
+  try {
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    let token = null;
+    try {
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+      token = loginRes?.data?.token || null;
+    } catch(e) { console.log('perm-code panel login failed:', e.message); }
+    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const listRes = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500', authHeaders);
+    const existingList = listRes?.data?.list || [];
+
+    const permanentCodes = existingList.filter(i => (i.label || '').startsWith(PERM_CODE_PREFIX));
+    if (permanentCodes.length >= 5) {
+      return res.json({ success: false, error: 'מקסימום 5 קודים קבועים' });
+    }
+
+    const existingPasswords = new Set(existingList.map(i => i.content || i.password || ''));
+    if (existingPasswords.has(code)) {
+      return res.json({ success: false, error: 'קוד זה כבר קיים במערכת' });
+    }
+
+    const body = {
+      label: PERM_CODE_PREFIX + name,
+      password: code,
+      effective_date: Date.now(),
+      expired_date: 7258175999000,
+      valid_weekdays: [0, 1, 2, 3, 4, 5, 6],
+      valid_count: -1,
+      valid_periods: JSON.stringify([{ begin: '00:00:00', end: '23:59:59' }]),
+      valid_door: '1',
+    };
+
+    const createRes = await panelHttpPostWithHeaders(host, port, '/api/v1/access', body, authHeaders);
+    if (createRes?.status === 'OK') {
+      console.log(`✅ Permanent code created: ${name} CODE:${code}`);
+      await logActivity({ phoneNumber: installerPhone || 'unknown', action: 'permanent_code_create', mac: panelAddress, details: { name }, success: true });
+      return res.json({ success: true, name, code });
+    }
+    const errMsg = createRes?.error?.message || createRes?.error || createRes?.status || 'Unknown error';
+    return res.json({ success: false, error: String(errMsg) });
+  } catch (err) {
+    console.error('Permanent code error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// LIST permanent codes
+app.get('/api/installer/permanent-codes', async (req, res) => {
+  const { panelAddress } = req.query;
+  if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
+  try {
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    let token = null;
+    try {
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+      token = loginRes?.data?.token || null;
+    } catch(e) {}
+    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const listRes = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500', authHeaders);
+    const existingList = listRes?.data?.list || [];
+
+    const codes = existingList
+      .filter(i => (i.label || '').startsWith(PERM_CODE_PREFIX))
+      .map(i => ({
+        id: i.id,
+        name: (i.label || '').slice(PERM_CODE_PREFIX.length),
+        code: i.content || i.password || '',
+      }));
+
+    res.json({ success: true, codes, total: codes.length });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// UPDATE permanent code (delete old + create new)
+app.put('/api/installer/permanent-codes/:codeId', async (req, res) => {
+  const { panelAddress, name, code, installerPhone } = req.body;
+  const { codeId } = req.params;
+  if (!panelAddress || !name || !code) {
+    return res.status(400).json({ success: false, error: 'panelAddress, name, code required' });
+  }
+  if (!/^\d{4}$/.test(code)) {
+    return res.json({ success: false, error: 'קוד חייב להיות 4 ספרות' });
+  }
+  try {
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    let token = null;
+    try {
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+      token = loginRes?.data?.token || null;
+    } catch(e) {}
+    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+    const authHeaders = { Authorization: `Bearer ${token}` };
+
+    // Delete old record via batchdelete (same as faces)
+    await new Promise((resolve, reject) => {
+      const fs = require('fs');
+      const os = require('os');
+      const tmpJson = require('path').join(os.tmpdir(), `permdel_${Date.now()}.json`);
+      fs.writeFileSync(tmpJson, JSON.stringify({ list: [codeId] }));
+      const cmd = `curl -s --max-time 15 -X POST ` +
+        `-H "Authorization: Bearer ${token}" ` +
+        `-H "Content-Type: application/json;charset=UTF-8" ` +
+        `--data @${tmpJson} ` +
+        `"http://${host}:${port}/api/v1/access/batchdelete"`;
+      exec(cmd, { maxBuffer: 1024 * 1024 }, (err, stdout) => {
+        fs.unlink(tmpJson, () => {});
+        if (err) reject(new Error('delete failed: ' + err.message));
+        else resolve(stdout);
+      });
+    });
+
+    // Create new record
+    const body = {
+      label: PERM_CODE_PREFIX + name,
+      password: code,
+      effective_date: Date.now(),
+      expired_date: 7258175999000,
+      valid_weekdays: [0, 1, 2, 3, 4, 5, 6],
+      valid_count: -1,
+      valid_periods: JSON.stringify([{ begin: '00:00:00', end: '23:59:59' }]),
+      valid_door: '1',
+    };
+    const createRes = await panelHttpPostWithHeaders(host, port, '/api/v1/access', body, authHeaders);
+    if (createRes?.status === 'OK') {
+      console.log(`✅ Permanent code updated: ${name} CODE:${code}`);
+      await logActivity({ phoneNumber: installerPhone || 'unknown', action: 'permanent_code_update', mac: panelAddress, details: { name }, success: true });
+      return res.json({ success: true, name, code });
+    }
+    const errMsg = createRes?.error?.message || createRes?.error || createRes?.status || 'Unknown error';
+    return res.json({ success: false, error: String(errMsg) });
+  } catch (err) {
+    console.error('Permanent code update error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE permanent code
+app.delete('/api/installer/permanent-codes/:codeId', async (req, res) => {
+  const { panelAddress, installerPhone } = req.query;
+  const { codeId } = req.params;
+  if (!panelAddress || !codeId) {
+    return res.status(400).json({ success: false, error: 'panelAddress and codeId required' });
+  }
+  try {
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    let token = null;
+    try {
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+      token = loginRes?.data?.token || null;
+    } catch(e) {}
+    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+
+    await new Promise((resolve, reject) => {
+      const fs = require('fs');
+      const os = require('os');
+      const tmpJson = require('path').join(os.tmpdir(), `permdel_${Date.now()}.json`);
+      fs.writeFileSync(tmpJson, JSON.stringify({ list: [codeId] }));
+      const cmd = `curl -s --max-time 15 -X POST ` +
+        `-H "Authorization: Bearer ${token}" ` +
+        `-H "Content-Type: application/json;charset=UTF-8" ` +
+        `--data @${tmpJson} ` +
+        `"http://${host}:${port}/api/v1/access/batchdelete"`;
+      exec(cmd, { maxBuffer: 1024 * 1024 }, (err, stdout) => {
+        fs.unlink(tmpJson, () => {});
+        if (err) reject(new Error('delete failed: ' + err.message));
+        else resolve(stdout);
+      });
+    });
+
+    console.log(`✅ Permanent code deleted: ${codeId}`);
+    await logActivity({ phoneNumber: installerPhone || 'unknown', action: 'permanent_code_delete', mac: panelAddress, details: { codeId }, success: true });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Permanent code delete error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== TEMPORARY CODE ====================
 app.post('/api/installer/temp-code', async (req, res) => {
   const { panelAddress, validWeekdays, validHourStart, validHourEnd } = req.body;
