@@ -733,6 +733,12 @@
           <span class="action-card-label">סרטוני הדרכה</span>
         </button>
 
+        <!-- Permanent Codes -->
+        <button class="action-card" onclick="togglePermCodesSection()">
+          <span class="material-symbols-outlined">vpn_key</span>
+          <span class="action-card-label">קודים קבועים</span>
+        </button>
+
         <!-- Portfolio - full width -->
         <button class="action-card" onclick="openPortfolio()" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;gap:14px;padding:16px 18px;">
           <span class="material-symbols-outlined" style="font-size:28px;">photo_library</span>
@@ -757,6 +763,51 @@
         </div>
         <div id="subMsg" class="status-msg" style="color:white;margin-bottom:8px;"></div>
         <button class="btn-red" onclick="submitSubscribe()">הצטרפות</button>
+      </div>
+
+      <!-- ==================== PERMANENT CODES SECTION ==================== -->
+      <div id="permanent-codes-section" style="display:none; padding:20px; background:#f9f9f9; border-radius:8px; margin-top:20px;">
+        <h2 style="margin-top:0;">קודים קבועים</h2>
+        <p style="font-size:14px; color:#666;">עד 5 קודים קבועים שפתוחים 24/7</p>
+
+        <!-- Panel selector -->
+        <div style="margin-bottom:15px;">
+          <label style="font-weight:bold;">בחר פנל:</label>
+          <select id="perm-panel-select" style="width:100%; padding:8px; margin-top:5px; border:1px solid #ddd; border-radius:4px;">
+            <option value="">טוען...</option>
+          </select>
+        </div>
+
+        <!-- Add new code form -->
+        <div style="background:white; padding:15px; border-radius:6px; margin-bottom:15px;">
+          <h3 style="margin:0 0 10px 0; font-size:16px;">הוסף קוד חדש</h3>
+          <div style="display:grid; gap:10px;">
+            <input id="perm-code-name" type="text" placeholder="שם הקוד (למשל: חנות, משפחה)" 
+                   style="padding:8px; border:1px solid #ddd; border-radius:4px;" maxlength="20">
+            <input id="perm-code-value" type="text" placeholder="קוד 4 ספרות (0000-9999)" 
+                   style="padding:8px; border:1px solid #ddd; border-radius:4px;" maxlength="4" inputmode="numeric">
+            <button id="perm-code-add-btn" onclick="addPermCode()" 
+                    style="padding:10px; background:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">
+              ➕ הוסף קוד
+            </button>
+          </div>
+        </div>
+
+        <!-- List of codes -->
+        <div style="background:white; border-radius:6px; overflow:hidden;">
+          <table id="perm-codes-table" style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr style="background:#f0f0f0; border-bottom:2px solid #ddd;">
+                <th style="text-align:right; padding:10px;">שם</th>
+                <th style="text-align:right; padding:10px;">קוד</th>
+                <th style="padding:10px;">פעולות</th>
+              </tr>
+            </thead>
+            <tbody id="perm-codes-body">
+              <tr><td colspan="3" style="text-align:center; padding:20px; color:#999;">אין קודים</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
     </div>
@@ -2042,6 +2093,206 @@
   function closeLightbox() {
     document.getElementById('lightbox').style.display = 'none';
   }
+
+  // ==================== PERMANENT CODES ==================== 
+  function togglePermCodesSection() {
+    const section = document.getElementById('permanent-codes-section');
+    section.style.display = section.style.display === 'none' ? 'block' : 'none';
+    if (section.style.display === 'block') {
+      loadPermPanels();
+    }
+  }
+
+  async function loadPermPanels() {
+    const macs = myInstallerMacs || [];
+    const select = document.getElementById('perm-panel-select');
+    select.innerHTML = '';
+    if (macs.length > 0) {
+      macs.forEach(m => {
+        const option = document.createElement('option');
+        option.value = m.mac;
+        option.textContent = m.address || m.mac;
+        select.appendChild(option);
+      });
+      if (macs.length > 0) {
+        select.value = macs[0].mac;
+        loadPermCodes();
+      }
+    }
+  }
+
+  async function loadPermCodes() {
+    const mac = document.getElementById('perm-panel-select').value;
+    if (!mac) return;
+
+    try {
+      const res = await lookupMAC(mac);
+      if (!res.success) {
+        alert('לא ניתן להתחבר לפנל');
+        return;
+      }
+      const panelAddress = res.fullAddress;
+
+      const response = await fetch(`/api/installer/permanent-codes?panelAddress=${panelAddress}`);
+      const data = await response.json();
+
+      if (!data.success) {
+        alert('שגיאה: ' + data.error);
+        return;
+      }
+
+      const tbody = document.getElementById('perm-codes-body');
+      if (data.codes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:#999;">אין קודים</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.codes.map(code => `
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px; text-align:right;">${escapeHtml(code.name)}</td>
+          <td style="padding:10px; text-align:right; font-weight:bold; font-size:16px; letter-spacing:2px;">${code.code}</td>
+          <td style="padding:10px;">
+            <button onclick="editPermCode('${code.id}', '${escapeHtml(code.name)}', '${code.code}')" 
+                    style="padding:6px 12px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; margin-left:5px;">
+              ✏️ ערוך
+            </button>
+            <button onclick="deletePermCode('${code.id}')" 
+                    style="padding:6px 12px; background:#f44336; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">
+              🗑️ מחק
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      console.error('Load codes error:', err);
+      alert('שגיאה בטעינת קודים');
+    }
+  }
+
+  async function addPermCode() {
+    const name = document.getElementById('perm-code-name').value.trim();
+    const code = document.getElementById('perm-code-value').value.trim();
+    const mac = document.getElementById('perm-panel-select').value;
+
+    if (!name) { alert('הזן שם לקוד'); return; }
+    if (!code || code.length !== 4 || !/^\d+$/.test(code)) { alert('קוד חייב להיות 4 ספרות'); return; }
+    if (!mac) { alert('בחר פנל'); return; }
+
+    document.getElementById('perm-code-add-btn').disabled = true;
+
+    try {
+      const res = await lookupMAC(mac);
+      if (!res.success) { alert('לא ניתן להתחבר לפנל'); return; }
+
+      const response = await fetch('/api/installer/permanent-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          panelAddress: res.fullAddress,
+          name,
+          code,
+          installerPhone: localStorage.getItem('installerPhone')
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('✅ קוד הוסף בהצלחה');
+        document.getElementById('perm-code-name').value = '';
+        document.getElementById('perm-code-value').value = '';
+        loadPermCodes();
+      } else {
+        alert('❌ ' + data.error);
+      }
+    } catch (err) {
+      console.error('Add code error:', err);
+      alert('שגיאה: ' + err.message);
+    } finally {
+      document.getElementById('perm-code-add-btn').disabled = false;
+    }
+  }
+
+  async function editPermCode(codeId, name, code) {
+    const newName = prompt('שנה שם:', name);
+    if (newName === null) return;
+
+    const newCode = prompt('שנה קוד (4 ספרות):', code);
+    if (newCode === null) return;
+
+    if (!newCode || newCode.length !== 4 || !/^\d+$/.test(newCode)) {
+      alert('קוד חייב להיות 4 ספרות');
+      return;
+    }
+
+    const mac = document.getElementById('perm-panel-select').value;
+    if (!mac) { alert('בחר פנל'); return; }
+
+    try {
+      const res = await lookupMAC(mac);
+      if (!res.success) { alert('לא ניתן להתחבר לפנל'); return; }
+
+      const response = await fetch(`/api/installer/permanent-codes/${codeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          panelAddress: res.fullAddress,
+          name: newName,
+          code: newCode,
+          installerPhone: localStorage.getItem('installerPhone')
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('✅ קוד עודכן בהצלחה');
+        loadPermCodes();
+      } else {
+        alert('❌ ' + data.error);
+      }
+    } catch (err) {
+      console.error('Edit code error:', err);
+      alert('שגיאה: ' + err.message);
+    }
+  }
+
+  async function deletePermCode(codeId) {
+    if (!confirm('האם אתה בטוח שברצונך למחוק את הקוד?')) return;
+
+    const mac = document.getElementById('perm-panel-select').value;
+    if (!mac) { alert('בחר פנל'); return; }
+
+    try {
+      const res = await lookupMAC(mac);
+      if (!res.success) { alert('לא ניתן להתחבר לפנל'); return; }
+
+      const response = await fetch(`/api/installer/permanent-codes/${codeId}?panelAddress=${res.fullAddress}&installerPhone=${localStorage.getItem('installerPhone')}`, {
+        method: 'DELETE'
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('✅ קוד נמחק בהצלחה');
+        loadPermCodes();
+      } else {
+        alert('❌ ' + data.error);
+      }
+    } catch (err) {
+      console.error('Delete code error:', err);
+      alert('שגיאה: ' + err.message);
+    }
+  }
+
+  function escapeHtml(text) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return text.replace(/[&<>"']/g, m => map[m]);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const select = document.getElementById('perm-panel-select');
+    if (select) {
+      select.addEventListener('change', loadPermCodes);
+    }
+  });
 </script>
 </body>
 </html>
