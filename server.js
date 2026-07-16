@@ -1323,6 +1323,72 @@ app.post('/api/installer/panel-history', async (req, res) => {
   }
 });
 
+// Search panel history for a specific day (panel API has no date filter — we page until past the day)
+app.post('/api/installer/panel-history-date', async (req, res) => {
+  const { panelAddress, date, installerPhone } = req.body; // date = 'YYYY-MM-DD' (Israel local day)
+  if (!panelAddress || !date) return res.status(400).json({ success: false, error: 'panelAddress and date required' });
+  try {
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    let token = null;
+    try {
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+      token = loginRes?.data?.token || null;
+    } catch(e) {}
+    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+
+    // Israel-day boundaries in UTC ms (DST-aware, same logic as temp-code)
+    const [y, m, d] = date.split('-').map(Number);
+    const probe = new Date(Date.UTC(y, m - 1, d, 12));
+    const year = probe.getUTCFullYear();
+    const marchEnd = new Date(Date.UTC(year, 2, 31));
+    while (marchEnd.getUTCDay() !== 5) marchEnd.setUTCDate(marchEnd.getUTCDate() - 1);
+    const octEnd = new Date(Date.UTC(year, 9, 31));
+    while (octEnd.getUTCDay() !== 0) octEnd.setUTCDate(octEnd.getUTCDate() - 1);
+    const offsetHours = (probe >= marchEnd && probe < octEnd) ? 3 : 2;
+    const dayStart = Date.UTC(y, m - 1, d) - offsetHours * 3600000;
+    const dayEnd = dayStart + 86400000;
+
+    const matches = [];
+    let pageNum = 1;
+    const pageSize = 100;
+    while (pageNum <= 30) { // safety cap: 3,000 records
+      const data = await panelHttpGetWithHeaders(host, port,
+        `/api/v1/records/unlock?page_num=${pageNum}&page_size=${pageSize}&type=&label=`,
+        { Authorization: 'Bearer ' + token });
+      const list = data?.data?.list || [];
+      if (!list.length) break;
+
+      for (const r of list) {
+        if (r.unlock_time >= dayStart && r.unlock_time < dayEnd) {
+          matches.push({
+            id: r.id,
+            name: (r.access_label || '').trim(),
+            type: r.access_type,
+            door: r.relay || '',
+            time: r.unlock_time,
+            status: r.status,
+            content: r.access_content || '',
+          });
+        }
+      }
+
+      // Records are newest-first: if the oldest record on this page is before dayStart, stop
+      const oldest = list[list.length - 1]?.unlock_time || 0;
+      if (oldest < dayStart) break;
+      if (list.length < pageSize) break;
+      pageNum++;
+    }
+
+    await logActivity({ phoneNumber: installerPhone || 'unknown', action: 'panel_history', mac: panelAddress, details: { date, found: matches.length }, success: true });
+    res.json({ success: true, records: matches, total: matches.length, date });
+  } catch (err) {
+    console.error('Panel history date error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== PERMANENT CODES ====================
 const PERM_CODE_PREFIX = 'קוד קבוע ';
 
