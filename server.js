@@ -1283,6 +1283,46 @@ app.get('/api/installer/relay-status', async (req, res) => {
   }
 });
 
+// ==================== PANEL HISTORY (unlock records) ====================
+app.post('/api/installer/panel-history', async (req, res) => {
+  const { panelAddress, pageNum = 1, pageSize = 20, installerPhone } = req.body;
+  if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
+  try {
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    let token = null;
+    try {
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+      token = loginRes?.data?.token || null;
+    } catch(e) {}
+    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+
+    const data = await panelHttpGetWithHeaders(host, port,
+      `/api/v1/records/unlock?page_num=${parseInt(pageNum)}&page_size=${parseInt(pageSize)}&type=&label=`,
+      { Authorization: 'Bearer ' + token });
+
+    const list = (data?.data?.list || []).map(r => ({
+      id: r.id,
+      name: (r.access_label || '').trim(),
+      type: r.access_type,        // face | card | password
+      door: r.relay || '',        // '1' / ''
+      time: r.unlock_time,        // ms timestamp
+      status: r.status,           // success | failure
+      content: r.access_content || '',
+    }));
+
+    if (parseInt(pageNum) === 1 && installerPhone) {
+      await logActivity({ phoneNumber: installerPhone, action: 'panel_history', mac: panelAddress, details: { total: data?.data?.total }, success: true });
+    }
+
+    res.json({ success: true, records: list, total: data?.data?.total || 0, pageNum: parseInt(pageNum) });
+  } catch (err) {
+    console.error('Panel history error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== PERMANENT CODES ====================
 const PERM_CODE_PREFIX = 'קוד קבוע ';
 
