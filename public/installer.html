@@ -1546,6 +1546,11 @@
       <button class="modal-close" onclick="closePanelHistory()">✕</button>
     </div>
     <div class="modal-body" style="padding:16px 20px;">
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
+        <input type="date" id="historyDatePick" onchange="searchHistoryByDate()" 
+          style="flex:1;padding:9px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:13px;"/>
+        <button id="historyClearDate" onclick="clearHistoryDate()" style="display:none;background:none;border:1.5px solid var(--gray-200);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">✕ נקה</button>
+      </div>
       <div id="historyTotal" style="font-size:12px;color:var(--gray-500);font-weight:600;margin-bottom:10px;"></div>
       <div id="historyList" style="display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow-y:auto;">
         <div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">טוען...</div>
@@ -2129,6 +2134,8 @@
       return;
     }
     document.getElementById('panelHistoryModal').classList.add('open');
+    document.getElementById('historyDatePick').value = '';
+    document.getElementById('historyClearDate').style.display = 'none';
     historyPage = 1;
     loadPanelHistory(true);
   }
@@ -2173,26 +2180,7 @@
       historyTotal = data.total;
       document.getElementById('historyTotal').textContent = 'סה"כ ' + historyTotal + ' רשומות';
 
-      const rows = data.records.map(rec => {
-        const t = HIST_TYPE[rec.type] || { icon: 'lock_open', label: rec.type };
-        const d = new Date(rec.time);
-        const dateStr = d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' }) +
-                        ' ' + d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-        const ok = rec.status === 'success';
-        const name = rec.name || (rec.type === 'password' ? rec.content : '—');
-        return `
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid ${ok ? 'var(--gray-200)' : '#fecaca'};border-radius:8px;${ok ? '' : 'background:#fff5f5;'}">
-          <span class="material-symbols-outlined" style="font-size:20px;color:${ok ? 'var(--black)' : 'var(--red)'};">${t.icon}</span>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapePermHtml(name)}</div>
-            <div style="font-size:11px;color:var(--gray-500);">${t.label}${rec.door ? ' · דלת ' + rec.door : ''}</div>
-          </div>
-          <div style="text-align:left;flex-shrink:0;">
-            <div style="font-size:11px;color:var(--gray-500);font-weight:600;">${dateStr}</div>
-            <div style="font-size:10px;font-weight:800;color:${ok ? '#16a34a' : 'var(--red)'};">${ok ? '✓ נפתח' : '✗ נכשל'}</div>
-          </div>
-        </div>`;
-      }).join('');
+      const rows = renderHistoryRows(data.records);
 
       if (reset) list.innerHTML = rows || '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">אין רשומות</div>';
       else list.insertAdjacentHTML('beforeend', rows);
@@ -2207,6 +2195,70 @@
       moreBtn.disabled = false;
       moreBtn.textContent = 'טען עוד ⬇';
     }
+  }
+
+  function renderHistoryRows(records) {
+    return records.map(rec => {
+      const t = HIST_TYPE[rec.type] || { icon: 'lock_open', label: rec.type };
+      const d = new Date(rec.time);
+      const dateStr = d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' }) +
+                      ' ' + d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+      const ok = rec.status === 'success';
+      const name = rec.name || (rec.type === 'password' ? rec.content : '—');
+      return `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid ${ok ? 'var(--gray-200)' : '#fecaca'};border-radius:8px;${ok ? '' : 'background:#fff5f5;'}">
+        <span class="material-symbols-outlined" style="font-size:20px;color:${ok ? 'var(--black)' : 'var(--red)'};">${t.icon}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapePermHtml(name)}</div>
+          <div style="font-size:11px;color:var(--gray-500);">${t.label}${rec.door ? ' · דלת ' + rec.door : ''}</div>
+        </div>
+        <div style="text-align:left;flex-shrink:0;">
+          <div style="font-size:11px;color:var(--gray-500);font-weight:600;">${dateStr}</div>
+          <div style="font-size:10px;font-weight:800;color:${ok ? '#16a34a' : 'var(--red)'};">${ok ? '✓ נפתח' : '✗ נכשל'}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function searchHistoryByDate() {
+    const date = document.getElementById('historyDatePick').value;
+    if (!date) return;
+    const list = document.getElementById('historyList');
+    const moreBtn = document.getElementById('historyMoreBtn');
+    document.getElementById('historyClearDate').style.display = 'block';
+    moreBtn.style.display = 'none';
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">מחפש בפנל... (עשוי לקחת מספר שניות)</div>';
+    try {
+      const r = await fetch('/api/installer/panel-history-date', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          panelAddress: lastPanelAddress,
+          date,
+          installerPhone: installerData?.phoneNumber
+        })
+      });
+      const data = await r.json();
+      if (!data.success) {
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">' + (data.error || 'שגיאה') + '</div>';
+        return;
+      }
+      const dObj = new Date(date + 'T12:00:00');
+      document.getElementById('historyTotal').textContent =
+        dObj.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' — ' + data.total + ' רשומות';
+      list.innerHTML = data.records.length
+        ? renderHistoryRows(data.records)
+        : '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">אין כניסות בתאריך זה</div>';
+    } catch (e) {
+      list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">שגיאת תקשורת</div>';
+    }
+  }
+
+  function clearHistoryDate() {
+    document.getElementById('historyDatePick').value = '';
+    document.getElementById('historyClearDate').style.display = 'none';
+    historyPage = 1;
+    loadPanelHistory(true);
   }
 
   // ==================== PERMANENT CODES ====================
