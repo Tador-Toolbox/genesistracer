@@ -1546,9 +1546,18 @@
       <button class="modal-close" onclick="closePanelHistory()">✕</button>
     </div>
     <div class="modal-body" style="padding:16px 20px;">
+      <div style="font-size:12px;font-weight:800;margin-bottom:6px;">📅 בחר תאריך (dd/mm/yyyy):</div>
+      <style>
+        #historyDatePick { position: relative; text-align: right; }
+        #historyDatePick:not(.has-value)::before {
+          content: 'בחר תאריך...';
+          color: #9ca3af;
+          margin-left: 8px;
+        }
+      </style>
       <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
         <input type="date" id="historyDatePick" onchange="searchHistoryByDate()" 
-          style="flex:1;padding:9px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:13px;"/>
+          style="flex:1;padding:9px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:13px;min-height:38px;-webkit-appearance:none;background:#fff;"/>
         <button id="historyClearDate" onclick="clearHistoryDate()" style="display:none;background:none;border:1.5px solid var(--gray-200);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">✕ נקה</button>
       </div>
       <div id="historyTotal" style="font-size:12px;color:var(--gray-500);font-weight:600;margin-bottom:10px;"></div>
@@ -2135,6 +2144,7 @@
     }
     document.getElementById('panelHistoryModal').classList.add('open');
     document.getElementById('historyDatePick').value = '';
+    document.getElementById('historyDatePick').classList.remove('has-value');
     document.getElementById('historyClearDate').style.display = 'none';
     historyPage = 1;
     loadPanelHistory(true);
@@ -2221,8 +2231,10 @@
   }
 
   async function searchHistoryByDate() {
-    const date = document.getElementById('historyDatePick').value;
-    if (!date) return;
+    const dateEl = document.getElementById('historyDatePick');
+    const date = dateEl.value;
+    if (!date) { dateEl.classList.remove('has-value'); return; }
+    dateEl.classList.add('has-value');
     const list = document.getElementById('historyList');
     const moreBtn = document.getElementById('historyMoreBtn');
     document.getElementById('historyClearDate').style.display = 'block';
@@ -2255,7 +2267,9 @@
   }
 
   function clearHistoryDate() {
-    document.getElementById('historyDatePick').value = '';
+    const dateEl = document.getElementById('historyDatePick');
+    dateEl.value = '';
+    dateEl.classList.remove('has-value');
     document.getElementById('historyClearDate').style.display = 'none';
     historyPage = 1;
     loadPanelHistory(true);
