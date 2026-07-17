@@ -675,7 +675,25 @@
       <!-- Action Grid -->
       <div class="action-grid">
 
-        <!-- Emergency Door Open -->
+        <!-- 1. Tutorials -->
+        <button class="action-card" onclick="openTutorials()">
+          <span class="material-symbols-outlined">play_circle</span>
+          <span class="action-card-label">סרטוני הדרכה</span>
+        </button>
+
+        <!-- 2. Temporary Code -->
+        <button class="action-card" id="tempCodeBtn" onclick="openTempCode()">
+          <span class="material-symbols-outlined">password</span>
+          <span class="action-card-label">קוד זמני</span>
+        </button>
+
+        <!-- 3. Permanent Codes -->
+        <button class="action-card" onclick="openPermCodes()">
+          <span class="material-symbols-outlined">vpn_key</span>
+          <span class="action-card-label">קודים קבועים</span>
+        </button>
+
+        <!-- 4. Emergency Door Open -->
         <button class="action-card" id="relayBtn" onclick="toggleRelay()">
           <span id="relayBadge" class="action-badge badge-loading">...</span>
           <span class="material-symbols-outlined">door_open</span>
@@ -683,69 +701,51 @@
           <div id="relayResult" class="status-msg"></div>
         </button>
 
-        <!-- Reboot -->
-        <button class="action-card" id="rebootBtn" onclick="rebootDevice()">
-          <span class="material-symbols-outlined">restart_alt</span>
-          <span class="action-card-label" data-i18n="rebootBtn">אתחול מכשיר</span>
-          <div id="rebootResult" class="status-msg"></div>
+        <!-- 5. Resident Update -->
+        <button class="action-card" onclick="openResidentUpdate()">
+          <span class="material-symbols-outlined">person_edit</span>
+          <span class="action-card-label">עדכון דייר</span>
         </button>
 
-        <!-- Temporary Code -->
-        <button class="action-card" id="tempCodeBtn" onclick="openTempCode()">
-          <span class="material-symbols-outlined">password</span>
-          <span class="action-card-label">קוד זמני</span>
+        <!-- 6. Panel History -->
+        <button class="action-card" onclick="openPanelHistory()">
+          <span class="material-symbols-outlined">history</span>
+          <span class="action-card-label">היסטוריה</span>
         </button>
 
-        <!-- Catalog -->
-        <button class="action-card" id="catalogSection" onclick="openCatalog()">
-          <span class="material-symbols-outlined">download</span>
-          <span class="action-card-label" data-i18n="catalogBtn">קטלוג מוצרים</span>
-        </button>
-
-        <!-- Face Management -->
+        <!-- 7. Face Management -->
         <button class="action-card" id="faceManagementBtn" onclick="window.open('https://genesistracer.onrender.com/committee.html','_blank')">
           <span class="material-symbols-outlined">face</span>
           <span class="action-card-label">ניהול זיהוי פנים</span>
         </button>
 
-        <!-- Resident Example -->
-        <button class="action-card" id="residentExampleBtn" onclick="downloadResidentExampleInstaller()" style="display:none;">
-          <span class="material-symbols-outlined">people</span>
-          <span class="action-card-label">רשימת דיירים לדוגמא</span>
+        <!-- 8. Catalog -->
+        <button class="action-card" id="catalogSection" onclick="openCatalog()">
+          <span class="material-symbols-outlined">download</span>
+          <span class="action-card-label" data-i18n="catalogBtn">קטלוג מוצרים</span>
         </button>
 
-        <!-- Announcements -->
+        <!-- 9. Announcements -->
         <button class="action-card" id="announcementsBtn" onclick="openAnnouncements()" style="position:relative;">
           <span class="material-symbols-outlined">campaign</span>
           <span class="action-card-label">הודעות</span>
           <span id="announcementsBadge" style="display:none;position:absolute;top:8px;left:8px;background:var(--red);color:white;border-radius:50%;width:18px;height:18px;font-size:10px;line-height:18px;text-align:center;font-weight:800;"></span>
         </button>
 
-        <!-- Tutorials -->
-        <!-- Resident Update -->
-        <button class="action-card" onclick="openResidentUpdate()">
-          <span class="material-symbols-outlined">person_edit</span>
-          <span class="action-card-label">עדכון דייר</span>
+        <!-- 10. Reboot -->
+        <button class="action-card" id="rebootBtn" onclick="rebootDevice()">
+          <span class="material-symbols-outlined">restart_alt</span>
+          <span class="action-card-label" data-i18n="rebootBtn">אתחול מכשיר</span>
+          <div id="rebootResult" class="status-msg"></div>
         </button>
 
-        <button class="action-card" onclick="openTutorials()">
-          <span class="material-symbols-outlined">play_circle</span>
-          <span class="action-card-label">סרטוני הדרכה</span>
+        <!-- Resident Example (hidden) -->
+        <button class="action-card" id="residentExampleBtn" onclick="downloadResidentExampleInstaller()" style="display:none;">
+          <span class="material-symbols-outlined">people</span>
+          <span class="action-card-label">רשימת דיירים לדוגמא</span>
         </button>
 
-        <!-- Panel History -->
-        <button class="action-card" onclick="openPanelHistory()">
-          <span class="material-symbols-outlined">history</span>
-          <span class="action-card-label">היסטוריה</span>
-        </button>
-
-        <!-- Permanent Codes -->
-        <button class="action-card" onclick="openPermCodes()">
-          <span class="material-symbols-outlined">vpn_key</span>
-          <span class="action-card-label">קודים קבועים</span>
-        </button>
-
-        <!-- Portfolio - full width -->
+        <!-- 11. Portfolio - full width -->
         <button class="action-card" onclick="openPortfolio()" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;gap:14px;padding:16px 18px;">
           <span class="material-symbols-outlined" style="font-size:28px;">photo_library</span>
           <div style="text-align:right;">
