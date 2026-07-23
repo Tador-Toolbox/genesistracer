@@ -93,37 +93,137 @@ async function createInstaller(phoneNumber, macAddresses = [], panelType = "gene
   return password;
 }
 
+/**
+ * Safety net: snapshot an installer's macAddresses BEFORE any write that
+ * replaces the array. Cheap (one small doc), and makes accidental data loss
+ * recoverable without depending on external backups.
+ * Keeps the last 30 snapshots per account.
+ */
+async function snapshotMacs(phoneNumber, macAddresses, reason) {
+  try {
+    await connectDB();
+    const col = db.collection('mac_history');
+    await col.insertOne({
+      phoneNumber,
+      macAddresses: JSON.parse(JSON.stringify(macAddresses || [])),
+      reason: reason || 'unknown',
+      at: new Date(),
+    });
+    // Trim to last 30 per account
+    const old = await col.find({ phoneNumber })
+      .sort({ at: -1 })
+      .skip(30)
+      .project({ _id: 1 })
+      .toArray();
+    if (old.length) {
+      await col.deleteMany({ _id: { $in: old.map(d => d._id) } });
+    }
+  } catch (err) {
+    // Never let snapshotting break the actual operation
+    console.error('⚠️ snapshotMacs failed:', err.message);
+  }
+}
+
+async function getMacHistory(phoneNumber, limit = 30) {
+  await connectDB();
+  return db.collection('mac_history')
+    .find({ phoneNumber })
+    .sort({ at: -1 })
+    .limit(limit)
+    .toArray();
+}
+
 async function assignMacToInstaller(
   phoneNumber,
   macAddress,
-  address = "",
-  city = "",
-  notes = "",
-  purchaseDate = "",
-  startDate = "",
-  technicianName = "",
-  technicianPhone = "",
-  supplierName = "",
-  committeeName = "",
-  committeePhone = "",
-  description = "",
-  annualFee = "",
-  licensesPurchased = "",
-  licensePaid = false,
-  panelType = "genesis7",
-  voipbellAccount = ""
+  address,
+  city,
+  notes,
+  purchaseDate,
+  startDate,
+  technicianName,
+  technicianPhone,
+  supplierName,
+  committeeName,
+  committeePhone,
+  description,
+  annualFee,
+  licensesPurchased,
+  licensePaid,
+  panelType,
+  voipbellAccount
 ) {
   await connectDB();
 
   const installer = await db.collection("installers").findOne({ phoneNumber });
   if (!installer) throw new Error("Installer not found");
 
+  // Snapshot the state BEFORE we touch anything
+  const before = JSON.parse(JSON.stringify(installer.macAddresses || []));
+
   const existingMacIndex = (installer.macAddresses || []).findIndex((m) => m.mac === macAddress);
 
-  const updatedMac = { mac: macAddress, address, city, notes, purchaseDate, startDate, technicianName, technicianPhone, supplierName, committeeName, committeePhone, description, annualFee, licensesPurchased, licensePaid, panelType, voipbellAccount };
+  // A MAC can legitimately live on more than one account (installer + committee
+  // for the same building). Each account keeps its OWN copy of the details, so a
+  // freshly assigned MAC would otherwise start completely blank.
+  // When adding a MAC that already exists elsewhere, inherit its details as the
+  // baseline — anything explicitly sent in this call still overrides.
+  let base = existingMacIndex >= 0 ? installer.macAddresses[existingMacIndex] : null;
+  let inheritedFrom = null;
+
+  if (!base) {
+    const other = await db.collection("installers").findOne({
+      phoneNumber: { $ne: phoneNumber },
+      "macAddresses.mac": macAddress,
+    });
+    if (other) {
+      const src = (other.macAddresses || []).find((m) => m.mac === macAddress);
+      if (src) {
+        base = src;
+        inheritedFrom = other.phoneNumber;
+        console.log(`📋 MAC ${macAddress} → ${phoneNumber}: inherited details from ${other.phoneNumber}`);
+      }
+    }
+  }
+
+  const existing = base || {};
+
+  // MERGE — undefined means "keep whatever is already stored".
+  // Never rebuild the object from scratch: fields the manager form doesn't send
+  // (e.g. description, which the installer edits himself) must survive a save.
+  const keep = (incoming, current, fallback) =>
+    incoming === undefined || incoming === null ? (current !== undefined ? current : fallback) : incoming;
+
+  const updatedMac = {
+    mac: macAddress,
+    address:            keep(address,            existing.address,            ""),
+    city:               keep(city,               existing.city,               ""),
+    notes:              keep(notes,              existing.notes,              ""),
+    purchaseDate:       keep(purchaseDate,       existing.purchaseDate,       ""),
+    startDate:          keep(startDate,          existing.startDate,          ""),
+    technicianName:     keep(technicianName,     existing.technicianName,     ""),
+    technicianPhone:    keep(technicianPhone,    existing.technicianPhone,    ""),
+    supplierName:       keep(supplierName,       existing.supplierName,       ""),
+    committeeName:      keep(committeeName,      existing.committeeName,      ""),
+    committeePhone:     keep(committeePhone,     existing.committeePhone,     ""),
+    // `description` is owned by the INSTALLER (edited from the installer portal
+    // via updateMacField). On an existing entry the stored value always wins, so
+    // a manager save can never wipe it. On a brand-new entry we take what was
+    // sent, falling back to an inherited value from another account.
+    description:        existingMacIndex >= 0
+                          ? (existing.description || "")
+                          : (description || existing.description || ""),
+    annualFee:          keep(annualFee,          existing.annualFee,          ""),
+    licensesPurchased:  keep(licensesPurchased,  existing.licensesPurchased,  ""),
+    licensePaid:        keep(licensePaid,        existing.licensePaid,        false),
+    panelType:          keep(panelType,          existing.panelType,          "genesis7"),
+    voipbellAccount:    keep(voipbellAccount,    existing.voipbellAccount,    ""),
+  };
 
   if (existingMacIndex >= 0) installer.macAddresses[existingMacIndex] = updatedMac;
   else installer.macAddresses = [...(installer.macAddresses || []), updatedMac];
+
+  await snapshotMacs(phoneNumber, before, 'assignMacToInstaller:' + macAddress);
 
   await db.collection("installers").updateOne({ phoneNumber }, { $set: { macAddresses: installer.macAddresses } });
 }
@@ -144,6 +244,8 @@ async function updateMacField(phoneNumber, macAddress, field, value) {
 
 async function removeMacFromInstaller(phoneNumber, macAddress) {
   await connectDB();
+  const current = await db.collection("installers").findOne({ phoneNumber });
+  await snapshotMacs(phoneNumber, current?.macAddresses || [], 'removeMac:' + macAddress);
   await db.collection("installers").updateOne({ phoneNumber }, { $pull: { macAddresses: { mac: macAddress } } });
 }
 
@@ -218,6 +320,8 @@ async function getInstallerDetails(phoneNumber) {
     phoneNumber: installer.phoneNumber,
     password: installer.plainPassword,
     macAddresses: installer.macAddresses || [],
+    accountType: installer.accountType || 'installer',
+    installerName: installer.installerName || '',
     createdAt: installer.createdAt,
     lastLogin: installer.lastLogin,
     managerNote: installer.managerNote || '',
@@ -526,6 +630,10 @@ async function mergeInstallers(primaryPhone, secondaryPhone) {
   const primaryMacs   = primary.macAddresses   || [];
   const secondaryMacs = secondary.macAddresses || [];
 
+  // Merge deletes the secondary account — snapshot both sides first
+  await snapshotMacs(primaryPhone, primaryMacs, 'mergeInstallers:primary<-' + secondaryPhone);
+  await snapshotMacs(secondaryPhone, secondaryMacs, 'mergeInstallers:secondary->' + primaryPhone);
+
   // Merge MACs — skip duplicates
   const existingMacSet = new Set(primaryMacs.map(m => m.mac));
   const newMacs = secondaryMacs.filter(m => !existingMacSet.has(m.mac));
@@ -577,6 +685,8 @@ module.exports = {
   createInstaller,
   assignMacToInstaller,
   removeMacFromInstaller,
+  snapshotMacs,
+  getMacHistory,
   loginInstaller,
   loginManager,
   getInstallers,

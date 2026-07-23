@@ -445,24 +445,26 @@ app.get('/api/manager/installers/:phoneNumber', async (req, res) => {
 // Assign MAC to installer
 app.post('/api/manager/installers/:phoneNumber/macs', async (req, res) => {
   try {
+    // NOTE: no '' defaults here on purpose — a missing field must stay `undefined`
+    // so db.assignMacToInstaller keeps the value already stored (merge, not replace).
     const {
       macAddress,
-      address = '',
-      city = '',
-      notes = '',
-      purchaseDate = '',
-      startDate = '',
-      technicianName = '',
-      technicianPhone = '',
-      supplierName = '',
-      committeeName = '',
-      committeePhone = '',
-      description = '',
-      annualFee = '',
-      licensesPurchased = '',
-      licensePaid = false,
-      panelType = 'genesis7',
-      voipbellAccount = '',
+      address,
+      city,
+      notes,
+      purchaseDate,
+      startDate,
+      technicianName,
+      technicianPhone,
+      supplierName,
+      committeeName,
+      committeePhone,
+      description,
+      annualFee,
+      licensesPurchased,
+      licensePaid,
+      panelType,
+      voipbellAccount,
     } = req.body;
 
     const cleanMac = (macAddress || '').replace(/[:\s-]/g, '').toUpperCase();
@@ -1278,6 +1280,60 @@ app.get('/api/installer/relay-status', async (req, res) => {
       relayCount: relayData?.relay_count,
       relayList: relayData?.relay_list || [],
     });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== MAC HISTORY (safety net) ====================
+// Every write to macAddresses is snapshotted first. These routes let the manager
+// see the previous versions and roll back if something got wiped.
+
+app.get('/api/manager/mac-history/:phoneNumber', async (req, res) => {
+  try {
+    const history = await db.getMacHistory(req.params.phoneNumber, 30);
+    res.json({
+      success: true,
+      history: history.map(h => ({
+        id: h._id,
+        at: h.at,
+        reason: h.reason,
+        macCount: (h.macAddresses || []).length,
+        macAddresses: h.macAddresses,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/manager/mac-history/:phoneNumber/restore', async (req, res) => {
+  try {
+    const { username, password, snapshotId } = req.body;
+    if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASS) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!snapshotId) return res.status(400).json({ success: false, error: 'snapshotId required' });
+
+    const { ObjectId } = require('mongodb');
+    const database = await require('./db').connectDB();
+    const snap = await database.collection('mac_history').findOne({ _id: new ObjectId(snapshotId) });
+    if (!snap) return res.json({ success: false, error: 'Snapshot not found' });
+    if (snap.phoneNumber !== req.params.phoneNumber) {
+      return res.json({ success: false, error: 'Snapshot belongs to a different account' });
+    }
+
+    // Snapshot the CURRENT state before rolling back, so a restore is itself undoable
+    const current = await database.collection('installers').findOne({ phoneNumber: req.params.phoneNumber });
+    await db.snapshotMacs(req.params.phoneNumber, current?.macAddresses || [], 'before-restore');
+
+    await database.collection('installers').updateOne(
+      { phoneNumber: req.params.phoneNumber },
+      { $set: { macAddresses: snap.macAddresses } }
+    );
+
+    console.log(`♻️ MAC restore: ${req.params.phoneNumber} ← snapshot ${snapshotId} (${snap.at})`);
+    res.json({ success: true, restored: (snap.macAddresses || []).length, at: snap.at });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -2199,7 +2255,15 @@ app.get('/api/stats', async (req, res) => {
   try {
     const installers = await db.getAllInstallersWithMacs();
     const adminUser = process.env.ADMIN_USER || 'admin';
-    const filtered = installers.filter(i => i.phoneNumber !== adminUser);
+    // Order matters: MACs are de-duplicated globally below (first occurrence wins).
+    // A MAC can legitimately sit on both an installer and a committee account —
+    // the installer record holds the real data, so it must be processed first.
+    const filtered = installers
+      .filter(i => i.phoneNumber !== adminUser)
+      .sort((a, b) => {
+        const rank = x => ((x.accountType || 'installer') === 'installer' ? 0 : 1);
+        return rank(a) - rank(b);
+      });
 
     // Deduplicate MACs globally across all installers
     const seenMacs = new Set();
