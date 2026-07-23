@@ -1285,6 +1285,138 @@ app.get('/api/installer/relay-status', async (req, res) => {
   }
 });
 
+// ==================== MAC MAINTENANCE (browser-run tools) ====================
+// Same MAC can live on several accounts, each with its OWN copy of the details.
+// These two routes replace the standalone maintenance scripts so they can be run
+// from the browser against the live deployment.
+
+const MAC_DETAIL_FIELDS = [
+  'address', 'city', 'notes', 'purchaseDate', 'startDate',
+  'technicianName', 'technicianPhone', 'supplierName',
+  'committeeName', 'committeePhone', 'description',
+  'annualFee', 'licensesPurchased', 'panelType', 'voipbellAccount',
+];
+
+const macFieldEmpty = v => v === undefined || v === null || String(v).trim() === '';
+const macRichness = m => MAC_DETAIL_FIELDS.filter(f => !macFieldEmpty(m[f])).length;
+
+// READ-ONLY: list MACs that are clearly in use but have no description
+app.get('/api/manager/audit-macs', async (req, res) => {
+  try {
+    const database = await require('./db').connectDB();
+    const adminUser = process.env.ADMIN_USER || 'admin';
+    const all = await database.collection('installers')
+      .find({ phoneNumber: { $ne: adminUser } }).sort({ createdAt: 1 }).toArray();
+
+    const contentFields = MAC_DETAIL_FIELDS.filter(f => f !== 'description' && f !== 'panelType');
+    const missing = [];
+    let totalMacs = 0, withDescription = 0;
+
+    for (const inst of all) {
+      for (const m of (inst.macAddresses || [])) {
+        totalMacs++;
+        if (!macFieldEmpty(m.description)) { withDescription++; continue; }
+        const filled = contentFields.filter(f => !macFieldEmpty(m[f]));
+        if (filled.length >= 2) {
+          missing.push({
+            phoneNumber: inst.phoneNumber,
+            name: inst.installerName || '',
+            accountType: inst.accountType || 'installer',
+            mac: m.mac,
+            address: m.address || '',
+            city: m.city || '',
+            notes: m.notes || '',
+          });
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      summary: { accounts: all.length, totalMacs, withDescription, missingDescription: missing.length },
+      missing,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Fill EMPTY fields on a MAC copy from the richest copy of the same MAC on another
+// account. Never overwrites a field that has content, never deletes.
+// Dry run by default — add &apply=1 to actually write.
+app.get('/api/manager/sync-mac-details', async (req, res) => {
+  try {
+    const { username, password, apply, phone } = req.query;
+    if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASS) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    const doWrite = apply === '1' || apply === 'true';
+
+    const database = await require('./db').connectDB();
+    const col = database.collection('installers');
+    const adminUser = process.env.ADMIN_USER || 'admin';
+    const all = await col.find({ phoneNumber: { $ne: adminUser } }).toArray();
+
+    // Best-known copy of each MAC across all accounts
+    const best = new Map();
+    for (const inst of all) {
+      for (const m of (inst.macAddresses || [])) {
+        if (!m.mac) continue;
+        const cur = best.get(m.mac);
+        if (!cur || macRichness(m) > macRichness(cur.entry)) {
+          best.set(m.mac, { entry: m, phoneNumber: inst.phoneNumber });
+        }
+      }
+    }
+
+    const plan = [];
+    let fieldsFilled = 0, accountsChanged = 0;
+
+    for (const inst of all) {
+      if (phone && inst.phoneNumber !== phone) continue;
+      const macs = inst.macAddresses || [];
+      let changed = false;
+
+      for (const m of macs) {
+        const src = best.get(m.mac);
+        if (!src || src.phoneNumber === inst.phoneNumber) continue;
+
+        const filled = {};
+        for (const f of MAC_DETAIL_FIELDS) {
+          if (macFieldEmpty(m[f]) && !macFieldEmpty(src.entry[f])) {
+            filled[f] = src.entry[f];
+            if (doWrite) m[f] = src.entry[f];
+            fieldsFilled++;
+          }
+        }
+        if (Object.keys(filled).length) {
+          changed = true;
+          plan.push({ account: inst.phoneNumber, name: inst.installerName || '', mac: m.mac, from: src.phoneNumber, fields: filled });
+        }
+      }
+
+      if (changed) {
+        accountsChanged++;
+        if (doWrite) {
+          await db.snapshotMacs(inst.phoneNumber, macs, 'sync-mac-details');
+          await col.updateOne({ phoneNumber: inst.phoneNumber }, { $set: { macAddresses: macs } });
+        }
+      }
+    }
+
+    console.log(`🔗 sync-mac-details (${doWrite ? 'APPLIED' : 'dry run'}): ${accountsChanged} accounts, ${plan.length} MACs, ${fieldsFilled} fields`);
+    res.json({
+      success: true,
+      applied: doWrite,
+      summary: { accountsChanged, macsChanged: plan.length, fieldsFilled },
+      plan,
+      hint: doWrite ? 'Changes written. Previous state saved in mac_history.' : 'Dry run only — add &apply=1 to write.',
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== MAC HISTORY (safety net) ====================
 // Every write to macAddresses is snapshotted first. These routes let the manager
 // see the previous versions and roll back if something got wiped.
