@@ -675,7 +675,25 @@
       <!-- Action Grid -->
       <div class="action-grid">
 
-        <!-- Emergency Door Open -->
+        <!-- 1. Tutorials -->
+        <button class="action-card" onclick="openTutorials()">
+          <span class="material-symbols-outlined">play_circle</span>
+          <span class="action-card-label">סרטוני הדרכה</span>
+        </button>
+
+        <!-- 2. Temporary Code -->
+        <button class="action-card" id="tempCodeBtn" onclick="openTempCode()">
+          <span class="material-symbols-outlined">password</span>
+          <span class="action-card-label">קוד זמני</span>
+        </button>
+
+        <!-- 3. Permanent Codes -->
+        <button class="action-card" onclick="openPermCodes()">
+          <span class="material-symbols-outlined">vpn_key</span>
+          <span class="action-card-label">קודים קבועים</span>
+        </button>
+
+        <!-- 4. Emergency Door Open -->
         <button class="action-card" id="relayBtn" onclick="toggleRelay()">
           <span id="relayBadge" class="action-badge badge-loading">...</span>
           <span class="material-symbols-outlined">door_open</span>
@@ -683,63 +701,51 @@
           <div id="relayResult" class="status-msg"></div>
         </button>
 
-        <!-- Reboot -->
-        <button class="action-card" id="rebootBtn" onclick="rebootDevice()">
-          <span class="material-symbols-outlined">restart_alt</span>
-          <span class="action-card-label" data-i18n="rebootBtn">אתחול מכשיר</span>
-          <div id="rebootResult" class="status-msg"></div>
+        <!-- 5. Resident Update -->
+        <button class="action-card" onclick="openResidentUpdate()">
+          <span class="material-symbols-outlined">person_edit</span>
+          <span class="action-card-label">עדכון דייר</span>
         </button>
 
-        <!-- Temporary Code -->
-        <button class="action-card" id="tempCodeBtn" onclick="openTempCode()">
-          <span class="material-symbols-outlined">password</span>
-          <span class="action-card-label">קוד זמני</span>
+        <!-- 6. Panel History -->
+        <button class="action-card" onclick="openPanelHistory()">
+          <span class="material-symbols-outlined">history</span>
+          <span class="action-card-label">היסטוריה</span>
         </button>
 
-        <!-- Catalog -->
-        <button class="action-card" id="catalogSection" onclick="openCatalog()">
-          <span class="material-symbols-outlined">download</span>
-          <span class="action-card-label" data-i18n="catalogBtn">קטלוג מוצרים</span>
-        </button>
-
-        <!-- Face Management -->
+        <!-- 7. Face Management -->
         <button class="action-card" id="faceManagementBtn" onclick="window.open('https://genesistracer.onrender.com/committee.html','_blank')">
           <span class="material-symbols-outlined">face</span>
           <span class="action-card-label">ניהול זיהוי פנים</span>
         </button>
 
-        <!-- Resident Example -->
-        <button class="action-card" id="residentExampleBtn" onclick="downloadResidentExampleInstaller()" style="display:none;">
-          <span class="material-symbols-outlined">people</span>
-          <span class="action-card-label">רשימת דיירים לדוגמא</span>
+        <!-- 8. Catalog -->
+        <button class="action-card" id="catalogSection" onclick="openCatalog()">
+          <span class="material-symbols-outlined">download</span>
+          <span class="action-card-label" data-i18n="catalogBtn">קטלוג מוצרים</span>
         </button>
 
-        <!-- Announcements -->
+        <!-- 9. Announcements -->
         <button class="action-card" id="announcementsBtn" onclick="openAnnouncements()" style="position:relative;">
           <span class="material-symbols-outlined">campaign</span>
           <span class="action-card-label">הודעות</span>
           <span id="announcementsBadge" style="display:none;position:absolute;top:8px;left:8px;background:var(--red);color:white;border-radius:50%;width:18px;height:18px;font-size:10px;line-height:18px;text-align:center;font-weight:800;"></span>
         </button>
 
-        <!-- Tutorials -->
-        <!-- Resident Update -->
-        <button class="action-card" onclick="openResidentUpdate()">
-          <span class="material-symbols-outlined">person_edit</span>
-          <span class="action-card-label">עדכון דייר</span>
+        <!-- 10. Reboot -->
+        <button class="action-card" id="rebootBtn" onclick="rebootDevice()">
+          <span class="material-symbols-outlined">restart_alt</span>
+          <span class="action-card-label" data-i18n="rebootBtn">אתחול מכשיר</span>
+          <div id="rebootResult" class="status-msg"></div>
         </button>
 
-        <button class="action-card" onclick="openTutorials()">
-          <span class="material-symbols-outlined">play_circle</span>
-          <span class="action-card-label">סרטוני הדרכה</span>
+        <!-- Resident Example (hidden) -->
+        <button class="action-card" id="residentExampleBtn" onclick="downloadResidentExampleInstaller()" style="display:none;">
+          <span class="material-symbols-outlined">people</span>
+          <span class="action-card-label">רשימת דיירים לדוגמא</span>
         </button>
 
-        <!-- Permanent Codes -->
-        <button class="action-card" onclick="togglePermCodesSection()">
-          <span class="material-symbols-outlined">vpn_key</span>
-          <span class="action-card-label">קודים קבועים</span>
-        </button>
-
-        <!-- Portfolio - full width -->
+        <!-- 11. Portfolio - full width -->
         <button class="action-card" onclick="openPortfolio()" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;gap:14px;padding:16px 18px;">
           <span class="material-symbols-outlined" style="font-size:28px;">photo_library</span>
           <div style="text-align:right;">
@@ -763,51 +769,6 @@
         </div>
         <div id="subMsg" class="status-msg" style="color:white;margin-bottom:8px;"></div>
         <button class="btn-red" onclick="submitSubscribe()">הצטרפות</button>
-      </div>
-
-      <!-- ==================== PERMANENT CODES SECTION ==================== -->
-      <div id="permanent-codes-section" style="display:none; padding:20px; background:#f9f9f9; border-radius:8px; margin-top:20px;">
-        <h2 style="margin-top:0;">קודים קבועים</h2>
-        <p style="font-size:14px; color:#666;">עד 5 קודים קבועים שפתוחים 24/7</p>
-
-        <!-- Panel selector -->
-        <div style="margin-bottom:15px;">
-          <label style="font-weight:bold;">בחר פנל:</label>
-          <select id="perm-panel-select" style="width:100%; padding:8px; margin-top:5px; border:1px solid #ddd; border-radius:4px;">
-            <option value="">טוען...</option>
-          </select>
-        </div>
-
-        <!-- Add new code form -->
-        <div style="background:white; padding:15px; border-radius:6px; margin-bottom:15px;">
-          <h3 style="margin:0 0 10px 0; font-size:16px;">הוסף קוד חדש</h3>
-          <div style="display:grid; gap:10px;">
-            <input id="perm-code-name" type="text" placeholder="שם הקוד (למשל: חנות, משפחה)" 
-                   style="padding:8px; border:1px solid #ddd; border-radius:4px;" maxlength="20">
-            <input id="perm-code-value" type="text" placeholder="קוד 4 ספרות (0000-9999)" 
-                   style="padding:8px; border:1px solid #ddd; border-radius:4px;" maxlength="4" inputmode="numeric">
-            <button id="perm-code-add-btn" onclick="addPermCode()" 
-                    style="padding:10px; background:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">
-              ➕ הוסף קוד
-            </button>
-          </div>
-        </div>
-
-        <!-- List of codes -->
-        <div style="background:white; border-radius:6px; overflow:hidden;">
-          <table id="perm-codes-table" style="width:100%; border-collapse:collapse;">
-            <thead>
-              <tr style="background:#f0f0f0; border-bottom:2px solid #ddd;">
-                <th style="text-align:right; padding:10px;">שם</th>
-                <th style="text-align:right; padding:10px;">קוד</th>
-                <th style="padding:10px;">פעולות</th>
-              </tr>
-            </thead>
-            <tbody id="perm-codes-body">
-              <tr><td colspan="3" style="text-align:center; padding:20px; color:#999;">אין קודים</td></tr>
-            </tbody>
-          </table>
-        </div>
       </div>
 
     </div>
@@ -1574,6 +1535,84 @@
   </div>
 </div>
 
+<!-- ══ PANEL HISTORY MODAL ══ -->
+<div id="panelHistoryModal" class="overlay">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">history</span>
+        היסטוריית כניסות
+      </h3>
+      <button class="modal-close" onclick="closePanelHistory()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:16px 20px;">
+      <div style="font-size:12px;font-weight:800;margin-bottom:6px;">📅 בחר תאריך (dd/mm/yyyy):</div>
+      <style>
+        #historyDatePick { position: relative; text-align: right; }
+        #historyDatePick:not(.has-value)::before {
+          content: 'בחר תאריך...';
+          color: #9ca3af;
+          margin-left: 8px;
+        }
+      </style>
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
+        <input type="date" id="historyDatePick" onchange="searchHistoryByDate()" 
+          style="flex:1;padding:9px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:13px;min-height:38px;-webkit-appearance:none;background:#fff;"/>
+        <button id="historyClearDate" onclick="clearHistoryDate()" style="display:none;background:none;border:1.5px solid var(--gray-200);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">✕ נקה</button>
+      </div>
+      <div id="historyTotal" style="font-size:12px;color:var(--gray-500);font-weight:600;margin-bottom:10px;"></div>
+      <div id="historyList" style="display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow-y:auto;">
+        <div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">טוען...</div>
+      </div>
+      <button id="historyMoreBtn" onclick="loadPanelHistory(false)" style="display:none;width:100%;margin-top:10px;padding:11px;border:1.5px solid var(--gray-200);border-radius:8px;background:none;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">
+        טען עוד ⬇
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PERMANENT CODES MODAL ══ -->
+<div id="permCodesModal" class="overlay">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">vpn_key</span>
+        קודים קבועים
+      </h3>
+      <button class="modal-close" onclick="closePermCodes()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px;">
+
+      <div style="background:var(--gray-50);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--gray-500);margin-bottom:16px;line-height:1.7;">
+        🔐 עד 5 קודים קבועים — פתוחים 24/7 בכל הימים
+      </div>
+
+      <!-- Add new code form -->
+      <div style="margin-bottom:18px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">הוסף קוד חדש</div>
+        <input type="text" id="permCodeName" placeholder="שם הקוד (למשל: משפחה, חנות)" maxlength="20"
+          style="width:100%;padding:11px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:14px;margin-bottom:8px;"/>
+        <input type="text" id="permCodeValue" placeholder="קוד 4 ספרות" maxlength="4" inputmode="numeric"
+          style="width:100%;padding:11px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:16px;letter-spacing:4px;text-align:center;font-weight:700;margin-bottom:10px;"/>
+        <button class="btn-red" onclick="addPermCode()" id="permCodeAddBtn">
+          <span class="material-symbols-outlined">add_circle</span>
+          הוסף קוד
+        </button>
+      </div>
+
+      <!-- Error msg -->
+      <div id="permCodeError" style="font-size:13px;color:var(--red);font-weight:600;min-height:18px;margin-bottom:10px;text-align:center;"></div>
+
+      <!-- List of codes -->
+      <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">קודים קיימים</div>
+      <div id="permCodesList" style="display:flex;flex-direction:column;gap:8px;max-height:40vh;overflow-y:auto;">
+        <div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">טוען...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <!-- ══ ANNOUNCEMENTS MODAL ══ -->
 <div id="announcementsModal" class="overlay">
   <div class="modal" style="max-width:460px;">
@@ -2094,205 +2133,283 @@
     document.getElementById('lightbox').style.display = 'none';
   }
 
-  // ==================== PERMANENT CODES ==================== 
-  function togglePermCodesSection() {
-    const section = document.getElementById('permanent-codes-section');
-    section.style.display = section.style.display === 'none' ? 'block' : 'none';
-    if (section.style.display === 'block') {
-      loadPermPanels();
+  // ==================== PANEL HISTORY ====================
+  let historyPage = 1;
+  let historyTotal = 0;
+
+  function openPanelHistory() {
+    if (!lastPanelAddress) {
+      alert('יש לבצע התחברות מרחוק תחילה כדי לאמת שהפנל מחובר לאינטרנט');
+      return;
+    }
+    document.getElementById('panelHistoryModal').classList.add('open');
+    document.getElementById('historyDatePick').value = '';
+    document.getElementById('historyDatePick').classList.remove('has-value');
+    document.getElementById('historyClearDate').style.display = 'none';
+    historyPage = 1;
+    loadPanelHistory(true);
+  }
+
+  function closePanelHistory() {
+    document.getElementById('panelHistoryModal').classList.remove('open');
+  }
+
+  const HIST_TYPE = {
+    face:     { icon: 'face',     label: 'פנים' },
+    card:     { icon: 'badge',    label: 'כרטיס' },
+    password: { icon: 'password', label: 'קוד' },
+  };
+
+  async function loadPanelHistory(reset) {
+    const list = document.getElementById('historyList');
+    const moreBtn = document.getElementById('historyMoreBtn');
+    if (reset) {
+      historyPage = 1;
+      list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">טוען...</div>';
+      moreBtn.style.display = 'none';
+    } else {
+      moreBtn.disabled = true;
+      moreBtn.textContent = 'טוען...';
+    }
+    try {
+      const r = await fetch('/api/installer/panel-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          panelAddress: lastPanelAddress,
+          pageNum: historyPage,
+          pageSize: 20,
+          installerPhone: installerData?.phoneNumber
+        })
+      });
+      const data = await r.json();
+      if (!data.success) {
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">' + (data.error || 'שגיאה') + '</div>';
+        return;
+      }
+      historyTotal = data.total;
+      document.getElementById('historyTotal').textContent = 'סה"כ ' + historyTotal + ' רשומות';
+
+      const rows = renderHistoryRows(data.records);
+
+      if (reset) list.innerHTML = rows || '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">אין רשומות</div>';
+      else list.insertAdjacentHTML('beforeend', rows);
+
+      historyPage++;
+      const loaded = (historyPage - 1) * 20;
+      moreBtn.style.display = loaded < historyTotal ? 'block' : 'none';
+      moreBtn.disabled = false;
+      moreBtn.textContent = 'טען עוד ⬇';
+    } catch (e) {
+      if (reset) list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">שגיאת תקשורת</div>';
+      moreBtn.disabled = false;
+      moreBtn.textContent = 'טען עוד ⬇';
     }
   }
 
-  async function loadPermPanels() {
-    const macs = myInstallerMacs || [];
-    const select = document.getElementById('perm-panel-select');
-    select.innerHTML = '';
-    if (macs.length > 0) {
-      macs.forEach(m => {
-        const option = document.createElement('option');
-        option.value = m.mac;
-        option.textContent = m.address || m.mac;
-        select.appendChild(option);
+  function renderHistoryRows(records) {
+    return records.map(rec => {
+      const t = HIST_TYPE[rec.type] || { icon: 'lock_open', label: rec.type };
+      const d = new Date(rec.time);
+      const dateStr = d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' }) +
+                      ' ' + d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+      const ok = rec.status === 'success';
+      const name = rec.name || (rec.type === 'password' ? rec.content : '—');
+      return `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid ${ok ? 'var(--gray-200)' : '#fecaca'};border-radius:8px;${ok ? '' : 'background:#fff5f5;'}">
+        <span class="material-symbols-outlined" style="font-size:20px;color:${ok ? 'var(--black)' : 'var(--red)'};">${t.icon}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapePermHtml(name)}</div>
+          <div style="font-size:11px;color:var(--gray-500);">${t.label}${rec.door ? ' · דלת ' + rec.door : ''}</div>
+        </div>
+        <div style="text-align:left;flex-shrink:0;">
+          <div style="font-size:11px;color:var(--gray-500);font-weight:600;">${dateStr}</div>
+          <div style="font-size:10px;font-weight:800;color:${ok ? '#16a34a' : 'var(--red)'};">${ok ? '✓ נפתח' : '✗ נכשל'}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function searchHistoryByDate() {
+    const dateEl = document.getElementById('historyDatePick');
+    const date = dateEl.value;
+    if (!date) { dateEl.classList.remove('has-value'); return; }
+    dateEl.classList.add('has-value');
+    const list = document.getElementById('historyList');
+    const moreBtn = document.getElementById('historyMoreBtn');
+    document.getElementById('historyClearDate').style.display = 'block';
+    moreBtn.style.display = 'none';
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">מחפש בפנל... (עשוי לקחת מספר שניות)</div>';
+    try {
+      const r = await fetch('/api/installer/panel-history-date', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          panelAddress: lastPanelAddress,
+          date,
+          installerPhone: installerData?.phoneNumber
+        })
       });
-      if (macs.length > 0) {
-        select.value = macs[0].mac;
-        loadPermCodes();
+      const data = await r.json();
+      if (!data.success) {
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">' + (data.error || 'שגיאה') + '</div>';
+        return;
       }
+      const dObj = new Date(date + 'T12:00:00');
+      document.getElementById('historyTotal').textContent =
+        dObj.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' — ' + data.total + ' רשומות';
+      list.innerHTML = data.records.length
+        ? renderHistoryRows(data.records)
+        : '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">אין כניסות בתאריך זה</div>';
+    } catch (e) {
+      list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">שגיאת תקשורת</div>';
     }
+  }
+
+  function clearHistoryDate() {
+    const dateEl = document.getElementById('historyDatePick');
+    dateEl.value = '';
+    dateEl.classList.remove('has-value');
+    document.getElementById('historyClearDate').style.display = 'none';
+    historyPage = 1;
+    loadPanelHistory(true);
+  }
+
+  // ==================== PERMANENT CODES ====================
+  function openPermCodes() {
+    if (!lastPanelAddress) {
+      alert('יש לבצע התחברות מרחוק תחילה כדי לאמת שהפנל מחובר לאינטרנט');
+      return;
+    }
+    document.getElementById('permCodesModal').classList.add('open');
+    document.getElementById('permCodeError').textContent = '';
+    document.getElementById('permCodeName').value = '';
+    document.getElementById('permCodeValue').value = '';
+    loadPermCodes();
+  }
+
+  function closePermCodes() {
+    document.getElementById('permCodesModal').classList.remove('open');
   }
 
   async function loadPermCodes() {
-    const mac = document.getElementById('perm-panel-select').value;
-    if (!mac) return;
-
+    const list = document.getElementById('permCodesList');
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">טוען...</div>';
     try {
-      const res = await lookupMAC(mac);
-      if (!res.success) {
-        alert('לא ניתן להתחבר לפנל');
-        return;
-      }
-      const panelAddress = res.fullAddress;
-
-      const response = await fetch(`/api/installer/permanent-codes?panelAddress=${panelAddress}`);
-      const data = await response.json();
-
+      const r = await fetch('/api/installer/permanent-codes?panelAddress=' + encodeURIComponent(lastPanelAddress));
+      const data = await r.json();
       if (!data.success) {
-        alert('שגיאה: ' + data.error);
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">' + (data.error || 'שגיאה') + '</div>';
         return;
       }
-
-      const tbody = document.getElementById('perm-codes-body');
-      if (data.codes.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:#999;">אין קודים</td></tr>';
+      if (!data.codes.length) {
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">אין קודים קבועים</div>';
         return;
       }
-
-      tbody.innerHTML = data.codes.map(code => `
-        <tr style="border-bottom:1px solid #eee;">
-          <td style="padding:10px; text-align:right;">${escapeHtml(code.name)}</td>
-          <td style="padding:10px; text-align:right; font-weight:bold; font-size:16px; letter-spacing:2px;">${code.code}</td>
-          <td style="padding:10px;">
-            <button onclick="editPermCode('${code.id}', '${escapeHtml(code.name)}', '${code.code}')" 
-                    style="padding:6px 12px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; margin-left:5px;">
-              ✏️ ערוך
-            </button>
-            <button onclick="deletePermCode('${code.id}')" 
-                    style="padding:6px 12px; background:#f44336; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">
-              🗑️ מחק
-            </button>
-          </td>
-        </tr>
+      list.innerHTML = data.codes.map(c => `
+        <div style="display:flex;align-items:center;gap:10px;padding:12px;border:1.5px solid var(--gray-200);border-radius:8px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:700;">${escapePermHtml(c.name)}</div>
+            <div style="font-family:'Courier New',monospace;font-size:18px;font-weight:800;letter-spacing:4px;color:var(--red);">${c.code}</div>
+          </div>
+          <button onclick="editPermCode('${c.id}', this)" data-name="${escapePermHtml(c.name)}" data-code="${c.code}"
+            style="background:none;border:1.5px solid var(--gray-200);border-radius:7px;padding:8px;cursor:pointer;display:flex;">
+            <span class="material-symbols-outlined" style="font-size:18px;">edit</span>
+          </button>
+          <button onclick="deletePermCode('${c.id}')"
+            style="background:none;border:1.5px solid var(--gray-200);border-radius:7px;padding:8px;cursor:pointer;display:flex;color:var(--red);">
+            <span class="material-symbols-outlined" style="font-size:18px;">delete</span>
+          </button>
+        </div>
       `).join('');
-    } catch (err) {
-      console.error('Load codes error:', err);
-      alert('שגיאה בטעינת קודים');
+    } catch (e) {
+      list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">שגיאת תקשורת</div>';
     }
   }
 
   async function addPermCode() {
-    const name = document.getElementById('perm-code-name').value.trim();
-    const code = document.getElementById('perm-code-value').value.trim();
-    const mac = document.getElementById('perm-panel-select').value;
+    const name = document.getElementById('permCodeName').value.trim();
+    const code = document.getElementById('permCodeValue').value.trim();
+    const errEl = document.getElementById('permCodeError');
+    errEl.textContent = '';
+    if (!name) { errEl.textContent = 'הזן שם לקוד'; return; }
+    if (!/^\d{4}$/.test(code)) { errEl.textContent = 'קוד חייב להיות 4 ספרות'; return; }
 
-    if (!name) { alert('הזן שם לקוד'); return; }
-    if (!code || code.length !== 4 || !/^\d+$/.test(code)) { alert('קוד חייב להיות 4 ספרות'); return; }
-    if (!mac) { alert('בחר פנל'); return; }
-
-    document.getElementById('perm-code-add-btn').disabled = true;
-
+    const btn = document.getElementById('permCodeAddBtn');
+    btn.disabled = true;
     try {
-      const res = await lookupMAC(mac);
-      if (!res.success) { alert('לא ניתן להתחבר לפנל'); return; }
-
-      const response = await fetch('/api/installer/permanent-codes', {
+      const r = await fetch('/api/installer/permanent-codes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          panelAddress: res.fullAddress,
-          name,
-          code,
-          installerPhone: localStorage.getItem('installerPhone')
+          panelAddress: lastPanelAddress,
+          name, code,
+          installerPhone: installerData?.phoneNumber
         })
       });
-
-      const data = await response.json();
+      const data = await r.json();
       if (data.success) {
-        alert('✅ קוד הוסף בהצלחה');
-        document.getElementById('perm-code-name').value = '';
-        document.getElementById('perm-code-value').value = '';
+        document.getElementById('permCodeName').value = '';
+        document.getElementById('permCodeValue').value = '';
         loadPermCodes();
       } else {
-        alert('❌ ' + data.error);
+        errEl.textContent = data.error || 'שגיאה';
       }
-    } catch (err) {
-      console.error('Add code error:', err);
-      alert('שגיאה: ' + err.message);
+    } catch (e) {
+      errEl.textContent = 'שגיאת תקשורת';
     } finally {
-      document.getElementById('perm-code-add-btn').disabled = false;
+      btn.disabled = false;
     }
   }
 
-  async function editPermCode(codeId, name, code) {
-    const newName = prompt('שנה שם:', name);
+  async function editPermCode(codeId, btnEl) {
+    const oldName = btnEl.dataset.name;
+    const oldCode = btnEl.dataset.code;
+    const newName = prompt('שנה שם:', oldName);
     if (newName === null) return;
-
-    const newCode = prompt('שנה קוד (4 ספרות):', code);
+    const newCode = prompt('שנה קוד (4 ספרות):', oldCode);
     if (newCode === null) return;
-
-    if (!newCode || newCode.length !== 4 || !/^\d+$/.test(newCode)) {
-      alert('קוד חייב להיות 4 ספרות');
-      return;
-    }
-
-    const mac = document.getElementById('perm-panel-select').value;
-    if (!mac) { alert('בחר פנל'); return; }
+    if (!/^\d{4}$/.test(newCode)) { alert('קוד חייב להיות 4 ספרות'); return; }
 
     try {
-      const res = await lookupMAC(mac);
-      if (!res.success) { alert('לא ניתן להתחבר לפנל'); return; }
-
-      const response = await fetch(`/api/installer/permanent-codes/${codeId}`, {
+      const r = await fetch('/api/installer/permanent-codes/' + codeId, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          panelAddress: res.fullAddress,
-          name: newName,
+          panelAddress: lastPanelAddress,
+          name: newName.trim() || oldName,
           code: newCode,
-          installerPhone: localStorage.getItem('installerPhone')
+          installerPhone: installerData?.phoneNumber
         })
       });
-
-      const data = await response.json();
-      if (data.success) {
-        alert('✅ קוד עודכן בהצלחה');
-        loadPermCodes();
-      } else {
-        alert('❌ ' + data.error);
-      }
-    } catch (err) {
-      console.error('Edit code error:', err);
-      alert('שגיאה: ' + err.message);
+      const data = await r.json();
+      if (data.success) loadPermCodes();
+      else alert('❌ ' + (data.error || 'שגיאה'));
+    } catch (e) {
+      alert('שגיאת תקשורת');
     }
   }
 
   async function deletePermCode(codeId) {
-    if (!confirm('האם אתה בטוח שברצונך למחוק את הקוד?')) return;
-
-    const mac = document.getElementById('perm-panel-select').value;
-    if (!mac) { alert('בחר פנל'); return; }
-
+    if (!confirm('למחוק את הקוד?')) return;
     try {
-      const res = await lookupMAC(mac);
-      if (!res.success) { alert('לא ניתן להתחבר לפנל'); return; }
-
-      const response = await fetch(`/api/installer/permanent-codes/${codeId}?panelAddress=${res.fullAddress}&installerPhone=${localStorage.getItem('installerPhone')}`, {
+      const r = await fetch('/api/installer/permanent-codes/' + codeId +
+        '?panelAddress=' + encodeURIComponent(lastPanelAddress) +
+        '&installerPhone=' + encodeURIComponent(installerData?.phoneNumber || ''), {
         method: 'DELETE'
       });
-
-      const data = await response.json();
-      if (data.success) {
-        alert('✅ קוד נמחק בהצלחה');
-        loadPermCodes();
-      } else {
-        alert('❌ ' + data.error);
-      }
-    } catch (err) {
-      console.error('Delete code error:', err);
-      alert('שגיאה: ' + err.message);
+      const data = await r.json();
+      if (data.success) loadPermCodes();
+      else alert('❌ ' + (data.error || 'שגיאה'));
+    } catch (e) {
+      alert('שגיאת תקשורת');
     }
   }
 
-  function escapeHtml(text) {
+  function escapePermHtml(text) {
     const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-    return text.replace(/[&<>"']/g, m => map[m]);
+    return String(text || '').replace(/[&<>"']/g, m => map[m]);
   }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    const select = document.getElementById('perm-panel-select');
-    if (select) {
-      select.addEventListener('change', loadPermCodes);
-    }
-  });
 </script>
 </body>
 </html>
