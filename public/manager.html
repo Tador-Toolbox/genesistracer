@@ -618,6 +618,12 @@
       <!-- Installers List -->
       <div class="card">
         <h2 data-i18n="installersList">👥 Installer Accounts</h2>
+        <div style="position:relative;margin-bottom:14px;">
+          <input type="text" id="installerSearch" oninput="filterInstallers(this.value)"
+            placeholder="🔍 חיפוש לפי טלפון, שם, טכנאי, ועד, כתובת או תיאור..."
+            style="width:100%;padding:11px 14px;border:1.5px solid var(--border,#e5e5e5);border-radius:8px;font-family:inherit;font-size:14px;box-sizing:border-box;"/>
+          <div id="installerSearchCount" style="font-size:12px;color:var(--text-dim,#6b7280);margin-top:6px;display:none;"></div>
+        </div>
         <table id="installersTable">
           <thead>
             <tr>
@@ -1807,6 +1813,18 @@
         row.dataset.phone = installer.phoneNumber;
         row.dataset.name  = installer.installerName || installer.phoneNumber;
 
+        // Everything searchable for this account: phone, name, and every field of every MAC
+        const macSearchText = (details.installer.macAddresses || []).map(m => [
+          m.mac, m.address, m.city, m.notes, m.description,
+          m.technicianName, m.technicianPhone, m.committeeName, m.committeePhone,
+          m.supplierName, m.voipbellAccount
+        ].filter(Boolean).join(' ')).join(' ');
+        row.dataset.search = (
+          installer.phoneNumber + ' ' +
+          (installer.installerName || '') + ' ' +
+          macSearchText
+        ).toLowerCase();
+
         row.innerHTML = `
           <td>
             <div style="display:flex;align-items:center;gap:6px;">
@@ -1987,7 +2005,34 @@
         tbody.appendChild(row);
       }
 
+      // Re-apply an active search after the table rebuilds
+      const sv = document.getElementById('installerSearch');
+      if (sv && sv.value.trim()) filterInstallers(sv.value);
+    }
 
+    // Filter installer rows by phone / name / any MAC field
+    function filterInstallers(query) {
+      const q = (query || '').trim().toLowerCase();
+      const rows = document.querySelectorAll('#installersBody tr');
+      const countEl = document.getElementById('installerSearchCount');
+      let shown = 0;
+
+      rows.forEach(row => {
+        if (!q) { row.style.display = ''; return; }
+        const hay = row.dataset.search || '';
+        const match = hay.includes(q);
+        row.style.display = match ? '' : 'none';
+        if (match) shown++;
+      });
+
+      if (!q) {
+        countEl.style.display = 'none';
+      } else {
+        countEl.style.display = 'block';
+        countEl.textContent = shown === 0
+          ? 'לא נמצאו תוצאות'
+          : 'נמצאו ' + shown + ' חשבונות';
+      }
     }
 
     // initial labels
