@@ -137,7 +137,7 @@ textarea{resize:vertical;min-height:52px}
 .pl-card-body{padding:9px 9px 11px}
 .pl-card-price{font-size:18px;font-weight:800;color:var(--pr);font-family:var(--mono)}
 .pl-card-name{font-size:13px;font-weight:700;line-height:1.3;margin:4px 0 3px;color:var(--on-sf);word-break:break-word}
-.pl-card-desc{font-size:12px;color:var(--on-sfv);line-height:1.4}
+.pl-card-desc{font-size:12px;color:var(--on-sfv);line-height:1.4;white-space:pre-wrap;word-break:break-word}
 .pl-empty-card{border:1px solid var(--outv);border-radius:8px;background:var(--sf-low);opacity:.2;aspect-ratio:.75}
 .pl-notes{background:var(--inv-sf);color:var(--inv-on-sf);border-radius:8px;padding:14px;margin-top:16px;border-right:6px solid var(--pr)}
 .pl-notes-t{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#ffb4ab;margin-bottom:7px}
@@ -455,8 +455,9 @@ function renderProds(ci){
         <div class="pth">${p.imgUrl?`<img src="${p.imgUrl}" alt=""/>`:`<span class="ms" style="font-size:16px;color:var(--outv)">image</span>`}</div>
         <div class="info"><div class="iname" style="${p.hidden?'opacity:.45':''}">${p.hidden?'👁 ':''  }${p.name||'מוצר חדש'}</div><div class="iprice">${p.price?'₪'+p.price:'—'}</div></div>
         <div class="acts" onclick="event.stopPropagation()">
-          <button class="btn-ic" onclick="document.getElementById('img-${p.id}').click()"><span class="ms">photo_camera</span></button>
-          <button class="btn-ic d" onclick="rmProd(${ci},${pi})"><span class="ms">delete</span></button>
+          <button class="btn-ic" onclick="document.getElementById('img-${p.id}').click()" title="תמונה"><span class="ms">photo_camera</span></button>
+          <button class="btn-ic" onclick="dupProd(${ci},${pi})" title="שכפל מוצר"><span class="ms">content_copy</span></button>
+          <button class="btn-ic d" onclick="rmProd(${ci},${pi})" title="מחק"><span class="ms">delete</span></button>
         </div>
       </div>
       <div class="pib ${p.open?'open':''}">
@@ -542,6 +543,16 @@ function toggleProd(ci,pi){S.categories[ci].products[pi].open=!S.categories[ci].
 function updP(ci,pi,k,v){S.categories[ci].products[pi][k]=v;updateCatHeader(ci);rp();}
 function addProd(ci){saveHistory();const n=S.categories[ci].products.length+1;S.categories[ci].products.push(makeProd(n));renderCats();rp();}
 function rmProd(ci,pi){saveHistory();S.categories[ci].products.splice(pi,1);renderCats();rp();}
+function dupProd(ci,pi){
+  saveHistory();
+  const src=S.categories[ci].products[pi];
+  const copy=JSON.parse(JSON.stringify(src));
+  copy.id='p'+Date.now()+Math.random().toString(36).slice(2); // fresh id — keeps its own image/fields
+  copy.name=(src.name||'מוצר')+' (עותק)';
+  copy.open=true;
+  S.categories[ci].products.splice(pi+1,0,copy); // insert right after the original
+  renderCats();rp();
+}
 
 /* PREVIEW */
 function buildPL(){
