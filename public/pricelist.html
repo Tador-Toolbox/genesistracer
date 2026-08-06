@@ -251,7 +251,7 @@ function showCat(idx){
           ${p.link?`<span style="position:absolute;bottom:7px;left:7px;z-index:2;background:rgba(0,0,0,.55);border-radius:99px;padding:3px 7px;display:inline-flex;align-items:center;gap:3px"><span class="ms" style="font-size:13px;color:#fff">open_in_new</span></span>`:''}
         </div>
         <div class="pl-card-body">
-          ${p.price?`<div class="pl-card-price">₪${esc(p.price)}</div>`:''}
+          ${p.price?`<div class="pl-card-price">${curSym(p)}${esc(p.price)}</div>`:''}
           <div class="pl-card-name">${esc(p.name||'')}</div>
           ${p.desc?`<div class="pl-card-desc">${esc(p.desc)}</div>`:''}
         </div>
@@ -304,6 +304,7 @@ function closeLightbox(){
 }
 document.addEventListener('keydown', e => { if(e.key === 'Escape') closeLightbox(); });
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function curSym(p){return (p&&p.currency==='usd')?'$':'₪';}
 
 init();
 </script>
