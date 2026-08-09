@@ -1651,35 +1651,39 @@ app.post('/api/installer/block-user', async (req, res) => {
     });
     fs.unlink(tmpImg, () => {});
 
-    // 3) Delete the face from the panel (verified helper) + confirm it's gone
-    await deleteFaceFromPanel(host, port, token, faceId);
-
-    // Verify the face actually left the panel's access list
-    const afterDelete = await getAllPanelFaces(host, port, token);
-    const stillThere = afterDelete.some(f => String(f.id) === String(faceId));
-    if (stillThere) {
-      // Roll back the Cloudinary upload — we didn't actually block anything
-      try { await cloudinary.uploader.destroy(uploadRes.public_id); } catch(e) {}
-      return res.json({ success: false, error: 'הפנל לא מחק את הפנים — נסה שוב או בצע ריסט לפנל' });
-    }
-
-    // 4) Record the block
+    // 3) Record the block FIRST — so the info is saved no matter what the panel does
     const database = await require('./db').connectDB();
-    await database.collection('blocked_users').insertOne({
+    const blockDoc = await database.collection('blocked_users').insertOne({
       panelAddress,
       mac: panelAddress.split(':')[0],
       name: name || '',
       photoUrl: uploadRes.secure_url,
       blockedAt: new Date(),
       blockedBy: installerPhone || 'unknown',
+      panelDeleteOk: false, // updated below once we confirm the panel removed it
     });
-
-    console.log(`🚫 Blocked: ${name} on ${panelAddress}`);
     await database.collection('block_history').insertOne({
       panelAddress, mac: panelAddress.split(':')[0],
       name: name || '', action: 'block', at: new Date(), by: installerPhone || 'unknown',
     });
     await logActivity({ phoneNumber: installerPhone || 'unknown', action: 'block_user', mac: panelAddress, details: { name }, success: true });
+    console.log(`🚫 Block recorded: ${name} on ${panelAddress}`);
+
+    // 4) Delete the face from the panel + verify
+    let panelDeleteOk = false;
+    let panelWarning = null;
+    try {
+      await deleteFaceFromPanel(host, port, token, faceId);
+      const afterDelete = await getAllPanelFaces(host, port, token);
+      panelDeleteOk = !afterDelete.some(f => String(f.id) === String(faceId));
+      if (!panelDeleteOk) panelWarning = 'הפנים נשמרו ברשימה אך הפנל עדיין לא מחק אותם — נסה שוב או בצע ריסט';
+    } catch (delErr) {
+      panelWarning = 'הפנים נשמרו ברשימה אך המחיקה מהפנל נכשלה: ' + delErr.message;
+      console.error('block delete failed:', delErr.message);
+    }
+    if (panelDeleteOk) {
+      await database.collection('blocked_users').updateOne({ _id: blockDoc.insertedId }, { $set: { panelDeleteOk: true } });
+    }
 
     // Optional: reboot the panel so the recognition engine reloads immediately
     if (req.body.reboot) {
@@ -1709,7 +1713,7 @@ app.post('/api/installer/block-user', async (req, res) => {
         console.error('post-block reboot failed (non-fatal):', rebootErr.message);
       }
     }
-    res.json({ success: true, name });
+    res.json({ success: true, name, panelDeleteOk, warning: panelWarning });
   } catch (err) {
     console.error('block-user error:', err.message);
     res.status(500).json({ success: false, error: err.message });
@@ -1726,7 +1730,7 @@ app.get('/api/installer/block-user', async (req, res) => {
       .find({ panelAddress }).sort({ blockedAt: -1 }).toArray();
     res.json({
       success: true,
-      blocked: list.map(b => ({ id: b._id, name: b.name, photoUrl: b.photoUrl, blockedAt: b.blockedAt })),
+      blocked: list.map(b => ({ id: b._id, name: b.name, photoUrl: b.photoUrl, blockedAt: b.blockedAt, panelDeleteOk: b.panelDeleteOk !== false })),
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
