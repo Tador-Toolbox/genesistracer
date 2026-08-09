@@ -1605,7 +1605,12 @@
         </div>
       </div>
 
-      <div id="blockSearchResults" style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;"></div>
+      <div id="blockSearchResults" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
+
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray-500);margin-bottom:18px;cursor:pointer;">
+        <input type="checkbox" id="blockRebootAfter" style="width:16px;height:16px;"/>
+        בצע אתחול לפנל אחרי חסימה (אם הפנים ממשיכים לעבוד)
+      </label>
 
       <!-- Blocked list -->
       <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;border-top:1px solid var(--gray-200);padding-top:16px;">חסומים כרגע</div>
@@ -2378,13 +2383,14 @@
 
   async function doBlock(faceId, name, btn) {
     if (!confirm('לחסום את ' + name + '? הפנים יורדו מהפנל.')) return;
+    const rebootAfter = document.getElementById('blockRebootAfter').checked;
     btn.disabled = true;
     btn.textContent = 'חוסם...';
     try {
       const r = await fetch('/api/installer/block-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ panelAddress: lastPanelAddress, faceId, name, installerPhone: installerData?.phoneNumber })
+        body: JSON.stringify({ panelAddress: lastPanelAddress, faceId, name, installerPhone: installerData?.phoneNumber, reboot: rebootAfter })
       });
       const data = await r.json();
       if (data.success) {
@@ -2392,6 +2398,7 @@
         document.getElementById('blockSearchResults').innerHTML = '';
         loadBlockedList();
         loadBlockHistory();
+        if (rebootAfter) alert('✅ נחסם. הפנל מתאתחל — ייקח כ-30 שניות.');
       } else {
         alert('❌ ' + (data.error || 'שגיאה'));
         btn.disabled = false; btn.textContent = '🚫 חסום';
