@@ -2398,7 +2398,8 @@
         document.getElementById('blockSearchResults').innerHTML = '';
         loadBlockedList();
         loadBlockHistory();
-        if (rebootAfter) alert('✅ נחסם. הפנל מתאתחל — ייקח כ-30 שניות.');
+        if (data.warning) alert('⚠️ ' + data.warning);
+        else if (rebootAfter) alert('✅ נחסם. הפנל מתאתחל — ייקח כ-30 שניות.');
       } else {
         alert('❌ ' + (data.error || 'שגיאה'));
         btn.disabled = false; btn.textContent = '🚫 חסום';
@@ -2427,6 +2428,7 @@
           <div style="flex:1;min-width:0;">
             <div style="font-size:14px;font-weight:700;">${escapePermHtml(b.name)}</div>
             <div style="font-size:11px;color:var(--gray-500);">נחסם ${dateStr}</div>
+            ${b.panelDeleteOk === false ? '<div style="font-size:11px;color:var(--red);font-weight:700;">⚠️ לא נמחק מהפנל</div>' : ''}
           </div>
           <button onclick="doUnblock('${b.id}', this)" style="background:#16a34a;color:white;border:none;border-radius:7px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;">↩ בטל חסימה</button>
         </div>`;
