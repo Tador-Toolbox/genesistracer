@@ -1577,6 +1577,165 @@ app.post('/api/installer/panel-history-date', async (req, res) => {
   }
 });
 
+// ==================== BLOCK USER (temporarily remove a face from the panel) ====================
+// Flow: search face by name on the panel → save its photo to Cloudinary → delete from panel.
+// Unblock: re-upload the saved photo back to the panel and remove the block record.
+
+// Search faces on the panel by name (for the block picker)
+app.post('/api/installer/block-user/search', async (req, res) => {
+  const { panelAddress, name } = req.body;
+  if (!panelAddress || !name) return res.status(400).json({ success: false, error: 'panelAddress and name required' });
+  try {
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    let token = null;
+    try {
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+      token = loginRes?.data?.token || null;
+    } catch(e) {}
+    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+
+    const all = await getAllPanelFaces(host, port, token);
+    const q = name.trim().toLowerCase();
+    const matches = all
+      .filter(f => (f.label || '').toLowerCase().includes(q))
+      .map(f => ({
+        id: f.id,
+        name: f.label || '',
+        photoUrl: `http://${host}:${port}/api/v1/access/image/${f.id}.jpg?id=${f.id}`,
+      }));
+
+    res.json({ success: true, matches, total: matches.length });
+  } catch (err) {
+    console.error('block-user search error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Block a specific face: save photo to Cloudinary, then delete from panel
+app.post('/api/installer/block-user', async (req, res) => {
+  const { panelAddress, faceId, name, installerPhone } = req.body;
+  if (!panelAddress || !faceId) return res.status(400).json({ success: false, error: 'panelAddress and faceId required' });
+  try {
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    let token = null;
+    try {
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+      token = loginRes?.data?.token || null;
+    } catch(e) {}
+    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+
+    // 1) Download the face image from the panel to a temp file
+    const fs = require('fs'); const os = require('os'); const path = require('path');
+    const tmpImg = path.join(os.tmpdir(), `block_${Date.now()}.jpg`);
+    const imgUrl = `http://${host}:${port}/api/v1/access/image/${faceId}.jpg?id=${faceId}`;
+    const dlCmd = `curl -s --max-time 20 -H "Authorization: Bearer ${token}" "${imgUrl}" -o "${tmpImg}"`;
+    await new Promise((resolve, reject) => {
+      exec(dlCmd, { maxBuffer: 8 * 1024 * 1024 }, (err) => err ? reject(new Error('image download failed')) : resolve());
+    });
+    if (!fs.existsSync(tmpImg) || fs.statSync(tmpImg).size < 500) {
+      try { fs.unlinkSync(tmpImg); } catch(e) {}
+      return res.json({ success: false, error: 'Could not fetch face image from panel' });
+    }
+
+    // 2) Upload that image to Cloudinary (so unblock can restore it later)
+    const uploadRes = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'genesistracer-blocked', resource_type: 'image' },
+        (error, result) => error ? reject(error) : resolve(result)
+      );
+      fs.createReadStream(tmpImg).pipe(stream);
+    });
+    fs.unlink(tmpImg, () => {});
+
+    // 3) Delete the face from the panel (batchdelete, same as face delete)
+    const tmpJson = path.join(os.tmpdir(), `blockdel_${Date.now()}.json`);
+    fs.writeFileSync(tmpJson, JSON.stringify({ list: [faceId] }));
+    const delCmd = `curl -s --max-time 15 -X POST ` +
+      `-H "Authorization: Bearer ${token}" ` +
+      `-H "Content-Type: application/json;charset=UTF-8" ` +
+      `--data @${tmpJson} ` +
+      `"http://${host}:${port}/api/v1/access/batchdelete"`;
+    await new Promise((resolve, reject) => {
+      exec(delCmd, { maxBuffer: 1024 * 1024 }, (err) => { fs.unlink(tmpJson, () => {}); err ? reject(new Error('panel delete failed')) : resolve(); });
+    });
+
+    // 4) Record the block
+    const database = await require('./db').connectDB();
+    await database.collection('blocked_users').insertOne({
+      panelAddress,
+      mac: panelAddress.split(':')[0],
+      name: name || '',
+      photoUrl: uploadRes.secure_url,
+      blockedAt: new Date(),
+      blockedBy: installerPhone || 'unknown',
+    });
+
+    console.log(`🚫 Blocked: ${name} on ${panelAddress}`);
+    await logActivity({ phoneNumber: installerPhone || 'unknown', action: 'block_user', mac: panelAddress, details: { name }, success: true });
+    res.json({ success: true, name });
+  } catch (err) {
+    console.error('block-user error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// List blocked users for a panel
+app.get('/api/installer/block-user', async (req, res) => {
+  const { panelAddress } = req.query;
+  if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
+  try {
+    const database = await require('./db').connectDB();
+    const list = await database.collection('blocked_users')
+      .find({ panelAddress }).sort({ blockedAt: -1 }).toArray();
+    res.json({
+      success: true,
+      blocked: list.map(b => ({ id: b._id, name: b.name, photoUrl: b.photoUrl, blockedAt: b.blockedAt })),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Unblock: re-upload the saved face back to the panel, then remove the block record
+app.post('/api/installer/block-user/:blockId/unblock', async (req, res) => {
+  const { panelAddress, installerPhone } = req.body;
+  const { blockId } = req.params;
+  if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
+  try {
+    const { ObjectId } = require('mongodb');
+    const database = await require('./db').connectDB();
+    const rec = await database.collection('blocked_users').findOne({ _id: new ObjectId(blockId) });
+    if (!rec) return res.json({ success: false, error: 'Block record not found' });
+
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    let token = null;
+    try {
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+      token = loginRes?.data?.token || null;
+    } catch(e) {}
+    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+
+    // Re-upload the saved photo to the panel (reuses the face upload helper)
+    await uploadFaceToPanel(host, port, token, rec.name, rec.photoUrl);
+
+    // Remove the block record
+    await database.collection('blocked_users').deleteOne({ _id: new ObjectId(blockId) });
+
+    console.log(`✅ Unblocked: ${rec.name} on ${panelAddress}`);
+    await logActivity({ phoneNumber: installerPhone || 'unknown', action: 'unblock_user', mac: panelAddress, details: { name: rec.name }, success: true });
+    res.json({ success: true, name: rec.name });
+  } catch (err) {
+    console.error('unblock error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== PERMANENT CODES ====================
 const PERM_CODE_PREFIX = 'קוד קבוע ';
 
