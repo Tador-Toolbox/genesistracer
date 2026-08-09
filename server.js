@@ -1915,7 +1915,7 @@ app.put('/api/installer/permanent-codes/:codeId', async (req, res) => {
       const fs = require('fs');
       const os = require('os');
       const tmpJson = require('path').join(os.tmpdir(), `permdel_${Date.now()}.json`);
-      fs.writeFileSync(tmpJson, JSON.stringify({ list: [codeId] }));
+      const _cid=Number(codeId); fs.writeFileSync(tmpJson, JSON.stringify({ list: [Number.isFinite(_cid)?_cid:codeId] }));
       const cmd = `curl -s --max-time 15 -X POST ` +
         `-H "Authorization: Bearer ${token}" ` +
         `-H "Content-Type: application/json;charset=UTF-8" ` +
@@ -1975,7 +1975,7 @@ app.delete('/api/installer/permanent-codes/:codeId', async (req, res) => {
       const fs = require('fs');
       const os = require('os');
       const tmpJson = require('path').join(os.tmpdir(), `permdel_${Date.now()}.json`);
-      fs.writeFileSync(tmpJson, JSON.stringify({ list: [codeId] }));
+      const _cid=Number(codeId); fs.writeFileSync(tmpJson, JSON.stringify({ list: [Number.isFinite(_cid)?_cid:codeId] }));
       const cmd = `curl -s --max-time 15 -X POST ` +
         `-H "Authorization: Bearer ${token}" ` +
         `-H "Content-Type: application/json;charset=UTF-8" ` +
@@ -3268,8 +3268,12 @@ function deleteFaceFromPanel(host, port, token, accessId) {
     const fs = require('fs');
     const os = require('os');
     const path = require('path');
+    // The panel returns ids as NUMBERS and only matches numbers in batchdelete.
+    // A string id ("49") is silently ignored — it returns OK but deletes nothing.
+    const numId = Number(accessId);
+    const idForDelete = Number.isFinite(numId) ? numId : accessId;
     const tmpJson = path.join(os.tmpdir(), `del_${Date.now()}.json`);
-    fs.writeFileSync(tmpJson, JSON.stringify({ list: [accessId] }));
+    fs.writeFileSync(tmpJson, JSON.stringify({ list: [idForDelete] }));
 
     const cmd = `curl -s --max-time 15 -X POST ` +
       `-H "Authorization: Bearer ${token}" ` +
