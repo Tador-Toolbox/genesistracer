@@ -1675,6 +1675,10 @@ app.post('/api/installer/block-user', async (req, res) => {
     });
 
     console.log(`🚫 Blocked: ${name} on ${panelAddress}`);
+    await database.collection('block_history').insertOne({
+      panelAddress, mac: panelAddress.split(':')[0],
+      name: name || '', action: 'block', at: new Date(), by: installerPhone || 'unknown',
+    });
     await logActivity({ phoneNumber: installerPhone || 'unknown', action: 'block_user', mac: panelAddress, details: { name }, success: true });
     res.json({ success: true, name });
   } catch (err) {
@@ -1728,10 +1732,31 @@ app.post('/api/installer/block-user/:blockId/unblock', async (req, res) => {
     await database.collection('blocked_users').deleteOne({ _id: new ObjectId(blockId) });
 
     console.log(`✅ Unblocked: ${rec.name} on ${panelAddress}`);
+    await database.collection('block_history').insertOne({
+      panelAddress, mac: panelAddress.split(':')[0],
+      name: rec.name || '', action: 'unblock', at: new Date(), by: installerPhone || 'unknown',
+    });
     await logActivity({ phoneNumber: installerPhone || 'unknown', action: 'unblock_user', mac: panelAddress, details: { name: rec.name }, success: true });
     res.json({ success: true, name: rec.name });
   } catch (err) {
     console.error('unblock error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Block/unblock history for a panel (newest first)
+app.get('/api/installer/block-history', async (req, res) => {
+  const { panelAddress } = req.query;
+  if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
+  try {
+    const database = await require('./db').connectDB();
+    const list = await database.collection('block_history')
+      .find({ panelAddress }).sort({ at: -1 }).limit(100).toArray();
+    res.json({
+      success: true,
+      history: list.map(h => ({ name: h.name, action: h.action, at: h.at })),
+    });
+  } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
