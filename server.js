@@ -1615,8 +1615,9 @@ app.post('/api/installer/block-user/search', async (req, res) => {
 
 // Block a specific face: save photo to Cloudinary, then delete from panel
 app.post('/api/installer/block-user', async (req, res) => {
-  const { panelAddress, faceId, name, installerPhone } = req.body;
+  const { panelAddress, faceId, name, installerPhone, mac } = req.body;
   if (!panelAddress || !faceId) return res.status(400).json({ success: false, error: 'panelAddress and faceId required' });
+  const macKey = (mac || '').replace(/[:\-\s]/g, '').toUpperCase();
   try {
     const [host, portStr] = panelAddress.split(':');
     const port = parseInt(portStr) || 80;
@@ -1655,7 +1656,7 @@ app.post('/api/installer/block-user', async (req, res) => {
     const database = await require('./db').connectDB();
     const blockDoc = await database.collection('blocked_users').insertOne({
       panelAddress,
-      mac: panelAddress.split(':')[0],
+      mac: macKey,
       name: name || '',
       photoUrl: uploadRes.secure_url,
       blockedAt: new Date(),
@@ -1663,7 +1664,7 @@ app.post('/api/installer/block-user', async (req, res) => {
       panelDeleteOk: false, // updated below once we confirm the panel removed it
     });
     await database.collection('block_history').insertOne({
-      panelAddress, mac: panelAddress.split(':')[0],
+      panelAddress, mac: macKey,
       name: name || '', action: 'block', at: new Date(), by: installerPhone || 'unknown',
     });
     await logActivity({ phoneNumber: installerPhone || 'unknown', action: 'block_user', mac: panelAddress, details: { name }, success: true });
@@ -1722,12 +1723,16 @@ app.post('/api/installer/block-user', async (req, res) => {
 
 // List blocked users for a panel
 app.get('/api/installer/block-user', async (req, res) => {
-  const { panelAddress } = req.query;
-  if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
+  const { panelAddress, mac } = req.query;
+  const macKey = (mac || '').replace(/[:\-\s]/g, '').toUpperCase();
+  const ip = (panelAddress || '').split(':')[0];
+  if (!macKey && !ip) return res.status(400).json({ success: false, error: 'mac or panelAddress required' });
   try {
     const database = await require('./db').connectDB();
+    // Match new records (stored by MAC) and legacy records (stored by IP) for the same panel
+    const orKeys = [macKey, ip].filter(Boolean);
     const list = await database.collection('blocked_users')
-      .find({ panelAddress }).sort({ blockedAt: -1 }).toArray();
+      .find({ mac: { $in: orKeys } }).sort({ blockedAt: -1 }).toArray();
     res.json({
       success: true,
       blocked: list.map(b => ({ id: b._id, name: b.name, photoUrl: b.photoUrl, blockedAt: b.blockedAt, panelDeleteOk: b.panelDeleteOk !== false })),
@@ -1766,10 +1771,10 @@ app.post('/api/installer/block-user/:blockId/unblock', async (req, res) => {
 
     console.log(`✅ Unblocked: ${rec.name} on ${panelAddress}`);
     await database.collection('block_history').insertOne({
-      panelAddress, mac: panelAddress.split(':')[0],
+      panelAddress, mac: rec.mac || (panelAddress.split(':')[0]),
       name: rec.name || '', action: 'unblock', at: new Date(), by: installerPhone || 'unknown',
     });
-    await logActivity({ phoneNumber: installerPhone || 'unknown', action: 'unblock_user', mac: panelAddress, details: { name: rec.name }, success: true });
+    await logActivity({ phoneNumber: installerPhone || 'unknown', action: 'unblock_user', mac: rec.mac || panelAddress, details: { name: rec.name }, success: true });
     res.json({ success: true, name: rec.name });
   } catch (err) {
     console.error('unblock error:', err.message);
@@ -1779,12 +1784,15 @@ app.post('/api/installer/block-user/:blockId/unblock', async (req, res) => {
 
 // Block/unblock history for a panel (newest first)
 app.get('/api/installer/block-history', async (req, res) => {
-  const { panelAddress } = req.query;
-  if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
+  const { panelAddress, mac } = req.query;
+  const macKey = (mac || '').replace(/[:\-\s]/g, '').toUpperCase();
+  const ip = (panelAddress || '').split(':')[0];
+  if (!macKey && !ip) return res.status(400).json({ success: false, error: 'mac or panelAddress required' });
   try {
     const database = await require('./db').connectDB();
+    const orKeys = [macKey, ip].filter(Boolean);
     const list = await database.collection('block_history')
-      .find({ panelAddress }).sort({ at: -1 }).limit(100).toArray();
+      .find({ mac: { $in: orKeys } }).sort({ at: -1 }).limit(100).toArray();
     res.json({
       success: true,
       history: list.map(h => ({ name: h.name, action: h.action, at: h.at })),
