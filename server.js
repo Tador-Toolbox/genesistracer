@@ -1782,6 +1782,27 @@ app.post('/api/installer/block-user/:blockId/unblock', async (req, res) => {
   }
 });
 
+// Delete a block record entirely (cleanup — does NOT re-upload to panel)
+app.delete('/api/installer/block-user/:blockId', async (req, res) => {
+  const { blockId } = req.params;
+  try {
+    const { ObjectId } = require('mongodb');
+    const database = await require('./db').connectDB();
+    const rec = await database.collection('blocked_users').findOne({ _id: new ObjectId(blockId) });
+    if (rec && rec.photoUrl) {
+      // best-effort remove the saved photo from Cloudinary
+      try {
+        const m = rec.photoUrl.match(/genesistracer-blocked\/([^./]+)/);
+        if (m) await cloudinary.uploader.destroy('genesistracer-blocked/' + m[1]);
+      } catch(e) {}
+    }
+    await database.collection('blocked_users').deleteOne({ _id: new ObjectId(blockId) });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Block/unblock history for a panel (newest first)
 app.get('/api/installer/block-history', async (req, res) => {
   const { panelAddress, mac } = req.query;
