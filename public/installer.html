@@ -2390,7 +2390,7 @@
       const r = await fetch('/api/installer/block-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ panelAddress: lastPanelAddress, faceId, name, installerPhone: installerData?.phoneNumber, reboot: rebootAfter })
+        body: JSON.stringify({ panelAddress: lastPanelAddress, faceId, name, installerPhone: installerData?.phoneNumber, reboot: rebootAfter, mac: selectedMac })
       });
       const data = await r.json();
       if (data.success) {
@@ -2414,7 +2414,7 @@
     const list = document.getElementById('blockedList');
     list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">טוען...</div>';
     try {
-      const r = await fetch('/api/installer/block-user?panelAddress=' + encodeURIComponent(lastPanelAddress));
+      const r = await fetch('/api/installer/block-user?panelAddress=' + encodeURIComponent(lastPanelAddress) + '&mac=' + encodeURIComponent(selectedMac));
       const data = await r.json();
       if (!data.success) { list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">' + (data.error || 'שגיאה') + '</div>'; return; }
       if (!data.blocked.length) { list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">אין משתמשים חסומים</div>'; return; }
@@ -2445,7 +2445,7 @@
       const r = await fetch('/api/installer/block-user/' + blockId + '/unblock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ panelAddress: lastPanelAddress, installerPhone: installerData?.phoneNumber })
+        body: JSON.stringify({ panelAddress: lastPanelAddress, installerPhone: installerData?.phoneNumber, mac: selectedMac })
       });
       const data = await r.json();
       if (data.success) {
@@ -2464,7 +2464,7 @@
   async function loadBlockHistory() {
     const list = document.getElementById('blockHistoryList');
     try {
-      const r = await fetch('/api/installer/block-history?panelAddress=' + encodeURIComponent(lastPanelAddress));
+      const r = await fetch('/api/installer/block-history?panelAddress=' + encodeURIComponent(lastPanelAddress) + '&mac=' + encodeURIComponent(selectedMac));
       const data = await r.json();
       if (!data.success || !data.history.length) {
         list.innerHTML = '<div style="text-align:center;padding:12px;color:var(--gray-400);font-size:13px;">אין היסטוריה</div>';
