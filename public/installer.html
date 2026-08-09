@@ -693,6 +693,12 @@
           <span class="action-card-label">קודים קבועים</span>
         </button>
 
+        <!-- Block User -->
+        <button class="action-card" onclick="openBlockUser()">
+          <span class="material-symbols-outlined">block</span>
+          <span class="action-card-label">חסום משתמש</span>
+        </button>
+
         <!-- 4. Emergency Door Open -->
         <button class="action-card" id="relayBtn" onclick="toggleRelay()">
           <span id="relayBadge" class="action-badge badge-loading">...</span>
@@ -1571,6 +1577,46 @@
   </div>
 </div>
 
+<!-- ══ BLOCK USER MODAL ══ -->
+<div id="blockUserModal" class="overlay">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">block</span>
+        חסום משתמש
+      </h3>
+      <button class="modal-close" onclick="closeBlockUser()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:18px 20px;">
+
+      <div style="background:var(--gray-50);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--gray-500);margin-bottom:16px;line-height:1.7;">
+        🚫 חסימה מורידה את הפנים מהפנל ושומרת אותם. ביטול חסימה מחזיר אותם לפנל.
+      </div>
+
+      <!-- Search to block -->
+      <div style="margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">חסימת משתמש חדש</div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="blockSearchName" placeholder="הזן שם לחיפוש בפנל..." onkeydown="if(event.key==='Enter')searchBlockUser()"
+            style="flex:1;padding:11px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:14px;"/>
+          <button class="btn-red" onclick="searchBlockUser()" id="blockSearchBtn" style="flex-shrink:0;width:auto;padding:11px 16px;">
+            <span class="material-symbols-outlined">search</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="blockSearchResults" style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;"></div>
+
+      <!-- Blocked list -->
+      <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;border-top:1px solid var(--gray-200);padding-top:16px;">חסומים כרגע</div>
+      <div id="blockedList" style="display:flex;flex-direction:column;gap:8px;max-height:35vh;overflow-y:auto;">
+        <div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">טוען...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <!-- ══ PERMANENT CODES MODAL ══ -->
 <div id="permCodesModal" class="overlay">
   <div class="modal" style="max-width:440px;">
@@ -2273,6 +2319,128 @@
     document.getElementById('historyClearDate').style.display = 'none';
     historyPage = 1;
     loadPanelHistory(true);
+  }
+
+  // ==================== BLOCK USER ====================
+  function openBlockUser() {
+    if (!lastPanelAddress) {
+      alert('יש לבצע התחברות מרחוק תחילה כדי לאמת שהפנל מחובר לאינטרנט');
+      return;
+    }
+    document.getElementById('blockUserModal').classList.add('open');
+    document.getElementById('blockSearchName').value = '';
+    document.getElementById('blockSearchResults').innerHTML = '';
+    loadBlockedList();
+  }
+
+  function closeBlockUser() {
+    document.getElementById('blockUserModal').classList.remove('open');
+  }
+
+  async function searchBlockUser() {
+    const name = document.getElementById('blockSearchName').value.trim();
+    const results = document.getElementById('blockSearchResults');
+    if (!name) { results.innerHTML = ''; return; }
+
+    const btn = document.getElementById('blockSearchBtn');
+    btn.disabled = true;
+    results.innerHTML = '<div style="text-align:center;padding:12px;color:var(--gray-400);font-size:13px;">מחפש בפנל...</div>';
+    try {
+      const r = await fetch('/api/installer/block-user/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ panelAddress: lastPanelAddress, name })
+      });
+      const data = await r.json();
+      if (!data.success) { results.innerHTML = '<div style="text-align:center;padding:12px;color:var(--red);font-size:13px;">' + (data.error || 'שגיאה') + '</div>'; return; }
+      if (!data.matches.length) { results.innerHTML = '<div style="text-align:center;padding:12px;color:var(--gray-400);font-size:13px;">לא נמצאו פנים בשם זה</div>'; return; }
+
+      results.innerHTML = data.matches.map(m => `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;">
+          <img src="${m.photoUrl}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--gray-100);" onerror="this.style.visibility='hidden'"/>
+          <div style="flex:1;font-size:14px;font-weight:700;">${escapePermHtml(m.name)}</div>
+          <button class="btn-red" onclick="doBlock('${m.id}', ${JSON.stringify(m.name).replace(/"/g,'&quot;')}, this)" style="width:auto;padding:8px 14px;font-size:13px;">🚫 חסום</button>
+        </div>
+      `).join('');
+    } catch (e) {
+      results.innerHTML = '<div style="text-align:center;padding:12px;color:var(--red);font-size:13px;">שגיאת תקשורת</div>';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function doBlock(faceId, name, btn) {
+    if (!confirm('לחסום את ' + name + '? הפנים יורדו מהפנל.')) return;
+    btn.disabled = true;
+    btn.textContent = 'חוסם...';
+    try {
+      const r = await fetch('/api/installer/block-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ panelAddress: lastPanelAddress, faceId, name, installerPhone: installerData?.phoneNumber })
+      });
+      const data = await r.json();
+      if (data.success) {
+        document.getElementById('blockSearchName').value = '';
+        document.getElementById('blockSearchResults').innerHTML = '';
+        loadBlockedList();
+      } else {
+        alert('❌ ' + (data.error || 'שגיאה'));
+        btn.disabled = false; btn.textContent = '🚫 חסום';
+      }
+    } catch (e) {
+      alert('שגיאת תקשורת');
+      btn.disabled = false; btn.textContent = '🚫 חסום';
+    }
+  }
+
+  async function loadBlockedList() {
+    const list = document.getElementById('blockedList');
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">טוען...</div>';
+    try {
+      const r = await fetch('/api/installer/block-user?panelAddress=' + encodeURIComponent(lastPanelAddress));
+      const data = await r.json();
+      if (!data.success) { list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">' + (data.error || 'שגיאה') + '</div>'; return; }
+      if (!data.blocked.length) { list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">אין משתמשים חסומים</div>'; return; }
+
+      list.innerHTML = data.blocked.map(b => {
+        const d = new Date(b.blockedAt);
+        const dateStr = d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' });
+        return `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1.5px solid #fecaca;border-radius:8px;background:#fff5f5;">
+          <img src="${b.photoUrl}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--gray-100);" onerror="this.style.visibility='hidden'"/>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:700;">${escapePermHtml(b.name)}</div>
+            <div style="font-size:11px;color:var(--gray-500);">נחסם ${dateStr}</div>
+          </div>
+          <button onclick="doUnblock('${b.id}', this)" style="background:#16a34a;color:white;border:none;border-radius:7px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;">↩ בטל חסימה</button>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">שגיאת תקשורת</div>';
+    }
+  }
+
+  async function doUnblock(blockId, btn) {
+    btn.disabled = true;
+    btn.textContent = 'מחזיר...';
+    try {
+      const r = await fetch('/api/installer/block-user/' + blockId + '/unblock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ panelAddress: lastPanelAddress, installerPhone: installerData?.phoneNumber })
+      });
+      const data = await r.json();
+      if (data.success) {
+        loadBlockedList();
+      } else {
+        alert('❌ ' + (data.error || 'שגיאה'));
+        btn.disabled = false; btn.textContent = '↩ בטל חסימה';
+      }
+    } catch (e) {
+      alert('שגיאת תקשורת');
+      btn.disabled = false; btn.textContent = '↩ בטל חסימה';
+    }
   }
 
   // ==================== PERMANENT CODES ====================
