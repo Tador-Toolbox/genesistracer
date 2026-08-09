@@ -1651,17 +1651,17 @@ app.post('/api/installer/block-user', async (req, res) => {
     });
     fs.unlink(tmpImg, () => {});
 
-    // 3) Delete the face from the panel (batchdelete, same as face delete)
-    const tmpJson = path.join(os.tmpdir(), `blockdel_${Date.now()}.json`);
-    fs.writeFileSync(tmpJson, JSON.stringify({ list: [faceId] }));
-    const delCmd = `curl -s --max-time 15 -X POST ` +
-      `-H "Authorization: Bearer ${token}" ` +
-      `-H "Content-Type: application/json;charset=UTF-8" ` +
-      `--data @${tmpJson} ` +
-      `"http://${host}:${port}/api/v1/access/batchdelete"`;
-    await new Promise((resolve, reject) => {
-      exec(delCmd, { maxBuffer: 1024 * 1024 }, (err) => { fs.unlink(tmpJson, () => {}); err ? reject(new Error('panel delete failed')) : resolve(); });
-    });
+    // 3) Delete the face from the panel (verified helper) + confirm it's gone
+    await deleteFaceFromPanel(host, port, token, faceId);
+
+    // Verify the face actually left the panel's access list
+    const afterDelete = await getAllPanelFaces(host, port, token);
+    const stillThere = afterDelete.some(f => String(f.id) === String(faceId));
+    if (stillThere) {
+      // Roll back the Cloudinary upload — we didn't actually block anything
+      try { await cloudinary.uploader.destroy(uploadRes.public_id); } catch(e) {}
+      return res.json({ success: false, error: 'הפנל לא מחק את הפנים — נסה שוב או בצע ריסט לפנל' });
+    }
 
     // 4) Record the block
     const database = await require('./db').connectDB();
@@ -1680,6 +1680,35 @@ app.post('/api/installer/block-user', async (req, res) => {
       name: name || '', action: 'block', at: new Date(), by: installerPhone || 'unknown',
     });
     await logActivity({ phoneNumber: installerPhone || 'unknown', action: 'block_user', mac: panelAddress, details: { name }, success: true });
+
+    // Optional: reboot the panel so the recognition engine reloads immediately
+    if (req.body.reboot) {
+      try {
+        const cleanMac = panelAddress.split(':')[0].replace(/[:\-\s]/g, '').toUpperCase();
+        const auth = await getAuthToken('block-reboot');
+        const macData = await searchMac(auth, cleanMac);
+        const macList = macData?.result?.elements || macData?.result?.list || [];
+        const macEntry = macList[0];
+        if (macEntry) {
+          const communityId = macEntry.usedCommunityId || macEntry.communityId;
+          const deviceData = await getDeviceByMac(auth, cleanMac, communityId);
+          const deviceEntry = (deviceData?.result?.elements || deviceData?.result?.list || [])[0];
+          if (deviceEntry) {
+            const headers = {
+              Authorization: auth.token, AppId: APP_ID, Version: '1.0', Apiversion: '1.0',
+              Language: 'en', 'Community-Id': communityId, 'Customer-Id': auth.customerId,
+              EmployeeAccountId: auth.employeeAccountId, RequestId: crypto.randomUUID(),
+              'User-Agent': 'Mozilla/5.0', Accept: 'application/json',
+              'Content-Type': 'application/json; charset=UTF-8',
+            };
+            await axios.post(`${NEXHOME_BASE}/api/employees/publics/devices/${deviceEntry.id}:reboot`, {}, { headers, timeout: 15000 });
+            console.log(`🔄 Panel rebooted after block: ${cleanMac}`);
+          }
+        }
+      } catch (rebootErr) {
+        console.error('post-block reboot failed (non-fatal):', rebootErr.message);
+      }
+    }
     res.json({ success: true, name });
   } catch (err) {
     console.error('block-user error:', err.message);
