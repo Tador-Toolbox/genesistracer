@@ -2431,6 +2431,9 @@
             ${b.panelDeleteOk === false ? '<div style="font-size:11px;color:var(--red);font-weight:700;">⚠️ לא נמחק מהפנל</div>' : ''}
           </div>
           <button onclick="doUnblock('${b.id}', this)" style="background:#16a34a;color:white;border:none;border-radius:7px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;">↩ בטל חסימה</button>
+          <button onclick="doDeleteBlock('${b.id}', this)" title="מחק מהרשימה" style="background:none;border:1.5px solid var(--gray-200);border-radius:7px;padding:8px;cursor:pointer;flex-shrink:0;display:flex;color:var(--gray-500);">
+            <span class="material-symbols-outlined" style="font-size:18px;">delete</span>
+          </button>
         </div>`;
       }).join('');
     } catch (e) {
@@ -2458,6 +2461,24 @@
     } catch (e) {
       alert('שגיאת תקשורת');
       btn.disabled = false; btn.textContent = '↩ בטל חסימה';
+    }
+  }
+
+  async function doDeleteBlock(blockId, btn) {
+    if (!confirm('למחוק את הרשומה מהרשימה? (לא ישפיע על הפנל)')) return;
+    btn.disabled = true;
+    try {
+      const r = await fetch('/api/installer/block-user/' + blockId, { method: 'DELETE' });
+      const data = await r.json();
+      if (data.success) {
+        loadBlockedList();
+      } else {
+        alert('❌ ' + (data.error || 'שגיאה'));
+        btn.disabled = false;
+      }
+    } catch (e) {
+      alert('שגיאת תקשורת');
+      btn.disabled = false;
     }
   }
 
