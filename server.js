@@ -4489,6 +4489,53 @@ app.delete('/api/pricelist/product-image/:productId', requireManagerAuth, async 
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// POST /api/pricelist/product-gallery/:productId — add an EXTRA image (unique id, appended to images[])
+app.post('/api/pricelist/product-gallery/:productId', plUpload.single('image'), async (req, res) => {
+  if(req.body?.username !== process.env.ADMIN_USER || req.body?.password !== process.env.ADMIN_PASS) return res.status(401).json({error:'Unauthorized'});
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const { productId } = req.params;
+    const { Readable } = require('stream');
+    const uid = `${productId}_${Date.now()}`;
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'tador/pricelist/gallery', public_id: uid, overwrite: true, resource_type: 'image', transformation: [{width:800, height:800, crop:'limit', quality:'auto:good', fetch_format:'auto'}] },
+        (err, r) => err ? reject(err) : resolve(r)
+      );
+      Readable.from(req.file.buffer).pipe(stream);
+    });
+    const database = await require('./db').connectDB();
+    const doc = await database.collection('pricelist').findOne({ _id: 'active' });
+    if (doc && doc.categories) {
+      doc.categories.forEach(cat => {
+        const p = (cat.products || []).find(p => p.id === productId);
+        if (p) { p.images = p.images || []; p.images.push({ url: result.secure_url, pid: `tador/pricelist/gallery/${uid}` }); }
+      });
+      await database.collection('pricelist').updateOne({ _id: 'active' }, { $set: { categories: doc.categories } });
+    }
+    res.json({ url: result.secure_url, pid: `tador/pricelist/gallery/${uid}` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/pricelist/product-gallery/:productId — remove one extra image by pid
+app.delete('/api/pricelist/product-gallery/:productId', requireManagerAuth, async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { pid } = req.body;
+    if (pid) { try { await cloudinary.uploader.destroy(pid); } catch(e) {} }
+    const database = await require('./db').connectDB();
+    const doc = await database.collection('pricelist').findOne({ _id: 'active' });
+    if (doc && doc.categories) {
+      doc.categories.forEach(cat => {
+        const p = (cat.products || []).find(p => p.id === productId);
+        if (p && p.images) p.images = p.images.filter(im => im.pid !== pid);
+      });
+      await database.collection('pricelist').updateOne({ _id: 'active' }, { $set: { categories: doc.categories } });
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ============================================================
 
 app.listen(PORT, () => {
