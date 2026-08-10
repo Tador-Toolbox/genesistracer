@@ -242,20 +242,28 @@ function showCat(idx){
     grid.style.gridTemplateColumns='1fr';
   } else {
     grid.style.gridTemplateColumns=`repeat(${cols},1fr)`;
-    grid.innerHTML=prods.map(p=>p.hidden?'<div style="visibility:hidden"></div>':`
+    grid.innerHTML=prods.map(p=>{
+      if(p.hidden) return '<div style="visibility:hidden"></div>';
+      const gallery = [p.imgUrl, ...((p.images||[]).map(im=>im.url))].filter(Boolean);
+      const galleryJson = esc(JSON.stringify(gallery));
+      const ytId = ytExtract(p.youtubeUrl);
+      return `
       <div class="pl-card">
         <div class="pl-card-img">
           ${p.link ? `<a href="${esc(p.link)}" target="_blank" rel="noopener" style="display:block;position:absolute;inset:0;z-index:1" title="${esc(p.name)}"></a>` : ''}
-          ${p.imgUrl?`<img src="${p.imgUrl}" alt="${esc(p.name)}" loading="lazy" onclick="openLightbox('${p.imgUrl}','${esc(p.name)}')" style="cursor:zoom-in"/>`:`<div class="no-img"><span class="ms">image_not_supported</span></div>`}
+          ${p.imgUrl?`<img src="${p.imgUrl}" alt="${esc(p.name)}" loading="lazy" onclick='openGallery(${galleryJson}, "${esc(p.name)}", 0)' style="cursor:zoom-in"/>`:`<div class="no-img"><span class="ms">image_not_supported</span></div>`}
           ${p.sku?`<span class="pl-sku" style="position:relative;z-index:2">${esc(p.sku)}</span>`:''}
+          ${gallery.length>1?`<span style="position:absolute;top:7px;left:7px;z-index:2;background:rgba(0,0,0,.6);border-radius:99px;padding:3px 8px;display:inline-flex;align-items:center;gap:3px;color:#fff;font-size:11px;font-weight:700"><span class="ms" style="font-size:13px">photo_library</span>${gallery.length}</span>`:''}
           ${p.link?`<span style="position:absolute;bottom:7px;left:7px;z-index:2;background:rgba(0,0,0,.55);border-radius:99px;padding:3px 7px;display:inline-flex;align-items:center;gap:3px"><span class="ms" style="font-size:13px;color:#fff">open_in_new</span></span>`:''}
         </div>
         <div class="pl-card-body">
           ${p.price?`<div class="pl-card-price">${curSym(p)}${esc(p.price)}</div>`:''}
           <div class="pl-card-name">${esc(p.name||'')}</div>
           ${p.desc?`<div class="pl-card-desc">${esc(p.desc)}</div>`:''}
+          ${ytId?`<a href="https://youtube.com/watch?v=${ytId}" target="_blank" rel="noopener" class="pl-yt-btn" style="margin-top:9px;display:inline-flex;align-items:center;gap:6px;background:#f00;color:#fff;text-decoration:none;padding:7px 12px;border-radius:7px;font-size:12px;font-weight:700"><span class="ms" style="font-size:16px">smart_display</span> צפה בסרטון</a>`:''}
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 
   // Notes (only on last/first cat or always — show on every cat)
@@ -292,19 +300,52 @@ function updateArrows(){
   lArrow.classList.toggle('visible', el.scrollLeft<el.scrollWidth-el.clientWidth-2);
 }
 
-function openLightbox(src, caption){
-  document.getElementById('lightbox-img').src = src;
+let lbImages = [];
+let lbIndex = 0;
+
+function openGallery(images, caption, startIdx){
+  lbImages = images || [];
+  lbIndex = startIdx || 0;
+  if(!lbImages.length) return;
   document.getElementById('lightbox-caption').textContent = caption || '';
+  renderLb();
+  const multi = lbImages.length > 1;
+  document.querySelector('.lb-prev').style.display = multi ? 'flex' : 'none';
+  document.querySelector('.lb-next').style.display = multi ? 'flex' : 'none';
   document.getElementById('lightbox').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
+function renderLb(){
+  document.getElementById('lightbox-img').src = lbImages[lbIndex];
+  const t = document.getElementById('lb-thumbs');
+  t.innerHTML = lbImages.length > 1 ? lbImages.map((src,i)=>`
+    <img src="${src}" onclick="event.stopPropagation();lbGo(${i})" style="width:52px;height:52px;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid ${i===lbIndex?'#fff':'transparent'};opacity:${i===lbIndex?1:.55};flex-shrink:0"/>
+  `).join('') : '';
+}
+function lbStep(d){ lbGo((lbIndex + d + lbImages.length) % lbImages.length); }
+function lbGo(i){ lbIndex = i; renderLb(); }
+
+// Back-compat: single-image callers still work
+function openLightbox(src, caption){ openGallery([src], caption, 0); }
+
 function closeLightbox(){
   document.getElementById('lightbox').classList.remove('open');
   document.body.style.overflow = '';
 }
-document.addEventListener('keydown', e => { if(e.key === 'Escape') closeLightbox(); });
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') closeLightbox();
+  if(!document.getElementById('lightbox').classList.contains('open')) return;
+  if(e.key === 'ArrowLeft') lbStep(1);
+  if(e.key === 'ArrowRight') lbStep(-1);
+});
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function curSym(p){return (p&&p.currency==='usd')?'$':'₪';}
+// Extract the video id from any YouTube URL format (watch, youtu.be, shorts, embed)
+function ytExtract(url){
+  if(!url) return '';
+  const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/))([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : '';
+}
 
 init();
 </script>
@@ -312,8 +353,11 @@ init();
 <!-- LIGHTBOX -->
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()">close</button>
+  <button class="lb-nav lb-prev" onclick="event.stopPropagation();lbStep(-1)" style="position:absolute;top:50%;right:16px;transform:translateY(-50%);background:rgba(255,255,255,.15);border:none;color:#fff;font-family:'Material Symbols Outlined';font-size:32px;width:48px;height:48px;border-radius:50%;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:3">chevron_right</button>
+  <button class="lb-nav lb-next" onclick="event.stopPropagation();lbStep(1)" style="position:absolute;top:50%;left:16px;transform:translateY(-50%);background:rgba(255,255,255,.15);border:none;color:#fff;font-family:'Material Symbols Outlined';font-size:32px;width:48px;height:48px;border-radius:50%;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:3">chevron_left</button>
   <img class="lightbox-img" id="lightbox-img" src="" alt="" onclick="event.stopPropagation()"/>
   <div class="lightbox-caption" id="lightbox-caption"></div>
+  <div id="lb-thumbs" onclick="event.stopPropagation()" style="position:absolute;bottom:56px;left:50%;transform:translateX(-50%);display:flex;gap:8px;max-width:90vw;overflow-x:auto;padding:4px"></div>
 </div>
 <button class="print-fab" onclick="window.print()"><span class="ms">print</span> הדפסה</button>
 </body>

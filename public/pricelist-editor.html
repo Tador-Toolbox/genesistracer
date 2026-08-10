@@ -296,7 +296,7 @@ let S={
 };
 
 function makeCat(name){return{id:'c'+Date.now()+Math.random().toString(36).slice(2),name:name||'',subtitle:'',products:[],open:true};}
-function makeProd(n){return{id:'p'+Date.now()+Math.random().toString(36).slice(2),name:'',sku:'',price:'',currency:'ils',desc:'',link:'',imgUrl:null,hidden:false,order:n||0,open:false};}
+function makeProd(n){return{id:'p'+Date.now()+Math.random().toString(36).slice(2),name:'',sku:'',price:'',currency:'ils',desc:'',link:'',youtubeUrl:'',imgUrl:null,images:[],hidden:false,order:n||0,open:false};}
 // Currency symbol helper — defaults to shekel for products saved before this field existed
 function curSym(p){return (p&&p.currency==='usd')?'$':'₪';}
 
@@ -474,6 +474,23 @@ function renderProds(ci){
           `:`<span class="ms zico">add_photo_alternate</span><div class="zlb">לחץ לבחירת תמונה</div>`}
           <input type="file" accept="image/*" id="img-${p.id}" style="display:none" onchange="uploadImg(event,'${p.id}',${ci},${pi})"/>
         </div>
+
+        <!-- Extra gallery images -->
+        <div style="margin-top:4px">
+          <label style="display:block;margin-bottom:6px">תמונות נוספות (גלריה)</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+            ${(p.images||[]).map((im,idx)=>`
+              <div style="position:relative;width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--outv)">
+                <img src="${im.url}" style="width:100%;height:100%;object-fit:cover"/>
+                <div onclick="delGalleryImg('${p.id}',${ci},${pi},'${im.pid}')" style="position:absolute;top:2px;left:2px;background:rgba(186,0,19,.85);color:#fff;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px">✕</div>
+              </div>
+            `).join('')}
+            <div onclick="document.getElementById('gal-${p.id}').click()" style="width:60px;height:60px;border:2px dashed var(--outv);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--out)" id="galz-${p.id}">
+              <span class="ms">add</span>
+            </div>
+            <input type="file" accept="image/*" id="gal-${p.id}" style="display:none" onchange="uploadGalleryImg(event,'${p.id}',${ci},${pi})"/>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
           <div><label>שם מוצר</label><input type="text" value="${esc(p.name)}" oninput="updP(${ci},${pi},'name',this.value)" placeholder="שם..."/></div>
           <div><label>מקט (SKU)</label><input type="text" value="${esc(p.sku)}" oninput="updP(${ci},${pi},'sku',this.value)" placeholder="INT-101"/></div>
@@ -495,6 +512,13 @@ function renderProds(ci){
             <input type="text" value="${esc(p.link||'')}" oninput="updP(${ci},${pi},'link',this.value)" placeholder="https://..."/>
           </div>
           ${p.link?`<div style="margin-top:4px"><a href="${esc(p.link)}" target="_blank" style="font-size:11px;color:var(--pr);font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:3px"><span class="ms" style="font-size:13px">open_in_new</span> בדוק קישור</a></div>`:''}
+        </div>
+        <div>
+          <label>קישור יוטיוב (יופיע ככפתור בעמוד)</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="ms" style="color:#f00;font-size:18px;flex-shrink:0">smart_display</span>
+            <input type="text" value="${esc(p.youtubeUrl||'')}" oninput="updP(${ci},${pi},'youtubeUrl',this.value)" placeholder="https://youtube.com/..."/>
+          </div>
         </div>
         <div style="display:grid;grid-template-columns:80px 1fr;gap:9px;align-items:end">
           <div><label>מס׳ סדר</label><input type="number" value="${p.order||0}" min="1" oninput="updP(${ci},${pi},'order',parseInt(this.value)||0);sortProds(${ci})" style="font-family:var(--mono)"/></div>
@@ -549,6 +573,23 @@ async function delImg(pid,ci,pi){saveHistory();
   await fetch(`/api/pricelist/product-image/${pid}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:authBody({})});
   S.categories[ci].products[pi].imgUrl=null;renderCats();rp();
 }
+async function uploadGalleryImg(e,pid,ci,pi){saveHistory();
+  const f=e.target.files[0];if(!f)return;
+  const gz=document.getElementById('galz-'+pid);if(gz)gz.style.opacity='.4';
+  const fd=new FormData();fd.append('image',f);
+  try{
+    authFD(fd);const r=await fetch(`/api/pricelist/product-gallery/${pid}`,{method:'POST',body:fd});
+    const d=await r.json();
+    const p=S.categories[ci].products[pi];p.images=p.images||[];p.images.push({url:d.url,pid:d.pid});
+    renderCats();rp();showToast('תמונה נוספה ✓');
+  }catch{showToast('שגיאה ✗');}
+  if(gz)gz.style.opacity='1';e.target.value='';
+}
+async function delGalleryImg(pid,ci,pi,imgPid){saveHistory();
+  await fetch(`/api/pricelist/product-gallery/${pid}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:authBody({pid:imgPid})});
+  const p=S.categories[ci].products[pi];p.images=(p.images||[]).filter(im=>im.pid!==imgPid);
+  renderCats();rp();
+}
 function toggleProd(ci,pi){S.categories[ci].products[pi].open=!S.categories[ci].products[pi].open;renderProds(ci);}
 function updP(ci,pi,k,v){S.categories[ci].products[pi][k]=v;updateCatHeader(ci);rp();}
 function addProd(ci){saveHistory();const n=S.categories[ci].products.length+1;S.categories[ci].products.push(makeProd(n));renderCats();rp();}
@@ -584,6 +625,8 @@ function buildPL(){
           : ''}
         ${p.imgUrl?`<img src="${p.imgUrl}" alt="${esc(p.name)}"/>`:`<div class="no-img"><span class="ms">image_not_supported</span></div>`}
         ${p.sku?`<span class="pl-sku" style="z-index:2;position:relative">${esc(p.sku)}</span>`:''}
+        ${(p.images&&p.images.length)?`<span style="position:absolute;top:6px;left:6px;z-index:2;background:rgba(0,0,0,.6);border-radius:99px;padding:2px 7px;display:inline-flex;align-items:center;gap:2px;color:#fff;font-size:10px;font-weight:700"><span class="ms" style="font-size:11px">photo_library</span>${p.images.length+1}</span>`:''}
+        ${p.youtubeUrl?`<span style="position:absolute;top:6px;right:6px;z-index:2;background:#f00;border-radius:99px;padding:2px 6px;display:inline-flex;align-items:center;z-index:2"><span class="ms" style="font-size:12px;color:#fff">smart_display</span></span>`:''}
         ${p.link?`<span style="position:absolute;bottom:6px;left:6px;z-index:2;background:rgba(0,0,0,.55);border-radius:99px;padding:3px 6px;display:inline-flex;align-items:center;gap:3px"><span class="ms" style="font-size:12px;color:#fff">open_in_new</span></span>`:''}
       </div>
       <div class="pl-card-body">
