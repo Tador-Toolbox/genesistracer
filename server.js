@@ -2888,7 +2888,39 @@ app.post('/api/residents/register', upload.single('photo'), async (req, res) => 
       resident = await database.collection('residents').findOne({ buildingCode, phone: cleanPhone });
     }
 
-    if (!resident) return res.json({ success: false, error: 'not_found' });
+    if (!resident) {
+      // Open-registration: create a NEW resident as 'pending' (awaits committee approval; NOT on panel)
+      if (building.openRegistration) {
+        const { firstName, lastName, apartment } = req.body;
+        let photoUrl = null;
+        if (req.file) {
+          const result = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              { folder: 'genesistracer-residents', resource_type: 'image' },
+              (error, result) => error ? reject(error) : resolve(result)
+            );
+            stream.end(req.file.buffer);
+          });
+          photoUrl = result.secure_url;
+        }
+        await database.collection('residents').insertOne({
+          buildingCode,
+          mac: building.mac,
+          firstName: (firstName || '').trim(),
+          lastName: (lastName || '').trim(),
+          phone: cleanPhone,
+          apartment: (apartment || '').trim(),
+          photoUrl,
+          status: 'pending',          // committee must approve before panel
+          uploadedToPanel: false,
+          selfRegistered: true,
+          createdAt: new Date(),
+          registeredAt: new Date(),
+        });
+        return res.json({ success: true, pending: true });
+      }
+      return res.json({ success: false, error: 'not_found' });
+    }
     if (resident.status === 'registered') return res.json({ success: false, error: 'already_registered' });
 
     // Upload photo to Cloudinary
@@ -2924,6 +2956,25 @@ app.post('/api/committee/login', async (req, res) => {
     const building = await database.collection('buildings').findOne({ buildingCode, password });
     if (!building) return res.json({ success: false, error: 'Invalid building code or password' });
     res.json({ success: true, address: building.address, buildingCode: building.buildingCode });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Toggle open registration (committee-approval mode) for a building
+app.post('/api/buildings/:code/open-registration', async (req, res) => {
+  try {
+    const { username, password, open } = req.body;
+    if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASS) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    const database = await require('./db').connectDB();
+    const r = await database.collection('buildings').updateOne(
+      { buildingCode: req.params.code },
+      { $set: { openRegistration: !!open } }
+    );
+    if (!r.matchedCount) return res.json({ success: false, error: 'Building not found' });
+    res.json({ success: true, openRegistration: !!open });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -3618,7 +3669,14 @@ app.post('/api/residents/verify-phone', async (req, res) => {
     const database = await require('./db').connectDB();
 
     const resident = await database.collection('residents').findOne({ buildingCode, phone: cleanPhone });
-    if (!resident) return res.json({ success: false, error: 'not_found' });
+    if (!resident) {
+      // Open-registration buildings let unknown phones self-register (name/apt typed by resident)
+      const building = await database.collection('buildings').findOne({ buildingCode });
+      if (building && building.openRegistration) {
+        return res.json({ success: true, openMode: true, firstName: '', lastName: '', apartment: '', residentId: null });
+      }
+      return res.json({ success: false, error: 'not_found' });
+    }
     if (resident.status === 'registered') return res.json({ success: false, error: 'already_registered' });
 
     res.json({
