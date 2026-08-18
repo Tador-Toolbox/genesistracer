@@ -1217,6 +1217,25 @@
       loadData();
     }
 
+    async function uploadMacFile(phoneNumber, mac, input) {
+      const file = input.files[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('phoneNumber', phoneNumber);
+      fd.append('mac', mac);
+      try {
+        showMessage('⏳ מעלה קובץ...', 'info');
+        const res = await fetch('/api/manager/mac-file', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.success) { showMessage('✅ הקובץ הועלה', 'success'); loadData(); }
+        else showMessage('❌ ' + (data.error || 'שגיאה'), 'error');
+      } catch (e) {
+        showMessage('❌ שגיאת תקשורת', 'error');
+      }
+      input.value = '';
+    }
+
     async function handleLicensePayment(phoneNumber, mac) {
       const t = translations[currentLang];
       const confirmed = confirm(t.licenseQuestion);
@@ -1927,6 +1946,13 @@
                     <span class="mac-detail-value" style="color: var(--green); font-style: italic;">
                       ${macObj.description || '—'}
                     </span>
+                  </div>
+
+                  <div class="mac-detail-field" style="border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                    <span class="mac-detail-label" style="color:#7c3aed;">📎 קובץ:</span>
+                    <input type="file" id="macfile-${macObj.mac}" style="display:none;" onchange="uploadMacFile('${installer.phoneNumber}','${macObj.mac}', this)"/>
+                    <button class="small" onclick="document.getElementById('macfile-${macObj.mac}').click()" style="background:#7c3aed;color:white;">⬆ העלה קובץ</button>
+                    <button class="small" onclick="window.open('${macObj.fileUrl || ''}','_blank')" ${macObj.fileUrl ? '' : 'disabled style="opacity:0.4;cursor:not-allowed;"'}>⬇ הורד${macObj.fileName ? ' · ' + macObj.fileName : ''}</button>
                   </div>
                 </div>
               `).join('')}
