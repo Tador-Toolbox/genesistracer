@@ -158,7 +158,7 @@
     </div>
 
     <!-- Panel faces (imported from Genesis) -->
-    <div style="margin-top:40px;padding-top:28px;border-top:2px solid var(--gray-200);">
+    <div id="panelFacesSection" style="margin-top:40px;padding-top:28px;border-top:2px solid var(--gray-200);">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
         <div>
           <h2 style="font-size:20px;font-weight:900;">פנים בפנל Genesis</h2>
@@ -300,6 +300,10 @@
         facesSel.value = selectedPanel;
         document.getElementById('panelFacesSelectorWrap').style.display = pd.panels.length > 1 ? 'flex' : 'none';
       }
+      // Hide the "פנים בפנל Genesis" section from the committee if the building opts out
+      // (admins opening with ?admin=1 always keep it visible)
+      const sec = document.getElementById('panelFacesSection');
+      if (sec) sec.style.display = (pd.hidePanelFaces && !isAdmin) ? 'none' : '';
     } catch(e) { console.warn('panels load failed:', e); }
 
     try {

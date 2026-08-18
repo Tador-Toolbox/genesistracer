@@ -421,6 +421,9 @@
           <button class="btn btn-sm" onclick="toggleOpenReg('${b.buildingCode}', ${b.openRegistration ? 'false' : 'true'})" title="אישור רישום על ידי הוועד" style="margin-left:6px;background:${b.openRegistration ? '#16a34a' : '#94a3b8'};">
             ${b.openRegistration ? '✅ אישור וועד: כן' : '🔒 אישור וועד: לא'}
           </button>
+          <button class="btn btn-sm" onclick="toggleHidePanelFaces('${b.buildingCode}', ${b.hidePanelFaces ? 'false' : 'true'})" title="הסתר פנים בפנל מהוועד" style="margin-left:6px;background:${b.hidePanelFaces ? '#c2410c' : '#94a3b8'};">
+            ${b.hidePanelFaces ? '🙈 פנים בפנל: מוסתר' : '👁 פנים בפנל: מוצג'}
+          </button>
           <button class="btn btn-danger btn-sm" onclick="deleteBuilding('${b.buildingCode}')">מחק</button>
         </td>
       </tr>
@@ -431,6 +434,25 @@
     if (!confirm('למחוק את הבניין וכל הדיירים שלו?')) return;
     await fetch('/api/buildings/' + code, { method:'DELETE' });
     loadBuildings();
+  }
+
+  async function toggleHidePanelFaces(code, hide) {
+    const msg = hide
+      ? 'להסתיר את "פנים בפנל Genesis" מהוועד?\n\nהוועד לא יראה יותר את החלק הזה בפנל שלו.'
+      : 'להציג שוב את "פנים בפנל Genesis" לוועד?';
+    if (!confirm(msg)) return;
+    try {
+      const res = await fetch('/api/buildings/' + code + '/hide-panel-faces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: authUser, password: authPass, hide })
+      });
+      const data = await res.json();
+      if (data.success) loadBuildings();
+      else alert('שגיאה: ' + (data.error || 'לא הצליח'));
+    } catch (e) {
+      alert('שגיאת תקשורת');
+    }
   }
 
   async function toggleOpenReg(code, open) {
