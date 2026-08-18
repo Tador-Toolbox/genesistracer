@@ -2961,6 +2961,25 @@ app.post('/api/committee/login', async (req, res) => {
   }
 });
 
+// Toggle hiding the "פנים בפנל Genesis" section from the committee for a building
+app.post('/api/buildings/:code/hide-panel-faces', async (req, res) => {
+  try {
+    const { username, password, hide } = req.body;
+    if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASS) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    const database = await require('./db').connectDB();
+    const r = await database.collection('buildings').updateOne(
+      { buildingCode: req.params.code },
+      { $set: { hidePanelFaces: !!hide } }
+    );
+    if (!r.matchedCount) return res.json({ success: false, error: 'Building not found' });
+    res.json({ success: true, hidePanelFaces: !!hide });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Toggle open registration (committee-approval mode) for a building
 app.post('/api/buildings/:code/open-registration', async (req, res) => {
   try {
@@ -3807,7 +3826,7 @@ app.get('/api/committee/building-panels/:code', async (req, res) => {
     const building = await database.collection('buildings').findOne({ buildingCode: req.params.code, password });
     if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
     const panels = building.panels || [{ mac: building.mac, label: 'כניסה ראשית' }];
-    res.json({ success: true, panels });
+    res.json({ success: true, panels, hidePanelFaces: !!building.hidePanelFaces });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
