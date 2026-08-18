@@ -418,6 +418,9 @@
         <td>
           <button class="btn btn-black btn-sm" onclick="openDrawer('${b.buildingCode}','${b.address}')" style="margin-left:6px;">👥 דיירים</button>
           <button class="btn btn-sm" onclick="showQr('${b.buildingCode}','${b.address}')" style="background:#7c3aed;margin-left:6px;">📱 QR</button>
+          <button class="btn btn-sm" onclick="toggleOpenReg('${b.buildingCode}', ${b.openRegistration ? 'false' : 'true'})" title="אישור רישום על ידי הוועד" style="margin-left:6px;background:${b.openRegistration ? '#16a34a' : '#94a3b8'};">
+            ${b.openRegistration ? '✅ אישור וועד: כן' : '🔒 אישור וועד: לא'}
+          </button>
           <button class="btn btn-danger btn-sm" onclick="deleteBuilding('${b.buildingCode}')">מחק</button>
         </td>
       </tr>
@@ -428,6 +431,25 @@
     if (!confirm('למחוק את הבניין וכל הדיירים שלו?')) return;
     await fetch('/api/buildings/' + code, { method:'DELETE' });
     loadBuildings();
+  }
+
+  async function toggleOpenReg(code, open) {
+    const msg = open
+      ? 'להפעיל אישור רישום על ידי הוועד?\n\nדיירים יוכלו להירשם בעצמם, אך יופיעו כ"ממתינים" עד שהוועד יאשר.'
+      : 'לבטל אישור רישום על ידי הוועד?\n\nרק דיירים שהוזנו מראש יוכלו להירשם.';
+    if (!confirm(msg)) return;
+    try {
+      const res = await fetch('/api/buildings/' + code + '/open-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: authUser, password: authPass, open })
+      });
+      const data = await res.json();
+      if (data.success) loadBuildings();
+      else alert('שגיאה: ' + (data.error || 'לא הצליח'));
+    } catch (e) {
+      alert('שגיאת תקשורת');
+    }
   }
 
   function viewResidents(code) { window.location.href = '/committee.html?code=' + code + '&admin=1'; }

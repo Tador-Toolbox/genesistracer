@@ -310,6 +310,13 @@
         return;
       }
       allResidents = data.residents;
+      // Pending (self-registered, awaiting committee approval) shown first
+      allResidents.sort((a, b) => {
+        const pa = a.status === 'pending' ? 0 : 1;
+        const pb = b.status === 'pending' ? 0 : 1;
+        if (pa !== pb) return pa - pb;
+        return (a.apartment || '').localeCompare(b.apartment || '', 'he', { numeric: true });
+      });
       document.getElementById('statTotal').textContent = allResidents.length;
       document.getElementById('statPhoto').textContent = allResidents.filter(r => r.photoUrl).length;
       renderResidents(allResidents);
@@ -325,7 +332,8 @@
       return;
     }
     grid.innerHTML = residents.map(r => `
-      <div class="resident-card ${selectMode ? 'selectable' : ''}" data-id="${r._id}" ${selectMode ? `onclick="toggleCard('${r._id}')"` : ''} style="${selectMode ? 'cursor:pointer;' : ''}position:relative;">
+      <div class="resident-card ${selectMode ? 'selectable' : ''}" data-id="${r._id}" ${selectMode ? `onclick="toggleCard('${r._id}')"` : ''} style="${selectMode ? 'cursor:pointer;' : ''}position:relative;${r.status === 'pending' ? 'box-shadow:0 0 0 2px #f59e0b;' : ''}">
+        ${r.status === 'pending' ? '<div style="position:absolute;top:10px;left:10px;z-index:6;background:#f59e0b;color:white;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;">⏳ ממתין לאישור וועד</div>' : ''}
         ${selectMode ? `<div class="card-check" id="check-${r._id}" style="position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:50%;background:${selectedIds.has(r._id) ? '#16a34a' : 'rgba(255,255,255,0.9)'};border:2px solid ${selectedIds.has(r._id) ? '#16a34a' : '#d1d5db'};display:flex;align-items:center;justify-content:center;z-index:5;font-size:14px;color:white;">${selectedIds.has(r._id) ? '✓' : ''}</div>` : ''}
         <div class="resident-photo">
           ${r.photoUrl
@@ -345,7 +353,7 @@
             <button class="act-btn act-edit" onclick="event.stopPropagation();editResidentName('${r._id}', '${(r.firstName||'').replace(/'/g,'')}', '${(r.lastName||'').replace(/'/g,'')}')" title="ערוך שם">👤 ערוך שם</button>
             <button class="act-btn act-edit" onclick="event.stopPropagation();editResidentField('${r._id}', '${r.firstName} ${r.lastName}', '${r.apartment || ''}', '${r.phone || ''}')" title="ערוך דירה/טלפון">✏️ ערוך דירה/טלפון</button>
             <button class="act-btn act-note" onclick="event.stopPropagation();editResidentNote('${r._id}', '${r.firstName} ${r.lastName}', &quot;${(r.notes||'').replace(/"/g,'&#34;').replace(/'/g,'&#39;')}&quot;)" title="הערה">📝 הערה</button>
-            <button class="act-btn act-upload" onclick="event.stopPropagation();uploadSingle('${r._id}')" title="העלה פנים לפנל">⬆ העלה לפנל</button>
+            <button class="act-btn act-upload" onclick="event.stopPropagation();uploadSingle('${r._id}')" title="${r.status === 'pending' ? 'אשר והעלה פנים לפנל' : 'העלה פנים לפנל'}">${r.status === 'pending' ? '✓ אשר והעלה לפנל' : '⬆ העלה לפנל'}</button>
             <button class="act-btn act-panel-del" onclick="event.stopPropagation();deletePanelFace('${r._id}', '${r.firstName} ${r.lastName}')" title="מחק פנים מהפנל בלבד">🗑 מהפנל בלבד</button>
             <button class="act-btn act-full-del" onclick="event.stopPropagation();deleteResidentFull('${r._id}', '${r.firstName} ${r.lastName}', ${r.uploadedToPanel ? 'true' : 'false'})" title="מחק מהפנל + מהמערכת">🗑 מחק דייר</button>
           ` : ''}

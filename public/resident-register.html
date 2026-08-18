@@ -108,6 +108,19 @@
       <div class="detail" id="residentPhone"></div>
     </div>
 
+    <!-- Open-mode: resident types their own details (shown only when not pre-registered) -->
+    <div id="openFields" style="display:none;margin-bottom:16px;">
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;margin-bottom:12px;line-height:1.6;">
+        ℹ️ הרישום שלך יישלח לאישור ועד הבית. לאחר אישור, הפנים יעלו למערכת.
+      </div>
+      <label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);margin-bottom:6px;">שם פרטי</label>
+      <input type="text" id="openFirstName" placeholder="שם פרטי" style="width:100%;padding:11px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:14px;box-sizing:border-box;margin-bottom:10px;"/>
+      <label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);margin-bottom:6px;">שם משפחה</label>
+      <input type="text" id="openLastName" placeholder="שם משפחה" style="width:100%;padding:11px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:14px;box-sizing:border-box;margin-bottom:10px;"/>
+      <label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);margin-bottom:6px;">מספר דירה</label>
+      <input type="text" id="openApartment" placeholder="מספר דירה" style="width:100%;padding:11px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:14px;box-sizing:border-box;"/>
+    </div>
+
     <label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);margin-bottom:6px;">תמונת פנים</label>
     <div class="photo-wrap" onclick="document.getElementById('photoInput').click()">
       <input type="file" id="photoInput" accept="image/*" onchange="previewPhoto(event)"/>
@@ -139,6 +152,7 @@
 <script>
   let verifiedCode = null;
   let verifiedResidentId = null;
+  let openMode = false;
   let verifiedPhone = null;
 
   // Auto-fill from URL
@@ -195,9 +209,19 @@
       if (data.success) {
         verifiedResidentId = data.residentId;
         verifiedPhone = phone;
-        document.getElementById('residentName').textContent = (data.firstName + ' ' + data.lastName).trim();
-        document.getElementById('residentApt').textContent = data.apartment ? '🏠 דירה ' + data.apartment : '';
-        document.getElementById('residentPhone').textContent = '📱 ' + phone;
+        openMode = !!data.openMode;
+        if (openMode) {
+          // Self-registration: resident types their own name + apartment
+          document.getElementById('residentName').textContent = 'רישום חדש';
+          document.getElementById('residentApt').textContent = '';
+          document.getElementById('residentPhone').textContent = '📱 ' + phone;
+          document.getElementById('openFields').style.display = 'block';
+        } else {
+          document.getElementById('residentName').textContent = (data.firstName + ' ' + data.lastName).trim();
+          document.getElementById('residentApt').textContent = data.apartment ? '🏠 דירה ' + data.apartment : '';
+          document.getElementById('residentPhone').textContent = '📱 ' + phone;
+          document.getElementById('openFields').style.display = 'none';
+        }
         document.getElementById('phoneStep').style.display = 'none';
         document.getElementById('photoStep').style.display = 'block';
       } else if (data.error === 'not_found') {
@@ -238,6 +262,18 @@
       return;
     }
 
+    // Open mode: require the resident to fill their details
+    let openFirst = '', openLast = '', openApt = '';
+    if (openMode) {
+      openFirst = document.getElementById('openFirstName').value.trim();
+      openLast  = document.getElementById('openLastName').value.trim();
+      openApt   = document.getElementById('openApartment').value.trim();
+      if (!openFirst || !openApt) {
+        errEl.textContent = 'נא למלא שם פרטי ומספר דירה';
+        return;
+      }
+    }
+
     btn.disabled = true;
     btn.innerHTML = '<span>⏳</span> שולח...';
 
@@ -245,7 +281,12 @@
       const formData = new FormData();
       formData.append('buildingCode', verifiedCode);
       formData.append('phone', verifiedPhone);
-      formData.append('residentId', verifiedResidentId);
+      if (verifiedResidentId) formData.append('residentId', verifiedResidentId);
+      if (openMode) {
+        formData.append('firstName', openFirst);
+        formData.append('lastName', openLast);
+        formData.append('apartment', openApt);
+      }
       formData.append('photo', photoFile);
 
       const res = await fetch('/api/residents/register', { method: 'POST', body: formData });
@@ -255,6 +296,13 @@
         document.getElementById('photoStep').style.display = 'none';
         document.getElementById('buildingInfo').style.display = 'none';
         document.getElementById('successScreen').style.display = 'block';
+        // If pending approval, adjust the success message
+        if (data.pending) {
+          const st = document.getElementById('successScreen');
+          const t = st.querySelector('h2'); const d = st.querySelector('p');
+          if (t) t.textContent = 'הרישום נשלח לאישור';
+          if (d) d.innerHTML = 'הבקשה שלך ממתינה לאישור ועד הבית.<br/>לאחר האישור הפנים יעלו למערכת ותוכל להיכנס.';
+        }
       } else {
         if (data.error === 'already_registered') {
           errEl.textContent = 'כבר נרשמת עם מספר זה';
