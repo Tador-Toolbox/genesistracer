@@ -3833,6 +3833,45 @@ app.get('/api/committee/building-panels/:code', async (req, res) => {
 });
 
 
+// Manager: upload an arbitrary reference file (PDF/Excel/any) for a specific MAC
+app.post('/api/manager/mac-file', upload.single('file'), async (req, res) => {
+  try {
+    const { phoneNumber, mac } = req.body;
+    if (!req.file || !phoneNumber || !mac) {
+      return res.status(400).json({ success: false, error: 'file, phoneNumber, mac required' });
+    }
+    const cleanMac = mac.replace(/[:\-\s]/g, '').toUpperCase();
+    // Upload as raw so any file type (pdf, xlsx, docx...) is stored/served intact
+    const safeName = (req.file.originalname || 'file').replace(/[^\w.\-]/g, '_');
+    const uploadRes = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'genesistracer-macfiles', resource_type: 'raw', public_id: `${cleanMac}_${Date.now()}_${safeName}`, use_filename: true, unique_filename: false },
+        (error, result) => error ? reject(error) : resolve(result)
+      );
+      stream.end(req.file.buffer);
+    });
+
+    // Save fileUrl + fileName on the matching MAC entry (match by normalized mac)
+    const database = await require('./db').connectDB();
+    const installer = await database.collection('installers').findOne({ phoneNumber });
+    if (!installer) return res.json({ success: false, error: 'Installer not found' });
+    const macs = (installer.macAddresses || []).map(m => {
+      const mNorm = (m.mac || '').replace(/[:\-\s]/g, '').toUpperCase();
+      if (mNorm === cleanMac) {
+        return { ...m, fileUrl: uploadRes.secure_url, fileName: req.file.originalname };
+      }
+      return m;
+    });
+    await database.collection('installers').updateOne(
+      { phoneNumber }, { $set: { macAddresses: macs } }
+    );
+    res.json({ success: true, fileUrl: uploadRes.secure_url, fileName: req.file.originalname });
+  } catch (err) {
+    console.error('mac-file upload error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Manager: rename a panel label
 app.post('/api/buildings/:code/rename-panel', async (req, res) => {
   try {

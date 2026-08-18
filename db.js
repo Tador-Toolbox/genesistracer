@@ -218,6 +218,9 @@ async function assignMacToInstaller(
     licensePaid:        keep(licensePaid,        existing.licensePaid,        false),
     panelType:          keep(panelType,          existing.panelType,          "genesis7"),
     voipbellAccount:    keep(voipbellAccount,    existing.voipbellAccount,    ""),
+    // Manager reference file (PDF/Excel/any) — not in any form, must always survive a save
+    ...(existing.fileUrl  !== undefined ? { fileUrl:  existing.fileUrl }  : {}),
+    ...(existing.fileName !== undefined ? { fileName: existing.fileName } : {}),
   };
 
   if (existingMacIndex >= 0) installer.macAddresses[existingMacIndex] = updatedMac;
