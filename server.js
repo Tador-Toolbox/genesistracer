@@ -2980,6 +2980,24 @@ app.post('/api/buildings/:code/open-registration', async (req, res) => {
   }
 });
 
+// Committee: manually mark a pending resident as approved (dismiss the pending badge)
+app.post('/api/committee/approve-resident', async (req, res) => {
+  try {
+    const { buildingCode, password, residentId } = req.body;
+    const database = await require('./db').connectDB();
+    const building = await database.collection('buildings').findOne({ buildingCode, password });
+    if (!building) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    const { ObjectId } = require('mongodb');
+    await database.collection('residents').updateOne(
+      { _id: new ObjectId(residentId), buildingCode },
+      { $set: { status: 'approved', approvedAt: new Date() } }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/api/committee/residents/:code', async (req, res) => {
   try {
     const { password, username, managerPass } = req.query;
@@ -3158,13 +3176,13 @@ async function runUploadFacesJob(jobId, buildingCode, building, residentIds, pan
         job.results.push({ id: r._id, name, success: false, error: 'Already on panel' });
         job.skipped++; job.done++;
         // Still mark as uploaded since they're already there
-        await database.collection('residents').updateOne({ _id: r._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date() } });
+        await database.collection('residents').updateOne({ _id: r._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date(), status: 'approved' } });
         continue;
       }
       await uploadFaceToPanel(host, port, token, name, r.photoUrl);
       console.log(`📤 [upload-faces]   ✅ ${name}: uploaded`);
       // Mark as uploaded in DB
-      await database.collection('residents').updateOne({ _id: r._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date() } });
+      await database.collection('residents').updateOne({ _id: r._id }, { $set: { uploadedToPanel: true, uploadedAt: new Date(), status: 'approved' } });
       job.results.push({ id: r._id, name, success: true });
       job.uploaded++;
     } catch (e) {
