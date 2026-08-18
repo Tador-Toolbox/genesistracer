@@ -333,7 +333,8 @@
     }
     grid.innerHTML = residents.map(r => `
       <div class="resident-card ${selectMode ? 'selectable' : ''}" data-id="${r._id}" ${selectMode ? `onclick="toggleCard('${r._id}')"` : ''} style="${selectMode ? 'cursor:pointer;' : ''}position:relative;${r.status === 'pending' ? 'box-shadow:0 0 0 2px #f59e0b;' : ''}">
-        ${r.status === 'pending' ? '<div style="position:absolute;top:10px;left:10px;z-index:6;background:#f59e0b;color:white;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;">⏳ ממתין לאישור וועד</div>' : ''}
+        ${r.status === 'pending' ? `<div onclick="event.stopPropagation();dismissPending('${r._id}')" title="לחץ אם אישרת את הפנים" style="position:absolute;top:10px;left:10px;z-index:6;background:#f59e0b;color:white;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;cursor:pointer;">⏳ ממתין לאישור וועד</div>` : ''}
+        ${r.status === 'approved' && !selectMode ? `<div style="position:absolute;top:10px;left:10px;z-index:6;background:#16a34a;color:white;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;">✓ אושר על ידי הוועד</div>` : ''}
         ${selectMode ? `<div class="card-check" id="check-${r._id}" style="position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:50%;background:${selectedIds.has(r._id) ? '#16a34a' : 'rgba(255,255,255,0.9)'};border:2px solid ${selectedIds.has(r._id) ? '#16a34a' : '#d1d5db'};display:flex;align-items:center;justify-content:center;z-index:5;font-size:14px;color:white;">${selectedIds.has(r._id) ? '✓' : ''}</div>` : ''}
         <div class="resident-photo">
           ${r.photoUrl
@@ -430,6 +431,22 @@
 
   async function uploadSingle(id) {
     await doUpload([id]);
+  }
+
+  async function dismissPending(id) {
+    if (!confirm('האם אישרת את הפנים של דייר זה?\n\nלחיצה על אישור תסמן אותו כמאושר ותסיר את התג "ממתין".')) return;
+    try {
+      const res = await fetch('/api/committee/approve-resident', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentId: id })
+      });
+      const data = await res.json();
+      if (data.success) loadResidents();
+      else alert('שגיאה: ' + (data.error || 'לא הצליח'));
+    } catch (e) {
+      alert('שגיאת תקשורת');
+    }
   }
 
   async function doUpload(ids) {

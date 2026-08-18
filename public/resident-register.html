@@ -268,8 +268,8 @@
       openFirst = document.getElementById('openFirstName').value.trim();
       openLast  = document.getElementById('openLastName').value.trim();
       openApt   = document.getElementById('openApartment').value.trim();
-      if (!openFirst || !openApt) {
-        errEl.textContent = 'נא למלא שם פרטי ומספר דירה';
+      if (!openFirst || !openLast || !openApt) {
+        errEl.textContent = 'נא למלא שם פרטי, שם משפחה ומספר דירה';
         return;
       }
     }
