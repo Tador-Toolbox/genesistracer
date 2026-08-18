@@ -2463,6 +2463,12 @@ const upload = multer({
   }
 });
 
+// Accepts ANY file type (for per-MAC reference files: PDF, Excel, etc.)
+const anyFileUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB max
+});
+
 // Upload image (installer)
 app.post('/api/installer/portfolio/upload', upload.single('image'), async (req, res) => {
   try {
@@ -3834,7 +3840,7 @@ app.get('/api/committee/building-panels/:code', async (req, res) => {
 
 
 // Manager: upload an arbitrary reference file (PDF/Excel/any) for a specific MAC
-app.post('/api/manager/mac-file', upload.single('file'), async (req, res) => {
+app.post('/api/manager/mac-file', anyFileUpload.single('file'), async (req, res) => {
   try {
     const { phoneNumber, mac } = req.body;
     if (!req.file || !phoneNumber || !mac) {
