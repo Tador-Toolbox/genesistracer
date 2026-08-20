@@ -495,9 +495,10 @@ async function getChatMessages(phoneNumber) {
     .toArray();
 }
 
-async function sendChatMessage(phoneNumber, from, text) {
+async function sendChatMessage(phoneNumber, from, text, type) {
   await connectDB();
   const msg = { phoneNumber, from, text: text.trim(), timestamp: new Date(), read: false };
+  if (type) msg.type = type;
   await db.collection('chat').insertOne(msg);
   return msg;
 }
@@ -528,6 +529,11 @@ async function getAllUnreadCounts() {
   const map = {};
   results.forEach(r => { map[r._id] = r.count; });
   return map;
+}
+
+async function getUnreadResidentUpdateCount() {
+  await connectDB();
+  return db.collection('chat').countDocuments({ from: 'installer', read: false, type: 'resident-update' });
 }
 
 async function getAllInstallersWithMacs() {
@@ -730,4 +736,5 @@ module.exports = {
   markMessagesRead,
   getUnreadCount,
   getAllUnreadCounts,
+  getUnreadResidentUpdateCount,
 };

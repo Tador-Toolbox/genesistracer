@@ -601,7 +601,8 @@ app.get('/api/manager/export-excel', async (req, res) => {
 app.get('/api/chat/unread/all', async (req, res) => {
   try {
     const counts = await db.getAllUnreadCounts();
-    res.json({ success: true, counts });
+    const updateCount = await db.getUnreadResidentUpdateCount();
+    res.json({ success: true, counts, updateCount });
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
@@ -626,10 +627,10 @@ app.post('/api/chat/:phoneNumber/read', async (req, res) => {
 
 app.post('/api/chat/:phoneNumber', async (req, res) => {
   try {
-    const { from, text } = req.body;
+    const { from, text, type } = req.body;
     console.log(`💬 Chat POST: phone=${req.params.phoneNumber} from=${from} text=${text}`);
     if (!text || !from) return res.status(400).json({ success: false, error: 'missing fields' });
-    const msg = await db.sendChatMessage(req.params.phoneNumber, from, text);
+    const msg = await db.sendChatMessage(req.params.phoneNumber, from, text, type);
     console.log(`✅ Chat message saved`);
     res.json({ success: true, message: msg });
   } catch(e) {
