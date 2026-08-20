@@ -1828,14 +1828,14 @@
     var msgText = lines.join('\n');
 
     try {
-      var res = await fetch('/api/manager/announcements', {
+      // Send as a CHAT message (type resident-update) so it lands in the manager's messages page
+      var res = await fetch('/api/chat/' + encodeURIComponent(installerData.phoneNumber), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          from: 'installer',
           text: msgText,
-          audience: 'specific',
-          specificPhone: 'admin',
-          imageUrl: null,
+          type: 'resident-update',
         })
       });
       var data = await res.json();

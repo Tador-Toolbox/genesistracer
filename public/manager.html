@@ -482,6 +482,7 @@
             <span class="qb-icon">💬</span>
             <span class="qb-label">הודעות</span>
             <span id="msgTotalBadge" style="display:none;position:absolute;top:8px;left:8px;background:#ef4444;color:white;border-radius:12px;min-width:20px;height:20px;font-size:11px;line-height:20px;text-align:center;font-weight:800;padding:0 5px;"></span>
+            <span id="msgUpdateBadge" style="display:none;position:absolute;top:8px;left:34px;background:#16a34a;color:white;border-radius:12px;min-width:20px;height:20px;font-size:11px;line-height:20px;text-align:center;font-weight:800;padding:0 5px;" title="עדכוני דיירים חדשים">🏠</span>
           </a>
           <a href="/committee.html" target="_blank" class="quick-btn qb-green">
             <span class="qb-icon">👥</span>
@@ -2438,6 +2439,9 @@
           if (total > 0) { tb.textContent = total; tb.style.display = 'block'; }
           else tb.style.display = 'none';
         }
+        // Green badge = unread resident-updates
+        const ub = document.getElementById('msgUpdateBadge');
+        if (ub) ub.style.display = (data.updateCount > 0) ? 'block' : 'none';
       } catch(e) {}
     }
 
@@ -2523,10 +2527,14 @@
         ? '<div style="text-align:center;color:var(--text-dim);font-size:13px;margin-top:40px;">אין הודעות עדיין</div>'
         : data.messages.map(m => {
             const isManager = m.from === 'manager';
+            const isUpdate = m.type === 'resident-update';
             const time = new Date(m.timestamp).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'});
+            const bg = isUpdate ? '#16a34a' : (isManager ? 'var(--accent)' : 'var(--surface2)');
+            const fg = (isUpdate || isManager) ? 'white' : 'var(--text)';
+            const label = isUpdate ? '🏠 עדכון דייר' : (isManager ? 'מנהל' : nameFor(convPhone));
             return `<div style="display:flex;flex-direction:column;align-items:${isManager?'flex-start':'flex-end'};">
-              <div style="max-width:70%;padding:8px 12px;border-radius:${isManager?'4px 16px 16px 16px':'16px 4px 16px 16px'};background:${isManager?'var(--accent)':'var(--surface2)'};color:${isManager?'white':'var(--text)'};font-size:14px;word-break:break-word;">${m.text}</div>
-              <span style="font-size:10px;color:var(--text-dim);margin-top:2px;">${isManager?'מנהל':nameFor(convPhone)} · ${time}</span>
+              <div style="max-width:70%;padding:8px 12px;border-radius:${isManager?'4px 16px 16px 16px':'16px 4px 16px 16px'};background:${bg};color:${fg};font-size:14px;word-break:break-word;white-space:pre-wrap;">${m.text}</div>
+              <span style="font-size:10px;color:var(--text-dim);margin-top:2px;">${label} · ${time}</span>
             </div>`;
           }).join('');
       if (!keepScroll || wasAtBottom) container.scrollTop = container.scrollHeight;
