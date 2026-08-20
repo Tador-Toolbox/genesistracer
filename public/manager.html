@@ -2519,11 +2519,14 @@
 
     async function loadConvMessages(keepScroll) {
       if (!convPhone) return;
-      const res = await fetch(`/api/chat/${convPhone}`);
+      const requestedPhone = convPhone;   // remember which conversation this fetch is for
+      const res = await fetch(`/api/chat/${requestedPhone}`);
       const data = await res.json();
+      // If the user switched conversations while this was loading, discard the stale result
+      if (requestedPhone !== convPhone) return;
       const container = document.getElementById('convMessages');
       const wasAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 40;
-      container.innerHTML = data.messages.length === 0
+      container.innerHTML = (!data.messages || data.messages.length === 0)
         ? '<div style="text-align:center;color:var(--text-dim);font-size:13px;margin-top:40px;">אין הודעות עדיין</div>'
         : data.messages.map(m => {
             const isManager = m.from === 'manager';
@@ -2538,7 +2541,8 @@
             </div>`;
           }).join('');
       if (!keepScroll || wasAtBottom) container.scrollTop = container.scrollHeight;
-      fetch(`/api/chat/${convPhone}/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from:'manager' }) });
+      // Mark read only after we've shown the messages (and only for this conversation)
+      fetch(`/api/chat/${requestedPhone}/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from:'manager' }) });
     }
 
     async function sendConvMessage() {
