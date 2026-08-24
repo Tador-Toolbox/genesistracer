@@ -141,6 +141,7 @@
 
     <!-- Upload toolbar -->
     <div id="uploadToolbar" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;padding:14px 16px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;">
+      <button onclick="refreshResidents(this)" id="refreshBtn" title="רענן רשימה" style="padding:9px 16px;background:var(--black,#111);color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">🔄 רענן</button>
       <button onclick="toggleSelectMode()" id="selectModeBtn" style="padding:9px 16px;background:#2563eb;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">✓ בחר דיירים</button>
       <button onclick="selectAll()" id="selectAllBtn" style="display:none;padding:9px 16px;background:white;color:#2563eb;border:1.5px solid #2563eb;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">בחר הכל</button>
       <button onclick="uploadSelected()" id="uploadBtn" style="display:none;padding:9px 18px;background:#16a34a;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">⬆ העלה לפנל (<span id="selCount">0</span>)</button>
@@ -274,6 +275,12 @@
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('mainPanel').style.display = 'none';
     document.getElementById('loginPass').value = '';
+  }
+
+  async function refreshResidents(btn) {
+    if (btn) { btn.disabled = true; const t = btn.textContent; btn.textContent = '⏳ מרענן...'; 
+      try { await loadResidents(); } finally { btn.disabled = false; btn.textContent = t; } }
+    else { await loadResidents(); }
   }
 
   async function loadResidents() {
