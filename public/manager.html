@@ -590,6 +590,31 @@
         </div>
       </div>
 
+      <!-- Manager Image Storage (personal PNG/JPG) -->
+      <div class="card">
+        <h2>🖼️ תמונות</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">העלה תמונות לאחסון אישי. ניתן להוריד או למחוק בכל עת.</p>
+
+        <div id="imgDropZone"
+             onclick="document.getElementById('imgFileInput').click()"
+             style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:14px;"
+             onmouseover="this.style.borderColor='var(--accent)'"
+             onmouseout="this.style.borderColor='var(--border)'"
+             ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+             ondragleave="this.style.borderColor='var(--border)'"
+             ondrop="handleImgDrop(event)">
+          <div style="font-size:32px;margin-bottom:6px;">🖼️</div>
+          <div style="font-weight:700;font-size:14px;color:var(--text);">לחץ להעלאה או גרור תמונה לכאן</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">PNG, JPG עד 10MB</div>
+        </div>
+        <input type="file" id="imgFileInput" accept="image/png,image/jpeg,image/jpg" style="display:none;" onchange="uploadManagerImage(this.files[0])" />
+        <div id="imgUploadMsg" style="font-size:13px;text-align:center;min-height:16px;margin-bottom:10px;"></div>
+
+        <div id="imgFileList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;">
+          <div style="color:var(--text-dim);font-size:13px;text-align:center;padding:12px;grid-column:1/-1;">טוען...</div>
+        </div>
+      </div>
+
       <!-- Tutorials -->
       <div class="card">
         <h2>🎬 סרטוני הדרכה</h2>
@@ -1008,6 +1033,7 @@
           loadMailingList();
           loadTutorialsAdmin();
           loadManagerFiles();
+          loadManagerImages();
           // Keep the messages unread badge fresh even when idle
           if (!window._msgBadgePoll) window._msgBadgePoll = setInterval(loadUnreadBadges, 15000);
         } else {
@@ -1488,6 +1514,83 @@
         const res  = await fetch(`/api/manager/files/${encodedPublicId}`, { method:'DELETE' });
         const data = await res.json();
         if (data.success) loadManagerFiles();
+        else alert('שגיאה במחיקה: ' + (data.error || 'unknown'));
+      } catch(e) { alert('שגיאת תקשורת'); }
+    }
+
+    // ===== Manager images (personal PNG/JPG) =====
+    async function loadManagerImages() {
+      const list = document.getElementById('imgFileList');
+      if (!list) return;
+      try {
+        const res  = await fetch('/api/manager/images');
+        const data = await res.json();
+        const imgs = data.images || [];
+        if (!imgs.length) {
+          list.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:12px;grid-column:1/-1;">אין תמונות עדיין</div>';
+          return;
+        }
+        list.innerHTML = imgs.map(f => {
+          const date  = f.uploadedAt ? new Date(f.uploadedAt).toLocaleDateString('he-IL') : '';
+          const encId = encodeURIComponent(f.publicId);
+          return `
+            <div style="background:var(--surface2);border-radius:10px;border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;">
+              <a href="${f.url}" target="_blank" style="display:block;aspect-ratio:1;overflow:hidden;background:#000;">
+                <img src="${f.url}" style="width:100%;height:100%;object-fit:cover;" />
+              </a>
+              <div style="padding:8px;text-align:right;">
+                <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">${date}</div>
+                <div style="display:flex;gap:6px;">
+                  <a href="${f.url}" download="${f.name}" target="_blank" style="flex:1;text-align:center;background:var(--accent);color:#fff;border-radius:6px;padding:6px;font-size:12px;font-weight:600;text-decoration:none;">⬇</a>
+                  <button onclick="deleteManagerImage('${encId}')" style="flex:1;background:var(--red);color:#fff;border:none;border-radius:6px;padding:6px;cursor:pointer;font-size:12px;font-weight:600;">🗑</button>
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+      } catch(e) {
+        list.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;grid-column:1/-1;">שגיאה בטעינה</div>';
+      }
+    }
+
+    async function uploadManagerImage(file) {
+      if (!file) return;
+      const msg = document.getElementById('imgUploadMsg');
+      msg.style.color = 'var(--text-dim)';
+      msg.textContent = 'מעלה תמונה...';
+      const formData = new FormData();
+      formData.append('image', file);
+      try {
+        const res  = await fetch('/api/manager/images/upload', { method:'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+          msg.style.color = 'var(--green)';
+          msg.textContent = '✅ הועלה בהצלחה!';
+          loadManagerImages();
+          setTimeout(() => { msg.textContent = ''; }, 2500);
+        } else {
+          msg.style.color = 'var(--red)';
+          msg.textContent = '❌ ' + (data.error || 'שגיאה');
+        }
+      } catch(e) {
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ שגיאת תקשורת';
+      }
+      document.getElementById('imgFileInput').value = '';
+    }
+
+    function handleImgDrop(event) {
+      event.preventDefault();
+      document.getElementById('imgDropZone').style.borderColor = 'var(--border)';
+      const file = event.dataTransfer.files[0];
+      if (file) uploadManagerImage(file);
+    }
+
+    async function deleteManagerImage(encodedPublicId) {
+      if (!confirm('למחוק את התמונה?')) return;
+      try {
+        const res  = await fetch(`/api/manager/images/${encodedPublicId}`, { method:'DELETE' });
+        const data = await res.json();
+        if (data.success) loadManagerImages();
         else alert('שגיאה במחיקה: ' + (data.error || 'unknown'));
       } catch(e) { alert('שגיאת תקשורת'); }
     }
