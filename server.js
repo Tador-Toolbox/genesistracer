@@ -2635,6 +2635,66 @@ app.delete('/api/manager/files/:publicId(*)', async (req, res) => {
 });
 
 
+// ==================== MANAGER IMAGES (personal PNG/JPG reference storage) ====================
+app.post('/api/manager/images/upload', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, error: 'No image provided' });
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          folder: 'tador/manager-images',
+          resource_type: 'image',
+          public_id: `${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
+        },
+        (error, result) => error ? reject(error) : resolve(result)
+      ).end(req.file.buffer);
+    });
+    await db.addManagerImage({
+      name: req.file.originalname,
+      url: result.secure_url,
+      publicId: result.public_id,
+      size: req.file.size,
+      uploadedAt: new Date(),
+    });
+    res.json({ success: true, image: { name: req.file.originalname, url: result.secure_url, publicId: result.public_id } });
+  } catch (err) {
+    console.error('Image upload error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/manager/images', async (req, res) => {
+  try {
+    const images = await db.getManagerImages();
+    res.json({ success: true, images });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/manager/images/title', async (req, res) => {
+  try {
+    const { publicId, title } = req.body;
+    if (!publicId) return res.status(400).json({ success: false, error: 'publicId required' });
+    await db.updateManagerImageTitle(publicId, title);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/manager/images/:publicId(*)', async (req, res) => {
+  try {
+    const publicId = req.params.publicId;
+    try { await cloudinary.uploader.destroy(publicId, { resource_type: 'image' }); } catch(e) {}
+    await db.deleteManagerImage(publicId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
 // ==================== STATS ====================
 app.get('/api/stats', async (req, res) => {
   try {

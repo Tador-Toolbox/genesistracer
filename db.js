@@ -625,6 +625,27 @@ async function deleteManagerFile(publicId) {
   await db.collection("managerFiles").deleteOne({ publicId });
 }
 
+// ==================== MANAGER IMAGES (personal reference PNG/JPG) ====================
+async function addManagerImage(imgObj) {
+  await connectDB();
+  await db.collection("managerImages").insertOne(imgObj);
+}
+
+async function getManagerImages() {
+  await connectDB();
+  return await db.collection("managerImages").find({}).sort({ uploadedAt: -1 }).toArray();
+}
+
+async function updateManagerImageTitle(publicId, title) {
+  await connectDB();
+  await db.collection("managerImages").updateOne({ publicId }, { $set: { title } });
+}
+
+async function deleteManagerImage(publicId) {
+  await connectDB();
+  await db.collection("managerImages").deleteOne({ publicId });
+}
+
 
 // ==================== MERGE ACCOUNTS ====================
 async function mergeInstallers(primaryPhone, secondaryPhone) {
@@ -725,6 +746,10 @@ module.exports = {
   getManagerFiles,
   deleteManagerFile,
   updateManagerFileTitle,
+  addManagerImage,
+  getManagerImages,
+  updateManagerImageTitle,
+  deleteManagerImage,
   subscribeToMailingList,
   getMailingList,
   removeFromMailingList,
