@@ -2639,26 +2639,28 @@ app.delete('/api/manager/files/:publicId(*)', async (req, res) => {
 app.post('/api/manager/images/upload', anyFileUpload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, error: 'No file provided' });
-    const isPdf = (req.file.mimetype === 'application/pdf') || /\.pdf$/i.test(req.file.originalname || '');
+    // Fix Hebrew (and other UTF-8) filenames that multer decodes as latin1
+    const origName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+    const isPdf = (req.file.mimetype === 'application/pdf') || /\.pdf$/i.test(origName || '');
     const result = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
           folder: 'tador/manager-images',
           resource_type: isPdf ? 'raw' : 'image',
-          public_id: `${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
+          public_id: `${Date.now()}_${origName.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
         },
         (error, result) => error ? reject(error) : resolve(result)
       ).end(req.file.buffer);
     });
     await db.addManagerImage({
-      name: req.file.originalname,
+      name: origName,
       url: result.secure_url,
       publicId: result.public_id,
       size: req.file.size,
       isPdf: isPdf,
       uploadedAt: new Date(),
     });
-    res.json({ success: true, image: { name: req.file.originalname, url: result.secure_url, publicId: result.public_id } });
+    res.json({ success: true, image: { name: origName, url: result.secure_url, publicId: result.public_id } });
   } catch (err) {
     console.error('Image upload error:', err.message);
     res.status(500).json({ success: false, error: err.message });
