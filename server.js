@@ -2636,14 +2636,15 @@ app.delete('/api/manager/files/:publicId(*)', async (req, res) => {
 
 
 // ==================== MANAGER IMAGES (personal PNG/JPG reference storage) ====================
-app.post('/api/manager/images/upload', upload.single('image'), async (req, res) => {
+app.post('/api/manager/images/upload', anyFileUpload.single('image'), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ success: false, error: 'No image provided' });
+    if (!req.file) return res.status(400).json({ success: false, error: 'No file provided' });
+    const isPdf = (req.file.mimetype === 'application/pdf') || /\.pdf$/i.test(req.file.originalname || '');
     const result = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
           folder: 'tador/manager-images',
-          resource_type: 'image',
+          resource_type: isPdf ? 'raw' : 'image',
           public_id: `${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
         },
         (error, result) => error ? reject(error) : resolve(result)
@@ -2654,6 +2655,7 @@ app.post('/api/manager/images/upload', upload.single('image'), async (req, res) 
       url: result.secure_url,
       publicId: result.public_id,
       size: req.file.size,
+      isPdf: isPdf,
       uploadedAt: new Date(),
     });
     res.json({ success: true, image: { name: req.file.originalname, url: result.secure_url, publicId: result.public_id } });
@@ -2686,7 +2688,9 @@ app.post('/api/manager/images/title', async (req, res) => {
 app.delete('/api/manager/images/:publicId(*)', async (req, res) => {
   try {
     const publicId = req.params.publicId;
+    // Could be an image or a raw pdf — try both resource types
     try { await cloudinary.uploader.destroy(publicId, { resource_type: 'image' }); } catch(e) {}
+    try { await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' }); } catch(e) {}
     await db.deleteManagerImage(publicId);
     res.json({ success: true });
   } catch (err) {
