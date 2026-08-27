@@ -1499,7 +1499,7 @@
 
       <!-- Info box -->
       <div style="background:var(--gray-50);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--gray-500);margin-bottom:16px;line-height:1.7;">
-        🔢 הקוד יווצר אוטומטית — 4 ספרות
+        🔢 הקוד יווצר אוטומטית — 5 ספרות
       </div>
 
       <!-- Error msg -->
@@ -1641,15 +1641,13 @@
     <div class="modal-body" style="padding:20px;">
 
       <div style="background:var(--gray-50);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--gray-500);margin-bottom:16px;line-height:1.7;">
-        🔐 עד 5 קודים קבועים — פתוחים 24/7 בכל הימים
+        🔐 עד 5 קודים קבועים — פתוחים 24/7 בכל הימים. השם נוצר אוטומטית (קוד קבוע 1-5).
       </div>
 
       <!-- Add new code form -->
       <div style="margin-bottom:18px;">
         <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">הוסף קוד חדש</div>
-        <input type="text" id="permCodeName" placeholder="שם הקוד (למשל: משפחה, חנות)" maxlength="20"
-          style="width:100%;padding:11px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:14px;margin-bottom:8px;"/>
-        <input type="text" id="permCodeValue" placeholder="קוד 4 ספרות" maxlength="4" inputmode="numeric"
+        <input type="text" id="permCodeValue" placeholder="קוד 5 ספרות" maxlength="5" inputmode="numeric"
           style="width:100%;padding:11px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:16px;letter-spacing:4px;text-align:center;font-weight:700;margin-bottom:10px;"/>
         <button class="btn-red" onclick="addPermCode()" id="permCodeAddBtn">
           <span class="material-symbols-outlined">add_circle</span>
@@ -2517,7 +2515,6 @@
     }
     document.getElementById('permCodesModal').classList.add('open');
     document.getElementById('permCodeError').textContent = '';
-    document.getElementById('permCodeName').value = '';
     document.getElementById('permCodeValue').value = '';
     loadPermCodes();
   }
@@ -2537,9 +2534,11 @@
         return;
       }
       if (!data.codes.length) {
+        window._permCodesCount = 0;
         list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">אין קודים קבועים</div>';
         return;
       }
+      window._permCodesCount = data.codes.length;
       list.innerHTML = data.codes.map(c => `
         <div style="display:flex;align-items:center;gap:10px;padding:12px;border:1.5px solid var(--gray-200);border-radius:8px;">
           <div style="flex:1;min-width:0;">
@@ -2562,12 +2561,14 @@
   }
 
   async function addPermCode() {
-    const name = document.getElementById('permCodeName').value.trim();
     const code = document.getElementById('permCodeValue').value.trim();
     const errEl = document.getElementById('permCodeError');
     errEl.textContent = '';
-    if (!name) { errEl.textContent = 'הזן שם לקוד'; return; }
-    if (!/^\d{4}$/.test(code)) { errEl.textContent = 'קוד חייב להיות 4 ספרות'; return; }
+    if (!/^\d{5}$/.test(code)) { errEl.textContent = 'קוד חייב להיות 5 ספרות'; return; }
+    // Auto-name: "קוד קבוע N" based on how many exist (max 5)
+    const existing = window._permCodesCount || 0;
+    if (existing >= 5) { errEl.textContent = 'ניתן להוסיף עד 5 קודים קבועים'; return; }
+    const name = 'קוד קבוע ' + (existing + 1);
 
     const btn = document.getElementById('permCodeAddBtn');
     btn.disabled = true;
@@ -2583,7 +2584,6 @@
       });
       const data = await r.json();
       if (data.success) {
-        document.getElementById('permCodeName').value = '';
         document.getElementById('permCodeValue').value = '';
         loadPermCodes();
       } else {
@@ -2601,9 +2601,9 @@
     const oldCode = btnEl.dataset.code;
     const newName = prompt('שנה שם:', oldName);
     if (newName === null) return;
-    const newCode = prompt('שנה קוד (4 ספרות):', oldCode);
+    const newCode = prompt('שנה קוד (5 ספרות):', oldCode);
     if (newCode === null) return;
-    if (!/^\d{4}$/.test(newCode)) { alert('קוד חייב להיות 4 ספרות'); return; }
+    if (!/^\d{5}$/.test(newCode)) { alert('קוד חייב להיות 5 ספרות'); return; }
 
     try {
       const r = await fetch('/api/installer/permanent-codes/' + codeId, {
