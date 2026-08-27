@@ -1833,8 +1833,8 @@ app.post('/api/installer/permanent-codes', async (req, res) => {
   if (!panelAddress || !name || !code) {
     return res.status(400).json({ success: false, error: 'panelAddress, name, code required' });
   }
-  if (!/^\d{4}$/.test(code)) {
-    return res.json({ success: false, error: 'קוד חייב להיות 4 ספרות' });
+  if (!/^\d{5}$/.test(code)) {
+    return res.json({ success: false, error: 'קוד חייב להיות 5 ספרות' });
   }
 
   try {
@@ -1925,8 +1925,8 @@ app.put('/api/installer/permanent-codes/:codeId', async (req, res) => {
   if (!panelAddress || !name || !code) {
     return res.status(400).json({ success: false, error: 'panelAddress, name, code required' });
   }
-  if (!/^\d{4}$/.test(code)) {
-    return res.json({ success: false, error: 'קוד חייב להיות 4 ספרות' });
+  if (!/^\d{5}$/.test(code)) {
+    return res.json({ success: false, error: 'קוד חייב להיות 5 ספרות' });
   }
   try {
     const [host, portStr] = panelAddress.split(':');
