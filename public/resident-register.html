@@ -311,8 +311,13 @@
         } else if (data.autoUploaded) {
           const st = document.getElementById('successScreen');
           const t = st.querySelector('h2'); const d = st.querySelector('p');
-          if (t) t.textContent = 'הרישום הושלם!';
-          if (d) d.innerHTML = 'הפנים שלך נשלחו למערכת.<br/>ייתכן שיעברו מספר דקות עד שתוכל להיכנס.';
+          if (data.reachedPanel) {
+            if (t) t.textContent = 'הרישום הושלם!';
+            if (d) d.innerHTML = 'הפנים שלך עלו למערכת בהצלחה.<br/>ייתכן שיעברו מספר דקות עד שתוכל להיכנס.';
+          } else {
+            if (t) t.textContent = 'הרישום נקלט';
+            if (d) d.innerHTML = 'הפרטים נשמרו, אך העלאת הפנים לפנל תושלם מאוחר יותר.<br/>אם יש בעיה, פנה לוועד הבית.';
+          }
         }
       } else {
         if (data.error === 'already_registered') {
