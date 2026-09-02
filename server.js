@@ -2996,9 +2996,10 @@ app.post('/api/residents/register', upload.single('photo'), async (req, res) => 
           registeredAt: new Date(),
         });
         if (isOpen) {
-          // Fire-and-forget: push the face to the panel right away (doesn't block the response)
-          autoUploadResidentToPanel(insertResult.insertedId, building);
-          return res.json({ success: true, autoUploaded: true });
+          // Wait for the panel upload to finish BEFORE responding, so it isn't
+          // killed mid-flight on Render. Reports back whether it reached the panel.
+          const uploaded = await autoUploadResidentToPanel(insertResult.insertedId, building);
+          return res.json({ success: true, autoUploaded: true, reachedPanel: uploaded });
         }
         return res.json({ success: true, pending: true });
       }
@@ -3332,17 +3333,19 @@ async function autoUploadResidentToPanel(residentId, building) {
     const { ObjectId } = require('mongodb');
     const database = await require('./db').connectDB();
     const resident = await database.collection('residents').findOne({ _id: new ObjectId(residentId) });
-    if (!resident || !resident.photoUrl) { console.log('🔓 auto-upload: no resident/photo'); return; }
+    if (!resident || !resident.photoUrl) { console.log('🔓 auto-upload: no resident/photo'); return false; }
 
     const cleanMac = (building.mac || '').replace(/[:\-\s]/g, '').toUpperCase();
+    console.log(`🔓 auto-upload: START resident=${resident.firstName} ${resident.lastName} mac=${cleanMac}`);
     const panelAddress = await resolvePanelAddress(cleanMac);
-    if (!panelAddress) { console.log(`🔓 auto-upload: panel ${cleanMac} not found/offline`); return; }
+    if (!panelAddress) { console.log(`🔓 auto-upload: ❌ panel ${cleanMac} not found/offline`); return false; }
+    console.log(`🔓 auto-upload: panel resolved → ${panelAddress}`);
 
     const [host, portStr] = panelAddress.split(':');
     const port = parseInt(portStr) || 80;
     const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
     const token = loginRes?.data?.token;
-    if (!token) { console.log('🔓 auto-upload: panel login failed'); return; }
+    if (!token) { console.log('🔓 auto-upload: ❌ panel login failed'); return false; }
 
     const name = (resident.firstName + ' ' + resident.lastName).trim();
     // Skip if a face with this name already exists on the panel
@@ -3351,15 +3354,17 @@ async function autoUploadResidentToPanel(residentId, building) {
       console.log(`🔓 auto-upload: ${name} already on panel`);
       await database.collection('residents').updateOne({ _id: resident._id },
         { $set: { uploadedToPanel: true, uploadedAt: new Date(), status: 'approved' } });
-      return;
+      return true;
     }
 
     await uploadFaceToPanel(host, port, token, name, resident.photoUrl);
     await database.collection('residents').updateOne({ _id: resident._id },
       { $set: { uploadedToPanel: true, uploadedAt: new Date(), status: 'approved' } });
     console.log(`🔓 auto-upload: ✅ ${name} uploaded to panel ${host}:${port}`);
+    return true;
   } catch (e) {
     console.log(`🔓 auto-upload: ❌ ${e.message}`);
+    return false;
   }
 }
 
