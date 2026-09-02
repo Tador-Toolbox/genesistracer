@@ -2962,8 +2962,12 @@ app.post('/api/residents/register', upload.single('photo'), async (req, res) => 
     }
 
     if (!resident) {
-      // Open-registration: create a NEW resident as 'pending' (awaits committee approval; NOT on panel)
-      if (building.openRegistration) {
+      // Self-registration modes for unknown phones:
+      //   'committee' → create as pending (committee approves before panel)
+      //   'open'      → create as approved AND auto-upload face to panel immediately
+      // (mode is derived from registrationMode, falling back to the legacy openRegistration flag)
+      const mode = building.registrationMode || (building.openRegistration ? 'committee' : 'whitelist');
+      if (mode === 'committee' || mode === 'open') {
         const { firstName, lastName, apartment } = req.body;
         let photoUrl = null;
         if (req.file) {
@@ -2976,7 +2980,8 @@ app.post('/api/residents/register', upload.single('photo'), async (req, res) => 
           });
           photoUrl = result.secure_url;
         }
-        await database.collection('residents').insertOne({
+        const isOpen = (mode === 'open');
+        const insertResult = await database.collection('residents').insertOne({
           buildingCode,
           mac: building.mac,
           firstName: (firstName || '').trim(),
@@ -2984,12 +2989,17 @@ app.post('/api/residents/register', upload.single('photo'), async (req, res) => 
           phone: cleanPhone,
           apartment: (apartment || '').trim(),
           photoUrl,
-          status: 'pending',          // committee must approve before panel
+          status: isOpen ? 'approved' : 'pending',
           uploadedToPanel: false,
           selfRegistered: true,
           createdAt: new Date(),
           registeredAt: new Date(),
         });
+        if (isOpen) {
+          // Fire-and-forget: push the face to the panel right away (doesn't block the response)
+          autoUploadResidentToPanel(insertResult.insertedId, building);
+          return res.json({ success: true, autoUploaded: true });
+        }
         return res.json({ success: true, pending: true });
       }
       return res.json({ success: false, error: 'not_found' });
@@ -3053,7 +3063,7 @@ app.post('/api/buildings/:code/hide-panel-faces', async (req, res) => {
   }
 });
 
-// Toggle open registration (committee-approval mode) for a building
+// Toggle open registration (committee-approval mode) for a building — LEGACY (kept for compatibility)
 app.post('/api/buildings/:code/open-registration', async (req, res) => {
   try {
     const { username, password, open } = req.body;
@@ -3063,10 +3073,32 @@ app.post('/api/buildings/:code/open-registration', async (req, res) => {
     const database = await require('./db').connectDB();
     const r = await database.collection('buildings').updateOne(
       { buildingCode: req.params.code },
-      { $set: { openRegistration: !!open } }
+      { $set: { openRegistration: !!open, registrationMode: open ? 'committee' : 'whitelist' } }
     );
     if (!r.matchedCount) return res.json({ success: false, error: 'Building not found' });
     res.json({ success: true, openRegistration: !!open });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Set registration mode: 'whitelist' | 'committee' | 'open'
+app.post('/api/buildings/:code/registration-mode', async (req, res) => {
+  try {
+    const { username, password, mode } = req.body;
+    if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASS) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!['whitelist', 'committee', 'open'].includes(mode)) {
+      return res.json({ success: false, error: 'Invalid mode' });
+    }
+    const database = await require('./db').connectDB();
+    const r = await database.collection('buildings').updateOne(
+      { buildingCode: req.params.code },
+      { $set: { registrationMode: mode, openRegistration: (mode === 'committee') } }
+    );
+    if (!r.matchedCount) return res.json({ success: false, error: 'Building not found' });
+    res.json({ success: true, registrationMode: mode });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -3293,6 +3325,44 @@ async function runUploadFacesJob(jobId, buildingCode, building, residentIds, pan
 }
 
 // Resolve a MAC to panel host:port via NexHome (reuses lookup logic)
+// Auto-upload a single resident's face to the building's panel immediately (open mode 3).
+// Runs in the background — errors are logged but never block the resident's registration.
+async function autoUploadResidentToPanel(residentId, building) {
+  try {
+    const { ObjectId } = require('mongodb');
+    const database = await require('./db').connectDB();
+    const resident = await database.collection('residents').findOne({ _id: new ObjectId(residentId) });
+    if (!resident || !resident.photoUrl) { console.log('🔓 auto-upload: no resident/photo'); return; }
+
+    const cleanMac = (building.mac || '').replace(/[:\-\s]/g, '').toUpperCase();
+    const panelAddress = await resolvePanelAddress(cleanMac);
+    if (!panelAddress) { console.log(`🔓 auto-upload: panel ${cleanMac} not found/offline`); return; }
+
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes?.data?.token;
+    if (!token) { console.log('🔓 auto-upload: panel login failed'); return; }
+
+    const name = (resident.firstName + ' ' + resident.lastName).trim();
+    // Skip if a face with this name already exists on the panel
+    const existing = await getAllPanelFaces(host, port, token);
+    if (existing.some(f => (f.label || '').trim().toLowerCase() === name.toLowerCase())) {
+      console.log(`🔓 auto-upload: ${name} already on panel`);
+      await database.collection('residents').updateOne({ _id: resident._id },
+        { $set: { uploadedToPanel: true, uploadedAt: new Date(), status: 'approved' } });
+      return;
+    }
+
+    await uploadFaceToPanel(host, port, token, name, resident.photoUrl);
+    await database.collection('residents').updateOne({ _id: resident._id },
+      { $set: { uploadedToPanel: true, uploadedAt: new Date(), status: 'approved' } });
+    console.log(`🔓 auto-upload: ✅ ${name} uploaded to panel ${host}:${port}`);
+  } catch (e) {
+    console.log(`🔓 auto-upload: ❌ ${e.message}`);
+  }
+}
+
 async function resolvePanelAddress(cleanMac) {
   const auth = await getAuthToken('face-upload');
   const macData = await searchMac(auth, cleanMac);
@@ -3780,10 +3850,11 @@ app.post('/api/residents/verify-phone', async (req, res) => {
 
     const resident = await database.collection('residents').findOne({ buildingCode, phone: cleanPhone });
     if (!resident) {
-      // Open-registration buildings let unknown phones self-register (name/apt typed by resident)
+      // committee + open modes both let unknown phones self-register (resident types name/apt)
       const building = await database.collection('buildings').findOne({ buildingCode });
-      if (building && building.openRegistration) {
-        return res.json({ success: true, openMode: true, firstName: '', lastName: '', apartment: '', residentId: null });
+      const mode = building ? (building.registrationMode || (building.openRegistration ? 'committee' : 'whitelist')) : 'whitelist';
+      if (mode === 'committee' || mode === 'open') {
+        return res.json({ success: true, openMode: true, mode, firstName: '', lastName: '', apartment: '', residentId: null });
       }
       return res.json({ success: false, error: 'not_found' });
     }
