@@ -418,8 +418,8 @@
         <td>
           <button class="btn btn-black btn-sm" onclick="openDrawer('${b.buildingCode}','${b.address}')" style="margin-left:6px;">👥 דיירים</button>
           <button class="btn btn-sm" onclick="showQr('${b.buildingCode}','${b.address}')" style="background:#7c3aed;margin-left:6px;">📱 QR</button>
-          <button class="btn btn-sm" onclick="toggleOpenReg('${b.buildingCode}', ${b.openRegistration ? 'false' : 'true'})" title="אישור רישום על ידי הוועד" style="margin-left:6px;background:${b.openRegistration ? '#16a34a' : '#94a3b8'};">
-            ${b.openRegistration ? '✅ אישור וועד: כן' : '🔒 אישור וועד: לא'}
+          <button class="btn btn-sm" onclick="cycleRegMode('${b.buildingCode}', '${b.registrationMode || (b.openRegistration ? 'committee' : 'whitelist')}')" title="מצב רישום דיירים" style="margin-left:6px;background:${regModeColor(b.registrationMode || (b.openRegistration ? 'committee' : 'whitelist'))};">
+            ${regModeLabel(b.registrationMode || (b.openRegistration ? 'committee' : 'whitelist'))}
           </button>
           <button class="btn btn-sm" onclick="toggleHidePanelFaces('${b.buildingCode}', ${b.hidePanelFaces ? 'false' : 'true'})" title="הסתר פנים בפנל מהוועד" style="margin-left:6px;background:${b.hidePanelFaces ? '#c2410c' : '#94a3b8'};">
             ${b.hidePanelFaces ? '🙈 פנים בפנל: מוסתר' : '👁 פנים בפנל: מוצג'}
@@ -455,16 +455,31 @@
     }
   }
 
-  async function toggleOpenReg(code, open) {
-    const msg = open
-      ? 'להפעיל אישור רישום על ידי הוועד?\n\nדיירים יוכלו להירשם בעצמם, אך יופיעו כ"ממתינים" עד שהוועד יאשר.'
-      : 'לבטל אישור רישום על ידי הוועד?\n\nרק דיירים שהוזנו מראש יוכלו להירשם.';
-    if (!confirm(msg)) return;
+  // ── Registration mode: whitelist → committee → open → (back to whitelist) ──
+  function regModeLabel(mode) {
+    if (mode === 'committee') return '✅ אישור וועד';
+    if (mode === 'open')      return '🔓 פתוח לגמרי';
+    return '🔒 רשימה מאושרת';
+  }
+  function regModeColor(mode) {
+    if (mode === 'committee') return '#16a34a';  // green
+    if (mode === 'open')      return '#dc2626';  // red
+    return '#94a3b8';                            // grey
+  }
+  async function cycleRegMode(code, current) {
+    const order = ['whitelist', 'committee', 'open'];
+    const next = order[(order.indexOf(current) + 1) % order.length];
+    const explain = {
+      whitelist: '🔒 רשימה מאושרת:\nרק דיירים שהוזנת מראש יכולים להירשם. מאושרים אוטומטית.',
+      committee: '✅ אישור וועד:\nכל אחד יכול להירשם, אך הפנים ממתינות עד שהוועד מאשר.',
+      open:      '🔓 פתוח לגמרי:\n⚠️ כל מי שנכנס לקישור יירשם והפנים שלו יעלו לפנל אוטומטית — ללא רשימה וללא אישור.\nהשתמש רק אם אתה סומך על כל מי שיש לו את הקישור!'
+    };
+    if (!confirm('שנה מצב רישום ל:\n\n' + explain[next] + '\n\nלהחיל?')) return;
     try {
-      const res = await fetch('/api/buildings/' + code + '/open-registration', {
+      const res = await fetch('/api/buildings/' + code + '/registration-mode', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: authUser, password: authPass, open })
+        body: JSON.stringify({ username: authUser, password: authPass, mode: next })
       });
       const data = await res.json();
       if (data.success) loadBuildings();
