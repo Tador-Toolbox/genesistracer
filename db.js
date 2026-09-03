@@ -536,6 +536,11 @@ async function getUnreadResidentUpdateCount() {
   return db.collection('chat').countDocuments({ from: 'installer', read: false, type: 'resident-update' });
 }
 
+async function getUnreadServiceRequestCount() {
+  await connectDB();
+  return db.collection('chat').countDocuments({ from: 'installer', read: false, type: 'service-request' });
+}
+
 async function getAllInstallersWithMacs() {
   await connectDB();
   const adminUser = process.env.ADMIN_USER || 'admin';
@@ -762,4 +767,5 @@ module.exports = {
   getUnreadCount,
   getAllUnreadCounts,
   getUnreadResidentUpdateCount,
+  getUnreadServiceRequestCount,
 };

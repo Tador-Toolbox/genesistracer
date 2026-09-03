@@ -602,7 +602,8 @@ app.get('/api/chat/unread/all', async (req, res) => {
   try {
     const counts = await db.getAllUnreadCounts();
     const updateCount = await db.getUnreadResidentUpdateCount();
-    res.json({ success: true, counts, updateCount });
+    const serviceCount = await db.getUnreadServiceRequestCount();
+    res.json({ success: true, counts, updateCount, serviceCount });
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
