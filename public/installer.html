@@ -713,6 +713,18 @@
           <span class="action-card-label">עדכון דייר</span>
         </button>
 
+        <!-- 5b. Service Request -->
+        <button class="action-card" onclick="openServiceRequest()">
+          <span class="material-symbols-outlined">build</span>
+          <span class="action-card-label">פניית שירות</span>
+        </button>
+
+        <!-- 5b. Service Request -->
+        <button class="action-card" onclick="openServiceRequest()">
+          <span class="material-symbols-outlined">build</span>
+          <span class="action-card-label">פניית שירות</span>
+        </button>
+
         <!-- 6. Panel History -->
         <button class="action-card" onclick="openPanelHistory()">
           <span class="material-symbols-outlined">history</span>
@@ -1738,6 +1750,35 @@
   </div>
 </div>
 
+<!-- ══ SERVICE REQUEST MODAL ══ -->
+<div id="serviceRequestModal" class="overlay">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">build</span>
+        פתיחת פניית שירות
+      </h3>
+      <button class="modal-close" onclick="closeServiceRequest()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:18px;max-height:75vh;overflow-y:auto;">
+      <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);margin-bottom:6px;">נושא הפנייה</div>
+      <input type="text" id="serviceSubject" placeholder="לדוגמה: תקלה בפנל, בקשת שירות, שאלה" maxlength="80"
+        style="width:100%;padding:11px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:14px;margin-bottom:14px;"/>
+
+      <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);margin-bottom:6px;">תיאור</div>
+      <textarea id="serviceDescription" placeholder="פרט את הבקשה או התקלה..." rows="5"
+        style="width:100%;padding:11px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:14px;resize:vertical;margin-bottom:14px;"></textarea>
+
+      <div id="serviceRequestError" style="font-size:13px;color:var(--red);font-weight:600;min-height:18px;margin-bottom:12px;text-align:center;"></div>
+
+      <button class="btn-red" onclick="submitServiceRequest()" id="serviceRequestSubmitBtn">
+        <span class="material-symbols-outlined">send</span>
+        שלח פנייה למנהל
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ LIGHTBOX ══ -->
 <div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:12px;" onclick="closeLightbox()">
   <img id="lightboxImg" style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;" />
@@ -1861,6 +1902,68 @@
   document.getElementById('residentUpdateModal').addEventListener('click', function(e) {
     if (e.target === this) closeResidentUpdate();
   });
+
+  // ── Service Request ──
+  function openServiceRequest() {
+    document.getElementById('serviceRequestModal').classList.add('open');
+    document.getElementById('serviceSubject').value = '';
+    document.getElementById('serviceDescription').value = '';
+    document.getElementById('serviceRequestError').textContent = '';
+    var btn = document.getElementById('serviceRequestSubmitBtn');
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-symbols-outlined">send</span> שלח פנייה למנהל';
+  }
+  function closeServiceRequest() {
+    document.getElementById('serviceRequestModal').classList.remove('open');
+  }
+  document.getElementById('serviceRequestModal').addEventListener('click', function(e) {
+    if (e.target === this) closeServiceRequest();
+  });
+
+  async function submitServiceRequest() {
+    var errEl = document.getElementById('serviceRequestError');
+    var btn = document.getElementById('serviceRequestSubmitBtn');
+    errEl.textContent = '';
+    var subject = document.getElementById('serviceSubject').value.trim();
+    var desc = document.getElementById('serviceDescription').value.trim();
+    if (!subject && !desc) { errEl.textContent = 'נא למלא נושא ותיאור'; return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined">hourglass_empty</span> שולח...';
+
+    var panelInfo = selectedMac || 'לא ידוע';
+    var lines = ['פניית שירות מהמתקין ' + installerData.phoneNumber, 'פנל: ' + panelInfo, ''];
+    if (subject) lines.push('נושא: ' + subject);
+    if (desc) { lines.push(''); lines.push(desc); }
+    var msgText = lines.join('\n');
+
+    try {
+      // Send as a CHAT message (type service-request) so it lands in the manager's messages page
+      var res = await fetch('/api/chat/' + encodeURIComponent(installerData.phoneNumber), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: 'installer', text: msgText, type: 'service-request' })
+      });
+      var data = await res.json();
+      if (data.success) {
+        closeServiceRequest();
+        alert('פניית השירות נשלחה למנהל בהצלחה!');
+        fetch('/api/installer/log-action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'service_request', installerPhone: installerData.phoneNumber, details: { subject } })
+        }).catch(function(){});
+      } else {
+        errEl.textContent = '❌ ' + (data.error || 'שגיאה בשליחה');
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined">send</span> שלח פנייה למנהל';
+      }
+    } catch(e) {
+      errEl.textContent = '❌ שגיאת תקשורת';
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">send</span> שלח פנייה למנהל';
+    }
+  }
 
   // ── Announcements ──
   async function openAnnouncements() {
