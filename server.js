@@ -1829,6 +1829,74 @@ app.get('/api/installer/block-history', async (req, res) => {
 const PERM_CODE_PREFIX = 'קוד קבוע ';
 
 // CREATE permanent code
+// ==================== SHABBAT MODE (fill light auto <-> alwaysOff) ====================
+// One toggle: reads current fill-light state, flips auto <-> alwaysOff (both led + ir).
+app.post('/api/installer/shabbat-mode', async (req, res) => {
+  const { panelAddress, installerPhone } = req.body;
+  if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
+  try {
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+
+    let token = null;
+    try {
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+      token = loginRes?.data?.token || null;
+    } catch(e) {}
+    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+    const authHeaders = { Authorization: `Bearer ${token}` };
+
+    // 1) Read current fill-light config
+    const cur = await panelHttpGetWithHeaders(host, port, '/api/v1/configurations/filllight', authHeaders);
+    const d = cur?.data;
+    if (!d) return res.json({ success: false, error: 'Could not read fill light config' });
+
+    // 2) Decide target: if currently auto → turn OFF (shabbat on); else → back to auto
+    const isCurrentlyAuto = (d.ledType === 'auto');
+    const target = isCurrentlyAuto ? 'alwaysOff' : 'auto';
+
+    // 3) Post back, preserving the other fields the panel returned
+    const body = {
+      ledType: target,
+      ledThreshold: d.ledThreshold || 'middle',
+      irSensitive: d.irSensitive || 'middle',
+      irType: target,
+    };
+    const postRes = await panelHttpPostWithHeaders(host, port, '/api/v1/configurations/filllight', body, authHeaders);
+    if (postRes?.status && postRes.status !== 'OK') {
+      return res.json({ success: false, error: 'Panel rejected: ' + postRes.status });
+    }
+
+    const shabbatOn = (target === 'alwaysOff');
+    await logActivity({ phoneNumber: installerPhone || 'unknown', action: 'shabbat_mode', mac: panelAddress, details: { shabbatOn }, success: true });
+    res.json({ success: true, shabbatOn });
+  } catch (err) {
+    console.error('Shabbat mode error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET current shabbat state (for the button label on open)
+app.get('/api/installer/shabbat-mode', async (req, res) => {
+  const { panelAddress } = req.query;
+  if (!panelAddress) return res.status(400).json({ success: false, error: 'panelAddress required' });
+  try {
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+    let token = null;
+    try {
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+      token = loginRes?.data?.token || null;
+    } catch(e) {}
+    if (!token) return res.json({ success: false, error: 'Panel login failed' });
+    const cur = await panelHttpGetWithHeaders(host, port, '/api/v1/configurations/filllight', { Authorization: `Bearer ${token}` });
+    const ledType = cur?.data?.ledType || 'auto';
+    res.json({ success: true, shabbatOn: (ledType === 'alwaysOff') });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.post('/api/installer/permanent-codes', async (req, res) => {
   const { panelAddress, name, code, installerPhone } = req.body;
   if (!panelAddress || !name || !code) {
