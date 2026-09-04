@@ -693,6 +693,12 @@
           <span class="action-card-label">קודים קבועים</span>
         </button>
 
+        <!-- Shabbat Mode (fill light off / auto) -->
+        <button class="action-card" id="shabbatCard" onclick="toggleShabbatMode()">
+          <span class="material-symbols-outlined">clear_night</span>
+          <span class="action-card-label" id="shabbatLabel">מצב שבת</span>
+        </button>
+
         <!-- Block User -->
         <button class="action-card" onclick="openBlockUser()">
           <span class="material-symbols-outlined">block</span>
@@ -1017,7 +1023,7 @@
     btn.disabled = false;
     if (data.success) {
       lastPanelAddress = data.fullAddress || null;
-      if (lastPanelAddress) loadRelayStatus(lastPanelAddress);
+      if (lastPanelAddress) { loadRelayStatus(lastPanelAddress); loadShabbatStatus(lastPanelAddress); }
       resultDiv.innerHTML = `
         <div class="result-box${(data.status || '').toLowerCase() === 'offline' ? ' offline' : ''}">
           <div class="result-label">${(data.status || '').toLowerCase() === 'offline' ? '✗ ' + t.deviceOffline : '✓ ' + t.deviceFound}</div>
@@ -2605,6 +2611,59 @@
   }
 
   // ==================== PERMANENT CODES ====================
+  async function loadShabbatStatus(panelAddress) {
+    try {
+      const r = await fetch('/api/installer/shabbat-mode?panelAddress=' + encodeURIComponent(panelAddress));
+      const data = await r.json();
+      const label = document.getElementById('shabbatLabel');
+      const card = document.getElementById('shabbatCard');
+      if (data.success && label) {
+        if (data.shabbatOn) { label.textContent = 'בטל מצב שבת'; if (card) card.style.background = '#1e293b'; }
+        else { label.textContent = 'מצב שבת'; if (card) card.style.background = ''; }
+      }
+    } catch(e) {}
+  }
+
+  async function toggleShabbatMode() {
+    if (!lastPanelAddress) {
+      alert('יש לבצע התחברות מרחוק תחילה כדי לאמת שהפנל מחובר לאינטרנט');
+      return;
+    }
+    const card = document.getElementById('shabbatCard');
+    const label = document.getElementById('shabbatLabel');
+    const prevLabel = label.textContent;
+    card.style.pointerEvents = 'none';
+    card.style.opacity = '0.6';
+    label.textContent = 'מעדכן...';
+    try {
+      const r = await fetch('/api/installer/shabbat-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ panelAddress: lastPanelAddress, installerPhone: installerData?.phoneNumber })
+      });
+      const data = await r.json();
+      if (data.success) {
+        if (data.shabbatOn) {
+          label.textContent = 'בטל מצב שבת';
+          card.style.background = '#1e293b';
+          alert('🕯️ מצב שבת הופעל — תאורת המילוי כבויה');
+        } else {
+          label.textContent = 'מצב שבת';
+          card.style.background = '';
+          alert('☀️ מצב שבת בוטל — תאורת המילוי חזרה ל-AUTO');
+        }
+      } else {
+        label.textContent = prevLabel;
+        alert('❌ ' + (data.error || 'שגיאה'));
+      }
+    } catch (e) {
+      label.textContent = prevLabel;
+      alert('שגיאת תקשורת');
+    }
+    card.style.pointerEvents = '';
+    card.style.opacity = '';
+  }
+
   function openPermCodes() {
     if (!lastPanelAddress) {
       alert('יש לבצע התחברות מרחוק תחילה כדי לאמת שהפנל מחובר לאינטרנט');
