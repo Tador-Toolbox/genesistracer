@@ -221,6 +221,10 @@ async function assignMacToInstaller(
     // Manager reference file (PDF/Excel/any) — not in any form, must always survive a save
     ...(existing.fileUrl  !== undefined ? { fileUrl:  existing.fileUrl }  : {}),
     ...(existing.fileName !== undefined ? { fileName: existing.fileName } : {}),
+    // Role-specific descriptions (installer vs committee) — edited from the portals,
+    // never from a form here, so the stored value must always survive a save.
+    ...(existing.descriptionInstaller !== undefined ? { descriptionInstaller: existing.descriptionInstaller } : {}),
+    ...(existing.descriptionCommittee !== undefined ? { descriptionCommittee: existing.descriptionCommittee } : {}),
   };
 
   if (existingMacIndex >= 0) installer.macAddresses[existingMacIndex] = updatedMac;
@@ -233,7 +237,7 @@ async function assignMacToInstaller(
 
 async function updateMacField(phoneNumber, macAddress, field, value) {
   await connectDB();
-  const allowedFields = ['description', 'notes', 'address', 'city', 'purchaseDate',
+  const allowedFields = ['description', 'descriptionInstaller', 'descriptionCommittee', 'notes', 'address', 'city', 'purchaseDate',
     'startDate', 'annualFee', 'licensesPurchased', 'licensePaid', 'panelType', 'voipbellAccount',
     'technicianName', 'technicianPhone', 'supplierName', 'committeeName', 'committeePhone'];
   if (!allowedFields.includes(field)) throw new Error('Field not allowed: ' + field);

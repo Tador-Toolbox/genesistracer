@@ -661,14 +661,19 @@ app.get('/api/installer/note', async (req, res) => {
   }
 });
 
-// Installer saves description
+// Installer saves description (role-aware: installer vs committee get separate fields)
 app.post('/api/installer/description', async (req, res) => {
   try {
-    const { phoneNumber, mac, description } = req.body;
+    const { phoneNumber, mac, description, accountType } = req.body;
     const cleanMac = (mac || '').replace(/[:\s-]/g, '').toUpperCase();
 
-    // Update ONLY the description field — do not touch any other field
-    await db.updateMacField(phoneNumber, cleanMac, 'description', description || '');
+    // Committee-type accounts write descriptionCommittee; everyone else writes descriptionInstaller.
+    // The legacy 'description' field is kept in sync with the installer one for backward compatibility.
+    const field = (accountType === 'committee') ? 'descriptionCommittee' : 'descriptionInstaller';
+    await db.updateMacField(phoneNumber, cleanMac, field, description || '');
+    if (field === 'descriptionInstaller') {
+      await db.updateMacField(phoneNumber, cleanMac, 'description', description || '');
+    }
 
     res.json({ success: true });
   } catch (err) {
@@ -1295,9 +1300,11 @@ app.get('/api/installer/relay-status', async (req, res) => {
 const MAC_DETAIL_FIELDS = [
   'address', 'city', 'notes', 'purchaseDate', 'startDate',
   'technicianName', 'technicianPhone', 'supplierName',
-  'committeeName', 'committeePhone', 'description',
+  'committeeName', 'committeePhone',
   'annualFee', 'licensesPurchased', 'panelType', 'voipbellAccount',
 ];
+// NOTE: description / descriptionInstaller / descriptionCommittee are deliberately
+// NOT synced across accounts — each account keeps its own (installer vs committee).
 
 const macFieldEmpty = v => v === undefined || v === null || String(v).trim() === '';
 const macRichness = m => MAC_DETAIL_FIELDS.filter(f => !macFieldEmpty(m[f])).length;
