@@ -889,6 +889,16 @@
   });
 
   // ── MAC List ──
+  // Pick the description for the current account role (committee vs installer),
+  // falling back to the legacy shared 'description' for older records.
+  function descFor(m) {
+    const isCommittee = (installerData?.accountType === 'committee');
+    if (isCommittee) return (m.descriptionCommittee !== undefined && m.descriptionCommittee !== null)
+      ? m.descriptionCommittee : '';
+    return (m.descriptionInstaller !== undefined && m.descriptionInstaller !== null && m.descriptionInstaller !== '')
+      ? m.descriptionInstaller : (m.description || '');
+  }
+
   function renderMacList(filter = '') {
     const t = translations[currentLang];
     const list = document.getElementById('macList');
@@ -899,15 +909,15 @@
     const macs = installerData.macAddresses.filter(m => {
       if (!filter) return true;
       const q = filter.toLowerCase();
-      return m.mac.toLowerCase().includes(q) || (m.description || '').toLowerCase().includes(q);
+      return m.mac.toLowerCase().includes(q) || (descFor(m) || '').toLowerCase().includes(q);
     });
     list.innerHTML = macs.map(m => `
       <div class="mac-card ${selectedMac === m.mac ? 'selected' : ''}" onclick="selectMac('${m.mac}')">
         <div class="mac-info">
-          <div class="mac-name">${m.description || t.noDescription}</div>
+          <div class="mac-name">${descFor(m) || t.noDescription}</div>
           <div class="mac-addr">${m.mac}</div>
           <div class="desc-edit-area" id="desc-wrap-${m.mac}">
-            <input type="text" id="desc-input-${m.mac}" value="${m.description || ''}"
+            <input type="text" id="desc-input-${m.mac}" value="${descFor(m) || ''}"
                    placeholder="${t.addDescription}" onclick="event.stopPropagation()" />
             <button class="desc-save-btn" onclick="event.stopPropagation();saveDescription('${m.mac}')">${t.saveDescription}</button>
           </div>
@@ -938,15 +948,19 @@
     const inputEl = document.getElementById(`desc-input-${mac}`);
     if (!inputEl) return;
     const description = inputEl.value;
+    const accountType = installerData?.accountType || 'installer';
     try {
       const res = await fetch('/api/installer/description', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ phoneNumber: installerData.phoneNumber, mac, description })
+        body: JSON.stringify({ phoneNumber: installerData.phoneNumber, mac, description, accountType })
       });
       const data = await res.json();
       if (!data.success) { alert('שגיאה בשמירה: ' + (data.error || 'unknown')); return; }
       const mo = installerData.macAddresses.find(m => m.mac === mac);
-      if (mo) mo.description = description;
+      if (mo) {
+        if (accountType === 'committee') mo.descriptionCommittee = description;
+        else { mo.descriptionInstaller = description; mo.description = description; }
+      }
       document.getElementById(`desc-wrap-${mac}`)?.classList.remove('open');
       renderMacList(document.getElementById('macSearch')?.value || '');
     } catch(e) { alert('שגיאת תקשורת: ' + e.message); }

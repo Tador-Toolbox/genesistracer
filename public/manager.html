@@ -2059,9 +2059,16 @@
                   </div>
 
                   <div class="mac-detail-field" style="border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px;">
-                    <span class="mac-detail-label" style="color: var(--green);">💬 ${translations[currentLang].installerDescription}:</span>
+                    <span class="mac-detail-label" style="color: var(--green);">💬 תיאור מתקין:</span>
                     <span class="mac-detail-value" style="color: var(--green); font-style: italic;">
-                      ${macObj.description || '—'}
+                      ${(macObj.descriptionInstaller !== undefined && macObj.descriptionInstaller !== '') ? macObj.descriptionInstaller : (macObj.description || '—')}
+                    </span>
+                  </div>
+
+                  <div class="mac-detail-field" style="border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px;">
+                    <span class="mac-detail-label" style="color: #2563eb;">🏛️ תיאור וועד:</span>
+                    <span class="mac-detail-value" style="color: #2563eb; font-style: italic;">
+                      ${macObj.descriptionCommittee || '—'}
                     </span>
                   </div>
 
