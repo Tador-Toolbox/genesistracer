@@ -1525,7 +1525,7 @@
 
       <!-- Info box -->
       <div style="background:var(--gray-50);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--gray-500);margin-bottom:16px;line-height:1.7;">
-        🔢 הקוד יווצר אוטומטית — 5 ספרות
+        🔢 הקוד יווצר אוטומטית — עד 5 ספרות
       </div>
 
       <!-- Error msg -->
@@ -1673,7 +1673,7 @@
       <!-- Add new code form -->
       <div style="margin-bottom:18px;">
         <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">הוסף קוד חדש</div>
-        <input type="text" id="permCodeValue" placeholder="קוד 5 ספרות" maxlength="5" inputmode="numeric"
+        <input type="text" id="permCodeValue" placeholder="קוד עד 5 ספרות" maxlength="5" inputmode="numeric"
           style="width:100%;padding:11px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:16px;letter-spacing:4px;text-align:center;font-weight:700;margin-bottom:10px;"/>
         <button class="btn-red" onclick="addPermCode()" id="permCodeAddBtn">
           <span class="material-symbols-outlined">add_circle</span>
@@ -2734,7 +2734,7 @@
     const code = document.getElementById('permCodeValue').value.trim();
     const errEl = document.getElementById('permCodeError');
     errEl.textContent = '';
-    if (!/^\d{5}$/.test(code)) { errEl.textContent = 'קוד חייב להיות 5 ספרות'; return; }
+    if (!/^\d{1,5}$/.test(code)) { errEl.textContent = 'קוד חייב להיות עד 5 ספרות'; return; }
     // Auto-name: "קוד קבוע N" based on how many exist (max 5)
     const existing = window._permCodesCount || 0;
     if (existing >= 5) { errEl.textContent = 'ניתן להוסיף עד 5 קודים קבועים'; return; }
@@ -2771,9 +2771,9 @@
     const oldCode = btnEl.dataset.code;
     const newName = prompt('שנה שם:', oldName);
     if (newName === null) return;
-    const newCode = prompt('שנה קוד (5 ספרות):', oldCode);
+    const newCode = prompt('שנה קוד (עד 5 ספרות):', oldCode);
     if (newCode === null) return;
-    if (!/^\d{5}$/.test(newCode)) { alert('קוד חייב להיות 5 ספרות'); return; }
+    if (!/^\d{1,5}$/.test(newCode)) { alert('קוד חייב להיות עד 5 ספרות'); return; }
 
     try {
       const r = await fetch('/api/installer/permanent-codes/' + codeId, {
