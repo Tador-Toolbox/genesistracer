@@ -367,6 +367,8 @@
 
     /* ── ACTION GRID ── */
     .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .action-section-header { grid-column: 1 / -1; font-size: 12px; font-weight: 800; letter-spacing: 0.5px; color: var(--gray-500); margin: 10px 2px 0; }
+    .action-section-header:first-child { margin-top: 0; }
     .action-card {
       border: 1px solid var(--gray-200);
       border-radius: 8px;
@@ -676,6 +678,7 @@
       <div class="action-grid">
 
         <!-- ═══ Group 1: Panel actions ═══ -->
+        <div class="action-section-header">פעולות פנל</div>
         <!-- Emergency Door Open -->
         <button class="action-card" id="relayBtn" onclick="toggleRelay()">
           <span id="relayBadge" class="action-badge badge-loading">...</span>
@@ -715,7 +718,14 @@
           <div id="rebootResult" class="status-msg"></div>
         </button>
 
+        <!-- Panel History -->
+        <button class="action-card" onclick="openPanelHistory()">
+          <span class="material-symbols-outlined">history</span>
+          <span class="action-card-label">היסטוריה</span>
+        </button>
+
         <!-- ═══ Group 2: Residents & faces ═══ -->
+        <div class="action-section-header">דיירים ופנים</div>
         <!-- Face Management -->
         <button class="action-card" id="faceManagementBtn" onclick="window.open('https://genesistracer.onrender.com/committee.html','_blank')">
           <span class="material-symbols-outlined">face</span>
@@ -729,6 +739,7 @@
         </button>
 
         <!-- ═══ Group 3: Communication with manager ═══ -->
+        <div class="action-section-header">תקשורת עם המנהל</div>
         <!-- Announcements -->
         <button class="action-card" id="announcementsBtn" onclick="openAnnouncements()" style="position:relative;">
           <span class="material-symbols-outlined">campaign</span>
@@ -743,12 +754,7 @@
         </button>
 
         <!-- ═══ Group 4: Info & resources ═══ -->
-        <!-- Panel History -->
-        <button class="action-card" onclick="openPanelHistory()">
-          <span class="material-symbols-outlined">history</span>
-          <span class="action-card-label">היסטוריה</span>
-        </button>
-
+        <div class="action-section-header">מידע ומשאבים</div>
         <!-- Tutorials -->
         <button class="action-card" onclick="openTutorials()">
           <span class="material-symbols-outlined">play_circle</span>
