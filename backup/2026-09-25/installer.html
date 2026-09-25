@@ -1,0 +1,2415 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>פאנל מתקין — Tador</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red: #E31B23;
+      --red-dark: #c4151b;
+      --black: #000000;
+      --white: #ffffff;
+      --gray-50: #f9f9f9;
+      --gray-100: #f2f2f2;
+      --gray-200: #e5e5e5;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --text: #000000;
+      --bg: #ffffff;
+    }
+
+    body {
+      font-family: 'Manrope', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    .top-bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-200);
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+    }
+    .top-bar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-box {
+      width: 32px; height: 32px;
+      background: var(--black);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--white);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .logo-text {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .top-bar-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .lang-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-right: 1px solid var(--gray-200);
+      padding-right: 16px;
+    }
+    .lang-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--gray-400);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.15s;
+    }
+    .lang-btn.active { color: var(--black); }
+    .lang-btn .material-symbols-outlined { font-size: 14px; color: var(--red); }
+    .logout-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--red);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .logout-btn:hover { background: #fee2e2; }
+    .logout-btn .material-symbols-outlined { font-size: 16px; }
+
+    /* ── MAIN ── */
+    main { padding-top: 88px; padding-bottom: 40px; }
+    .page-wrap {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* ── LOGIN ── */
+    #loginScreen { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 64px); }
+    .login-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 36px 28px;
+      width: 100%;
+      max-width: 400px;
+    }
+    .login-card h2 {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .login-card p {
+      color: var(--gray-500);
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .field input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 15px;
+      background: var(--gray-50);
+      color: var(--black);
+      transition: border-color 0.15s;
+    }
+    .field input:focus { outline: none; border-color: var(--black); background: var(--white); }
+    .field input::placeholder { color: var(--gray-400); }
+
+    /* ── BUTTONS ── */
+    .btn-red {
+      width: 100%;
+      background: var(--red);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      padding: 14px 20px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: background 0.15s, transform 0.1s;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .btn-red:hover { background: var(--red-dark); }
+    .btn-red:active { transform: scale(0.98); }
+    .btn-red:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-red .material-symbols-outlined { font-size: 20px; }
+
+    .btn-black {
+      background: var(--black);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.15s;
+    }
+    .btn-black:hover { opacity: 0.85; }
+    .btn-black .material-symbols-outlined { font-size: 16px; }
+
+    .btn-outline {
+      background: none;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--black);
+      transition: border-color 0.15s;
+    }
+    .btn-outline:hover { border-color: var(--black); }
+
+    /* ── MAC LIST ── */
+    .mac-list { display: flex; flex-direction: column; gap: 10px; }
+    .mac-card {
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 16px 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .mac-card:hover { border-color: var(--black); }
+    .mac-card.selected {
+      border: 2px solid var(--black);
+      background: var(--gray-50);
+    }
+    .mac-info { flex: 1; }
+    .mac-name { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+    .mac-addr {
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: var(--gray-500);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .mac-edit-btn {
+      width: 36px; height: 36px;
+      border: 1px solid var(--gray-200);
+      border-radius: 6px;
+      background: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gray-400);
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .mac-card.selected .mac-edit-btn { border-color: var(--black); color: var(--black); }
+    .mac-edit-btn:hover { border-color: var(--black); color: var(--black); }
+    .mac-edit-btn .material-symbols-outlined { font-size: 17px; }
+
+    .desc-edit-area { margin-top: 12px; display: none; flex-direction: column; gap: 8px; }
+    .desc-edit-area.open { display: flex; }
+    .desc-edit-area input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      background: var(--white);
+      color: var(--black);
+    }
+    .desc-edit-area input:focus { outline: none; border-color: var(--black); }
+    .desc-save-btn {
+      background: var(--black);
+      color: var(--white);
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* ── SEARCH ── */
+    .search-wrap { position: relative; }
+    .search-wrap .material-symbols-outlined {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gray-400);
+      font-size: 20px;
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      padding: 14px 16px 14px 44px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      background: var(--gray-50);
+      color: var(--black);
+      transition: border-color 0.15s;
+    }
+    .search-input:focus { outline: none; border-color: var(--black); background: var(--white); }
+    .search-input::placeholder { color: var(--gray-400); }
+
+    /* ── INFO TIP ── */
+    .info-tip {
+      background: var(--gray-50);
+      border-radius: 8px;
+      border-right: 4px solid var(--black);
+      padding: 12px 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .info-tip .material-symbols-outlined { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .info-tip-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .info-tip-text { font-size: 11px; color: var(--gray-500); line-height: 1.5; margin-top: 2px; }
+
+    /* ── RESULT BOX ── */
+    .result-box {
+      border: 1.5px solid #16a34a;
+      border-radius: 8px;
+      background: #f0fdf4;
+      padding: 16px;
+    }
+    .result-box.error { border-color: var(--red); background: #fff5f5; }
+    .result-box.offline { border-color: var(--red); background: #fff5f5; }
+    .result-label {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #16a34a;
+      margin-bottom: 6px;
+    }
+    .result-box.error .result-label { color: var(--red); }
+    .result-box.offline .result-label { color: var(--red); }
+    .result-ip {
+      font-family: 'Courier New', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: #16a34a;
+      margin-bottom: 12px;
+    }
+    .result-box.offline .result-ip { color: var(--red); }
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .result-cell { background: rgba(255,255,255,0.7); border-radius: 6px; padding: 8px 10px; }
+    .result-cell-label { font-size: 10px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .result-cell-value { font-family: 'Courier New', monospace; font-size: 12px; font-weight: 600; }
+    .result-open-btn {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      background: #16a34a;
+      color: var(--white);
+      border: none;
+      border-radius: 6px;
+      padding: 10px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* ── ACTION GRID ── */
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .action-card {
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      background: none;
+      font-family: inherit;
+      transition: border-color 0.15s, transform 0.1s;
+      position: relative;
+      height: 100px;
+      overflow: hidden;
+    }
+    .action-card:hover { border-color: var(--black); }
+    .action-card:active { transform: scale(0.97); }
+    .action-card .material-symbols-outlined { font-size: 24px; color: var(--black); }
+    .action-card-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--black); text-align: center; word-break: break-word; }
+    .action-badge {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 20px;
+      letter-spacing: 0.3px;
+    }
+    .badge-on { background: #dcfce7; color: #16a34a; }
+    .badge-off { background: var(--gray-100); color: var(--gray-500); }
+    .badge-loading { background: var(--gray-100); color: var(--gray-500); }
+
+    /* ── STATUS MSG ── */
+    .status-msg { font-size: 12px; font-weight: 600; text-align: center; min-height: 16px; margin-top: 4px; }
+
+    /* ── MAILING LIST ── */
+    .mailing-section {
+      background: var(--black);
+      color: var(--white);
+      border-radius: 10px;
+      padding: 24px 20px;
+    }
+    .mailing-section h3 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+    .mailing-section p { color: var(--gray-400); font-size: 13px; margin-bottom: 16px; }
+    .mailing-input-wrap { position: relative; margin-bottom: 10px; }
+    .mailing-input-wrap .material-symbols-outlined {
+      position: absolute;
+      left: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--gray-500); font-size: 18px;
+      pointer-events: none;
+    }
+    .mailing-input {
+      width: 100%;
+      padding: 12px 14px 12px 40px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--white);
+    }
+    .mailing-input:focus { outline: none; border-color: var(--red); }
+    .mailing-input::placeholder { color: var(--gray-500); }
+
+    /* ── DIVIDER ── */
+    .divider { border: none; border-top: 1px solid var(--gray-200); }
+
+    /* ── ERROR ── */
+    .error-msg { font-size: 13px; color: var(--red); text-align: center; margin-top: 10px; min-height: 18px; font-weight: 600; }
+
+    /* ── OVERLAY / MODAL ── */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: var(--white);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 440px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    }
+    .modal-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--gray-200);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-head h3 { font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+    .modal-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--gray-400);
+      font-size: 20px;
+      line-height: 1;
+      padding: 4px;
+    }
+    .modal-body { padding: 16px; overflow-y: auto; flex: 1; }
+
+    /* ── CHAT ── */
+    .chat-messages {
+      min-height: 200px;
+      max-height: 52vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .chat-empty { text-align: center; color: var(--gray-400); font-size: 13px; margin: auto; padding: 32px 0; }
+    .chat-input-row {
+      padding: 12px 16px;
+      border-top: 1px solid var(--gray-200);
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .chat-textarea {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1.5px solid var(--gray-200);
+      font-family: inherit;
+      font-size: 14px;
+      resize: none;
+      line-height: 1.4;
+      min-height: 42px;
+      max-height: 100px;
+    }
+    .chat-textarea:focus { outline: none; border-color: var(--black); }
+    .chat-send {
+      padding: 10px 16px;
+      background: var(--red);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* ── TUTORIALS ── */
+    .tut-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      margin-bottom: 10px;
+    }
+    .tut-item:hover { border-color: var(--black); }
+    .tut-icon {
+      width: 44px; height: 44px;
+      background: var(--black);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .tut-icon .material-symbols-outlined { font-size: 22px; color: var(--white); }
+    .tut-info { flex: 1; }
+    .tut-title { font-size: 14px; font-weight: 700; }
+    .tut-sub { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+
+    /* ── BADGE (unread) ── */
+    .badge {
+      display: none;
+      background: var(--red);
+      color: var(--white);
+      border-radius: 50%;
+      width: 18px; height: 18px;
+      font-size: 10px;
+      line-height: 18px;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    /* ── SECTION SPACING ── */
+    .space-y > * + * { margin-top: 20px; }
+
+    @media (max-width: 480px) {
+      .page-wrap { padding: 0 16px; }
+      .top-bar { padding: 0 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ TOP BAR ══ -->
+<header class="top-bar">
+  <div class="top-bar-logo">
+    <div class="logo-box">T</div>
+    <span class="logo-text">Tador</span>
+  </div>
+  <div class="top-bar-actions">
+    <div class="lang-group">
+      <button class="lang-btn" data-lang="en" id="langEn">
+        <span class="material-symbols-outlined" style="font-size:13px;color:var(--gray-400);">language</span>
+        ENGLISH
+      </button>
+      <button class="lang-btn active" data-lang="he" id="langHe">
+        <span class="material-symbols-outlined" style="font-size:13px;">check_circle</span>
+        עברית
+      </button>
+    </div>
+    <button class="logout-btn" onclick="logout()">
+      <span class="material-symbols-outlined">logout</span>
+      <span data-i18n="logoutBtn">התנתק</span>
+    </button>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════ -->
+<div id="loginScreen">
+  <div class="page-wrap" style="width:100%;padding-top:0;">
+    <div class="login-card">
+      <h2 data-i18n="loginTitle">כניסת מתקין</h2>
+      <p data-i18n="loginSub">מערכת ניהול מכשירים</p>
+      <div class="field">
+        <label data-i18n="phoneLabel">מספר טלפון</label>
+        <input type="tel" id="loginPhone" placeholder="0501234567" autocomplete="username"
+               onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()" />
+      </div>
+      <div class="field" style="margin-bottom:20px;">
+        <label data-i18n="passwordLabel">סיסמה</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"
+               onkeydown="if(event.key==='Enter')login()" />
+      </div>
+      <button class="btn-red" onclick="login()" data-i18n="loginBtn">התחבר</button>
+      <div id="loginError" class="error-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     INSTALLER PANEL
+══════════════════════════════════════ -->
+<div id="installerPanel" style="display:none;">
+  <main>
+    <div class="page-wrap space-y">
+
+      <!-- Hero -->
+      <section>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <h1 style="font-size:28px;font-weight:800;" data-i18n="panelTitle">חיפוש מכשיר</h1>
+          <button class="btn-black" onclick="openInstallerChat()" style="position:relative;">
+            <span class="material-symbols-outlined">chat</span>
+            <span data-i18n="supportBtn">תמיכה</span>
+            <span id="installerUnreadBadge" class="badge" style="position:absolute;top:-6px;left:-6px;display:none;"></span>
+          </button>
+        </div>
+        <p style="color:var(--gray-500);font-size:13px;font-weight:500;" data-i18n="panelSubtitle">בחר כתובת MAC ולחץ התחברות מרחוק</p>
+      </section>
+
+      <!-- Search -->
+      <div class="search-wrap">
+        <span class="material-symbols-outlined">search</span>
+        <input class="search-input" id="macSearch" type="text"
+               placeholder="חפש מכשיר לפי שם או כתובת MAC..."
+               oninput="filterMacList(this.value)" />
+      </div>
+
+      <!-- MAC List -->
+      <div class="mac-list" id="macList"></div>
+
+      <!-- Lookup Button -->
+      <button class="btn-red" onclick="lookup()" id="lookupBtn" style="font-size:16px;padding:18px 20px;">
+        <span class="material-symbols-outlined">settings_remote</span>
+        <span data-i18n="lookupBtn">התחברות מרחוק</span>
+      </button>
+
+      <!-- Result -->
+      <div id="result"></div>
+
+      <!-- Technical tip -->
+      <div class="info-tip">
+        <span class="material-symbols-outlined">info</span>
+        <div>
+          <div class="info-tip-label" data-i18n="tipLabel">המלצה טכנית:</div>
+          <div class="info-tip-text" data-i18n="tipText">מומלץ לבצע הגדרות פנל דרך מחשב לצורך נוחות מירבית ודיוק בפרמטרים המורחבים.</div>
+        </div>
+      </div>
+
+      <hr class="divider"/>
+
+      <!-- Action Grid -->
+      <div class="action-grid">
+
+        <!-- 1. Tutorials -->
+        <button class="action-card" onclick="openTutorials()">
+          <span class="material-symbols-outlined">play_circle</span>
+          <span class="action-card-label">סרטוני הדרכה</span>
+        </button>
+
+        <!-- 2. Temporary Code -->
+        <button class="action-card" id="tempCodeBtn" onclick="openTempCode()">
+          <span class="material-symbols-outlined">password</span>
+          <span class="action-card-label">קוד זמני</span>
+        </button>
+
+        <!-- 3. Permanent Codes -->
+        <button class="action-card" onclick="openPermCodes()">
+          <span class="material-symbols-outlined">vpn_key</span>
+          <span class="action-card-label">קודים קבועים</span>
+        </button>
+
+        <!-- 4. Emergency Door Open -->
+        <button class="action-card" id="relayBtn" onclick="toggleRelay()">
+          <span id="relayBadge" class="action-badge badge-loading">...</span>
+          <span class="material-symbols-outlined">door_open</span>
+          <span class="action-card-label" data-i18n="emergencyBtn">פתיחת דלת חירום</span>
+          <div id="relayResult" class="status-msg"></div>
+        </button>
+
+        <!-- 5. Resident Update -->
+        <button class="action-card" onclick="openResidentUpdate()">
+          <span class="material-symbols-outlined">person_edit</span>
+          <span class="action-card-label">עדכון דייר</span>
+        </button>
+
+        <!-- 6. Panel History -->
+        <button class="action-card" onclick="openPanelHistory()">
+          <span class="material-symbols-outlined">history</span>
+          <span class="action-card-label">היסטוריה</span>
+        </button>
+
+        <!-- 7. Face Management -->
+        <button class="action-card" id="faceManagementBtn" onclick="window.open('https://genesistracer.onrender.com/committee.html','_blank')">
+          <span class="material-symbols-outlined">face</span>
+          <span class="action-card-label">ניהול זיהוי פנים</span>
+        </button>
+
+        <!-- 8. Catalog -->
+        <button class="action-card" id="catalogSection" onclick="openCatalog()">
+          <span class="material-symbols-outlined">download</span>
+          <span class="action-card-label" data-i18n="catalogBtn">קטלוג מוצרים</span>
+        </button>
+
+        <!-- 9. Announcements -->
+        <button class="action-card" id="announcementsBtn" onclick="openAnnouncements()" style="position:relative;">
+          <span class="material-symbols-outlined">campaign</span>
+          <span class="action-card-label">הודעות</span>
+          <span id="announcementsBadge" style="display:none;position:absolute;top:8px;left:8px;background:var(--red);color:white;border-radius:50%;width:18px;height:18px;font-size:10px;line-height:18px;text-align:center;font-weight:800;"></span>
+        </button>
+
+        <!-- 10. Reboot -->
+        <button class="action-card" id="rebootBtn" onclick="rebootDevice()">
+          <span class="material-symbols-outlined">restart_alt</span>
+          <span class="action-card-label" data-i18n="rebootBtn">אתחול מכשיר</span>
+          <div id="rebootResult" class="status-msg"></div>
+        </button>
+
+        <!-- Resident Example (hidden) -->
+        <button class="action-card" id="residentExampleBtn" onclick="downloadResidentExampleInstaller()" style="display:none;">
+          <span class="material-symbols-outlined">people</span>
+          <span class="action-card-label">רשימת דיירים לדוגמא</span>
+        </button>
+
+        <!-- 11. Portfolio - full width -->
+        <button class="action-card" onclick="openPortfolio()" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;gap:14px;padding:16px 18px;">
+          <span class="material-symbols-outlined" style="font-size:28px;">photo_library</span>
+          <div style="text-align:right;">
+            <div class="action-card-label" style="font-size:13px;">תיק עבודות</div>
+            <div style="font-size:11px;color:var(--gray-500);font-weight:500;margin-top:2px;">תמונות מהתקנות שלי</div>
+          </div>
+          <span class="material-symbols-outlined" style="margin-right:auto;color:var(--gray-400);font-size:18px;">arrow_back_ios</span>
+        </button>
+
+      </div>
+
+      <hr class="divider"/>
+
+      <!-- Mailing List -->
+      <div class="mailing-section">
+        <h3>רשימת תפוצה</h3>
+        <p>עדכונים על מוצרים חדשים ומבצעים בלעדיים.</p>
+        <div class="mailing-input-wrap">
+          <span class="material-symbols-outlined">mail</span>
+          <input class="mailing-input" id="subEmail" type="email" placeholder="כתובת אימייל..." />
+        </div>
+        <div id="subMsg" class="status-msg" style="color:white;margin-bottom:8px;"></div>
+        <button class="btn-red" onclick="submitSubscribe()">הצטרפות</button>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ══ CHAT MODAL ══ -->
+<div id="installerChatOverlay" class="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">chat</span>
+        צ'אט תמיכה
+      </h3>
+      <button class="modal-close" onclick="closeInstallerChat()">✕</button>
+    </div>
+    <div class="chat-messages modal-body" id="installerChatMessages">
+      <div class="chat-empty">אין הודעות עדיין</div>
+    </div>
+    <div class="chat-input-row">
+      <textarea class="chat-textarea" id="installerChatInput" placeholder="הקלד הודעה..." rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendInstallerMessage();}"></textarea>
+      <button class="chat-send" onclick="sendInstallerMessage()">שלח</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TUTORIALS MODAL ══ -->
+<div id="tutorialsModal" class="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">play_circle</span>
+        סרטוני הדרכה
+      </h3>
+      <button class="modal-close" onclick="closeTutorials()">✕</button>
+    </div>
+    <div class="modal-body" id="tutorialsList">
+      <div class="chat-empty">טוען...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Translations ──
+  const translations = {
+    en: {
+      loginTitle:"Installer Login", loginSub:"Device Management System",
+      phoneLabel:"Phone Number", passwordLabel:"Password", loginBtn:"Login",
+      panelTitle:"Device Lookup", panelSubtitle:"Select a MAC and press Remote Access",
+      lookupBtn:"Remote Access", logoutBtn:"Logout", rebootBtn:"Reboot",
+      supportBtn:"Support", catalogBtn:"Catalog",
+      tipLabel:"Technical Note:", tipText:"It is recommended to configure panel settings from a computer for maximum comfort and accuracy.",
+      deviceFound:"DEVICE FOUND", deviceOffline:"DEVICE NOT FOUND", offlineMsg:"Please check if the device has an internet connection.", error:"ERROR",
+      mac:"MAC", serial:"SERIAL", project:"PROJECT", status:"STATUS", openBackend:"Connect",
+      addDescription:"Add description...", editDescription:"Edit", saveDescription:"Save",
+      noDescription:"No description",
+    },
+    he: {
+      loginTitle:"כניסת מתקין", loginSub:"מערכת ניהול מכשירים",
+      phoneLabel:"מספר טלפון", passwordLabel:"סיסמה", loginBtn:"התחבר",
+      panelTitle:"חיפוש מכשיר", panelSubtitle:"בחר כתובת MAC ולחץ התחברות מרחוק",
+      lookupBtn:"התחברות מרחוק", logoutBtn:"התנתק", rebootBtn:"אתחול מכשיר",
+      supportBtn:"תמיכה", catalogBtn:"קטלוג מוצרים",
+      tipLabel:"המלצה טכנית:", tipText:"מומלץ לבצע הגדרות פנל דרך מחשב לצורך נוחות מירבית ודיוק בפרמטרים המורחבים.",
+      deviceFound:"מכשיר נמצא", deviceOffline:"מכשיר לא נמצא", offlineMsg:"יש לבדוק האם למכשיר יש חיבור אינטרנט.", error:"שגיאה",
+      mac:"MAC", serial:"מספר סידורי", project:"פרויקט", status:"סטטוס", openBackend:"התחבר",
+      addDescription:"הוסף תיאור...", editDescription:"ערוך", saveDescription:"שמור",
+      noDescription:"אין תיאור",
+    }
+  };
+
+  let currentLang = 'he';
+  let installerData = null;
+  let selectedMac = null;
+  let lastPanelAddress = null;
+  let selectedExpiry = 'unlimited';
+  let catalogUrl = 'https://www.tador.com';
+
+  // ── Language ──
+  function setLanguage(lang) {
+    currentLang = lang;
+    document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const k = el.getAttribute('data-i18n');
+      if (translations[lang][k]) el.textContent = translations[lang][k];
+    });
+    document.getElementById('langHe').classList.toggle('active', lang === 'he');
+    document.getElementById('langEn').classList.toggle('active', lang === 'en');
+    const heIcon = document.querySelector('#langHe .material-symbols-outlined');
+    const enIcon = document.querySelector('#langEn .material-symbols-outlined');
+    if (heIcon) heIcon.style.color = lang === 'he' ? 'var(--red)' : 'var(--gray-400)';
+    if (enIcon) enIcon.style.color = lang === 'en' ? 'var(--red)' : 'var(--gray-400)';
+  }
+
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('[data-lang]');
+    if (btn) setLanguage(btn.dataset.lang);
+  });
+
+  // ── MAC List ──
+  function renderMacList(filter = '') {
+    const t = translations[currentLang];
+    const list = document.getElementById('macList');
+    if (!installerData?.macAddresses?.length) {
+      list.innerHTML = `<p style="color:var(--gray-400);font-size:14px;padding:8px 0;">אין כתובות MAC מוקצות</p>`;
+      return;
+    }
+    const macs = installerData.macAddresses.filter(m => {
+      if (!filter) return true;
+      const q = filter.toLowerCase();
+      return m.mac.toLowerCase().includes(q) || (m.description || '').toLowerCase().includes(q);
+    });
+    list.innerHTML = macs.map(m => `
+      <div class="mac-card ${selectedMac === m.mac ? 'selected' : ''}" onclick="selectMac('${m.mac}')">
+        <div class="mac-info">
+          <div class="mac-name">${m.description || t.noDescription}</div>
+          <div class="mac-addr">${m.mac}</div>
+          <div class="desc-edit-area" id="desc-wrap-${m.mac}">
+            <input type="text" id="desc-input-${m.mac}" value="${m.description || ''}"
+                   placeholder="${t.addDescription}" onclick="event.stopPropagation()" />
+            <button class="desc-save-btn" onclick="event.stopPropagation();saveDescription('${m.mac}')">${t.saveDescription}</button>
+          </div>
+        </div>
+        <button class="mac-edit-btn" onclick="event.stopPropagation();toggleDescEdit('${m.mac}')">
+          <span class="material-symbols-outlined">edit</span>
+        </button>
+      </div>
+    `).join('');
+  }
+
+  function filterMacList(val) { renderMacList(val); }
+
+  function selectMac(mac) {
+    selectedMac = mac;
+    renderMacList(document.getElementById('macSearch')?.value || '');
+    lastPanelAddress = null;
+    resetRelayBadge();
+  }
+
+  function toggleDescEdit(mac) {
+    const w = document.getElementById(`desc-wrap-${mac}`);
+    w.classList.toggle('open');
+    if (w.classList.contains('open')) document.getElementById(`desc-input-${mac}`)?.focus();
+  }
+
+  async function saveDescription(mac) {
+    const inputEl = document.getElementById(`desc-input-${mac}`);
+    if (!inputEl) return;
+    const description = inputEl.value;
+    try {
+      const res = await fetch('/api/installer/description', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ phoneNumber: installerData.phoneNumber, mac, description })
+      });
+      const data = await res.json();
+      if (!data.success) { alert('שגיאה בשמירה: ' + (data.error || 'unknown')); return; }
+      const mo = installerData.macAddresses.find(m => m.mac === mac);
+      if (mo) mo.description = description;
+      document.getElementById(`desc-wrap-${mac}`)?.classList.remove('open');
+      renderMacList(document.getElementById('macSearch')?.value || '');
+    } catch(e) { alert('שגיאת תקשורת: ' + e.message); }
+  }
+
+  // ── Login ──
+  async function login() {
+    const phoneNumber = document.getElementById('loginPhone').value.trim();
+    const password    = document.getElementById('loginPassword').value;
+    document.getElementById('loginError').textContent = '';
+    const res  = await fetch('/api/installer/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ phoneNumber, password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      installerData = data.data;
+      selectedMac = installerData.macAddresses.length > 0 ? installerData.macAddresses[0].mac : null;
+      document.getElementById('loginScreen').style.display  = 'none';
+      document.getElementById('installerPanel').style.display = 'block';
+      renderMacList();
+      loadCatalog();
+      loadResidentExampleInstaller();
+      loadManagerNote(installerData.phoneNumber);
+    } else {
+      document.getElementById('loginError').textContent = data.error || 'כניסה נכשלה';
+    }
+  }
+
+  function logout() {
+    installerData = null; selectedMac = null; lastPanelAddress = null;
+    document.getElementById('loginScreen').style.display  = 'flex';
+    document.getElementById('installerPanel').style.display = 'none';
+    document.getElementById('loginPhone').value = '';
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginError').textContent = '';
+    document.getElementById('result').innerHTML = '';
+    document.getElementById('rebootResult').textContent = '';
+    document.getElementById('relayResult').textContent = '';
+    resetRelayBadge();
+  }
+
+  // Auto-login from manager remote access
+  window.addEventListener('DOMContentLoaded', () => {
+    setLanguage('he');
+    const stored = sessionStorage.getItem('installerData');
+    if (stored) {
+      try {
+        installerData = JSON.parse(stored);
+        selectedMac = installerData.macAddresses.length > 0 ? installerData.macAddresses[0].mac : null;
+        document.getElementById('loginScreen').style.display  = 'none';
+        document.getElementById('installerPanel').style.display = 'block';
+        renderMacList();
+        loadCatalog();
+        loadManagerNote(installerData.phoneNumber);
+        sessionStorage.removeItem('installerData');
+      } catch(e) {}
+    }
+  });
+
+  // ── Lookup ──
+  async function lookup() {
+    if (!selectedMac) return alert('בחר כתובת MAC תחילה');
+    const resultDiv = document.getElementById('result');
+    const btn = document.getElementById('lookupBtn');
+    btn.disabled = true;
+    resultDiv.innerHTML = '<p style="color:var(--gray-500);font-size:13px;padding:8px 0;text-align:center;">מחפש...</p>';
+    const res  = await fetch('/api/lookup', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ mac: selectedMac, installerPhone: installerData?.phoneNumber })
+    });
+    const data = await res.json();
+    const t    = translations[currentLang];
+    btn.disabled = false;
+    if (data.success) {
+      lastPanelAddress = data.fullAddress || null;
+      if (lastPanelAddress) loadRelayStatus(lastPanelAddress);
+      resultDiv.innerHTML = `
+        <div class="result-box${(data.status || '').toLowerCase() === 'offline' ? ' offline' : ''}">
+          <div class="result-label">${(data.status || '').toLowerCase() === 'offline' ? '✗ ' + t.deviceOffline : '✓ ' + t.deviceFound}</div>
+          <div class="result-ip">${data.fullAddress || data.ip}</div>
+          <div class="result-grid">
+            <div class="result-cell"><div class="result-cell-label">${t.mac}</div><div class="result-cell-value">${data.mac}</div></div>
+            <div class="result-cell"><div class="result-cell-label">${t.serial}</div><div class="result-cell-value">${data.sn || '—'}</div></div>
+            <div class="result-cell"><div class="result-cell-label">${t.project}</div><div class="result-cell-value">${data.project || '—'}</div></div>
+            <div class="result-cell"><div class="result-cell-label">${t.status}</div><div class="result-cell-value">${data.status || '—'}</div></div>
+          </div>
+          ${(data.status || '').toLowerCase() === 'offline' ? `<div style="margin-top:12px;padding:10px 12px;background:rgba(232,0,28,0.07);border-radius:6px;font-size:12px;color:var(--red);text-align:center;">⚠️ ${t.offlineMsg}</div>` : ''}
+          ${data.fullAddress ? `<button class="result-open-btn" onclick="window.open('http://${data.fullAddress}','_blank')">
+            <span class="material-symbols-outlined" style="font-size:16px;">open_in_new</span> ${t.openBackend}
+          </button>` : ''}
+        </div>`;
+    } else {
+      resultDiv.innerHTML = `
+        <div class="result-box error">
+          <div class="result-label">✗ ${t.error}</div>
+          <p style="font-size:13px;color:var(--red);">${data.error}</p>
+        </div>`;
+    }
+  }
+
+  // ── Reboot ──
+  async function rebootDevice() {
+    if (!selectedMac) return alert('בחר כתובת MAC תחילה');
+    const confirmed = confirm('האם אתה בטוח שברצונך לבצע הפעלה מחדש למערכת?');
+    if (!confirmed) return;
+    const btn = document.getElementById('rebootBtn');
+    const msg = document.getElementById('rebootResult');
+    btn.disabled = true;
+    msg.textContent = '';
+    try {
+      const r    = await fetch('/api/installer/reboot', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ mac: selectedMac, installerPhone: installerData?.phoneNumber })
+      });
+      const data = await r.json();
+      msg.style.color = data.success ? '#16a34a' : 'var(--red)';
+      msg.textContent = data.success ? '✅ נשלח' : '❌ ' + (data.error || 'שגיאה');
+    } catch(e) {
+      msg.style.color = 'var(--red)';
+      msg.textContent = '❌ שגיאת תקשורת';
+    }
+    btn.disabled = false;
+  }
+
+  // ── Relay (Always On) ──
+  // relay state: null = unknown, 'alwayson' | 'normal' = known
+  let relayKnownMode = null;
+
+  function resetRelayBadge() {
+    relayKnownMode = null;
+    window.relayConfigCache = null;
+    const badge = document.getElementById('relayBadge');
+    badge.textContent = '—';
+    badge.className = 'action-badge badge-loading';
+    const label = document.getElementById('relayBtnLabel');
+    if (label) label.textContent = 'פתיחת דלת חירום';
+  }
+
+  async function loadRelayStatus(panelAddress) {
+    // Called after lookup — just silently loads, doesn't update relayKnownMode
+    // (user must click to check)
+    resetRelayBadge();
+  }
+
+  function updateRelayBadge(mode) {
+    relayKnownMode = mode;
+    const badge = document.getElementById('relayBadge');
+    const label = document.getElementById('relayBtnLabel');
+    if (mode === 'alwayson') {
+      badge.textContent = '● פעיל';
+      badge.className = 'action-badge badge-on';
+      if (label) label.textContent = 'לחץ לכיבוי';
+    } else {
+      badge.textContent = '○ כבוי';
+      badge.className = 'action-badge badge-off';
+      if (label) label.textContent = 'לחץ להפעלה';
+    }
+  }
+
+  async function toggleRelay() {
+    if (!selectedMac) return alert('בחר כתובת MAC תחילה');
+    const btn  = document.getElementById('relayBtn');
+    const badge = document.getElementById('relayBadge');
+    const msg  = document.getElementById('relayResult');
+    const label = document.getElementById('relayBtnLabel');
+    btn.disabled = true;
+    msg.textContent = '';
+
+    // Ensure we have panel address
+    if (!lastPanelAddress) {
+      badge.textContent = '...';
+      badge.className = 'action-badge badge-loading';
+      try {
+        const lr = await fetch('/api/lookup', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ mac: selectedMac, installerPhone: installerData?.phoneNumber })
+        });
+        const ld = await lr.json();
+        if (!ld.success || !ld.fullAddress) {
+          badge.textContent = '⚠';
+          msg.style.color = 'var(--red)';
+          msg.textContent = '❌ לא נמצאה כתובת';
+          btn.disabled = false;
+          return;
+        }
+        lastPanelAddress = ld.fullAddress;
+      } catch(e) {
+        badge.textContent = '⚠';
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ שגיאת תקשורת';
+        btn.disabled = false;
+        return;
+      }
+    }
+
+    // STATE 0: status unknown → check first
+    if (relayKnownMode === null) {
+      badge.textContent = '...';
+      badge.className = 'action-badge badge-loading';
+      if (label) label.textContent = 'בודק סטטוס...';
+      try {
+        const r = await fetch('/api/installer/relay-status?panelAddress=' + encodeURIComponent(lastPanelAddress) + '&installerPhone=' + encodeURIComponent(installerData?.phoneNumber || ''));
+        const data = await r.json();
+        if (data.success) {
+          updateRelayBadge(data.mode);
+          // Store full config so toggle can skip the GET
+          window.relayConfigCache = { relayList: data.relayList, relayCount: data.relayCount };
+          msg.style.color = 'var(--gray-500)';
+          msg.textContent = 'לחץ שוב להחלפה';
+        } else {
+          badge.textContent = '⚠';
+          badge.className = 'action-badge badge-loading';
+          if (label) label.textContent = 'פתיחת דלת חירום';
+          msg.style.color = 'var(--red)';
+          msg.textContent = '❌ ' + (data.error || 'שגיאה');
+        }
+      } catch(e) {
+        badge.textContent = '⚠';
+        badge.className = 'action-badge badge-loading';
+        if (label) label.textContent = 'פתיחת דלת חירום';
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ ' + e.message;
+      }
+      btn.disabled = false;
+      return;
+    }
+
+    // STATE 1: status known → toggle (pass cached relay config to skip GET on server)
+    badge.textContent = '...';
+    badge.className = 'action-badge badge-loading';
+    if (label) label.textContent = 'מחליף...';
+    try {
+      const cache = window.relayConfigCache || {};
+      const r = await fetch('/api/installer/relay-toggle', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ mac: selectedMac, panelAddress: lastPanelAddress, installerPhone: installerData?.phoneNumber, relayList: cache.relayList, relayCount: cache.relayCount })
+      });
+      const data = await r.json();
+      if (data.success) {
+        updateRelayBadge(data.newMode);
+        // Update cache with new mode so next toggle sends correct state
+        if (window.relayConfigCache && window.relayConfigCache.relayList) {
+          window.relayConfigCache.relayList = window.relayConfigCache.relayList.map(function(r) {
+            return r.relay_id === 'relay1' ? Object.assign({}, r, { relay_mode: data.newMode }) : r;
+          });
+        }
+        msg.style.color = '#16a34a';
+        msg.textContent = data.newMode === 'alwayson' ? '✅ הופעל' : '✅ כובה';
+      } else {
+        relayKnownMode = null;
+        badge.textContent = '⚠';
+        badge.className = 'action-badge badge-loading';
+        if (label) label.textContent = 'פתיחת דלת חירום';
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      relayKnownMode = null;
+      badge.textContent = '⚠';
+      badge.className = 'action-badge badge-loading';
+      if (label) label.textContent = 'פתיחת דלת חירום';
+      msg.style.color = 'var(--red)';
+      msg.textContent = '❌ ' + e.message;
+    }
+    btn.disabled = false;
+  }
+
+  // ── Chat ──
+  let installerChatPoll = null;
+
+  function openInstallerChat() {
+    document.getElementById('installerChatOverlay').classList.add('open');
+    loadInstallerChatMessages();
+    fetch(`/api/chat/${installerData.phoneNumber}/read`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ from:'installer' })
+    });
+    document.getElementById('installerUnreadBadge').style.display = 'none';
+    installerChatPoll = setInterval(loadInstallerChatMessages, 10000);
+  }
+
+  function closeInstallerChat() {
+    document.getElementById('installerChatOverlay').classList.remove('open');
+    clearInterval(installerChatPoll); installerChatPoll = null;
+  }
+
+  async function loadInstallerChatMessages() {
+    if (!installerData?.phoneNumber) return;
+    try {
+      const res  = await fetch(`/api/chat/${installerData.phoneNumber}`);
+      const data = await res.json();
+      const c    = document.getElementById('installerChatMessages');
+      const atBottom = c.scrollHeight - c.scrollTop <= c.clientHeight + 50;
+      if (!data.messages.length) { c.innerHTML = '<div class="chat-empty">אין הודעות עדיין</div>'; return; }
+      c.innerHTML = data.messages.map(m => {
+        const mine = m.from === 'installer';
+        const time = new Date(m.timestamp).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+        return `<div style="display:flex;flex-direction:column;align-items:${mine?'flex-start':'flex-end'}">
+          <div style="max-width:78%;padding:9px 13px;border-radius:${mine?'4px 14px 14px 14px':'14px 4px 14px 14px'};background:${mine?'var(--black)':'var(--gray-100)'};color:${mine?'var(--white)':'var(--black)'};font-size:14px;line-height:1.4;">${m.text}</div>
+          <span style="font-size:10px;color:var(--gray-400);margin-top:3px;">${mine?'אתה':'מנהל'} · ${time}</span>
+        </div>`;
+      }).join('');
+      if (atBottom) c.scrollTop = c.scrollHeight;
+    } catch(e) {}
+  }
+
+  async function sendInstallerMessage() {
+    const input = document.getElementById('installerChatInput');
+    const text  = input.value.trim();
+    if (!text || !installerData?.phoneNumber) return;
+    input.value = '';
+    await fetch(`/api/chat/${installerData.phoneNumber}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ from:'installer', text })
+    });
+    loadInstallerChatMessages();
+  }
+
+  async function checkInstallerUnread() {
+    if (!installerData?.phoneNumber) return;
+    try {
+      const res  = await fetch(`/api/chat/${installerData.phoneNumber}`);
+      const data = await res.json();
+      const unread = data.messages.filter(m => m.from==='manager' && !m.read).length;
+      const badge  = document.getElementById('installerUnreadBadge');
+      badge.textContent = unread;
+      badge.style.display = unread > 0 ? 'inline-block' : 'none';
+    } catch(e) {}
+  }
+
+  async function loadManagerNote(phoneNumber) {
+    await checkInstallerUnread();
+    setInterval(checkInstallerUnread, 30000);
+    checkAnnouncementsBadge();
+    setInterval(checkAnnouncementsBadge, 60000);
+  }
+
+  // ── Catalog ──
+  async function loadCatalog() {
+    try {
+      const res  = await fetch('/api/catalog');
+      const data = await res.json();
+      if (data.url) catalogUrl = data.url;
+    } catch(e) {}
+  }
+  function openCatalog() {
+    window.open(catalogUrl, '_blank');
+    fetch('/api/installer/log-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'catalog', installerPhone: installerData?.phoneNumber, details: { url: catalogUrl } })
+    }).catch(() => {});
+  }
+
+  // ── Resident Example ──
+  async function loadResidentExampleInstaller() {
+    try {
+      const res = await fetch('/api/resident-example/meta');
+      const data = await res.json();
+      const btn = document.getElementById('residentExampleBtn');
+      if (btn) btn.style.display = data.exists ? '' : 'none';
+    } catch(e) {}
+  }
+
+  async function downloadResidentExampleInstaller() {
+    try {
+      const res = await fetch('/api/resident-example/download');
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const cd = res.headers.get('Content-Disposition') || '';
+      const match = cd.match(/filename="?([^"]+)"?/);
+      const filename = match ? decodeURIComponent(match[1]) : 'resident-example';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    } catch(e) {}
+  }
+
+  // ── Subscribe ──
+  async function submitSubscribe() {
+    const email = document.getElementById('subEmail').value.trim();
+    const msg   = document.getElementById('subMsg');
+    if (!email) { msg.style.color='var(--red)'; msg.textContent='נא להזין אימייל'; return; }
+    msg.style.color='var(--gray-400)'; msg.textContent='שולח...';
+    try {
+      const res  = await fetch('/api/mailing-list/subscribe', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name: email, email })
+      });
+      const data = await res.json();
+      if (data.success) {
+        msg.style.color='#4ade80'; msg.textContent='✅ נרשמת בהצלחה!';
+        document.getElementById('subEmail').value = '';
+      } else {
+        msg.style.color='var(--red)'; msg.textContent = data.error || 'שגיאה';
+      }
+    } catch(e) { msg.style.color='var(--red)'; msg.textContent='שגיאת תקשורת'; }
+  }
+
+  // ── Tutorials ──
+  function openTutorials() {
+    document.getElementById('tutorialsModal').classList.add('open');
+    loadTutorialsList();
+  }
+  function closeTutorials() {
+    document.getElementById('tutorialsModal').classList.remove('open');
+  }
+  async function loadTutorialsList() {
+    const container = document.getElementById('tutorialsList');
+    container.innerHTML = '<div class="chat-empty">טוען...</div>';
+    try {
+      const res = await fetch('/api/tutorials');
+      const data = await res.json();
+      const list = data.tutorials || [];
+      if (!list.length) {
+        container.innerHTML = '<div class="chat-empty">אין סרטוני הדרכה כרגע</div>';
+        return;
+      }
+      container.innerHTML = list.map(t => `
+        <div class="tut-item" onclick="window.open(decodeURIComponent('${encodeURIComponent(t.url)}'),'_blank')">
+          <div class="tut-icon"><span class="material-symbols-outlined">play_arrow</span></div>
+          <div class="tut-info">
+            <div class="tut-title">${t.title}</div>
+            <div class="tut-sub">לחץ לצפייה</div>
+          </div>
+          <span class="material-symbols-outlined" style="color:var(--gray-400);font-size:18px;">arrow_back_ios</span>
+        </div>
+      `).join('');
+    } catch(e) {
+      container.innerHTML = '<div class="chat-empty">שגיאה בטעינה</div>';
+    }
+  }
+
+  // Close modals on overlay click
+  document.getElementById('installerChatOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeInstallerChat();
+  });
+  document.getElementById('tutorialsModal').addEventListener('click', function(e) {
+    if (e.target === this) closeTutorials();
+  });
+</script>
+
+<!-- ══ PORTFOLIO MODAL ══ -->
+<div id="portfolioModal" class="overlay">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">photo_library</span>
+        תיק עבודות
+      </h3>
+      <button class="modal-close" onclick="closePortfolio()">✕</button>
+    </div>
+
+    <!-- Upload area -->
+    <div style="padding:16px;border-bottom:1px solid var(--gray-200);">
+      <div id="uploadArea" onclick="document.getElementById('portfolioFileInput').click()"
+           style="border:2px dashed var(--gray-200);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:border-color .15s;"
+           onmouseover="this.style.borderColor='var(--black)'" onmouseout="this.style.borderColor='var(--gray-200)'">
+        <span class="material-symbols-outlined" style="font-size:32px;color:var(--gray-400);display:block;margin-bottom:6px;">add_photo_alternate</span>
+        <div style="font-size:13px;font-weight:700;color:var(--black);">לחץ להוספת תמונה</div>
+        <div style="font-size:11px;color:var(--gray-500);margin-top:2px;">JPG, PNG עד 10MB</div>
+      </div>
+      <input type="file" id="portfolioFileInput" accept="image/*" style="display:none;" onchange="previewPortfolioImage(event)" />
+
+      <!-- Preview -->
+      <div id="portfolioPreview" style="display:none;margin-top:12px;">
+        <img id="portfolioPreviewImg" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-bottom:10px;" />
+        <input type="text" id="portfolioDescription" placeholder="תיאור ההתקנה (כתובת, סוג עבודה...)"
+               style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:13px;margin-bottom:10px;" />
+        <div style="display:flex;gap:8px;">
+          <button class="btn-red" onclick="uploadPortfolioImage()" id="portfolioUploadBtn" style="flex:1;padding:12px;">
+            <span class="material-symbols-outlined" style="font-size:18px;">upload</span>
+            העלה תמונה
+          </button>
+          <button onclick="cancelPortfolioPreview()" style="padding:12px 16px;border:1.5px solid var(--gray-200);border-radius:8px;background:none;cursor:pointer;font-family:inherit;font-weight:600;">
+            ביטול
+          </button>
+        </div>
+        <div id="portfolioUploadMsg" class="status-msg" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <!-- Image grid -->
+    <div class="modal-body" id="portfolioGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px;max-height:50vh;overflow-y:auto;">
+      <div style="grid-column:1/-1;text-align:center;color:var(--gray-400);padding:24px;font-size:13px;">טוען...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TEMP CODE MODAL ══ -->
+<div id="tempCodeModal" class="overlay">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">password</span>
+        קוד זמני חדש
+      </h3>
+      <button class="modal-close" onclick="closeTempCode()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px;">
+
+      <!-- Days selection -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">ימים בשבוע</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="dayCheckboxes">
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-0">
+            <input type="checkbox" value="0" onchange="toggleDayLabel(0)" style="accent-color:var(--red);width:16px;height:16px;"> ראשון
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-1">
+            <input type="checkbox" value="1" onchange="toggleDayLabel(1)" style="accent-color:var(--red);width:16px;height:16px;"> שני
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-2">
+            <input type="checkbox" value="2" onchange="toggleDayLabel(2)" style="accent-color:var(--red);width:16px;height:16px;"> שלישי
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-3">
+            <input type="checkbox" value="3" onchange="toggleDayLabel(3)" style="accent-color:var(--red);width:16px;height:16px;"> רביעי
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-4">
+            <input type="checkbox" value="4" onchange="toggleDayLabel(4)" style="accent-color:var(--red);width:16px;height:16px;"> חמישי
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-5">
+            <input type="checkbox" value="5" onchange="toggleDayLabel(5)" style="accent-color:var(--red);width:16px;height:16px;"> שישי
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;" id="day-label-6">
+            <input type="checkbox" value="6" onchange="toggleDayLabel(6)" style="accent-color:var(--red);width:16px;height:16px;"> שבת
+          </label>
+        </div>
+      </div>
+
+      <!-- Expiry type selection -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">סוג תוקף</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <label id="expiry-unlimited" onclick="selectExpiry('unlimited')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border:2px solid var(--red);background:#fff5f5;border-radius:8px;cursor:pointer;text-align:center;">
+            <span class="material-symbols-outlined" style="font-size:22px;color:var(--red);">all_inclusive</span>
+            <span style="font-size:12px;font-weight:800;color:var(--red);">ללא הגבלה</span>
+            <span style="font-size:10px;color:var(--gray-500);">עובד כל שבוע</span>
+          </label>
+          <label id="expiry-daily" onclick="selectExpiry('daily')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border:1.5px solid var(--gray-200);background:none;border-radius:8px;cursor:pointer;text-align:center;">
+            <span class="material-symbols-outlined" style="font-size:22px;color:var(--gray-500);">today</span>
+            <span style="font-size:12px;font-weight:800;color:var(--black);">יומי</span>
+            <span style="font-size:10px;color:var(--gray-500);">תוקף לאותו היום בלבד</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Valid Hours -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;color:var(--gray-700,#374151);">שעות כניסה</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:13px;color:var(--gray-500);font-weight:600;">מ-</span>
+          <input type="time" id="tempCodeHourStart" value="00:00"
+            style="padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:14px;width:130px;"/>
+          <span style="font-size:13px;color:var(--gray-500);font-weight:600;">עד</span>
+          <input type="time" id="tempCodeHourEnd" value="23:59"
+            style="padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:14px;width:130px;"/>
+        </div>
+      </div>
+
+      <!-- Info box -->
+      <div style="background:var(--gray-50);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--gray-500);margin-bottom:16px;line-height:1.7;">
+        🔢 הקוד יווצר אוטומטית — 4 ספרות
+      </div>
+
+      <!-- Error msg -->
+      <div id="tempCodeError" style="font-size:13px;color:var(--red);font-weight:600;min-height:18px;margin-bottom:12px;text-align:center;"></div>
+
+      <!-- Submit button -->
+      <button class="btn-red" onclick="createTempCode()" id="tempCodeSubmitBtn">
+        <span class="material-symbols-outlined">add_circle</span>
+        צור קוד זמני
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TEMP CODE RESULT MODAL ══ -->
+<div id="tempCodeResultModal" class="overlay">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;color:#16a34a;">check_circle</span>
+        קוד נוצר בהצלחה!
+      </h3>
+      <button class="modal-close" onclick="closeTempCodeResult()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:24px;text-align:center;">
+      <div style="font-size:13px;color:var(--gray-500);margin-bottom:8px;" id="tempCodeResultLabel"></div>
+      <div style="font-family:'Courier New',monospace;font-size:52px;font-weight:800;color:var(--black);letter-spacing:12px;margin:16px 0;" id="tempCodeResultPin"></div>
+      <div style="display:none;" id="tempCodeResultDays"></div>
+      <button onclick="copyTempCode()" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:12px;border:1.5px solid var(--gray-200);border-radius:8px;background:none;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">
+        <span class="material-symbols-outlined" style="font-size:18px;">content_copy</span>
+        העתק קוד
+      </button>
+      <button onclick="shareWhatsApp()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border:none;border-radius:8px;background:#25D366;color:white;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        שתף בווצאפ
+      </button>
+      <button class="btn-red" onclick="closeTempCodeResult()">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PANEL HISTORY MODAL ══ -->
+<div id="panelHistoryModal" class="overlay">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">history</span>
+        היסטוריית כניסות
+      </h3>
+      <button class="modal-close" onclick="closePanelHistory()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:16px 20px;">
+      <div style="font-size:12px;font-weight:800;margin-bottom:6px;">📅 בחר תאריך (dd/mm/yyyy):</div>
+      <style>
+        #historyDatePick { position: relative; text-align: right; }
+        #historyDatePick:not(.has-value)::before {
+          content: 'בחר תאריך...';
+          color: #9ca3af;
+          margin-left: 8px;
+        }
+      </style>
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
+        <input type="date" id="historyDatePick" onchange="searchHistoryByDate()" 
+          style="flex:1;padding:9px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:13px;min-height:38px;-webkit-appearance:none;background:#fff;"/>
+        <button id="historyClearDate" onclick="clearHistoryDate()" style="display:none;background:none;border:1.5px solid var(--gray-200);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">✕ נקה</button>
+      </div>
+      <div id="historyTotal" style="font-size:12px;color:var(--gray-500);font-weight:600;margin-bottom:10px;"></div>
+      <div id="historyList" style="display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow-y:auto;">
+        <div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">טוען...</div>
+      </div>
+      <button id="historyMoreBtn" onclick="loadPanelHistory(false)" style="display:none;width:100%;margin-top:10px;padding:11px;border:1.5px solid var(--gray-200);border-radius:8px;background:none;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">
+        טען עוד ⬇
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PERMANENT CODES MODAL ══ -->
+<div id="permCodesModal" class="overlay">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">vpn_key</span>
+        קודים קבועים
+      </h3>
+      <button class="modal-close" onclick="closePermCodes()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px;">
+
+      <div style="background:var(--gray-50);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--gray-500);margin-bottom:16px;line-height:1.7;">
+        🔐 עד 5 קודים קבועים — פתוחים 24/7 בכל הימים
+      </div>
+
+      <!-- Add new code form -->
+      <div style="margin-bottom:18px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">הוסף קוד חדש</div>
+        <input type="text" id="permCodeName" placeholder="שם הקוד (למשל: משפחה, חנות)" maxlength="20"
+          style="width:100%;padding:11px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:14px;margin-bottom:8px;"/>
+        <input type="text" id="permCodeValue" placeholder="קוד 4 ספרות" maxlength="4" inputmode="numeric"
+          style="width:100%;padding:11px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:16px;letter-spacing:4px;text-align:center;font-weight:700;margin-bottom:10px;"/>
+        <button class="btn-red" onclick="addPermCode()" id="permCodeAddBtn">
+          <span class="material-symbols-outlined">add_circle</span>
+          הוסף קוד
+        </button>
+      </div>
+
+      <!-- Error msg -->
+      <div id="permCodeError" style="font-size:13px;color:var(--red);font-weight:600;min-height:18px;margin-bottom:10px;text-align:center;"></div>
+
+      <!-- List of codes -->
+      <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">קודים קיימים</div>
+      <div id="permCodesList" style="display:flex;flex-direction:column;gap:8px;max-height:40vh;overflow-y:auto;">
+        <div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">טוען...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══ ANNOUNCEMENTS MODAL ══ -->
+<div id="announcementsModal" class="overlay">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">campaign</span>
+        הודעות מהמנהל
+      </h3>
+      <button class="modal-close" onclick="closeAnnouncements()">✕</button>
+    </div>
+    <div class="modal-body" id="announcementsList" style="max-height:70vh;overflow-y:auto;padding:16px;">
+      <div class="chat-empty">טוען...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ RESIDENT UPDATE MODAL ══ -->
+<div id="residentUpdateModal" class="overlay">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">person_edit</span>
+        עדכון דיירים
+      </h3>
+      <button class="modal-close" onclick="closeResidentUpdate()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:18px;max-height:75vh;overflow-y:auto;">
+
+      <!-- Leaving residents -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:#E31B23;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">logout</span>
+          דיירים עוזבים
+        </div>
+        <div id="leavingResidents">
+          <div class="resident-row" data-type="leaving">
+            <input type="text" placeholder="שם פרטי ושם משפחה" class="res-name" style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;margin-bottom:6px;width:100%;"/>
+            <input type="text" placeholder="מספר דירה" class="res-apt" style="width:120px;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;"/>
+          </div>
+        </div>
+        <button onclick="addResidentRow('leaving')" id="addLeavingBtn" style="margin-top:8px;padding:6px 14px;border:1px dashed var(--gray-200);border-radius:7px;background:none;font-family:inherit;font-size:12px;cursor:pointer;color:var(--gray-500);">+ הוסף דייר עוזב</button>
+      </div>
+
+      <!-- Entering residents -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:#16a34a;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">login</span>
+          דיירים נכנסים
+        </div>
+        <div id="enteringResidents">
+          <div class="resident-row" data-type="entering">
+            <input type="text" placeholder="שם פרטי ושם משפחה" class="res-name" style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;margin-bottom:6px;width:100%;"/>
+            <input type="text" placeholder="מספר דירה" class="res-apt" style="width:120px;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;"/>
+          </div>
+        </div>
+        <button onclick="addResidentRow('entering')" id="addEnteringBtn" style="margin-top:8px;padding:6px 14px;border:1px dashed var(--gray-200);border-radius:7px;background:none;font-family:inherit;font-size:12px;cursor:pointer;color:var(--gray-500);">+ הוסף דייר נכנס</button>
+      </div>
+
+      <!-- Error msg -->
+      <div id="residentUpdateError" style="font-size:13px;color:var(--red);font-weight:600;min-height:18px;margin-bottom:12px;text-align:center;"></div>
+
+      <!-- Submit -->
+      <button class="btn-red" onclick="submitResidentUpdate()" id="residentUpdateSubmitBtn">
+        <span class="material-symbols-outlined">send</span>
+        שלח עדכון למנהל
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LIGHTBOX ══ -->
+<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:12px;" onclick="closeLightbox()">
+  <img id="lightboxImg" style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;" />
+  <div id="lightboxCaption" style="color:white;font-size:14px;font-weight:600;text-align:center;max-width:90%;"></div>
+</div>
+
+<script>
+  // ── Resident Update ──
+  function openResidentUpdate() {
+    document.getElementById('residentUpdateModal').classList.add('open');
+    document.getElementById('residentUpdateError').textContent = '';
+    document.getElementById('residentUpdateSubmitBtn').disabled = false;
+    // Reset to 1 row each
+    document.getElementById('leavingResidents').innerHTML = buildResidentRow('leaving');
+    document.getElementById('enteringResidents').innerHTML = buildResidentRow('entering');
+    updateAddButtons();
+  }
+
+  function closeResidentUpdate() {
+    document.getElementById('residentUpdateModal').classList.remove('open');
+  }
+
+  function buildResidentRow(type) {
+    return '<div class="resident-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">' +
+      '<input type="text" placeholder="שם פרטי ושם משפחה" class="res-name" style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;"/>' +
+      '<input type="text" placeholder='+"'דירה'" + ' class="res-apt" style="width:90px;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;"/>' +
+      '</div>';
+  }
+
+  function addResidentRow(type) {
+    var container = document.getElementById(type === 'leaving' ? 'leavingResidents' : 'enteringResidents');
+    var rows = container.querySelectorAll('.resident-row');
+    if (rows.length >= 5) return;
+    container.insertAdjacentHTML('beforeend', buildResidentRow(type));
+    updateAddButtons();
+  }
+
+  function updateAddButtons() {
+    var leavingCount = document.getElementById('leavingResidents').querySelectorAll('.resident-row').length;
+    var enteringCount = document.getElementById('enteringResidents').querySelectorAll('.resident-row').length;
+    document.getElementById('addLeavingBtn').style.display = leavingCount >= 5 ? 'none' : 'inline-block';
+    document.getElementById('addEnteringBtn').style.display = enteringCount >= 5 ? 'none' : 'inline-block';
+  }
+
+  async function submitResidentUpdate() {
+    var errEl = document.getElementById('residentUpdateError');
+    var btn = document.getElementById('residentUpdateSubmitBtn');
+    errEl.textContent = '';
+
+    // Collect leaving
+    var leaving = [];
+    document.getElementById('leavingResidents').querySelectorAll('.resident-row').forEach(function(row) {
+      var name = row.querySelector('.res-name').value.trim();
+      var apt = row.querySelector('.res-apt').value.trim();
+      if (name || apt) leaving.push({ name: name || '-', apt: apt || '-' });
+    });
+
+    // Collect entering
+    var entering = [];
+    document.getElementById('enteringResidents').querySelectorAll('.resident-row').forEach(function(row) {
+      var name = row.querySelector('.res-name').value.trim();
+      var apt = row.querySelector('.res-apt').value.trim();
+      if (name || apt) entering.push({ name: name || '-', apt: apt || '-' });
+    });
+
+    if (!leaving.length && !entering.length) {
+      errEl.textContent = 'נא למלא לפחות שורה אחת';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined">hourglass_empty</span> שולח...';
+
+    // Build message text
+    var panelInfo = selectedMac || 'לא ידוע';
+    var lines = ['עדכון דיירים מהמתקין ' + installerData.phoneNumber, 'פנל: ' + panelInfo, ''];
+    if (leaving.length) {
+      lines.push('דיירים עוזבים:');
+      leaving.forEach(function(r) { lines.push('  • ' + r.name + ' | דירה ' + r.apt); });
+      lines.push('');
+    }
+    if (entering.length) {
+      lines.push('דיירים נכנסים:');
+      entering.forEach(function(r) { lines.push('  • ' + r.name + ' | דירה ' + r.apt); });
+    }
+    var msgText = lines.join('\n');
+
+    try {
+      var res = await fetch('/api/manager/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: msgText,
+          audience: 'specific',
+          specificPhone: 'admin',
+          imageUrl: null,
+        })
+      });
+      var data = await res.json();
+      if (data.success) {
+        closeResidentUpdate();
+        alert('העדכון נשלח למנהל בהצלחה!');
+        // Log action
+        fetch('/api/installer/log-action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'resident_update', installerPhone: installerData.phoneNumber, details: { leaving: leaving.length, entering: entering.length } })
+        }).catch(function(){});
+      } else {
+        errEl.textContent = '❌ ' + (data.error || 'שגיאה בשליחה');
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined">send</span> שלח עדכון למנהל';
+      }
+    } catch(e) {
+      errEl.textContent = '❌ שגיאת תקשורת';
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">send</span> שלח עדכון למנהל';
+    }
+  }
+
+  document.getElementById('residentUpdateModal').addEventListener('click', function(e) {
+    if (e.target === this) closeResidentUpdate();
+  });
+
+  // ── Announcements ──
+  async function openAnnouncements() {
+    document.getElementById('announcementsModal').classList.add('open');
+    const list = document.getElementById('announcementsList');
+    list.innerHTML = '<div class="chat-empty">טוען...</div>';
+    try {
+      const accountType = installerData?.accountType || 'installer';
+      const res = await fetch('/api/installer/announcements?phoneNumber=' + encodeURIComponent(installerData.phoneNumber) + '&accountType=' + accountType);
+      const data = await res.json();
+      if (!data.announcements.length) {
+        list.innerHTML = '<div class="chat-empty">אין הודעות כרגע</div>';
+      } else {
+        list.innerHTML = data.announcements.map(a => {
+          const date = new Date(a.createdAt).toLocaleDateString('he-IL', { day:'numeric', month:'numeric', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+          const isNew = !a.readBy.includes(installerData.phoneNumber);
+          return '<div style="padding:14px 0;border-bottom:1px solid var(--gray-200);">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
+            (isNew ? '<span style="width:8px;height:8px;background:var(--red);border-radius:50%;flex-shrink:0;"></span>' : '<span style="width:8px;"></span>') +
+            '<span style="font-size:11px;color:var(--gray-400);">' + date + '</span>' +
+            '</div>' +
+            (a.text ? '<div style="font-size:14px;line-height:1.6;color:var(--black);padding-right:16px;margin-bottom:8px;">' + a.text.split('\n').join('<br/>') + '</div>' : '') +
+            (a.imageUrl ? '<img src="' + a.imageUrl + '" style="max-width:100%;border-radius:8px;margin-top:4px;" />' : '') +
+            '</div>';
+        }).join('');
+      }
+      // Mark all as read
+      await fetch('/api/installer/announcements/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: installerData.phoneNumber })
+      });
+      document.getElementById('announcementsBadge').style.display = 'none';
+    } catch(e) {
+      list.innerHTML = '<div class="chat-empty">שגיאה בטעינה</div>';
+    }
+  }
+
+  function closeAnnouncements() {
+    document.getElementById('announcementsModal').classList.remove('open');
+  }
+
+  async function checkAnnouncementsBadge() {
+    if (!installerData?.phoneNumber) return;
+    try {
+      const accountType = installerData?.accountType || 'installer';
+      const res = await fetch('/api/installer/announcements?phoneNumber=' + encodeURIComponent(installerData.phoneNumber) + '&accountType=' + accountType);
+      const data = await res.json();
+      const badge = document.getElementById('announcementsBadge');
+      if (data.unread > 0) {
+        badge.textContent = data.unread;
+        badge.style.display = 'block';
+      } else {
+        badge.style.display = 'none';
+      }
+    } catch(e) {}
+  }
+
+  document.getElementById('announcementsModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAnnouncements();
+  });
+
+  // ── Portfolio ──
+  function openPortfolio() {
+    document.getElementById('portfolioModal').classList.add('open');
+    loadPortfolioImages();
+    fetch('/api/installer/log-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'portfolio', installerPhone: installerData?.phoneNumber, details: {} })
+    }).catch(() => {});
+  }
+  function closePortfolio() {
+    document.getElementById('portfolioModal').classList.remove('open');
+    cancelPortfolioPreview();
+  }
+  // ── Temp Code ──
+  function selectExpiry(type) {
+    selectedExpiry = type;
+    const unlimitedEl = document.getElementById('expiry-unlimited');
+    const dailyEl = document.getElementById('expiry-daily');
+    if (type === 'unlimited') {
+      unlimitedEl.style.border = '2px solid var(--red)';
+      unlimitedEl.style.background = '#fff5f5';
+      unlimitedEl.querySelector('.material-symbols-outlined').style.color = 'var(--red)';
+      unlimitedEl.querySelector('span:nth-child(2)').style.color = 'var(--red)';
+      dailyEl.style.border = '1.5px solid var(--gray-200)';
+      dailyEl.style.background = 'none';
+      dailyEl.querySelector('.material-symbols-outlined').style.color = 'var(--gray-500)';
+      dailyEl.querySelector('span:nth-child(2)').style.color = 'var(--black)';
+    } else {
+      dailyEl.style.border = '2px solid var(--red)';
+      dailyEl.style.background = '#fff5f5';
+      dailyEl.querySelector('.material-symbols-outlined').style.color = 'var(--red)';
+      dailyEl.querySelector('span:nth-child(2)').style.color = 'var(--red)';
+      unlimitedEl.style.border = '1.5px solid var(--gray-200)';
+      unlimitedEl.style.background = 'none';
+      unlimitedEl.querySelector('.material-symbols-outlined').style.color = 'var(--gray-500)';
+      unlimitedEl.querySelector('span:nth-child(2)').style.color = 'var(--black)';
+    }
+  }
+
+  function openTempCode() {
+    if (!lastPanelAddress) {
+      alert('יש לבצע התחברות מרחוק תחילה כדי לאמת שהפנל מחובר לאינטרנט');
+      return;
+    }
+    document.getElementById('tempCodeModal').classList.add('open');
+    document.getElementById('tempCodeError').textContent = '';
+    document.getElementById('tempCodeSubmitBtn').disabled = false;
+    // Reset checkboxes
+    document.querySelectorAll('#dayCheckboxes input[type=checkbox]').forEach(cb => {
+      cb.checked = false;
+      toggleDayLabel(parseInt(cb.value));
+    });
+    // Reset expiry
+    selectedExpiry = 'unlimited';
+    selectExpiry('unlimited');
+  }
+
+  function closeTempCode() {
+    document.getElementById('tempCodeModal').classList.remove('open');
+  }
+
+  function closeTempCodeResult() {
+    document.getElementById('tempCodeResultModal').classList.remove('open');
+  }
+
+  function toggleDayLabel(dayIndex) {
+    const label = document.getElementById(`day-label-${dayIndex}`);
+    const cb = label.querySelector('input');
+    if (cb.checked) {
+      label.style.borderColor = 'var(--red)';
+      label.style.background = '#fff5f5';
+    } else {
+      label.style.borderColor = 'var(--gray-200)';
+      label.style.background = '';
+    }
+  }
+
+  async function createTempCode() {
+    const checkboxes = document.querySelectorAll('#dayCheckboxes input[type=checkbox]:checked');
+    if (checkboxes.length === 0) {
+      document.getElementById('tempCodeError').textContent = 'יש לבחור לפחות יום אחד';
+      return;
+    }
+
+    const validWeekdays = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    const btn = document.getElementById('tempCodeSubmitBtn');
+    const errEl = document.getElementById('tempCodeError');
+    btn.disabled = true;
+    errEl.textContent = '';
+    btn.innerHTML = '<span class="material-symbols-outlined">hourglass_empty</span> יוצר קוד...';
+
+    try {
+      const res = await fetch('/api/installer/temp-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+              panelAddress: lastPanelAddress,
+              validWeekdays,
+              expiryType: selectedExpiry,
+              installerPhone: installerData?.phoneNumber,
+              validHourStart: document.getElementById('tempCodeHourStart').value,
+              validHourEnd: document.getElementById('tempCodeHourEnd').value,
+            })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        closeTempCode();
+        const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+        const daysStr = data.validWeekdays.map(d => dayNames[d]).join(', ');
+        document.getElementById('tempCodeResultLabel').textContent = data.label;
+        document.getElementById('tempCodeResultPin').textContent = data.pin;
+        const expiryLabel = data.expiryType === 'daily' ? '· היום בלבד' : '· ללא הגבלה';
+        document.getElementById('tempCodeResultDays').textContent = `ימים: ${daysStr} · כל היום ${expiryLabel}`;
+        document.getElementById('tempCodeResultModal').classList.add('open');
+      } else {
+        errEl.textContent = '❌ ' + (data.error || 'שגיאה');
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined">add_circle</span> צור קוד זמני';
+      }
+    } catch(e) {
+      errEl.textContent = '❌ שגיאת תקשורת';
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">add_circle</span> צור קוד זמני';
+    }
+  }
+
+  function copyTempCode() {
+    const pin = document.getElementById('tempCodeResultPin').textContent;
+    navigator.clipboard.writeText(pin).then(() => {
+      const btn = event.target.closest('button');
+      btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;">check</span> הועתק!';
+      setTimeout(() => {
+        btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;">content_copy</span> העתק קוד';
+      }, 2000);
+    });
+  }
+
+  function shareWhatsApp() {
+    const pin = document.getElementById('tempCodeResultPin').textContent.trim();
+    const label = document.getElementById('tempCodeResultLabel').textContent.trim();
+    const days = document.getElementById('tempCodeResultDays').textContent.trim();
+    const lines = ['הונפק קוד גישה זמני', '', '*' + pin + '*', '', days];
+    const msg = encodeURIComponent(lines.join('\n'));
+    window.open('https://wa.me/?text=' + msg, '_blank');
+  }
+
+  document.getElementById('tempCodeModal').addEventListener('click', function(e) {
+    if (e.target === this) closeTempCode();
+  });
+  document.getElementById('tempCodeResultModal').addEventListener('click', function(e) {
+    if (e.target === this) closeTempCodeResult();
+  });
+
+  document.getElementById('portfolioModal').addEventListener('click', function(e) {
+    if (e.target === this) closePortfolio();
+  });
+
+  function previewPortfolioImage(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('portfolioPreviewImg').src = e.target.result;
+      document.getElementById('portfolioPreview').style.display = 'block';
+      document.getElementById('uploadArea').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function cancelPortfolioPreview() {
+    document.getElementById('portfolioPreview').style.display = 'none';
+    document.getElementById('uploadArea').style.display = 'block';
+    document.getElementById('portfolioFileInput').value = '';
+    document.getElementById('portfolioDescription').value = '';
+    document.getElementById('portfolioUploadMsg').textContent = '';
+  }
+
+  async function uploadPortfolioImage() {
+    const file = document.getElementById('portfolioFileInput').files[0];
+    const description = document.getElementById('portfolioDescription').value.trim();
+    const btn = document.getElementById('portfolioUploadBtn');
+    const msg = document.getElementById('portfolioUploadMsg');
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('phoneNumber', installerData.phoneNumber);
+    formData.append('description', description);
+
+    btn.disabled = true;
+    msg.style.color = 'var(--gray-500)';
+    msg.textContent = 'מעלה תמונה...';
+
+    try {
+      const res = await fetch('/api/installer/portfolio/upload', { method:'POST', body: formData });
+      const data = await res.json();
+      if (data.success) {
+        msg.style.color = '#16a34a';
+        msg.textContent = '✅ הועלה בהצלחה!';
+        setTimeout(() => { cancelPortfolioPreview(); loadPortfolioImages(); }, 1000);
+      } else {
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      msg.style.color = 'var(--red)';
+      msg.textContent = '❌ שגיאת תקשורת';
+    }
+    btn.disabled = false;
+  }
+
+  async function loadPortfolioImages() {
+    const grid = document.getElementById('portfolioGrid');
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--gray-400);padding:24px;font-size:13px;">טוען...</div>';
+    try {
+      const res = await fetch('/api/installer/portfolio?phoneNumber=' + encodeURIComponent(installerData.phoneNumber));
+      const data = await res.json();
+      const images = (data.images || []).slice().reverse();
+      if (!images.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--gray-400);padding:32px;font-size:13px;">אין תמונות עדיין<br><span style=\"font-size:11px;\">לחץ למעלה להוספת תמונה ראשונה</span></div>';
+        return;
+      }
+      grid.innerHTML = images.map(img => `
+        <div style="position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--gray-200);aspect-ratio:1;">
+          <img src="${img.imageUrl}" alt="${img.description}"
+               style="width:100%;height:100%;object-fit:cover;cursor:pointer;"
+               onclick="openLightbox('${img.imageUrl}','${(img.description||'').replace(/'/g,'')}')"/>
+          ${img.description ? `<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;font-weight:600;padding:4px 6px;line-height:1.3;">${img.description}</div>` : ''}
+          <button onclick="deletePortfolioImage('${img.id}','${img.publicId || ''}')"
+                  style="position:absolute;top:6px;left:6px;background:rgba(227,27,35,0.9);border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:white;">
+            <span class="material-symbols-outlined" style="font-size:14px;">delete</span>
+          </button>
+        </div>
+      `).join('');
+    } catch(e) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--red);padding:24px;font-size:13px;">שגיאה בטעינה</div>';
+    }
+  }
+
+  async function deletePortfolioImage(imageId, publicId) {
+    if (!confirm('למחוק את התמונה?')) return;
+    try {
+      const res = await fetch(`/api/installer/portfolio/${imageId}`, {
+        method:'DELETE',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ phoneNumber: installerData.phoneNumber, publicId })
+      });
+      const data = await res.json();
+      if (data.success) loadPortfolioImages();
+      else alert('שגיאה במחיקה: ' + (data.error || 'unknown'));
+    } catch(e) { alert('שגיאת תקשורת'); }
+  }
+
+  function openLightbox(url, caption) {
+    const lb = document.getElementById('lightbox');
+    document.getElementById('lightboxImg').src = url;
+    document.getElementById('lightboxCaption').textContent = caption;
+    lb.style.display = 'flex';
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').style.display = 'none';
+  }
+
+  // ==================== PANEL HISTORY ====================
+  let historyPage = 1;
+  let historyTotal = 0;
+
+  function openPanelHistory() {
+    if (!lastPanelAddress) {
+      alert('יש לבצע התחברות מרחוק תחילה כדי לאמת שהפנל מחובר לאינטרנט');
+      return;
+    }
+    document.getElementById('panelHistoryModal').classList.add('open');
+    document.getElementById('historyDatePick').value = '';
+    document.getElementById('historyDatePick').classList.remove('has-value');
+    document.getElementById('historyClearDate').style.display = 'none';
+    historyPage = 1;
+    loadPanelHistory(true);
+  }
+
+  function closePanelHistory() {
+    document.getElementById('panelHistoryModal').classList.remove('open');
+  }
+
+  const HIST_TYPE = {
+    face:     { icon: 'face',     label: 'פנים' },
+    card:     { icon: 'badge',    label: 'כרטיס' },
+    password: { icon: 'password', label: 'קוד' },
+  };
+
+  async function loadPanelHistory(reset) {
+    const list = document.getElementById('historyList');
+    const moreBtn = document.getElementById('historyMoreBtn');
+    if (reset) {
+      historyPage = 1;
+      list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">טוען...</div>';
+      moreBtn.style.display = 'none';
+    } else {
+      moreBtn.disabled = true;
+      moreBtn.textContent = 'טוען...';
+    }
+    try {
+      const r = await fetch('/api/installer/panel-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          panelAddress: lastPanelAddress,
+          pageNum: historyPage,
+          pageSize: 20,
+          installerPhone: installerData?.phoneNumber
+        })
+      });
+      const data = await r.json();
+      if (!data.success) {
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">' + (data.error || 'שגיאה') + '</div>';
+        return;
+      }
+      historyTotal = data.total;
+      document.getElementById('historyTotal').textContent = 'סה"כ ' + historyTotal + ' רשומות';
+
+      const rows = renderHistoryRows(data.records);
+
+      if (reset) list.innerHTML = rows || '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">אין רשומות</div>';
+      else list.insertAdjacentHTML('beforeend', rows);
+
+      historyPage++;
+      const loaded = (historyPage - 1) * 20;
+      moreBtn.style.display = loaded < historyTotal ? 'block' : 'none';
+      moreBtn.disabled = false;
+      moreBtn.textContent = 'טען עוד ⬇';
+    } catch (e) {
+      if (reset) list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">שגיאת תקשורת</div>';
+      moreBtn.disabled = false;
+      moreBtn.textContent = 'טען עוד ⬇';
+    }
+  }
+
+  function renderHistoryRows(records) {
+    return records.map(rec => {
+      const t = HIST_TYPE[rec.type] || { icon: 'lock_open', label: rec.type };
+      const d = new Date(rec.time);
+      const dateStr = d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' }) +
+                      ' ' + d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+      const ok = rec.status === 'success';
+      const name = rec.name || (rec.type === 'password' ? rec.content : '—');
+      return `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid ${ok ? 'var(--gray-200)' : '#fecaca'};border-radius:8px;${ok ? '' : 'background:#fff5f5;'}">
+        <span class="material-symbols-outlined" style="font-size:20px;color:${ok ? 'var(--black)' : 'var(--red)'};">${t.icon}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapePermHtml(name)}</div>
+          <div style="font-size:11px;color:var(--gray-500);">${t.label}${rec.door ? ' · דלת ' + rec.door : ''}</div>
+        </div>
+        <div style="text-align:left;flex-shrink:0;">
+          <div style="font-size:11px;color:var(--gray-500);font-weight:600;">${dateStr}</div>
+          <div style="font-size:10px;font-weight:800;color:${ok ? '#16a34a' : 'var(--red)'};">${ok ? '✓ נפתח' : '✗ נכשל'}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function searchHistoryByDate() {
+    const dateEl = document.getElementById('historyDatePick');
+    const date = dateEl.value;
+    if (!date) { dateEl.classList.remove('has-value'); return; }
+    dateEl.classList.add('has-value');
+    const list = document.getElementById('historyList');
+    const moreBtn = document.getElementById('historyMoreBtn');
+    document.getElementById('historyClearDate').style.display = 'block';
+    moreBtn.style.display = 'none';
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">מחפש בפנל... (עשוי לקחת מספר שניות)</div>';
+    try {
+      const r = await fetch('/api/installer/panel-history-date', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          panelAddress: lastPanelAddress,
+          date,
+          installerPhone: installerData?.phoneNumber
+        })
+      });
+      const data = await r.json();
+      if (!data.success) {
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">' + (data.error || 'שגיאה') + '</div>';
+        return;
+      }
+      const dObj = new Date(date + 'T12:00:00');
+      document.getElementById('historyTotal').textContent =
+        dObj.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' — ' + data.total + ' רשומות';
+      list.innerHTML = data.records.length
+        ? renderHistoryRows(data.records)
+        : '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">אין כניסות בתאריך זה</div>';
+    } catch (e) {
+      list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">שגיאת תקשורת</div>';
+    }
+  }
+
+  function clearHistoryDate() {
+    const dateEl = document.getElementById('historyDatePick');
+    dateEl.value = '';
+    dateEl.classList.remove('has-value');
+    document.getElementById('historyClearDate').style.display = 'none';
+    historyPage = 1;
+    loadPanelHistory(true);
+  }
+
+  // ==================== PERMANENT CODES ====================
+  function openPermCodes() {
+    if (!lastPanelAddress) {
+      alert('יש לבצע התחברות מרחוק תחילה כדי לאמת שהפנל מחובר לאינטרנט');
+      return;
+    }
+    document.getElementById('permCodesModal').classList.add('open');
+    document.getElementById('permCodeError').textContent = '';
+    document.getElementById('permCodeName').value = '';
+    document.getElementById('permCodeValue').value = '';
+    loadPermCodes();
+  }
+
+  function closePermCodes() {
+    document.getElementById('permCodesModal').classList.remove('open');
+  }
+
+  async function loadPermCodes() {
+    const list = document.getElementById('permCodesList');
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">טוען...</div>';
+    try {
+      const r = await fetch('/api/installer/permanent-codes?panelAddress=' + encodeURIComponent(lastPanelAddress));
+      const data = await r.json();
+      if (!data.success) {
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">' + (data.error || 'שגיאה') + '</div>';
+        return;
+      }
+      if (!data.codes.length) {
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">אין קודים קבועים</div>';
+        return;
+      }
+      list.innerHTML = data.codes.map(c => `
+        <div style="display:flex;align-items:center;gap:10px;padding:12px;border:1.5px solid var(--gray-200);border-radius:8px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:700;">${escapePermHtml(c.name)}</div>
+            <div style="font-family:'Courier New',monospace;font-size:18px;font-weight:800;letter-spacing:4px;color:var(--red);">${c.code}</div>
+          </div>
+          <button onclick="editPermCode('${c.id}', this)" data-name="${escapePermHtml(c.name)}" data-code="${c.code}"
+            style="background:none;border:1.5px solid var(--gray-200);border-radius:7px;padding:8px;cursor:pointer;display:flex;">
+            <span class="material-symbols-outlined" style="font-size:18px;">edit</span>
+          </button>
+          <button onclick="deletePermCode('${c.id}')"
+            style="background:none;border:1.5px solid var(--gray-200);border-radius:7px;padding:8px;cursor:pointer;display:flex;color:var(--red);">
+            <span class="material-symbols-outlined" style="font-size:18px;">delete</span>
+          </button>
+        </div>
+      `).join('');
+    } catch (e) {
+      list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">שגיאת תקשורת</div>';
+    }
+  }
+
+  async function addPermCode() {
+    const name = document.getElementById('permCodeName').value.trim();
+    const code = document.getElementById('permCodeValue').value.trim();
+    const errEl = document.getElementById('permCodeError');
+    errEl.textContent = '';
+    if (!name) { errEl.textContent = 'הזן שם לקוד'; return; }
+    if (!/^\d{4}$/.test(code)) { errEl.textContent = 'קוד חייב להיות 4 ספרות'; return; }
+
+    const btn = document.getElementById('permCodeAddBtn');
+    btn.disabled = true;
+    try {
+      const r = await fetch('/api/installer/permanent-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          panelAddress: lastPanelAddress,
+          name, code,
+          installerPhone: installerData?.phoneNumber
+        })
+      });
+      const data = await r.json();
+      if (data.success) {
+        document.getElementById('permCodeName').value = '';
+        document.getElementById('permCodeValue').value = '';
+        loadPermCodes();
+      } else {
+        errEl.textContent = data.error || 'שגיאה';
+      }
+    } catch (e) {
+      errEl.textContent = 'שגיאת תקשורת';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function editPermCode(codeId, btnEl) {
+    const oldName = btnEl.dataset.name;
+    const oldCode = btnEl.dataset.code;
+    const newName = prompt('שנה שם:', oldName);
+    if (newName === null) return;
+    const newCode = prompt('שנה קוד (4 ספרות):', oldCode);
+    if (newCode === null) return;
+    if (!/^\d{4}$/.test(newCode)) { alert('קוד חייב להיות 4 ספרות'); return; }
+
+    try {
+      const r = await fetch('/api/installer/permanent-codes/' + codeId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          panelAddress: lastPanelAddress,
+          name: newName.trim() || oldName,
+          code: newCode,
+          installerPhone: installerData?.phoneNumber
+        })
+      });
+      const data = await r.json();
+      if (data.success) loadPermCodes();
+      else alert('❌ ' + (data.error || 'שגיאה'));
+    } catch (e) {
+      alert('שגיאת תקשורת');
+    }
+  }
+
+  async function deletePermCode(codeId) {
+    if (!confirm('למחוק את הקוד?')) return;
+    try {
+      const r = await fetch('/api/installer/permanent-codes/' + codeId +
+        '?panelAddress=' + encodeURIComponent(lastPanelAddress) +
+        '&installerPhone=' + encodeURIComponent(installerData?.phoneNumber || ''), {
+        method: 'DELETE'
+      });
+      const data = await r.json();
+      if (data.success) loadPermCodes();
+      else alert('❌ ' + (data.error || 'שגיאה'));
+    } catch (e) {
+      alert('שגיאת תקשורת');
+    }
+  }
+
+  function escapePermHtml(text) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return String(text || '').replace(/[&<>"']/g, m => map[m]);
+  }
+</script>
+</body>
+</html>

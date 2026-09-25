@@ -1,0 +1,1910 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Manager Panel - Tador</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0d14;
+      --surface: #111520;
+      --surface2: #161c2e;
+      --border: #1e2840;
+      --accent: #2563eb;
+      --green: #10b981;
+      --red: #ef4444;
+      --text: #f1f5f9;
+      --text-dim: #64748b;
+    }
+
+    body.light {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --surface2: #e8edf5;
+      --border: #cbd5e1;
+      --accent: #2563eb;
+      --green: #059669;
+      --red: #dc2626;
+      --text: #0f172a;
+      --text-dim: #64748b;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      padding: 20px;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+
+    h1 { font-size: 32px; margin-bottom: 4px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; }
+
+    .theme-btn {
+      padding: 8px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .theme-btn:hover { border-color: var(--accent); }
+
+    .lang-switch {
+      display: flex;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+    }
+
+    .lang-btn {
+      padding: 8px 16px;
+      background: transparent;
+      color: var(--text-dim);
+      border: none;
+      border-radius: 6px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .lang-btn.active { background: var(--accent); color: white; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .card h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .form-row { display: flex; gap: 12px; margin-bottom: 16px; }
+
+    input, select {
+      flex: 1;
+      padding: 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    button {
+      padding: 12px 24px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    button:hover { opacity: 0.9; }
+    button.danger { background: var(--red); }
+    button.small { padding: 6px 12px; font-size: 13px; }
+    button.success { background: var(--green); }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th {
+      background: var(--surface2);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+    td { font-family: 'JetBrains Mono', monospace; font-size: 14px; }
+
+    .logout-btn { position: fixed; top: 20px; right: 20px; z-index: 100; }
+
+    #loginScreen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #managerPanel { display: none; }
+
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px;
+      width: 400px;
+    }
+
+    .mac-detail {
+      background: var(--bg);
+      padding: 14px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border-left: 3px solid var(--accent);
+    }
+
+    .mac-detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .mac-detail-mac {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--accent);
+    }
+
+    .mac-detail-field {
+      margin-top: 8px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mac-detail-label { color: var(--text-dim); min-width: 220px; font-size: 13px; }
+    .mac-detail-value { color: var(--text); font-size: 14px; flex: 1; }
+
+    .field-edit-btn {
+      padding: 3px 10px !important;
+      font-size: 11px !important;
+      background: var(--surface) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text-dim) !important;
+      cursor: pointer;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .mac-detail-field:hover .field-edit-btn { opacity: 1; }
+    .mac-actions { display: flex; gap: 4px; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      width: 520px;
+      max-width: 95vw;
+    }
+
+    .modal h3 {
+      font-size: 18px;
+      margin-bottom: 20px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .modal-field { margin-bottom: 16px; }
+    .modal-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .modal-field input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+    }
+
+    .modal-field input:focus { outline: none; border-color: var(--accent); }
+
+    .modal-buttons { display: flex; gap: 12px; margin-top: 24px; }
+    .modal-buttons button { flex: 1; }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+
+    .copy-btn {
+      padding: 4px 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .installer-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .installer-link:hover { text-decoration: underline; }
+
+    .success-msg {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid var(--green);
+      color: var(--green);
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+
+    .error-msg {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--red);
+      color: var(--red);
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+
+    .info-msg {
+      background: rgba(37, 99, 235, 0.12);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+
+    .license-warning-btn {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+      animation: pulse 2s infinite;
+    }
+    .license-warning-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(255, 107, 107, 0.5);
+    }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+
+    .license-paid-btn {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+      margin-left: 4px;
+    }
+    .license-paid-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
+    }
+  </style>
+</head>
+
+<body class="light">
+  <!-- Login Screen -->
+  <div id="loginScreen">
+    <div class="login-card">
+      <h1 data-i18n="loginTitle">כניסת מנהל</h1>
+      <p class="subtitle">Tador Technologies LTD</p>
+      <div class="form-row" style="flex-direction: column; margin-top: 24px;">
+        <input type="text" id="loginUsername" data-i18n-placeholder="username" placeholder="שם משתמש" />
+        <input type="password" id="loginPassword" data-i18n-placeholder="password" placeholder="סיסמה" />
+        <button onclick="login()" data-i18n="loginBtn">התחבר</button>
+      </div>
+      <div id="loginError" class="error-msg" style="display: none; margin-top: 12px;"></div>
+
+      <div class="lang-switch" style="margin-top: 24px; justify-content: center;">
+        <button class="lang-btn" data-lang="en">English</button>
+        <button class="lang-btn active" data-lang="he">עברית</button>
+      </div>
+      <div style="text-align: center; margin-top: 12px;">
+        <button class="theme-btn" onclick="toggleTheme()">🌙</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manager Panel -->
+  <div id="managerPanel">
+    <button class="logout-btn danger" onclick="logout()" data-i18n="logout">Logout</button>
+
+    <div class="container">
+      <div class="header">
+        <div>
+          <h1 data-i18n="panelTitle">Manager Panel</h1>
+          <p class="subtitle" data-i18n="panelSubtitle">Manage installer accounts and MAC assignments</p>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button class="theme-btn" onclick="toggleTheme()">🌙</button>
+          <div class="lang-switch">
+            <button class="lang-btn" data-lang="en">English</button>
+            <button class="lang-btn active" data-lang="he">עברית</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Link -->
+      <div class="card">
+        <h2 data-i18n="quickAccess">🔗 Quick Access</h2>
+        <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+          <a href="/installer.html" target="_blank" class="installer-link">
+            <span>🔧</span>
+            <span data-i18n="installerPanelLink">Open Installer Panel</span>
+          </a>
+          <a href="/index.html" target="_blank" class="installer-link">
+            <span>🔍</span>
+            <span data-i18n="deviceLookupLink">Open Device Lookup</span>
+          </a>
+          <a href="#" onclick="downloadBackup(); return false;" class="installer-link">
+            <span>📥</span>
+            <span data-i18n="downloadBackup">Download Database Backup</span>
+          </a>
+          <a href="https://eu1.voipbell.net/index.php?lang=en_gb" target="_blank" class="installer-link">
+            <span>☎️</span>
+            <span data-i18n="voipbellServer">Voipbell Server Login</span>
+          </a>
+          <a href="#" onclick="exportExcel(); return false;" class="installer-link" style="background:linear-gradient(135deg,#1a7a4a,#12593a);color:white;">
+            <span>📊</span>
+            <span>ייצוא Excel</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Create Installer -->
+      <div class="card">
+        <h2 data-i18n="createInstaller">➕ Create Installer Account</h2>
+        <div class="form-row">
+          <input type="text" id="newPhone" data-i18n-placeholder="phoneNumber" placeholder="Phone Number (e.g., +972501234567)" />
+          <input type="text" id="newMacs" data-i18n-placeholder="macAddresses" placeholder="MAC Addresses (comma separated, optional)" />
+          <button onclick="createInstaller()" data-i18n="createBtn">Create</button>
+        </div>
+        <div id="createResult"></div>
+        <div id="globalMessage"></div>
+      </div>
+
+      <!-- Catalog -->
+      <div class="card">
+        <h2>📄 קטלוג מוצרים</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">הקישור יופיע אצל כל הטכנאים כפתור הורדה.</p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="catalogUrlInput" placeholder="https://example.com/catalog.pdf" style="flex:1;min-width:280px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;" />
+          <button class="btn" onclick="saveCatalogUrl()" style="white-space:nowrap;">💾 שמור קישור</button>
+          <button class="btn" onclick="clearCatalogUrl()" style="background:var(--red);white-space:nowrap;">🗑 הסר</button>
+        </div>
+        <div id="catalogStatus" style="margin-top:8px;font-size:13px;"></div>
+      </div>
+
+
+      <!-- Manager File Storage -->
+      <div class="card">
+        <h2>📋 רשימת דיירים לועד</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">העלה קבצי Excel לאחסון פנימי. ניתן להוריד או למחוק בכל עת.</p>
+
+        <!-- Upload zone -->
+        <div id="xlsxDropZone"
+             onclick="document.getElementById('xlsxFileInput').click()"
+             style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:14px;"
+             onmouseover="this.style.borderColor='var(--accent)'"
+             onmouseout="this.style.borderColor='var(--border)'"
+             ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+             ondragleave="this.style.borderColor='var(--border)'"
+             ondrop="handleXlsxDrop(event)">
+          <div style="font-size:32px;margin-bottom:6px;">📊</div>
+          <div style="font-weight:700;font-size:14px;color:var(--text);">לחץ להעלאה או גרור קובץ לכאן</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">.xlsx, .xls עד 20MB</div>
+        </div>
+        <input type="file" id="xlsxFileInput" accept=".xlsx,.xls" style="display:none;" onchange="uploadXlsxFile(this.files[0])" />
+        <div id="xlsxUploadMsg" style="font-size:13px;text-align:center;min-height:16px;margin-bottom:10px;"></div>
+
+        <!-- File list -->
+        <div id="xlsxFileList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="color:var(--text-dim);font-size:13px;text-align:center;padding:12px;">טוען...</div>
+        </div>
+      </div>
+
+      <!-- Tutorials -->
+      <div class="card">
+        <h2>🎬 סרטוני הדרכה</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">הסרטונים יופיעו אצל כל הטכנאים בלחיצה על "סרטוני הדרכה".</p>
+
+        <!-- Add form -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+          <input type="text" id="tutorialTitleInput" placeholder="שם הסרטון" style="flex:1;min-width:180px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;text-align:right;" />
+          <input type="text" id="tutorialUrlInput" placeholder="https://youtube.com/..." style="flex:2;min-width:240px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;" />
+          <button class="btn" onclick="addTutorial()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;white-space:nowrap;">+ הוסף</button>
+        </div>
+
+        <!-- List -->
+        <div id="tutorialsAdminList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="color:var(--text-dim);font-size:13px;text-align:center;padding:16px;">טוען...</div>
+        </div>
+      </div>
+
+      <!-- Mailing List -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <h2 style="margin:0;">📧 רשימת תפוצה</h2>
+          <button class="btn" onclick="exportMailingList()" style="background:var(--green);font-size:13px;">⬇ ייצוא CSV</button>
+        </div>
+        <div id="mailingListEmpty" style="display:none;color:var(--text-dim);font-size:14px;text-align:center;padding:20px;">אין נרשמים עדיין</div>
+        <table id="mailingTable" style="display:none;">
+          <thead><tr><th>שם</th><th>אימייל</th><th>תאריך הרשמה</th><th>הסר</th></tr></thead>
+          <tbody id="mailingBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Installers List -->
+      <div class="card">
+        <h2 data-i18n="installersList">👥 Installer Accounts</h2>
+        <table id="installersTable">
+          <thead>
+            <tr>
+              <th style="min-width:120px;">מספר טלפון</th>
+              <th style="min-width:130px;">שם טכנאי</th>
+              <th style="min-width:110px;">סיסמה</th>
+              <th style="min-width:220px;">כתובות MAC</th>
+              <th style="min-width:100px;">נוצר</th>
+              <th style="min-width:120px;">פעולה אחרונה</th>
+              <th style="min-width:150px;text-align:center;">ביצוע פעולות</th>
+            </tr>
+          </thead>
+          <tbody id="installersBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Login Logs -->
+      <div class="card">
+        <h2 data-i18n="loginLogs">📊 Login Activity</h2>
+        <table id="logsTable">
+          <thead>
+            <tr>
+              <th data-i18n="thPhone">Phone Number</th>
+              <th data-i18n="thTimestamp">Timestamp</th>
+              <th data-i18n="thIP">IP Address</th>
+            </tr>
+          </thead>
+          <tbody id="logsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAC Modal -->
+  <div class="modal-overlay" id="macModal">
+    <div class="modal">
+      <h3 id="modalTitle">Add MAC Address</h3>
+      <input type="hidden" id="modalPhone" />
+      <input type="hidden" id="modalOriginalMac" />
+
+      <div class="modal-field" id="macFieldWrap">
+        <label id="labelMac">MAC Address</label>
+        <input type="text" id="modalMac" placeholder="2875D8C16B0F" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelAddress">📍 Address</label>
+        <input type="text" id="modalAddress" placeholder="123 Main St, Apt 5B" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelPurchase">🛒 Date of Purchase</label>
+        <input type="date" id="modalPurchaseDate" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelStart">🟢 Date of Start Working</label>
+        <input type="date" id="modalStartDate" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelNotes">📝 Additional Info</label>
+        <input type="text" id="modalNotes" placeholder="Extra details..." />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelTechnician">👷 Technician Name</label>
+        <input type="text" id="modalTechnicianName" placeholder="Technician full name" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelSupplier">🏢 Supplier Name</label>
+        <input type="text" id="modalSupplier" placeholder="Supplier name" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelCommittee">👥 Committee Name</label>
+        <input type="text" id="modalCommittee" placeholder="Committee name" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelModel">💻 דגם מכשיר</label>
+        <select id="modalModel" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;direction:rtl;">
+          <option value="genesis7">Genesis 7</option>
+          <option value="genesis5">Genesis 5</option>
+        </select>
+      </div>
+
+      <div class="modal-field">
+        <label id="labelAnnualFee">💰 Annual License Fee</label>
+        <input type="text" id="modalAnnualFee" placeholder="e.g. 250" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelLicensesPurchased">📊 Licenses Purchased</label>
+        <input type="number" id="modalLicensesPurchased" placeholder="e.g. 5" min="0" />
+      </div>
+
+      <!-- Hidden fields for values not shown in UI but needed by submitMac -->
+      <input type="hidden" id="modalTechnicianPhone" />
+      <input type="hidden" id="modalCommitteePhone" />
+      <input type="hidden" id="modalCity" />
+      <input type="hidden" id="modalVoipbellAccount" />
+
+      <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeModal()" id="modalCancelBtn">Cancel</button>
+        <button onclick="submitMac()" id="modalSaveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Set Hebrew + RTL immediately
+    document.documentElement.setAttribute('lang', 'he');
+    document.documentElement.setAttribute('dir', 'rtl');
+
+    const translations = {
+      en: {
+        loginTitle: "Manager Login",
+        username: "Username",
+        password: "Password",
+        loginBtn: "Login",
+        logout: "Logout",
+        panelTitle: "Manager Panel",
+        panelSubtitle: "Manage installer accounts and MAC assignments",
+        quickAccess: "🔗 Quick Access",
+        installerPanelLink: "Open Installer Panel",
+        deviceLookupLink: "Open Device Lookup",
+        downloadBackup: "Download Database Backup",
+        voipbellServer: "Voipbell Server Login",
+        createInstaller: "➕ Create Installer Account",
+        phoneNumber: "Phone Number (e.g., +972501234567)",
+        macAddresses: "MAC Addresses (comma separated, optional)",
+        createBtn: "Create",
+        installersList: "👥 Installer Accounts",
+        thPhone: "Phone Number",
+        thPassword: "Password",
+        thMacs: "MAC Addresses",
+        thCreated: "Created",
+        thLastLogin: "Last Login",
+        thActions: "Actions",
+        loginLogs: "📊 Login Activity",
+        thTimestamp: "Timestamp",
+        thIP: "IP Address",
+        addMac: "Add",
+        delete: "Delete",
+        copy: "Copy",
+        copied: "Copied!",
+        never: "Never",
+        accountCreated: "Account created!",
+        savePassword: "save this password",
+        resetPassword: "Reset Password",
+        passwordReset: "Password reset!",
+        newPassword: "New password",
+        address: "Address",
+        notes: "Additional Info",
+        purchaseDate: "Date of Purchase",
+        startDate: "Date of Start Working",
+        city: "City",
+        technicianName: "Technician Name",
+        technicianPhone: "Technician Phone",
+        supplierName: "Supplier Name",
+        committeePhone: "Committee Phone",
+        panelModel: "Model",
+        annualFee: "Annual License Fee",
+        licensesPurchased: "Licenses Purchased",
+        committeeName: "Committee Name",
+        licenseQuestion: "Has the annual license been paid?",
+        oneYear: "1 year since installation",
+        yearsCount: "years since installation",
+        installerDescription: "Installer Description",
+        edit: "Edit",
+      },
+      he: {
+        loginTitle: "כניסת מנהל",
+        username: "שם משתמש",
+        password: "סיסמה",
+        loginBtn: "התחבר",
+        logout: "התנתק",
+        panelTitle: "פאנל מנהל",
+        panelSubtitle: "ניהול חשבונות מתקינים והקצאות MAC",
+        quickAccess: "🔗 גישה מהירה",
+        installerPanelLink: "פתח פאנל מתקין",
+        deviceLookupLink: "פתח חיפוש מכשיר",
+        downloadBackup: "הורד גיבוי מסד נתונים",
+        voipbellServer: "התחברות לשרת Voipbell",
+        createInstaller: "➕ צור חשבון מתקין",
+        phoneNumber: "מספר טלפון (לדוגמה: +972501234567)",
+        macAddresses: "כתובות MAC (מופרדות בפסיקים, אופציונלי)",
+        createBtn: "צור",
+        installersList: "👥 חשבונות מתקינים",
+        thPhone: "מספר טלפון",
+        thPassword: "סיסמה",
+        thMacs: "כתובות MAC",
+        thCreated: "נוצר",
+        thLastLogin: "כניסה אחרונה",
+        thActions: "פעולות",
+        loginLogs: "📊 פעילות התחברות",
+        thTimestamp: "זמן",
+        thIP: "כתובת IP",
+        addMac: "הוסף",
+        delete: "מחק",
+        copy: "העתק",
+        copied: "הועתק!",
+        never: "אף פעם",
+        accountCreated: "חשבון נוצר!",
+        savePassword: "שמור סיסמה זו",
+        resetPassword: "איפוס סיסמה",
+        passwordReset: "הסיסמה אופסה!",
+        newPassword: "סיסמה חדשה",
+        address: "כתובת",
+        notes: "מידע נוסף",
+        purchaseDate: "תאריך רכישה",
+        startDate: "תאריך תחילת עבודה",
+        city: "עיר",
+        technicianName: "שם טכנאי",
+        technicianPhone: "טלפון טכנאי",
+        supplierName: "שם ספק",
+        committeePhone: "טלפון ועד",
+        panelModel: "דגם",
+        annualFee: "דמי רישיון שנתיים",
+        licensesPurchased: "כמה רשיונות נרכשו",
+        committeeName: "שם ועד",
+        licenseQuestion: "האם שולם רישיון שנתי?",
+        oneYear: "שנה מאז התקנה",
+        yearsCount: "שנים מאז התקנה",
+        installerDescription: "תיאור מתקין",
+        edit: "ערוך",
+      }
+    };
+
+    let currentLang = 'he';
+
+    function showMessage(text, type = 'info') {
+      const el = document.getElementById('globalMessage');
+      if (!el) return;
+      const cls = type === 'success' ? 'success-msg' : type === 'error' ? 'error-msg' : 'info-msg';
+      el.className = cls;
+      el.textContent = text;
+      setTimeout(() => { el.textContent = ''; el.className = ''; }, 3500);
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle('light');
+      const isLight = document.body.classList.contains('light');
+      const icon = isLight ? '🌙' : '☀️';
+      document.querySelectorAll('.theme-btn').forEach(b => b.textContent = icon);
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    }
+
+    // Default to light theme
+    if (localStorage.getItem('theme') !== 'dark') document.body.classList.add('light');
+    if (!localStorage.getItem('theme')) localStorage.setItem('theme', 'light');
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[lang][key]) el.textContent = translations[lang][key];
+      });
+
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (translations[lang][key]) el.placeholder = translations[lang][key];
+      });
+
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+      });
+
+      if (document.getElementById('managerPanel').style.display !== 'none') loadData();
+    }
+
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('lang-btn')) setLanguage(e.target.dataset.lang);
+    });
+
+    async function login() {
+      const username = document.getElementById('loginUsername').value;
+      const password = document.getElementById('loginPassword').value;
+
+      const errorDiv = document.getElementById('loginError');
+      errorDiv.style.display = 'none';
+      errorDiv.textContent = '';
+
+      try {
+        const res = await fetch('/api/manager/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          document.getElementById('loginScreen').style.display = 'none';
+          document.getElementById('managerPanel').style.display = 'block';
+          loadData();
+          loadCatalog();
+          loadMailingList();
+          loadTutorialsAdmin();
+          loadManagerFiles();
+        } else {
+          errorDiv.textContent = data.error || 'Login failed';
+          errorDiv.style.display = 'block';
+        }
+      } catch (err) {
+        errorDiv.textContent = 'Network error';
+        errorDiv.style.display = 'block';
+      }
+    }
+
+    function logout() {
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('managerPanel').style.display = 'none';
+      document.getElementById('loginUsername').value = '';
+      document.getElementById('loginPassword').value = '';
+      document.getElementById('loginError').style.display = 'none';
+    }
+
+    async function createInstaller() {
+      const phoneNumber = document.getElementById('newPhone').value;
+      const macs = document.getElementById('newMacs').value;
+      const macAddresses = macs ? macs.split(',').map(m => m.trim().replace(/[:\s-]/g, '').toUpperCase()) : [];
+
+      const res = await fetch('/api/manager/installers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber, macAddresses })
+      });
+
+      const data = await res.json();
+      const resultDiv = document.getElementById('createResult');
+      const t = translations[currentLang];
+
+      if (data.success) {
+        resultDiv.innerHTML = `
+          <div class="success-msg">
+            <strong>${t.accountCreated}</strong><br>
+            ${t.thPhone}: ${data.phoneNumber}<br>
+            ${t.thPassword}: <strong style="font-size: 16px;">${data.password}</strong>
+            <button class="copy-btn small" data-copy="${data.password}">${t.copy}</button>
+            <br><small>(${t.savePassword})</small>
+          </div>
+        `;
+        document.getElementById('newPhone').value = '';
+        document.getElementById('newMacs').value = '';
+        loadData();
+      } else {
+        resultDiv.innerHTML = `<div class="error-msg">${data.error || 'Error'}</div>`;
+      }
+    }
+
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-copy]');
+      if (!btn) return;
+      const text = btn.getAttribute('data-copy');
+      navigator.clipboard.writeText(text);
+      btn.textContent = translations[currentLang].copied;
+      setTimeout(() => btn.textContent = translations[currentLang].copy, 2000);
+    });
+
+    async function deleteInstaller(phoneNumber) {
+      if (!confirm(`Delete installer ${phoneNumber}?`)) return;
+      await fetch(`/api/manager/installers/${phoneNumber}`, { method: 'DELETE' });
+      loadData();
+    }
+
+    async function resetPassword(phoneNumber) {
+      if (!confirm(`Reset password for ${phoneNumber}?`)) return;
+      const res = await fetch(`/api/manager/installers/${phoneNumber}/reset-password`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        alert(`${translations[currentLang].passwordReset}\n${translations[currentLang].newPassword}: ${data.password}`);
+        loadData();
+      }
+    }
+
+    function openModal(phoneNumber, macObj = null, focusField = null) {
+      const t = translations[currentLang];
+      document.getElementById('modalPhone').value = phoneNumber;
+      document.getElementById('macModal').classList.add('open');
+
+      document.getElementById('macFieldWrap').style.display = macObj ? 'none' : 'block';
+      const macInput = document.getElementById('modalMac');
+      macInput.readOnly = false;
+      macInput.style.background = '';
+      macInput.style.cursor = '';
+      document.getElementById('modalOriginalMac').value = macObj ? macObj.mac : '';
+
+      document.getElementById('modalMac').value = macObj ? (macObj.mac || '') : '';
+      document.getElementById('modalAddress').value = macObj ? (macObj.address || '') : '';
+      document.getElementById('modalPurchaseDate').value = macObj ? (macObj.purchaseDate || '') : '';
+      document.getElementById('modalStartDate').value = macObj ? (macObj.startDate || '') : '';
+      document.getElementById('modalNotes').value = macObj ? (macObj.notes || '') : '';
+      document.getElementById('modalTechnicianName').value = macObj ? (macObj.technicianName || '') : '';
+      document.getElementById('modalTechnicianPhone').value = macObj ? (macObj.technicianPhone || '') : '';
+      document.getElementById('modalSupplier').value = macObj ? (macObj.supplierName || '') : '';
+      document.getElementById('modalCommitteePhone').value = macObj ? (macObj.committeePhone || '') : '';
+      document.getElementById('modalCity').value = macObj ? (macObj.city || '') : '';
+      document.getElementById('modalModel').value = macObj ? (macObj.panelType || 'genesis7') : 'genesis7';
+      document.getElementById('modalVoipbellAccount').value = macObj ? (macObj.voipbellAccount || '') : '';
+      document.getElementById('modalAnnualFee').value = macObj ? (macObj.annualFee || '') : '';
+
+      document.getElementById('modalTitle').textContent = macObj ? (t.edit + ' MAC') : ('+ ' + t.addMac);
+      document.getElementById('labelAddress').textContent = '📍 ' + t.address;
+      document.getElementById('labelPurchase').textContent = '🛒 ' + t.purchaseDate;
+      document.getElementById('labelStart').textContent = '🟢 ' + t.startDate;
+      document.getElementById('labelNotes').textContent = '📝 ' + t.notes;
+      document.getElementById('labelTechnician').textContent = '👷 ' + t.technicianName;
+      document.getElementById('labelSupplier').textContent = '🏢 ' + t.supplierName;
+      document.getElementById('labelAnnualFee').textContent = '💰 ' + t.annualFee;
+
+      document.getElementById('modalCancelBtn').textContent = currentLang === 'he' ? 'ביטול' : 'Cancel';
+      document.getElementById('modalSaveBtn').textContent = currentLang === 'he' ? 'שמור' : 'Save';
+
+      if (focusField) {
+        setTimeout(() => {
+          const fieldMap = {
+            address: 'modalAddress',
+            purchaseDate: 'modalPurchaseDate',
+            startDate: 'modalStartDate',
+            notes: 'modalNotes',
+            technicianName: 'modalTechnicianName',
+            supplierName: 'modalSupplier',
+            annualFee: 'modalAnnualFee',
+            licensesPurchased: 'modalLicensesPurchased',
+            committeeName: 'modalCommittee',
+            committeePhone: 'modalCommitteePhone',
+            technicianPhone: 'modalTechnicianPhone',
+            city: 'modalCity',
+            panelType: 'modalModel',
+            voipbellAccount: 'modalVoipbellAccount',
+          };
+          const el = document.getElementById(fieldMap[focusField]);
+          if (el) { el.focus(); el.select && el.select(); }
+        }, 120);
+      }
+    }
+
+    function closeModal() { document.getElementById('macModal').classList.remove('open'); }
+
+    async function submitMac() {
+      const phoneNumber = document.getElementById('modalPhone').value;
+      const originalMac = document.getElementById('modalOriginalMac').value;
+      const rawMac = originalMac || document.getElementById('modalMac').value;
+      const mac = rawMac.replace(/[:\s-]/g, '').toUpperCase();
+
+      const address = document.getElementById('modalAddress').value;
+      const purchaseDate = document.getElementById('modalPurchaseDate').value;
+      const startDate = document.getElementById('modalStartDate').value;
+      const notes = document.getElementById('modalNotes').value;
+      const technicianName = document.getElementById('modalTechnicianName').value;
+      const technicianPhone = document.getElementById('modalTechnicianPhone').value;
+      const supplierName = document.getElementById('modalSupplier').value;
+      const committeeName = document.getElementById('modalCommittee').value;
+      const committeePhone = document.getElementById('modalCommitteePhone').value;
+      const city = document.getElementById('modalCity').value;
+      const panelType = document.getElementById('modalModel').value;
+      const annualFee = document.getElementById('modalAnnualFee').value;
+      const licensesPurchased = document.getElementById('modalLicensesPurchased').value;
+
+      if (!mac) return alert('MAC address is required');
+
+      if (originalMac) {
+        await fetch(`/api/manager/installers/${phoneNumber}/macs/${originalMac}`, { method: 'DELETE' });
+      }
+
+      const voipbellAccount = document.getElementById('modalVoipbellAccount').value;
+      await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ macAddress: mac, address, city, notes, purchaseDate, startDate, technicianName, technicianPhone, supplierName, committeeName, committeePhone, annualFee, licensesPurchased, panelType, voipbellAccount })
+      });
+
+      closeModal();
+      loadData();
+    }
+
+    async function editField(phoneNumber, mac, field) {
+      const res = await fetch(`/api/manager/installers/${phoneNumber}`);
+      const data = await res.json();
+      const macObj = data.installer.macAddresses.find(m => m.mac === mac);
+      if (!macObj) return;
+      openModal(phoneNumber, macObj, field);
+    }
+
+    function addMac(phoneNumber) { openModal(phoneNumber, null); }
+
+    function editMac(phoneNumber, macObj) { openModal(phoneNumber, macObj); }
+
+    async function removeMac(phoneNumber, mac) {
+      await fetch(`/api/manager/installers/${phoneNumber}/macs/${mac}`, { method: 'DELETE' });
+      loadData();
+    }
+
+    async function handleLicensePayment(phoneNumber, mac) {
+      const t = translations[currentLang];
+      const confirmed = confirm(t.licenseQuestion);
+      if (!confirmed) return;
+
+      try {
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        const macObj = details.installer.macAddresses.find(m => m.mac === mac);
+        if (!macObj) return showMessage('❌ MAC not found', 'error');
+
+        const res = await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            macAddress: mac,
+            address: macObj.address || '',
+            purchaseDate: macObj.purchaseDate || '',
+            startDate: macObj.startDate || '',
+            notes: macObj.notes || '',
+            technicianName: macObj.technicianName || '',
+            supplierName: macObj.supplierName || '',
+            committeeName: macObj.committeeName || '',
+            annualFee: macObj.annualFee || '',
+            licensesPurchased: macObj.licensesPurchased || '',
+            licensePaid: true,
+          }),
+        });
+
+        if (!res.ok) throw new Error('Failed to update');
+        showMessage(currentLang === 'he' ? '✅ רישיון סומן כשולם!' : '✅ License marked as paid!', 'success');
+        loadData();
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+      }
+    }
+
+    async function handleLicenseUnpaid(phoneNumber, mac) {
+      const confirmed = confirm(currentLang === 'he' ? 'לבטל סימון תשלום?' : 'Mark as unpaid?');
+      if (!confirmed) return;
+
+      try {
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        const macObj = details.installer.macAddresses.find(m => m.mac === mac);
+        if (!macObj) return showMessage('❌ MAC not found', 'error');
+
+        const res = await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            macAddress: mac,
+            address: macObj.address || '',
+            purchaseDate: macObj.purchaseDate || '',
+            startDate: macObj.startDate || '',
+            notes: macObj.notes || '',
+            technicianName: macObj.technicianName || '',
+            supplierName: macObj.supplierName || '',
+            committeeName: macObj.committeeName || '',
+            annualFee: macObj.annualFee || '',
+            licensesPurchased: macObj.licensesPurchased || '',
+            licensePaid: false,
+          }),
+        });
+
+        if (!res.ok) throw new Error('Failed to update');
+        showMessage(currentLang === 'he' ? '✅ סומן כלא שולם' : '✅ Marked as unpaid', 'success');
+        loadData();
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+      }
+    }
+
+    async function downloadBackup() {
+      try {
+        showMessage(currentLang === 'he' ? 'מוריד גיבוי...' : 'Downloading backup...', 'info');
+        const res = await fetch('/api/manager/backup');
+        if (!res.ok) throw new Error('Backup failed');
+
+        const data = await res.json();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `genesistracer-backup-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showMessage(currentLang === 'he' ? '✅ גיבוי הורד בהצלחה!' : '✅ Backup downloaded successfully!', 'success');
+      } catch (err) {
+        showMessage((currentLang === 'he' ? '❌ שגיאה בהורדת גיבוי: ' : '❌ Error downloading backup: ') + err.message, 'error');
+      }
+    }
+
+
+    // ==================== TUTORIALS ====================
+    let tutorialsData = [];
+
+    async function loadTutorialsAdmin() {
+      const container = document.getElementById('tutorialsAdminList');
+      if (!container) return;
+      try {
+        const res = await fetch('/api/tutorials');
+        const data = await res.json();
+        tutorialsData = data.tutorials || [];
+        renderTutorialsAdmin();
+      } catch(e) {
+        container.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:16px;">שגיאה בטעינה</div>';
+      }
+    }
+
+    function renderTutorialsAdmin() {
+      const container = document.getElementById('tutorialsAdminList');
+      if (!tutorialsData.length) {
+        container.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:16px;">אין סרטונים עדיין</div>';
+        return;
+      }
+      container.innerHTML = tutorialsData.map((t, i) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+          <div style="flex:1;text-align:right;">
+            <div style="font-weight:600;font-size:14px;color:var(--text);">${t.title}</div>
+            <a href="${t.url}" target="_blank" style="font-size:12px;color:var(--accent);word-break:break-all;">${t.url}</a>
+          </div>
+          <button onclick="removeTutorial(${i})" style="background:var(--red);color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;white-space:nowrap;flex-shrink:0;">🗑 הסר</button>
+        </div>
+      `).join('');
+    }
+
+    async function addTutorial() {
+      const title = document.getElementById('tutorialTitleInput').value.trim();
+      const url = document.getElementById('tutorialUrlInput').value.trim();
+      if (!title || !url) return alert('יש למלא שם וקישור');
+      tutorialsData.push({ title, url });
+      await saveTutorialsAdmin();
+      document.getElementById('tutorialTitleInput').value = '';
+      document.getElementById('tutorialUrlInput').value = '';
+    }
+
+    async function removeTutorial(index) {
+      tutorialsData.splice(index, 1);
+      await saveTutorialsAdmin();
+    }
+
+    async function saveTutorialsAdmin() {
+      try {
+        await fetch('/api/manager/tutorials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tutorials: tutorialsData })
+        });
+        renderTutorialsAdmin();
+      } catch(e) {
+        alert('שגיאה בשמירה');
+      }
+    }
+
+
+    // ==================== MANAGER FILE STORAGE ====================
+    async function loadManagerFiles() {
+      const list = document.getElementById('xlsxFileList');
+      if (!list) return;
+      try {
+        const res  = await fetch('/api/manager/files');
+        const data = await res.json();
+        const files = data.files || [];
+        if (!files.length) {
+          list.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:12px;">אין קבצים עדיין</div>';
+          return;
+        }
+        list.innerHTML = files.map(f => {
+          const sizeKB = Math.round((f.size || 0) / 1024);
+          const date   = f.uploadedAt ? new Date(f.uploadedAt).toLocaleDateString('he-IL') : '';
+          const encId  = encodeURIComponent(f.publicId);
+          return `
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+              <span style="font-size:22px;flex-shrink:0;">📊</span>
+              <div style="flex:1;min-width:0;text-align:right;">
+                <div style="font-weight:700;font-size:14px;color:var(--text);">${f.title || f.name}</div>
+                <div style="font-size:11px;color:var(--text-dim);">${sizeKB} KB · ${date}</div>
+              </div>
+              <a href="${f.url}" download="${f.name}" target="_blank"
+                 style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">
+                ⬇ הורד
+              </a>
+              <button onclick="deleteManagerFile('${encId}')"
+                style="background:var(--red);color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;">
+                🗑 מחק
+              </button>
+            </div>
+            <div style="padding:8px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+              <input type="text" value="${f.title || ''}" placeholder="הוסף כותרת..."
+                     id="title-${encId}"
+                     style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;background:var(--surface);color:var(--text);text-align:right;" />
+              <button onclick="saveFileTitle('${encId}', '${f.publicId}')"
+                      style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;">
+                שמור
+              </button>
+            </div>`;
+        }).join('');
+      } catch(e) {
+        list.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;">שגיאה בטעינה</div>';
+      }
+    }
+
+    async function uploadXlsxFile(file) {
+      if (!file) return;
+      const msg = document.getElementById('xlsxUploadMsg');
+      msg.style.color = 'var(--text-dim)';
+      msg.textContent = 'מעלה קובץ...';
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const res  = await fetch('/api/manager/files/upload', { method:'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+          msg.style.color = 'var(--green)';
+          msg.textContent = '✅ הועלה בהצלחה!';
+          loadManagerFiles();
+          setTimeout(() => { msg.textContent = ''; }, 2500);
+        } else {
+          msg.style.color = 'var(--red)';
+          msg.textContent = '❌ ' + (data.error || 'שגיאה');
+        }
+      } catch(e) {
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ שגיאת תקשורת';
+      }
+      document.getElementById('xlsxFileInput').value = '';
+    }
+
+    function handleXlsxDrop(event) {
+      event.preventDefault();
+      document.getElementById('xlsxDropZone').style.borderColor = 'var(--border)';
+      const file = event.dataTransfer.files[0];
+      if (file) uploadXlsxFile(file);
+    }
+
+    async function deleteManagerFile(encodedPublicId) {
+      if (!confirm('למחוק את הקובץ?')) return;
+      const publicId = decodeURIComponent(encodedPublicId);
+      try {
+        const res  = await fetch(`/api/manager/files/${encodedPublicId}`, { method:'DELETE' });
+        const data = await res.json();
+        if (data.success) loadManagerFiles();
+        else alert('שגיאה במחיקה: ' + (data.error || 'unknown'));
+      } catch(e) { alert('שגיאת תקשורת'); }
+    }
+
+
+    async function editInstallerName(phoneNumber, currentName) {
+      const newName = prompt('שם הטכנאי:', currentName || '');
+      if (newName === null) return;
+      try {
+        const res = await fetch(`/api/manager/installers/${phoneNumber}/info`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ installerName: newName.trim() })
+        });
+        const data = await res.json();
+        console.log('editInstallerName response:', data);
+        if (data.success) loadData();
+        else alert('שגיאה: ' + (data.error || 'unknown'));
+      } catch(e) { alert('שגיאת תקשורת: ' + e.message); }
+    }
+
+    async function saveFileTitle(encId, publicId) {
+      const input = document.getElementById('title-' + encId);
+      if (!input) return;
+      const title = input.value.trim();
+      try {
+        const res = await fetch('/api/manager/files/title', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publicId: decodeURIComponent(publicId), title })
+        });
+        const data = await res.json();
+        if (data.success) { loadManagerFiles(); }
+        else alert('שגיאה: ' + (data.error || 'unknown'));
+      } catch(e) { alert('שגיאת תקשורת'); }
+    }
+
+    async function loadData() {
+      loadUnreadBadges();
+      const installersRes = await fetch('/api/manager/installers');
+      const installersData = await installersRes.json();
+
+      const tbody = document.getElementById('installersBody');
+      tbody.innerHTML = '';
+
+      for (const installer of installersData.installers) {
+        const details = await fetch(`/api/manager/installers/${installer.phoneNumber}`).then(r => r.json());
+        const row = document.createElement('tr');
+
+        row.innerHTML = `
+          <td>
+            <span style="font-size:13px;">${installer.phoneNumber}</span>
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-weight:600;font-size:13px;">${installer.installerName || '—'}</span>
+              <button class="field-edit-btn" data-phone="${installer.phoneNumber}" data-name="${installer.installerName||''}" onclick="editInstallerName(this.getAttribute('data-phone'), this.getAttribute('data-name'))" title="ערוך שם" style="opacity:1;">✏️</button>
+            </div>
+          </td>
+          <td>
+            <div class="password-display">
+              ${details.installer.password || 'N/A'}
+              <button class="copy-btn" onclick="copyPassword(this)" data-copy="${details.installer.password || ''}">
+                ${currentLang === 'he' ? 'העתק 📋' : 'Copy 📋'}
+              </button>
+            </div>
+          </td>
+          <td>
+            <div>
+              ${details.installer.macAddresses.map(macObj => `
+                <div class="mac-detail">
+                  <div class="mac-detail-header">
+                    <span class="mac-detail-mac">${macObj.mac}</span>
+                    <div class="mac-actions">
+                      <button class="small" onclick='editMac("${installer.phoneNumber}", ${JSON.stringify(macObj)})'>${translations[currentLang].edit}</button>
+                      <button class="small danger" onclick="removeMac('${installer.phoneNumber}', '${macObj.mac}')">×</button>
+                    </div>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">🖥️ ${translations[currentLang].panelModel}:</span>
+                    <span class="mac-detail-value">${(macObj.panelType||'genesis7')==='genesis5'?'Genesis 5':'Genesis 7'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "panelType")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📞 VoipBell Account:</span>
+                    <span class="mac-detail-value">${macObj.voipbellAccount || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "voipbellAccount")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📍 ${translations[currentLang].address}:</span>
+                    <span class="mac-detail-value">${macObj.address || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "address")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">🏙️ ${translations[currentLang].city}:</span>
+                    <span class="mac-detail-value">${macObj.city || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "city")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">🛒 ${translations[currentLang].purchaseDate}:</span>
+                    <span class="mac-detail-value">${macObj.purchaseDate || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "purchaseDate")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">🟢 ${translations[currentLang].startDate}:</span>
+                    <span class="mac-detail-value">${macObj.startDate || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "startDate")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📝 ${translations[currentLang].notes}:</span>
+                    <span class="mac-detail-value">${macObj.notes || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "notes")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">👷 ${translations[currentLang].technicianName}:</span>
+                    <span class="mac-detail-value">${macObj.technicianName || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "technicianName")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📞 ${translations[currentLang].technicianPhone}:</span>
+                    <span class="mac-detail-value">${macObj.technicianPhone || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "technicianPhone")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">🏢 ${translations[currentLang].supplierName}:</span>
+                    <span class="mac-detail-value">${macObj.supplierName || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "supplierName")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">👥 ${translations[currentLang].committeeName}:</span>
+                    <span class="mac-detail-value">${macObj.committeeName || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "committeeName")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📞 ${translations[currentLang].committeePhone}:</span>
+                    <span class="mac-detail-value">${macObj.committeePhone || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "committeePhone")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">💰 ${translations[currentLang].annualFee}:</span>
+                    <span class="mac-detail-value">${macObj.annualFee || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "annualFee")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📊 ${translations[currentLang].licensesPurchased}:</span>
+                    <span class="mac-detail-value">${macObj.licensesPurchased || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "licensesPurchased")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field" style="border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px;">
+                    <span class="mac-detail-label" style="color: var(--green);">💬 ${translations[currentLang].installerDescription}:</span>
+                    <span class="mac-detail-value" style="color: var(--green); font-style: italic;">
+                      ${macObj.description || '—'}
+                    </span>
+                  </div>
+                </div>
+              `).join('')}
+
+              <button class="small" onclick="addMac('${installer.phoneNumber}')" style="margin-top: 8px;">+ ${translations[currentLang].addMac}</button>
+            </div>
+          </td>
+
+          <td>
+            ${(() => {
+              const warnings = [];
+              const paid = [];
+
+              for (const macObj of details.installer.macAddresses) {
+                if (!macObj.startDate) continue;
+
+                const startDateObj = new Date(macObj.startDate);
+                const now = new Date();
+                const yearsDiff = now.getFullYear() - startDateObj.getFullYear();
+                const monthsDiff = now.getMonth() - startDateObj.getMonth();
+                const daysDiff = now.getDate() - startDateObj.getDate();
+
+                let yearsElapsed = yearsDiff;
+                if (monthsDiff < 0 || (monthsDiff === 0 && daysDiff < 0)) yearsElapsed--;
+
+                if (yearsElapsed >= 1) {
+                  const yearsText = yearsElapsed === 1 ?
+                    translations[currentLang].oneYear :
+                    yearsElapsed + ' ' + translations[currentLang].yearsCount;
+
+                  if (macObj.licensePaid) paid.push({ mac: macObj.mac, years: yearsElapsed, text: yearsText });
+                  else warnings.push({ mac: macObj.mac, years: yearsElapsed, text: yearsText });
+                }
+              }
+
+              let html = '';
+
+              if (warnings.length > 0) {
+                html += warnings.map(w =>
+                  `<button class="license-warning-btn"
+                    onclick="handleLicensePayment('${installer.phoneNumber}','${w.mac}')"
+                    title="${w.text}">
+                    🔔 ${w.years}
+                  </button>`
+                ).join(' ');
+              }
+
+              if (paid.length > 0) {
+                html += paid.map(p =>
+                  `<button class="license-paid-btn"
+                    onclick="handleLicenseUnpaid('${installer.phoneNumber}','${p.mac}')"
+                    title="✅ רישיון שולם - ${p.text}">
+                    ✅ ${p.years}
+                  </button>`
+                ).join(' ');
+              }
+
+              return html || '—';
+            })()}
+          </td>
+
+          <td>${new Date(installer.createdAt).toLocaleString()}</td>
+          <td>${installer.lastLogin ? new Date(installer.lastLogin).toLocaleString() : translations[currentLang].never}</td>
+          <td>
+            <div style="display:flex;flex-direction:column;gap:5px;width:150px;margin:0 auto;">
+              <button class="small" onclick="remoteLogin('${installer.phoneNumber}')" style="background:#5b6abf;color:white;justify-content:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>כניסה מרחוק</button>
+              <button class="small reboot-btn" onclick="rebootInstallerDevices('${installer.phoneNumber}', this)" style="justify-content:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>אתחול</button>
+              <button class="small" onclick="openScheduleModal('${installer.phoneNumber}')" style="background:#0891b2;color:white;justify-content:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>תזמון אתחול</button>
+              <button class="small success" onclick="resetPassword('${installer.phoneNumber}')" style="justify-content:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>איפוס סיסמה</button>
+              <button class="small danger" onclick="deleteInstaller('${installer.phoneNumber}')" style="justify-content:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>מחק</button>
+              <button class="small" onclick="openChat('${installer.phoneNumber}')" style="justify-content:center;gap:6px;background:#7c3aed;color:white;" id="chatBtn-${installer.phoneNumber}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>צ'אט תמיכה <span id="unread-${installer.phoneNumber}" style="display:none;background:#ef4444;color:white;border-radius:50%;width:16px;height:16px;font-size:10px;line-height:16px;text-align:center;margin-right:2px;"></span></button>
+            </div>
+          </td>
+        `;
+
+        tbody.appendChild(row);
+      }
+
+      const logsRes = await fetch('/api/manager/logs');
+      const logsData = await logsRes.json();
+      const logsBody = document.getElementById('logsBody');
+      logsBody.innerHTML = logsData.logs.slice(0, 20).map(log => `
+        <tr>
+          <td>${log.phoneNumber}</td>
+          <td>${new Date(log.timestamp).toLocaleString()}</td>
+          <td>${log.ip || 'N/A'}</td>
+        </tr>
+      `).join('');
+    }
+
+    // initial labels
+    setLanguage('he');
+
+
+    function copyPassword(btn) {
+      const password = btn.getAttribute('data-copy');
+      navigator.clipboard.writeText(password).then(() => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = currentLang === 'he' ? '✅ הועתק!' : '✅ Copied!';
+        btn.style.background = '#10b981';
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.style.background = '';
+        }, 2000);
+      }).catch(err => {
+        console.error('Copy failed:', err);
+      });
+    }
+
+
+    async function remoteLogin(phoneNumber) {
+      const t = translations[currentLang];
+      
+      try {
+        showMessage(t.loggingIn, 'info');
+        
+        // Get installer details
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        
+        if (!details.success || !details.installer) {
+          return showMessage('❌ ' + (currentLang === 'he' ? 'מתקין לא נמצא' : 'Installer not found'), 'error');
+        }
+        
+        const password = details.installer.password;
+        
+        if (!password) {
+          return showMessage('❌ ' + (currentLang === 'he' ? 'סיסמה לא נמצאה' : 'Password not found'), 'error');
+        }
+        
+        // Auto-login: POST to installer login API
+        const loginRes = await fetch('/api/installer/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber, password })
+        });
+        
+        const loginData = await loginRes.json();
+        
+        if (loginData.success) {
+          // Store login data in sessionStorage
+          sessionStorage.setItem('installerData', JSON.stringify(loginData.data));
+          
+          // Open installer panel in new tab
+          window.open('/installer.html', '_blank');
+          
+          showMessage('✅ ' + (currentLang === 'he' ? 'נפתח בחלון חדש' : 'Opened in new tab'), 'success');
+        } else {
+          showMessage('❌ ' + (loginData.error || 'Login failed'), 'error');
+        }
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+      }
+    }
+
+    async function editPhoneNumber(oldPhoneNumber) {
+      const t = translations[currentLang];
+      const newPhoneNumber = prompt(t.newPhoneNumber + ':', oldPhoneNumber);
+      
+      if (!newPhoneNumber || newPhoneNumber === oldPhoneNumber) return;
+      
+      // Validate phone number (basic check)
+      if (newPhoneNumber.trim().length < 3) {
+        return showMessage('❌ ' + (currentLang === 'he' ? 'מספר טלפון לא תקין' : 'Invalid phone number'), 'error');
+      }
+      
+      try {
+        showMessage(currentLang === 'he' ? 'מעדכן...' : 'Updating...', 'info');
+        
+        const res = await fetch(`/api/manager/installers/${oldPhoneNumber}/change-phone`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newPhoneNumber: newPhoneNumber.trim() })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          showMessage('✅ ' + t.phoneChanged, 'success');
+          loadData();
+        } else {
+          showMessage('❌ ' + data.error, 'error');
+        }
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+      }
+    }
+
+
+    // ==================== CATALOG ====================
+    async function loadCatalog() {
+      try {
+        const res = await fetch('/api/catalog');
+        const data = await res.json();
+        const input = document.getElementById('catalogUrlInput');
+        const status = document.getElementById('catalogStatus');
+        if (data.url) {
+          input.value = data.url;
+          status.innerHTML = `<span style="color:var(--green);">✅ קטלוג פעיל: <a href="${data.url}" target="_blank" style="color:var(--accent);">${data.url}</a></span>`;
+        } else {
+          status.innerHTML = '<span style="color:var(--text-dim);">אין קטלוג מוגדר</span>';
+        }
+      } catch(e) {}
+    }
+
+    async function saveCatalogUrl() {
+      const url = document.getElementById('catalogUrlInput').value.trim();
+      if (!url) return clearCatalogUrl();
+      const res = await fetch('/api/manager/catalog', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url }) });
+      const data = await res.json();
+      const status = document.getElementById('catalogStatus');
+      if (data.success) {
+        status.innerHTML = `<span style="color:var(--green);">✅ נשמר בהצלחה: <a href="${url}" target="_blank" style="color:var(--accent);">${url}</a></span>`;
+      } else {
+        status.innerHTML = '<span style="color:var(--red);">❌ שגיאה בשמירה</span>';
+      }
+    }
+
+    async function clearCatalogUrl() {
+      await fetch('/api/manager/catalog', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: null }) });
+      document.getElementById('catalogUrlInput').value = '';
+      document.getElementById('catalogStatus').innerHTML = '<span style="color:var(--text-dim);">הקטלוג הוסר</span>';
+    }
+
+    // ==================== MAILING LIST ====================
+    async function loadMailingList() {
+      try {
+        const res = await fetch('/api/manager/mailing-list');
+        const data = await res.json();
+        const tbody = document.getElementById('mailingBody');
+        const table = document.getElementById('mailingTable');
+        const empty = document.getElementById('mailingListEmpty');
+        tbody.innerHTML = '';
+        if (!data.list || data.list.length === 0) {
+          table.style.display = 'none';
+          empty.style.display = 'block';
+          return;
+        }
+        table.style.display = '';
+        empty.style.display = 'none';
+        data.list.forEach(sub => {
+          const date = sub.subscribedAt ? new Date(sub.subscribedAt).toLocaleDateString('he-IL') : '-';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${sub.name}</td><td>${sub.email}</td><td>${date}</td>
+            <td><button class="small danger" onclick="removeSubscriber('${sub.email}')">🗑</button></td>`;
+          tbody.appendChild(tr);
+        });
+      } catch(e) {}
+    }
+
+    async function removeSubscriber(email) {
+      if (!confirm('להסיר ' + email + ' מרשימת התפוצה?')) return;
+      await fetch('/api/manager/mailing-list/' + encodeURIComponent(email), { method: 'DELETE' });
+      loadMailingList();
+    }
+
+    function exportMailingList() {
+      const rows = document.querySelectorAll('#mailingBody tr');
+      if (!rows.length) return alert('אין נרשמים לייצוא');
+      let csv = 'שם,אימייל,תאריך הרשמה\n';
+      rows.forEach(r => {
+        const cells = r.querySelectorAll('td');
+        csv += `"${cells[0].textContent}","${cells[1].textContent}","${cells[2].textContent}"\n`;
+      });
+      const a = document.createElement('a');
+      a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+      a.download = 'mailing-list.csv';
+      a.click();
+    }
+
+    // ==================== REBOOT ====================
+    async function rebootInstallerDevices(phoneNumber, btn) {
+      if (!confirm('לאתחל את כל המכשירים של ' + phoneNumber + '?')) return;
+      const orig = btn.textContent;
+      btn.textContent = '...מאתחל';
+      btn.disabled = true;
+      try {
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        const macs = (details.installer?.macAddresses || []).map(m => m.mac);
+        let ok = 0, fail = 0;
+        for (const mac of macs) {
+          const res = await fetch('/api/manager/reboot', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ mac })
+          });
+          const d = await res.json();
+          if (d.success) ok++; else fail++;
+        }
+        alert(`אתחול הושלם: ${ok} הצליחו, ${fail} נכשלו`);
+      } catch(e) { alert('שגיאה: ' + e.message); }
+      btn.textContent = orig;
+      btn.disabled = false;
+    }
+
+    // ==================== SCHEDULE MODAL ====================
+    let schedulePhone = null;
+    let allSchedules = {};
+
+    async function openScheduleModal(phoneNumber) {
+      schedulePhone = phoneNumber;
+      // Load schedules
+      const res = await fetch('/api/manager/auto-reboot');
+      const data = await res.json();
+      allSchedules = data.schedules || {};
+
+      // Load installer MACs
+      const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+      const macs = (details.installer?.macAddresses || []).map(m => m.mac);
+
+      const list = document.getElementById('scheduleList');
+      list.innerHTML = macs.map(mac => {
+        const cleanMac = mac.replace(/[:\-\s]/g,'').toUpperCase();
+        const sched = allSchedules[cleanMac];
+        const hasSchedule = sched && sched.enabled;
+        return `
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:10px;">
+            <div style="font-family:monospace;font-weight:700;color:var(--accent);margin-bottom:8px;">${mac}</div>
+            ${hasSchedule ? `<div style="font-size:12px;color:var(--green);margin-bottom:8px;">✅ מתוזמן: ${sched.type==='once' ? sched.onceDateTime : sched.israelTime + ' כל ' + (sched.days||[]).length + ' ימים'}</div>` : '<div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">אין תזמון</div>'}
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+              <label style="font-size:12px;">שעה (ישראל):</label>
+              <input type="time" id="stime-${cleanMac}" value="${sched?.israelTime||'03:00'}" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;" />
+              <select id="stype-${cleanMac}" onchange="toggleDays('${cleanMac}')" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;">
+                <option value="recurring" ${sched?.type!=='once'?'selected':''}>חוזר</option>
+                <option value="once" ${sched?.type==='once'?'selected':''}>חד פעמי</option>
+              </select>
+            </div>
+            <div id="sdays-${cleanMac}" style="display:${sched?.type==='once'?'none':'flex'};gap:5px;flex-wrap:wrap;margin-bottom:8px;">
+              ${['א','ב','ג','ד','ה','ו','ש'].map((d,i) => `
+                <label style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;cursor:pointer;">
+                  <input type="checkbox" id="sday-${cleanMac}-${i}" ${(sched?.days||[0,1,2,3,4,5,6]).includes(i)?'checked':''} style="cursor:pointer;" />
+                  ${d}
+                </label>`).join('')}
+            </div>
+            <div id="sonce-${cleanMac}" style="display:${sched?.type==='once'?'flex':'none'};gap:8px;align-items:center;margin-bottom:8px;">
+              <label style="font-size:12px;">תאריך:</label>
+              <input type="date" id="sdate-${cleanMac}" value="${sched?.onceDateTime?.slice(0,10)||new Date().toISOString().slice(0,10)}" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;" />
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button onclick="saveSchedule('${mac}')" style="padding:5px 10px;background:var(--green);color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;">שמור</button>
+              ${hasSchedule ? `<button onclick="deleteSchedule('${mac}')" style="padding:5px 10px;background:var(--red);color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;">מחק</button>` : ''}
+            </div>
+          </div>`;
+      }).join('') || '<p style="color:var(--text-dim);">אין כתובות MAC</p>';
+
+      document.getElementById('scheduleOverlay').style.display = 'flex';
+    }
+
+    function closeScheduleModal() {
+      document.getElementById('scheduleOverlay').style.display = 'none';
+    }
+
+    function toggleDays(cleanMac) {
+      const type = document.getElementById(`stype-${cleanMac}`).value;
+      document.getElementById(`sdays-${cleanMac}`).style.display = type === 'once' ? 'none' : 'flex';
+      document.getElementById(`sonce-${cleanMac}`).style.display = type === 'once' ? 'flex' : 'none';
+    }
+
+    async function saveSchedule(mac) {
+      const cleanMac = mac.replace(/[:\-\s]/g,'').toUpperCase();
+      const time = document.getElementById(`stime-${cleanMac}`).value || '03:00';
+      const type = document.getElementById(`stype-${cleanMac}`).value;
+      const [hh, mm] = time.split(':').map(Number);
+      const utcHour = (hh - 2 + 24) % 24;
+      let body;
+      if (type === 'once') {
+        const date = document.getElementById(`sdate-${cleanMac}`).value || new Date().toISOString().slice(0,10);
+        body = { mac, type:'once', hour: utcHour, minute: mm, israelTime: time, enabled: true, onceDateTime: date + 'T' + time };
+      } else {
+        const days = [0,1,2,3,4,5,6].filter(i => document.getElementById(`sday-${cleanMac}-${i}`)?.checked);
+        body = { mac, type:'recurring', hour: utcHour, minute: mm, israelTime: time, days: days.length ? days : [0,1,2,3,4,5,6], enabled: true };
+      }
+      await fetch('/api/manager/auto-reboot', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      openScheduleModal(schedulePhone);
+    }
+
+    // ==================== EXCEL EXPORT ====================
+    function exportExcel() {
+      window.open('/api/manager/export-excel', '_blank');
+    }
+
+    // ==================== CHAT ====================
+    let chatPhone = null;
+    let chatPollInterval = null;
+
+    async function openChat(phoneNumber) {
+      chatPhone = phoneNumber;
+      document.getElementById('chatTitle').textContent = phoneNumber;
+      document.getElementById('chatOverlay').style.display = 'flex';
+      document.getElementById('chatInput').value = '';
+      await loadChatMessages();
+      await fetch(`/api/chat/${phoneNumber}/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from:'manager' }) });
+      // update unread badge
+      const badge = document.getElementById(`unread-${phoneNumber}`);
+      if (badge) badge.style.display = 'none';
+      chatPollInterval = setInterval(async () => {
+        await loadChatMessages();
+      }, 10000);
+    }
+
+    function closeChat() {
+      document.getElementById('chatOverlay').style.display = 'none';
+      clearInterval(chatPollInterval);
+      chatPollInterval = null;
+      chatPhone = null;
+    }
+
+    async function loadChatMessages() {
+      if (!chatPhone) return;
+      const res = await fetch(`/api/chat/${chatPhone}`);
+      const data = await res.json();
+      const container = document.getElementById('chatMessages');
+      const wasAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 40;
+      container.innerHTML = data.messages.length === 0
+        ? '<div style="text-align:center;color:var(--text-dim);font-size:13px;margin-top:40px;">אין הודעות עדיין</div>'
+        : data.messages.map(m => {
+            const isManager = m.from === 'manager';
+            const time = new Date(m.timestamp).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'});
+            return `<div style="display:flex;flex-direction:column;align-items:${isManager?'flex-start':'flex-end'};">
+              <div style="max-width:75%;padding:8px 12px;border-radius:${isManager?'4px 16px 16px 16px':'16px 4px 16px 16px'};background:${isManager?'var(--accent)':'var(--surface2)'};color:${isManager?'white':'var(--text)'};font-size:14px;">${m.text}</div>
+              <span style="font-size:10px;color:var(--text-dim);margin-top:2px;">${isManager?'מנהל':'מתקין'} · ${time}</span>
+            </div>`;
+          }).join('');
+      if (wasAtBottom) container.scrollTop = container.scrollHeight;
+
+      // mark as read
+      fetch(`/api/chat/${chatPhone}/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from:'manager' }) });
+    }
+
+    async function sendManagerMessage() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text || !chatPhone) return;
+      input.value = '';
+      await fetch(`/api/chat/${chatPhone}`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ from:'manager', text })
+      });
+      await loadChatMessages();
+    }
+
+    async function loadUnreadBadges() {
+      try {
+        const res = await fetch('/api/chat/unread/all');
+        const data = await res.json();
+        document.querySelectorAll('[id^="unread-"]').forEach(el => {
+          const phone = el.id.replace('unread-','');
+          if (data.counts[phone]) {
+            el.textContent = data.counts[phone];
+            el.style.display = 'inline-block';
+          } else {
+            el.style.display = 'none';
+          }
+        });
+      } catch(e) {}
+    }
+
+    async function deleteSchedule(mac) {
+      const cleanMac = mac.replace(/[:\-\s]/g,'').toUpperCase();
+      await fetch(`/api/manager/auto-reboot/${cleanMac}`, { method:'DELETE' });
+      openScheduleModal(schedulePhone);
+    }
+
+  </script>
+
+  <!-- Schedule Modal -->
+  <!-- Chat Modal -->
+  <div id="chatOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border-radius:14px;width:420px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.2);direction:rtl;overflow:hidden;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);">
+        <h3 style="margin:0;display:flex;align-items:center;gap:8px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> צ'אט תמיכה — <span id="chatTitle" style="color:var(--accent);font-size:14px;"></span></h3>
+        <button onclick="closeChat()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-dim);">✕</button>
+      </div>
+      <div id="chatMessages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;min-height:300px;max-height:420px;"></div>
+      <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;">
+        <input id="chatInput" type="text" placeholder="הקלד הודעה..." style="flex:1;padding:10px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;" onkeydown="if(event.key==='Enter')sendManagerMessage()" />
+        <button onclick="sendManagerMessage()" style="padding:10px 18px;background:var(--accent);color:white;border:none;border-radius:20px;cursor:pointer;font-weight:600;">שלח</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="scheduleOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border-radius:14px;padding:24px;width:480px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);direction:rtl;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="margin:0;">🕐 תזמון אתחול אוטומטי</h3>
+        <button onclick="closeScheduleModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-dim);">✕</button>
+      </div>
+      <div id="scheduleList"></div>
+    </div>
+  </div>
+
+</body>
+</html>

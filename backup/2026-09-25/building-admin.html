@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ניהול בניינים — GenesisTracer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --red:#E31B23;--black:#0A0A0A;--white:#fff;
+      --gray-50:#F9F9F9;--gray-100:#F3F3F3;--gray-200:#E5E5E5;
+      --gray-400:#9CA3AF;--gray-500:#6B7280;--gray-700:#374151;
+      --green:#16a34a;
+    }
+    body{font-family:'Heebo',sans-serif;background:#F0F2F5;min-height:100vh;direction:rtl;color:var(--black);}
+    .topbar{background:var(--black);padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+    .topbar-logo{color:white;font-size:18px;font-weight:900;letter-spacing:1px;display:flex;align-items:center;gap:10px;}
+    .topbar-logo span{background:var(--red);color:white;font-size:11px;font-weight:800;padding:2px 8px;border-radius:4px;}
+    .topbar a{color:var(--gray-400);font-size:13px;text-decoration:none;}
+    .topbar a:hover{color:white;}
+    .container{max-width:900px;margin:0 auto;padding:32px 24px;}
+    h1{font-size:28px;font-weight:900;margin-bottom:4px;}
+    .subtitle{font-size:14px;color:var(--gray-500);margin-bottom:32px;}
+    .card{background:white;border-radius:12px;border:1px solid var(--gray-200);padding:24px;margin-bottom:20px;}
+    .card h2{font-size:16px;font-weight:800;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+    .form-row{display:flex;gap:10px;flex-wrap:wrap;}
+    input[type=text]{flex:1;min-width:200px;padding:11px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:14px;color:var(--black);background:var(--gray-50);}
+    input[type=text]:focus{outline:none;border-color:var(--red);}
+    .btn{padding:11px 22px;background:var(--red);color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;}
+    .btn:hover{opacity:0.9;}
+    .btn-danger{background:#ef4444;}
+    .result-box{margin-top:16px;padding:16px;background:#f0fdf4;border:1.5px solid var(--green);border-radius:8px;display:none;}
+    .result-box.error{background:#fff5f5;border-color:var(--red);}
+    .result-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--green);margin-bottom:8px;}
+    .result-box.error .result-label{color:var(--red);}
+    .big-code{font-size:36px;font-weight:900;font-family:monospace;letter-spacing:6px;color:var(--black);}
+    .code-meta{font-size:13px;color:var(--gray-500);margin-top:6px;}
+    .copy-btn{margin-top:12px;padding:8px 16px;border:1.5px solid var(--gray-200);border-radius:7px;background:white;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+    .copy-btn:hover{border-color:var(--black);}
+    table{width:100%;border-collapse:collapse;}
+    th{padding:10px 12px;text-align:right;border-bottom:2px solid var(--gray-200);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);font-weight:800;}
+    td{padding:12px;border-bottom:1px solid var(--gray-100);font-size:14px;}
+    td:last-child{text-align:center;}
+    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+    .badge-code{background:#e0e7ff;color:#4338ca;font-family:monospace;font-size:13px;letter-spacing:1px;}
+    .badge-pass{background:#fef9c3;color:#854d0e;font-family:monospace;font-size:13px;letter-spacing:1px;}
+    #loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#F0F2F5;}
+    .login-card{background:white;border-radius:16px;border:1px solid var(--gray-200);padding:40px;width:360px;text-align:center;}
+    .login-card h2{font-size:22px;font-weight:900;margin-bottom:4px;}
+    .login-card p{font-size:13px;color:var(--gray-500);margin-bottom:24px;}
+    .login-card input{width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:14px;margin-bottom:10px;}
+    .login-card .btn{width:100%;margin-top:6px;}
+    .err{color:var(--red);font-size:13px;margin-top:8px;font-weight:600;}
+    #mainPanel{display:none;}
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div style="font-size:32px;margin-bottom:12px;">🏢</div>
+    <h2>ניהול בניינים</h2>
+    <p>GenesisTracer — כניסת מנהל</p>
+    <input type="text" id="loginUser" placeholder="שם משתמש"/>
+    <input type="password" id="loginPass" placeholder="סיסמה"/>
+    <button class="btn" onclick="doLogin()">כניסה</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- Main panel -->
+<div id="mainPanel">
+  <div class="topbar">
+    <div class="topbar-logo">
+      TADOR <span>BUILDINGS</span>
+    </div>
+    <a href="#" onclick="logout()">התנתק</a>
+  </div>
+
+  <div class="container">
+    <h1>ניהול בניינים</h1>
+    <p class="subtitle">צור קוד בניין לכל פנל Genesis — הוועד והדיירים ישתמשו בו להתחבר</p>
+
+    <!-- Create building -->
+    <div class="card">
+      <h2>🏗️ הוסף בניין חדש</h2>
+      <div class="form-row">
+        <input type="text" id="newMac" placeholder="כתובת MAC של הפנל (למשל: 2875D8152AD8)"/>
+        <input type="text" id="newAddress" placeholder="כתובת הבניין (למשל: הרצל 12, תל אביב)"/>
+        <button class="btn" onclick="createBuilding()">צור בניין</button>
+      </div>
+      <div class="result-box" id="createResult">
+        <div class="result-label">✓ בניין נוצר בהצלחה!</div>
+        <div style="display:flex;gap:32px;flex-wrap:wrap;margin-bottom:12px;">
+          <div>
+            <div style="font-size:11px;color:var(--gray-500);margin-bottom:4px;">קוד בניין</div>
+            <div class="big-code" id="resCode"></div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--gray-500);margin-bottom:4px;">סיסמת ועד</div>
+            <div class="big-code" id="resPass" style="font-size:28px;color:var(--gray-700);"></div>
+          </div>
+        </div>
+        <div class="code-meta" id="resMeta"></div>
+        <button class="copy-btn" id="copyAllBtn" onclick="copyDetails()">📋 העתק קוד + סיסמה</button>
+      </div>
+    </div>
+
+    <!-- CSV Format Info -->
+    <div class="card" style="background:#faf5ff;border-color:#e9d5ff;">
+      <h2 style="color:#7c3aed;">📊 העלאת רשימת דיירים</h2>
+      <p style="font-size:13px;color:var(--gray-500);line-height:1.7;margin-bottom:12px;">
+        לחץ <strong>📊 העלה רשימה</strong> ליד הבניין הרצוי. שמור מ-Excel כ-CSV (קובץ → שמירה בשם → CSV UTF-8).
+      </p>
+      <div style="background:white;border-radius:8px;padding:14px;font-family:monospace;font-size:13px;border:1px solid #e9d5ff;direction:ltr;">
+        שם,טלפון,דירה<br/>
+        ישראל ישראלי,0501234567,4<br/>
+        דנה כהן,0521234567,7<br/>
+        אבי לוי,0541234567,12
+      </div>
+      <p style="font-size:12px;color:var(--gray-400);margin-top:8px;">עמודות: שם / טלפון / דירה. כותרת בשורה ראשונה (עברית או אנגלית).</p>
+      <button onclick="downloadTemplate()" style="margin-top:12px;padding:10px 18px;background:#7c3aed;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">⬇ הורד תבנית CSV</button>
+    </div>
+
+    <!-- Buildings list -->
+    <div class="card">
+      <h2>📋 כל הבניינים</h2>
+      <div id="buildingsList">
+        <div style="text-align:center;padding:24px;color:var(--gray-500);">טוען...</div>
+      </div>
+    </div>
+  </div>
+  <input type="file" id="csvFileInput" accept=".csv,.xlsx,.xls,.txt" style="display:none;" onchange="handleCsvUpload(this)"/>
+</div>
+
+<script>
+  let adminPass = '';
+
+  async function doLogin() {
+    const user = document.getElementById('loginUser').value.trim();
+    const pass = document.getElementById('loginPass').value.trim();
+    const err = document.getElementById('loginErr');
+    err.textContent = '';
+    try {
+      const res = await fetch('/api/manager/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: pass })
+      });
+      const data = await res.json();
+      if (data.success) {
+        adminPass = pass;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('mainPanel').style.display = 'block';
+        loadBuildings();
+      } else {
+        err.textContent = data.error || 'שגיאה בכניסה';
+      }
+    } catch(e) {
+      err.textContent = 'שגיאת תקשורת';
+    }
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  function logout() {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('mainPanel').style.display = 'none';
+  }
+
+  async function createBuilding() {
+    const mac = document.getElementById('newMac').value.trim();
+    const address = document.getElementById('newAddress').value.trim();
+    const box = document.getElementById('createResult');
+    box.style.display = 'none';
+    box.className = 'result-box';
+
+    if (!mac || !address) {
+      box.className = 'result-box error';
+      box.style.display = 'block';
+      box.innerHTML = '<div class="result-label">שגיאה</div><div>נא למלא MAC וכתובת</div>';
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/buildings/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mac, address })
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('resCode').textContent = data.buildingCode;
+        document.getElementById('resPass').textContent = data.password;
+        document.getElementById('resMeta').textContent = data.address + ' · MAC: ' + data.mac;
+        box.style.display = 'block';
+        document.getElementById('newMac').value = '';
+        document.getElementById('newAddress').value = '';
+        loadBuildings();
+      } else {
+        box.className = 'result-box error';
+        box.style.display = 'block';
+        box.innerHTML = '<div class="result-label">שגיאה</div><div>' + (data.error || 'שגיאה') + '</div>';
+      }
+    } catch(e) {
+      box.className = 'result-box error';
+      box.style.display = 'block';
+      box.innerHTML = '<div class="result-label">שגיאה</div><div>' + e.message + '</div>';
+    }
+  }
+
+  function copyDetails() {
+    const code = document.getElementById('resCode').textContent;
+    const pass = document.getElementById('resPass').textContent;
+    const addr = document.getElementById('resMeta').textContent;
+    const text = `קוד בניין: ${code}\nסיסמת ועד: ${pass}\nכתובת: ${addr}`;
+    navigator.clipboard.writeText(text);
+    document.getElementById('copyAllBtn').textContent = '✅ הועתק!';
+    setTimeout(() => { document.getElementById('copyAllBtn').textContent = '📋 העתק קוד + סיסמה'; }, 2000);
+  }
+
+  async function loadBuildings() {
+    const container = document.getElementById('buildingsList');
+    try {
+      const res = await fetch('/api/buildings');
+      const data = await res.json();
+      if (!data.buildings.length) {
+        container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--gray-500);">אין בניינים עדיין</div>';
+        return;
+      }
+      container.innerHTML = `
+        <table>
+          <thead><tr>
+            <th>כתובת</th>
+            <th>MAC</th>
+            <th>קוד בניין</th>
+            <th>סיסמת ועד</th>
+            <th>תאריך</th>
+            <th>פעולות</th>
+          </tr></thead>
+          <tbody>
+            ${data.buildings.map(b => `
+              <tr>
+                <td style="font-weight:600;">${b.address}</td>
+                <td style="font-family:monospace;font-size:13px;">${b.mac.match(/.{1,2}/g).join(':')}</td>
+                <td><span class="badge badge-code">${b.buildingCode}</span></td>
+                <td><span class="badge badge-pass">${b.password}</span></td>
+                <td style="font-size:12px;color:var(--gray-500);">${new Date(b.createdAt).toLocaleDateString('he-IL')}</td>
+                <td>
+                  <button onclick="viewResidents('${b.buildingCode}')" style="padding:5px 10px;background:#0891b2;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;margin-left:4px;">דיירים</button>
+                  <button onclick="uploadResidentsList('${b.buildingCode}')" style="padding:5px 10px;background:#7c3aed;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;margin-left:4px;">📊 העלה רשימה</button>
+                  <button onclick="deleteBuilding('${b.buildingCode}')" style="padding:5px 10px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;">מחק</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    } catch(e) {
+      container.innerHTML = '<div style="color:red;padding:16px;">שגיאה: ' + e.message + '</div>';
+    }
+  }
+
+  function viewResidents(code) {
+    window.open('/committee.html?code=' + code + '&admin=1', '_blank');
+  }
+
+  function downloadTemplate() {
+    const bom = '\uFEFF';
+    const csv = bom + 'שם,טלפון,דירה\nישראל ישראלי,0501234567,1\nדנה כהן,0521234567,2\n';
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'residents-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function deleteBuilding(code) {
+    if (!confirm('למחוק את הבניין וכל הדיירים שלו?')) return;
+    await fetch('/api/buildings/' + code, { method: 'DELETE' });
+    loadBuildings();
+  }
+
+  // CSV upload
+  let uploadTargetCode = null;
+  function uploadResidentsList(code) {
+    uploadTargetCode = code;
+    document.getElementById('csvFileInput').click();
+  }
+
+  async function handleCsvUpload(input) {
+    const file = input.files[0];
+    if (!file || !uploadTargetCode) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch('/api/buildings/' + uploadTargetCode + '/upload-residents', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ נוספו ' + data.added + ' דיירים' + (data.skipped ? ', ' + data.skipped + ' כבר קיימים' : ''));
+      } else {
+        alert('❌ ' + (data.error || 'שגיאה'));
+      }
+    } catch(e) {
+      alert('❌ שגיאת תקשורת');
+    }
+    input.value = '';
+    uploadTargetCode = null;
+  }
+</script>
+</body>
+</html>

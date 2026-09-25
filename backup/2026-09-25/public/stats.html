@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>סטטיסטיקה — GenesisTracer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --surface2: #f8fafc;
+      --border: #e2e8f0;
+      --accent: #2563eb;
+      --green: #16a34a;
+      --green-dim: #dcfce7;
+      --red: #dc2626;
+      --red-dim: #fee2e2;
+      --amber: #d97706;
+      --amber-dim: #fef3c7;
+      --purple: #7c3aed;
+      --purple-dim: #ede9fe;
+      --text: #0f172a;
+      --text-2: #334155;
+      --text-dim: #64748b;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+    }
+
+    body {
+      font-family: 'Syne', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: var(--shadow);
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .logo-box {
+      width: 30px; height: 30px;
+      background: var(--text);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 12px; font-weight: 800;
+    }
+    .header-title { font-size: 16px; font-weight: 800; letter-spacing: 0.3px; }
+    .header-sub { font-size: 12px; color: var(--text-dim); }
+    .back-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 7px; padding: 7px 14px;
+      font-family: inherit; font-size: 13px; font-weight: 700;
+      color: var(--text-2); cursor: pointer;
+      text-decoration: none;
+      transition: border-color .15s, color .15s;
+    }
+    .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── MAIN ── */
+    main { max-width: 1100px; margin: 0 auto; padding: 28px 24px 48px; }
+
+    /* ── SUMMARY CARDS ── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 18px;
+      box-shadow: var(--shadow);
+    }
+    .stat-card-icon { font-size: 24px; margin-bottom: 10px; }
+    .stat-card-value {
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-card-label { font-size: 12px; color: var(--text-dim); font-weight: 600; }
+    .stat-card.green .stat-card-value { color: var(--green); }
+    .stat-card.blue .stat-card-value { color: var(--accent); }
+    .stat-card.amber .stat-card-value { color: var(--amber); }
+    .stat-card.purple .stat-card-value { color: var(--purple); }
+    .stat-card.red .stat-card-value { color: var(--red); }
+
+    /* ── SEARCH ── */
+    .search-bar {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .search-bar input {
+      width: 100%;
+      padding: 12px 16px 12px 42px;
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      font-family: inherit;
+      font-size: 14px;
+      background: var(--surface);
+      color: var(--text);
+      transition: border-color .15s;
+    }
+    .search-bar input:focus { outline: none; border-color: var(--accent); }
+    .search-bar input::placeholder { color: var(--text-dim); }
+    .search-icon {
+      position: absolute;
+      left: 14px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      font-size: 17px;
+    }
+
+    /* ── INSTALLER TABLE ── */
+    .section-title {
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 14px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .count-badge {
+      background: var(--accent);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .installer-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: box-shadow .15s;
+    }
+    .installer-card:hover { box-shadow: var(--shadow-md); }
+
+    .installer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      cursor: pointer;
+      gap: 12px;
+      border-bottom: 1px solid transparent;
+      transition: background .15s;
+    }
+    .installer-header:hover { background: var(--surface2); }
+    .installer-header.open { border-bottom-color: var(--border); background: var(--surface2); }
+
+    .installer-info { flex: 1; }
+    .installer-name { font-size: 15px; font-weight: 700; color: var(--text); }
+    .installer-phone { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+    .installer-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .meta-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .pill-blue { background: #dbeafe; color: var(--accent); }
+    .pill-green { background: var(--green-dim); color: var(--green); }
+    .pill-amber { background: var(--amber-dim); color: var(--amber); }
+    .pill-gray { background: var(--border); color: var(--text-dim); }
+
+    .toggle-icon { color: var(--text-dim); font-size: 18px; transition: transform .2s; }
+    .toggle-icon.open { transform: rotate(180deg); }
+
+    /* ── MAC LIST ── */
+    .mac-list { display: none; padding: 14px 18px; }
+    .mac-list.open { display: block; }
+
+    .mac-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .mac-table th {
+      text-align: right;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      padding: 6px 10px;
+      border-bottom: 1.5px solid var(--border);
+    }
+    .mac-table td {
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-2);
+      vertical-align: middle;
+    }
+    .mac-table tr:last-child td { border-bottom: none; }
+    .mac-table tr:hover td { background: var(--surface2); }
+
+    .mac-addr {
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .license-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .license-paid { background: var(--green-dim); color: var(--green); }
+    .license-free { background: var(--border); color: var(--text-dim); }
+    .panel-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 5px;
+      background: var(--purple-dim);
+      color: var(--purple);
+    }
+
+    /* ── LOADING / EMPTY ── */
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-dim);
+    }
+    .loading-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty { text-align: center; padding: 40px; color: var(--text-dim); font-size: 14px; }
+
+    /* ── LAST LOGIN ── */
+    .last-login {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 1px;
+    }
+    .last-login.recent { color: var(--green); }
+
+    /* ── ALERTS ── */
+    .alert-section { margin-bottom: 28px; }
+    .alert-card {
+      border-radius: 10px;
+      border: 1.5px solid;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .alert-card.warn  { border-color: #f59e0b; background: #fffbeb; }
+    .alert-card.danger { border-color: #dc2626; background: #fff5f5; }
+    .alert-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      flex-wrap: wrap;
+    }
+    .alert-icon { font-size: 20px; flex-shrink: 0; }
+    .alert-info { flex: 1; min-width: 0; }
+    .alert-title { font-size: 13px; font-weight: 700; color: var(--text); }
+    .alert-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .alert-years {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      flex-shrink: 0;
+    }
+    .years-warn   { background: #fef3c7; color: #92400e; }
+    .years-danger { background: #fee2e2; color: #991b1b; }
+    .alert-empty { font-size: 13px; color: var(--text-dim); padding: 12px 0; }
+
+    /* ── CHART ── */
+    .chart-section { margin-bottom: 28px; }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+    .chart-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .chart-controls label { font-size: 12px; font-weight: 700; color: var(--text-dim); }
+    .chart-controls select {
+      padding: 6px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .chart-controls select:focus { outline: none; border-color: var(--accent); }
+    .chart-total {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-right: auto;
+    }
+    .chart-total strong { color: var(--text); font-size: 15px; }
+    .chart-wrap {
+      position: relative;
+      height: 220px;
+    }
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 200px;
+      padding-bottom: 28px;
+      padding-top: 24px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    .bar-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      min-width: 44px;
+    }
+    .bar-value {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text);
+      min-height: 16px;
+    }
+    .bar {
+      width: 32px;
+      background: linear-gradient(180deg, var(--accent) 0%, #1d4ed8 100%);
+      border-radius: 5px 5px 0 0;
+      transition: height .4s ease, opacity .2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .bar:hover { opacity: .8; }
+    .bar-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .chart-empty { text-align:center; padding:48px; color:var(--text-dim); font-size:14px; }
+
+    @media (max-width: 640px) {    @media (max-width: 640px) {    /* ── CHART ── */
+    .chart-section { margin-bottom: 28px; }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+    .chart-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .chart-controls label { font-size: 12px; font-weight: 700; color: var(--text-dim); }
+    .chart-controls select {
+      padding: 6px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .chart-controls select:focus { outline: none; border-color: var(--accent); }
+    .chart-total {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-right: auto;
+    }
+    .chart-total strong { color: var(--text); font-size: 15px; }
+    .chart-wrap {
+      position: relative;
+      height: 220px;
+    }
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 200px;
+      padding-bottom: 28px;
+      padding-top: 24px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    .bar-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      min-width: 44px;
+    }
+    .bar-value {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text);
+      min-height: 16px;
+    }
+    .bar {
+      width: 32px;
+      background: linear-gradient(180deg, var(--accent) 0%, #1d4ed8 100%);
+      border-radius: 5px 5px 0 0;
+      transition: height .4s ease, opacity .2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .bar:hover { opacity: .8; }
+    .bar-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .chart-empty { text-align:center; padding:48px; color:var(--text-dim); font-size:14px; }
+
+    @media (max-width: 640px) {    @media (max-width: 640px) {
+      main { padding: 16px; }
+      .header { padding: 0 16px; }
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+      .mac-table th:nth-child(3),
+      .mac-table td:nth-child(3) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <div class="logo-box">T</div>
+    <div>
+      <div class="header-title">GenesisTracer</div>
+      <div class="header-sub">סטטיסטיקה</div>
+    </div>
+  </div>
+  <a href="/manager.html" class="back-btn">← חזור למנהל</a>
+</header>
+
+<main>
+  <!-- Summary -->
+  <div class="summary-grid" id="summaryGrid">
+    <div class="loading" style="grid-column:1/-1;">
+      <div class="loading-spinner"></div>
+      טוען נתונים...
+    </div>
+  </div>
+
+  <!-- Installer List -->
+  <!-- Sales Chart -->
+  <div class="chart-section" id="chartSection" style="display:none;">
+    <div class="chart-card">
+      <div class="chart-controls">
+        <label>שנה:</label>
+        <select id="yearSelect" onchange="renderChart()"></select>
+        <div style="display:flex;gap:6px;">
+          <button id="chartFilterAll" onclick="setChartFilter('all')"
+            style="padding:5px 12px;border-radius:20px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#0f172a;color:white;">
+            הכל
+          </button>
+          <button id="chartFilterG7" onclick="setChartFilter('genesis7')"
+            style="padding:5px 12px;border-radius:20px;border:1.5px solid #e2e8f0;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:white;color:#d97706;">
+            Genesis 7
+          </button>
+          <button id="chartFilterG5" onclick="setChartFilter('genesis5')"
+            style="padding:5px 12px;border-radius:20px;border:1.5px solid #e2e8f0;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:white;color:#7c3aed;">
+            Genesis 5
+          </button>
+        </div>
+        <span class="chart-total" id="chartTotal"></span>
+      </div>
+      <div class="chart-wrap">
+        <div class="bar-chart" id="barChart"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  <div id="alertsSection" style="display:none;">
+    <div class="alert-section">
+      <div class="section-title" style="color:#dc2626;">
+        ⚠️ פנלים שחלפו שנתיים ללא תשלום
+        <span class="count-badge" id="alert2Count" style="background:#dc2626;">0</span>
+      </div>
+      <div id="alerts2List"><div class="alert-empty">אין</div></div>
+    </div>
+    <div class="alert-section">
+      <div class="section-title" style="color:#d97706;">
+        🔔 פנלים שחלפה שנה ללא תשלום
+        <span class="count-badge" id="alert1Count" style="background:#d97706;">0</span>
+      </div>
+      <div id="alerts1List"><div class="alert-empty">אין</div></div>
+    </div>
+  </div>
+
+  <!-- Filter buttons -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+    <button onclick="setFilter('all')" id="filterAll"
+      style="padding:8px 18px;border-radius:20px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;background:#0f172a;color:white;transition:all .15s;">
+      הכל
+    </button>
+    <button onclick="setFilter('installer')" id="filterInstaller"
+      style="padding:8px 18px;border-radius:20px;border:1.5px solid #e2e8f0;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;background:white;color:#16a34a;transition:all .15s;">
+      ✅ מתקינים
+    </button>
+    <button onclick="setFilter('committee')" id="filterCommittee"
+      style="padding:8px 18px;border-radius:20px;border:1.5px solid #e2e8f0;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;background:white;color:#4338ca;transition:all .15s;">
+      🏢 ועד
+    </button>
+  </div>
+
+  <div class="section-title">
+    רשימת טכנאים
+    <span class="count-badge" id="installerCount">0</span>
+  </div>
+
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="חפש לפי שם, טלפון או כתובת MAC..."
+           oninput="filterInstallers(this.value)" />
+  </div>
+
+  <div id="installerList">
+    <div class="loading">
+      <div class="loading-spinner"></div>
+      טוען רשימת טכנאים...
+    </div>
+  </div>
+</main>
+
+<script>
+  let allInstallers = [];
+  let currentFilter = 'all';
+
+  function setFilter(type) {
+    currentFilter = type;
+    // Update button styles
+    const styles = {
+      all:       { active: '#0f172a', color: 'white' },
+      installer: { active: '#dcfce7', color: '#16a34a' },
+      committee: { active: '#e0e7ff', color: '#4338ca' },
+    };
+    ['all','installer','committee'].forEach(t => {
+      const btn = document.getElementById('filter' + t.charAt(0).toUpperCase() + t.slice(1));
+      if (!btn) return;
+      const isActive = t === type;
+      btn.style.background = isActive ? styles[t].active : 'white';
+      btn.style.color       = isActive ? (t === 'all' ? 'white' : styles[t].color) : '#64748b';
+      btn.style.border      = isActive ? 'none' : '1.5px solid #e2e8f0';
+    });
+
+    const filtered = currentFilter === 'all'
+      ? allInstallers
+      : allInstallers.filter(i => (i.accountType || 'installer') === currentFilter);
+    renderInstallers(filtered);
+  }
+
+  async function loadStats() {
+    try {
+      const res  = await fetch('/api/stats');
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      renderSummary(data.summary);
+      renderAlerts(data.alerts || {});
+      renderSalesChart(data.salesData || [], data.installers || []);
+      allInstallers = data.installers;
+      renderInstallers(allInstallers);
+    } catch(e) {
+      document.getElementById('summaryGrid').innerHTML =
+        `<div class="empty" style="grid-column:1/-1;">❌ שגיאה בטעינה: ${e.message}</div>`;
+    }
+  }
+
+
+  // ── Sales Chart ──
+  let allSalesData = [];
+  let chartFilter = 'all';
+
+  function setChartFilter(type) {
+    chartFilter = type;
+    ['All','G7','G5'].forEach(t => {
+      const btn = document.getElementById('chartFilter' + t);
+      if (!btn) return;
+      btn.style.background = 'white';
+      btn.style.border = '1.5px solid #e2e8f0';
+      btn.style.color = t === 'All' ? '#0f172a' : t === 'G7' ? '#d97706' : '#7c3aed';
+    });
+    const active = document.getElementById('chartFilter' + (type === 'all' ? 'All' : type === 'genesis7' ? 'G7' : 'G5'));
+    if (active) { active.style.background = type === 'all' ? '#0f172a' : type === 'genesis7' ? '#fef3c7' : '#ede9fe'; active.style.border = 'none'; }
+    renderChart();
+  }
+
+  const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני',
+                       'יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
+  function renderSalesChart(data, installers) {
+    // Build richer sales data including panelType
+    const richData = {};
+    if (installers) {
+      for (const inst of installers) {
+        for (const m of inst.macAddresses) {
+          if (!m.purchaseDate) continue;
+          let d = new Date(m.purchaseDate);
+          if (isNaN(d) && m.purchaseDate.includes('/')) {
+            const p = m.purchaseDate.split('/');
+            if (p.length === 3) d = new Date(`${p[2]}-${p[1]}-${p[0]}`);
+          }
+          if (isNaN(d)) continue;
+          const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+          if (!richData[key]) richData[key] = { all: 0, genesis7: 0, genesis5: 0 };
+          richData[key].all++;
+          richData[key][m.panelType || 'genesis7']++;
+        }
+      }
+    }
+    allSalesData = Object.entries(richData).sort(([a],[b]) => a.localeCompare(b)).map(([month, counts]) => ({ month, ...counts }));
+    if (!allSalesData.length && data.length) allSalesData = data.map(d => ({ ...d, all: d.count, genesis7: d.count, genesis5: 0 }));
+    if (!allSalesData.length) return;
+
+    document.getElementById('chartSection').style.display = 'block';
+
+    // Populate year dropdown
+    const years = [...new Set(data.map(d => d.month.split('-')[0]))].sort((a,b) => b-a);
+    const sel = document.getElementById('yearSelect');
+    sel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+
+    renderChart();
+  }
+
+  function renderChart() {
+    const year = document.getElementById('yearSelect').value;
+    const chart = document.getElementById('barChart');
+    const totalEl = document.getElementById('chartTotal');
+
+    const months = Array.from({length:12}, (_,i) => {
+      const key = `${year}-${String(i+1).padStart(2,'0')}`;
+      const found = allSalesData.find(d => d.month === key);
+      const count = found ? (found[chartFilter] || 0) : 0;
+      return { month: MONTH_NAMES[i], count };
+    });
+
+    const maxVal = Math.max(...months.map(m => m.count), 1);
+    const total  = months.reduce((s,m) => s + m.count, 0);
+    const filterLabel = chartFilter === 'all' ? 'סה"כ' : chartFilter === 'genesis7' ? 'Genesis 7' : 'Genesis 5';
+    const barColor = chartFilter === 'genesis7'
+      ? 'linear-gradient(180deg,#d97706,#b45309)'
+      : chartFilter === 'genesis5'
+      ? 'linear-gradient(180deg,#7c3aed,#5b21b6)'
+      : 'linear-gradient(180deg,#2563eb,#1d4ed8)';
+
+    totalEl.innerHTML = `${filterLabel} בשנת ${year}: <strong>${total} פנלים</strong>`;
+
+    chart.innerHTML = months.map(m => {
+      const barH = m.count === 0 ? 4 : Math.max(Math.round((m.count / maxVal) * 140), 10);
+      const opacity = m.count === 0 ? '0.15' : '1';
+      return `
+        <div class="bar-col">
+          <span class="bar-value" style="visibility:${m.count > 0 ? 'visible' : 'hidden'}">${m.count}</span>
+          <div class="bar" style="height:${barH}px;opacity:${opacity};background:${barColor};" title="${m.month}: ${m.count} פנלים"></div>
+          <span class="bar-label">${m.month.slice(0,3)}</span>
+        </div>`;
+    }).join('');
+  }
+
+  function renderAlerts(alerts) {
+    const oneYear  = alerts.oneYear  || [];
+    const twoYears = alerts.twoYears || [];
+    const section  = document.getElementById('alertsSection');
+
+    if (oneYear.length || twoYears.length) {
+      section.style.display = 'block';
+    }
+
+    document.getElementById('alert2Count').textContent = twoYears.length;
+    document.getElementById('alert1Count').textContent = oneYear.length;
+
+    const renderList = (items, cls, yearsClass) => {
+      if (!items.length) return '<div class="alert-empty">✅ אין פנלים בקטגוריה זו</div>';
+      return items.map(a => `
+        <div class="alert-card ${cls}">
+          <div class="alert-row">
+            <div class="alert-icon">${cls === 'danger' ? '🚨' : '⏰'}</div>
+            <div class="alert-info">
+              <div class="alert-title">
+                ${a.installerName || a.phoneNumber}
+                <span style="font-weight:400;color:var(--text-dim);font-size:12px;">· ${a.phoneNumber}</span>
+              </div>
+              <div class="alert-sub">
+                MAC: ${a.mac}
+                ${a.address ? ' · ' + a.address : ''}
+                ${a.city ? ', ' + a.city : ''}
+                ${a.committeeName ? ' · ועד: ' + a.committeeName : ''}
+              </div>
+              <div class="alert-sub">התחלה: ${a.startDate || '—'}</div>
+            </div>
+            <span class="alert-years ${yearsClass}">${a.yearsElapsed} שנים</span>
+          </div>
+        </div>`).join('');
+    };
+
+    document.getElementById('alerts2List').innerHTML = renderList(twoYears, 'danger', 'years-danger');
+    document.getElementById('alerts1List').innerHTML = renderList(oneYear,  'warn',   'years-warn');
+  }
+
+  function renderSummary(s) {
+    document.getElementById('summaryGrid').innerHTML = `
+      <div class="stat-card blue">
+        <div class="stat-card-icon">👷</div>
+        <div class="stat-card-value">${s.totalInstallers}</div>
+        <div class="stat-card-label">סה"כ טכנאים</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-card-icon">📟</div>
+        <div class="stat-card-value">${s.totalMacs}</div>
+        <div class="stat-card-label">סה"כ פנלים</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-card-icon">✅</div>
+        <div class="stat-card-value">${s.totalLicensesPaid}</div>
+        <div class="stat-card-label">רישיונות ששולמו</div>
+      </div>
+      <div class="stat-card amber">
+        <div class="stat-card-icon">🖥️</div>
+        <div class="stat-card-value">${s.genesis7Count}</div>
+        <div class="stat-card-label">Genesis 7</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-card-icon">🖥️</div>
+        <div class="stat-card-value">${s.genesis5Count}</div>
+        <div class="stat-card-label">Genesis 5</div>
+      </div>
+    `;
+  }
+
+  function renderInstallers(list) {
+    const installers  = list.filter(i => (i.accountType || 'installer') === 'installer');
+    const committees  = list.filter(i => i.accountType === 'committee');
+
+    // Update count badge based on what's shown
+    const shown = currentFilter === 'committee' ? committees.length
+                : currentFilter === 'installer' ? installers.length
+                : list.length;
+    document.getElementById('installerCount').textContent = shown;
+    const container = document.getElementById('installerList');
+
+    if (!list.length) {
+      container.innerHTML = '<div class="empty">אין תוצאות להצגה</div>';
+      return;
+    }
+
+    const renderCards = (items, startIdx) => items.map((inst, ii) => {
+      const i = startIdx + ii;
+      const macCount     = inst.macAddresses.length;
+      const paidCount    = inst.macAddresses.filter(m => m.licensePaid).length;
+      const lastLogin    = inst.lastLogin
+        ? new Date(inst.lastLogin).toLocaleDateString('he-IL')
+        : 'לא התחבר';
+      const isRecent     = inst.lastLogin &&
+        (Date.now() - new Date(inst.lastLogin)) < 7 * 24 * 60 * 60 * 1000;
+
+      const macRows = inst.macAddresses.length
+        ? inst.macAddresses.map(m => `
+          <tr>
+            <td><span class="mac-addr">${m.mac}</span></td>
+            <td>${m.address || '—'}${m.city ? ', ' + m.city : ''}</td>
+            <td>${m.committeeName || '—'}</td>
+            <td><span class="panel-badge">${m.panelType === 'genesis5' ? 'Genesis 5' : 'Genesis 7'}</span></td>
+            <td>
+              <span class="license-badge ${m.licensePaid ? 'license-paid' : 'license-free'}">
+                ${m.licensePaid ? '✅ שולם' : '○ חינם'}
+              </span>
+            </td>
+            <td>${m.annualFee ? '₪' + m.annualFee : '—'}</td>
+          </tr>`).join('')
+        : `<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:16px;">אין פנלים</td></tr>`;
+
+      return `
+        <div class="installer-card" id="card-${i}">
+          <div class="installer-header" onclick="toggleCard(${i})">
+            <div class="installer-info">
+              <div class="installer-name">${inst.installerName || inst.phoneNumber}</div>
+              <div class="installer-phone">${inst.phoneNumber}</div>
+              <div class="last-login ${isRecent ? 'recent' : ''}">
+                🕐 כניסה אחרונה: ${lastLogin}
+              </div>
+            </div>
+            <div class="installer-meta">
+              <span class="meta-pill pill-blue">${macCount} פנלים</span>
+              ${paidCount > 0 ? `<span class="meta-pill pill-green">${paidCount} שולמו</span>` : ''}
+              ${macCount - paidCount > 0 ? `<span class="meta-pill pill-gray">${macCount - paidCount} חינם</span>` : ''}
+            </div>
+            <span class="toggle-icon" id="icon-${i}">▼</span>
+          </div>
+          <div class="mac-list" id="macs-${i}">
+            <table class="mac-table">
+              <thead>
+                <tr>
+                  <th>כתובת MAC</th>
+                  <th>כתובת</th>
+                  <th>ועד / דיירים</th>
+                  <th>דגם</th>
+                  <th>רישיון</th>
+                  <th>תשלום שנתי</th>
+                </tr>
+              </thead>
+              <tbody>${macRows}</tbody>
+            </table>
+          </div>
+        </div>`;
+    });
+
+    // Build HTML based on current filter
+    let html = '';
+
+    if (currentFilter === 'committee') {
+      // Show only committees
+      if (!committees.length) {
+        html = '<div class="empty">אין חשבונות ועד</div>';
+      } else {
+        html += `<div class="section-title" style="color:#4338ca;">🏢 חשבונות ועד <span class="count-badge" style="background:#4338ca;">${committees.length}</span></div>`;
+        html += renderCards(committees, 0).join('');
+      }
+    } else if (currentFilter === 'installer') {
+      // Show only installers
+      if (!installers.length) {
+        html = '<div class="empty">אין מתקינים</div>';
+      } else {
+        html = renderCards(installers, 0).join('');
+      }
+    } else {
+      // Show all
+      html = renderCards(installers, 0).join('');
+      if (committees.length) {
+        html += `<div class="section-title" style="margin-top:24px;color:#4338ca;">🏢 חשבונות ועד <span class="count-badge" style="background:#4338ca;">${committees.length}</span></div>`;
+        html += renderCards(committees, installers.length).join('');
+      }
+    }
+
+    container.innerHTML = html;
+  }
+
+  function toggleCard(i) {
+    const macs = document.getElementById('macs-' + i);
+    const icon = document.getElementById('icon-' + i);
+    const header = macs.previousElementSibling;
+    const isOpen = macs.classList.contains('open');
+    macs.classList.toggle('open', !isOpen);
+    icon.classList.toggle('open', !isOpen);
+    header.classList.toggle('open', !isOpen);
+  }
+
+  function filterInstallers(q) {
+    if (!q.trim()) { renderInstallers(allInstallers); return; }
+    const lower = q.toLowerCase();
+    const filtered = allInstallers.filter(inst =>
+      (inst.installerName || '').toLowerCase().includes(lower) ||
+      inst.phoneNumber.includes(lower) ||
+      inst.macAddresses.some(m =>
+        m.mac.toLowerCase().includes(lower) ||
+        (m.address || '').toLowerCase().includes(lower) ||
+        (m.city || '').toLowerCase().includes(lower) ||
+        (m.committeeName || '').toLowerCase().includes(lower)
+      )
+    );
+    renderInstallers(filtered);
+  }
+
+  loadStats();
+</script>
+</body>
+</html>

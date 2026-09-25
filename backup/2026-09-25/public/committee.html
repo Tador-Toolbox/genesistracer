@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>פנל ועד — Genesis</title>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--red:#E31B23;--black:#0A0A0A;--gray-50:#F9F9F9;--gray-100:#F3F3F3;--gray-200:#E5E5E5;--gray-400:#9CA3AF;--gray-500:#6B7280;--green:#16a34a;}
+    body{font-family:'Heebo',sans-serif;background:var(--gray-50);min-height:100vh;direction:rtl;color:var(--black);}
+    .topbar{background:var(--black);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;}
+    .topbar-logo{color:white;font-size:16px;font-weight:900;}
+    .topbar-sub{color:var(--gray-400);font-size:13px;}
+    .topbar button{background:none;border:1px solid var(--gray-400);color:var(--gray-400);padding:5px 14px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;}
+    .topbar button:hover{color:white;border-color:white;}
+    #loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;}
+    .login-card{background:white;border-radius:16px;border:1px solid var(--gray-200);padding:40px;width:360px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.08);}
+    .login-card .icon{font-size:48px;margin-bottom:12px;}
+    .login-card h2{font-size:22px;font-weight:900;margin-bottom:4px;}
+    .login-card p{font-size:13px;color:var(--gray-500);margin-bottom:24px;}
+    .login-card input{width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:15px;margin-bottom:10px;text-align:right;}
+    .login-card input:focus{outline:none;border-color:var(--red);}
+    .btn-red{width:100%;padding:14px;background:var(--red);color:white;border:none;border-radius:8px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;margin-top:4px;}
+    .btn-red:hover{opacity:0.9;}
+    .err{color:var(--red);font-size:13px;font-weight:600;margin-top:10px;min-height:18px;}
+    #mainPanel{display:none;}
+    .container{max-width:1000px;margin:0 auto;padding:28px 20px;}
+    .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+    .panel-header h1{font-size:24px;font-weight:900;}
+    .panel-header p{font-size:13px;color:var(--gray-500);}
+    .stats-row{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
+    .stat-card{background:white;border:1px solid var(--gray-200);border-radius:10px;padding:16px 20px;flex:1;min-width:120px;}
+    .stat-card .num{font-size:28px;font-weight:900;}
+    .stat-card .label{font-size:12px;color:var(--gray-500);margin-top:2px;}
+    .search-bar{position:relative;margin-bottom:20px;}
+    .search-bar input{width:100%;padding:12px 16px 12px 44px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:inherit;font-size:14px;background:white;}
+    .search-bar input:focus{outline:none;border-color:var(--red);}
+    .search-bar .icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--gray-400);font-size:18px;}
+    .residents-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;}
+    .resident-card{background:white;border:1px solid var(--gray-200);border-radius:12px;overflow:hidden;transition:box-shadow .2s;}
+    .resident-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.1);}
+    .resident-photo{width:100%;height:160px;object-fit:cover;background:var(--gray-100);display:flex;align-items:center;justify-content:center;}
+    .resident-photo img{width:100%;height:160px;object-fit:cover;}
+    .resident-photo .no-photo{font-size:48px;color:var(--gray-300);}
+    .resident-info{padding:14px;}
+    .resident-name{font-size:15px;font-weight:800;margin-bottom:4px;}
+    .resident-apt{font-size:12px;color:var(--gray-500);margin-bottom:2px;}
+    .resident-phone{font-size:12px;color:var(--gray-500);}
+    .resident-footer{padding:10px 14px;border-top:1px solid var(--gray-100);display:flex;justify-content:space-between;align-items:center;}
+    .resident-actions{padding:8px 12px 12px;display:flex;flex-direction:column;gap:6px;}
+    .act-btn{width:100%;padding:8px;border:none;border-radius:7px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .2s;}
+    .act-btn:hover{opacity:0.85;}
+    .act-upload{background:#16a34a;color:white;}
+    .act-edit{background:#eff6ff;color:#2563eb;border:1.5px solid #bfdbfe;}
+    .act-note{background:#fffbeb;color:#92400e;border:1.5px solid #fde68a;}
+    .act-panel-del{background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;}
+    .act-sys-del{background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;}
+    .act-full-del{background:#dc2626;color:white;border:none;}
+    .act-import-one{background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;}
+    .resident-date{font-size:10px;color:var(--gray-400);}
+    .delete-btn{background:none;border:none;color:#ef4444;cursor:pointer;font-size:18px;padding:2px 6px;border-radius:4px;}
+    .delete-btn:hover{background:#fff5f5;}
+    .empty-state{text-align:center;padding:60px 20px;color:var(--gray-400);}
+    .empty-state .icon{font-size:48px;margin-bottom:12px;}
+    .share-btn{padding:10px 18px;background:var(--black);color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;}
+    .share-btn:hover{opacity:0.85;}
+    .reg-link-box{background:#f0fdf4;border:1.5px solid var(--green);border-radius:8px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+    .reg-link-box .link{font-family:monospace;font-size:12px;color:var(--green);word-break:break-all;flex:1;}
+    .reg-link-box button{padding:7px 14px;background:var(--green);color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;white-space:nowrap;}
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="icon">🏢</div>
+    <h2>פנל ועד הבית</h2>
+    <p>הכנס קוד בניין וסיסמה להתחברות</p>
+    <input type="text" id="loginCode" placeholder="קוד בניין (6 ספרות)" maxlength="6" inputmode="numeric"/>
+    <input type="password" id="loginPass" placeholder="סיסמה"/>
+    <button class="btn-red" onclick="doLogin()">כניסה</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- Main panel -->
+<div id="mainPanel">
+  <div class="topbar">
+    <div class="topbar-logo">🏢 פנל ועד הבית</div>
+    <div class="topbar-sub" id="topbarAddr"></div>
+    <button onclick="logout()">התנתק</button>
+  </div>
+
+  <div class="container">
+
+    <!-- Registration link -->
+    <div class="reg-link-box" id="regLinkBox">
+      <div>
+        <div style="font-size:11px;font-weight:800;color:var(--green);margin-bottom:4px;">🔗 קישור לרישום דיירים — שתף עם הדיירים</div>
+        <div class="link" id="regLink"></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="copyRegLink()">📋 העתק</button>
+        <button onclick="showQrCommittee()" style="background:#7c3aed;color:white;border:none;border-radius:6px;padding:5px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">📱 QR</button>
+      </div>
+    </div>
+
+    <div class="panel-header">
+      <div>
+        <h1>רשימת דיירים</h1>
+        <p id="buildingSubtitle"></p>
+      </div>
+      <button class="share-btn" onclick="copyRegLink()">📤 שתף קישור רישום</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="num" id="statTotal">0</div>
+        <div class="label">דיירים רשומים</div>
+      </div>
+      <div class="stat-card">
+        <div class="num" id="statPhoto">0</div>
+        <div class="label">עם תמונה</div>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="search-bar">
+      <span class="icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="חפש לפי שם, דירה או טלפון..." oninput="filterResidents()"/>
+    </div>
+
+    <!-- Panel selector (shown when building has multiple panels) -->
+    <div id="panelSelectorWrap" style="display:none;align-items:center;gap:10px;margin-bottom:12px;padding:12px 16px;background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;">
+      <span style="font-size:13px;font-weight:800;color:#0369a1;">🚪 פנל פעיל:</span>
+      <select id="panelSelector" onchange="selectedPanel=this.value" style="flex:1;padding:8px 12px;border:1.5px solid #bae6fd;border-radius:7px;font-family:inherit;font-size:14px;font-weight:600;background:white;color:#0a0a0a;"></select>
+    </div>
+
+    <!-- Upload toolbar -->
+    <div id="uploadToolbar" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;padding:14px 16px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;">
+      <button onclick="refreshResidents(this)" id="refreshBtn" title="רענן רשימה" style="padding:9px 16px;background:var(--black,#111);color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">🔄 רענן</button>
+      <button onclick="toggleSelectMode()" id="selectModeBtn" style="padding:9px 16px;background:#2563eb;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">✓ בחר דיירים</button>
+      <button onclick="selectAll()" id="selectAllBtn" style="display:none;padding:9px 16px;background:white;color:#2563eb;border:1.5px solid #2563eb;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">בחר הכל</button>
+      <button onclick="uploadSelected()" id="uploadBtn" style="display:none;padding:9px 18px;background:#16a34a;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">⬆ העלה לפנל (<span id="selCount">0</span>)</button>
+      <span id="uploadStatus" style="font-size:13px;font-weight:600;"></span>
+      <div style="flex:1;"></div>
+      <span style="font-size:12px;color:#3b82f6;">💡 שלח תמונות פנים לפנל לזיהוי פנים בכניסה</span>
+    </div>
+
+    <!-- Grid -->
+    <div class="residents-grid" id="residentsGrid">
+      <div class="empty-state" style="grid-column:1/-1;">
+        <div class="icon">⏳</div>
+        <div>טוען...</div>
+      </div>
+    </div>
+
+    <!-- Panel faces (imported from Genesis) -->
+    <div id="panelFacesSection" style="margin-top:40px;padding-top:28px;border-top:2px solid var(--gray-200);">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+        <div>
+          <h2 style="font-size:20px;font-weight:900;">פנים בפנל Genesis</h2>
+          <p style="font-size:13px;color:var(--gray-500);">כל הפנים הרשומים כרגע בפנל עצמו</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <button onclick="importAllToResidents()" id="importAllBtn" style="padding:11px 20px;background:#16a34a;color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">💾 שמור הכל לרשימת הדיירים</button>
+          <button onclick="loadPanelFaces()" id="loadPanelBtn" style="padding:11px 20px;background:var(--black);color:white;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">⬇ ייבא מהפנל</button>
+        </div>
+      </div>
+      <!-- Panel selector for faces section -->
+      <div id="panelFacesSelectorWrap" style="display:none;align-items:center;gap:10px;margin-bottom:12px;padding:12px 16px;background:#fef9c3;border:1.5px solid #fde68a;border-radius:10px;">
+        <span style="font-size:13px;font-weight:800;color:#92400e;">🚪 פנל לייבוא/מחיקה:</span>
+        <select id="panelFacesSelector" style="flex:1;padding:8px 12px;border:1.5px solid #fde68a;border-radius:7px;font-family:inherit;font-size:14px;font-weight:600;background:white;color:#0a0a0a;"></select>
+      </div>
+      <!-- Active panel badge (shown after load) -->
+      <div id="activePanelBadge" style="display:none;margin-bottom:12px;padding:8px 14px;background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;font-size:13px;font-weight:700;color:#0369a1;"></div>
+      <div id="panelFacesStatus" style="font-size:13px;font-weight:600;margin-bottom:12px;"></div>
+      <div id="panelDeleteToolbar" style="display:none;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;padding:12px 14px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;">
+        <button onclick="togglePanelSelectMode()" id="panelSelectBtn" style="padding:9px 16px;background:#c2410c;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">✓ בחר למחיקה</button>
+        <button onclick="panelSelectAll()" id="panelSelectAllBtn" style="display:none;padding:9px 16px;background:white;color:#c2410c;border:1.5px solid #c2410c;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">בחר הכל</button>
+        <button onclick="deleteSelectedPanel()" id="panelDeleteBtn" style="display:none;padding:9px 18px;background:#dc2626;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">🗑 מחק נבחרים (<span id="panelSelCount">0</span>)</button>
+      </div>
+      <div class="residents-grid" id="panelFacesGrid"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let sessionCode = null;
+  let selectedPanel = null;
+  let sessionPass = null;
+  let allResidents = [];
+
+  // Auto-fill from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlCode = urlParams.get('code');
+  const isAdmin = urlParams.get('admin') === '1';
+
+  if (urlCode) {
+    document.getElementById('loginCode').value = urlCode;
+    if (isAdmin) {
+      // Manager bypass — load without password
+      adminBypass(urlCode);
+    }
+  }
+
+  async function adminBypass(code) {
+    // Manager opens committee view directly — fetch without password check
+    try {
+      const res = await fetch('/api/buildings');
+      const data = await res.json();
+      const building = data.buildings.find(b => b.buildingCode === code);
+      if (!building) return;
+      sessionCode = code;
+      sessionPass = building.password;
+      showPanel(building.address);
+      loadResidents();
+    } catch(e) {}
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  async function doLogin() {
+    const code = document.getElementById('loginCode').value.trim();
+    const pass = document.getElementById('loginPass').value.trim();
+    const err = document.getElementById('loginErr');
+    err.textContent = '';
+    if (!code || !pass) { err.textContent = 'נא למלא קוד וסיסמה'; return; }
+    try {
+      const res = await fetch('/api/committee/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: code, password: pass })
+      });
+      const data = await res.json();
+      if (data.success) {
+        sessionCode = code;
+        sessionPass = pass;
+        showPanel(data.address);
+        loadResidents();
+      } else {
+        err.textContent = data.error || 'שגיאה בכניסה';
+      }
+    } catch(e) {
+      err.textContent = 'שגיאת תקשורת';
+    }
+  }
+
+  function showPanel(address) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainPanel').style.display = 'block';
+    document.getElementById('topbarAddr').textContent = address;
+    document.getElementById('buildingSubtitle').textContent = address + ' · קוד: ' + sessionCode;
+    const regUrl = window.location.origin + '/resident-register.html?code=' + sessionCode;
+    document.getElementById('regLink').textContent = regUrl;
+  }
+
+  function copyRegLink() {
+    const url = window.location.origin + '/resident-register.html?code=' + sessionCode;
+    navigator.clipboard.writeText(url);
+    const btn = event.target.closest('button');
+    const orig = btn.textContent;
+    btn.textContent = '✅ הועתק!';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+  }
+
+  function logout() {
+    sessionCode = null;
+    sessionPass = null;
+    allResidents = [];
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('mainPanel').style.display = 'none';
+    document.getElementById('loginPass').value = '';
+  }
+
+  async function refreshResidents(btn) {
+    if (btn) { btn.disabled = true; const t = btn.textContent; btn.textContent = '⏳ מרענן...'; 
+      try { await loadResidents(); } finally { btn.disabled = false; btn.textContent = t; } }
+    else { await loadResidents(); }
+  }
+
+  async function loadResidents() {
+    const grid = document.getElementById('residentsGrid');
+
+    // Load panels for this building
+    try {
+      const pb = await fetch('/api/committee/building-panels/' + sessionCode + '?password=' + encodeURIComponent(sessionPass));
+      const pd = await pb.json();
+      if (pd.success && pd.panels && pd.panels.length > 0) {
+        const wrap = document.getElementById('panelSelectorWrap');
+        const sel = document.getElementById('panelSelector');
+        sel.innerHTML = pd.panels.map(p =>
+          '<option value="' + p.mac + '">' + p.label + '  ·  ' + p.mac + '</option>'
+        ).join('');
+        if (!selectedPanel) selectedPanel = pd.panels[0].mac;
+        sel.value = selectedPanel;
+        // Show selector only if multiple panels
+        wrap.style.display = pd.panels.length > 1 ? 'flex' : 'none';
+
+        // Also populate the panel faces selector (always shown if multiple panels)
+        const facesSel = document.getElementById('panelFacesSelector');
+        facesSel.innerHTML = sel.innerHTML;
+        facesSel.value = selectedPanel;
+        document.getElementById('panelFacesSelectorWrap').style.display = pd.panels.length > 1 ? 'flex' : 'none';
+      }
+      // Hide the "פנים בפנל Genesis" section from the committee if the building opts out
+      // (admins opening with ?admin=1 always keep it visible)
+      const sec = document.getElementById('panelFacesSection');
+      if (sec) sec.style.display = (pd.hidePanelFaces && !isAdmin) ? 'none' : '';
+    } catch(e) { console.warn('panels load failed:', e); }
+
+    try {
+      const res = await fetch('/api/committee/residents/' + sessionCode + '?password=' + encodeURIComponent(sessionPass));
+      const data = await res.json();
+      if (!data.success) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="icon">❌</div><div>' + data.error + '</div></div>';
+        return;
+      }
+      allResidents = data.residents;
+      // Pending (self-registered, awaiting committee approval) shown first
+      allResidents.sort((a, b) => {
+        const pa = a.status === 'pending' ? 0 : 1;
+        const pb = b.status === 'pending' ? 0 : 1;
+        if (pa !== pb) return pa - pb;
+        return (a.apartment || '').localeCompare(b.apartment || '', 'he', { numeric: true });
+      });
+      document.getElementById('statTotal').textContent = allResidents.length;
+      document.getElementById('statPhoto').textContent = allResidents.filter(r => r.photoUrl).length;
+      renderResidents(allResidents);
+    } catch(e) {
+      grid.innerHTML = '<div style="color:red;padding:20px;grid-column:1/-1;">שגיאה: ' + e.message + '</div>';
+    }
+  }
+
+  function renderResidents(residents) {
+    const grid = document.getElementById('residentsGrid');
+    if (!residents.length) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="icon">👥</div><div>אין דיירים רשומים עדיין</div></div>';
+      return;
+    }
+    grid.innerHTML = residents.map(r => `
+      <div class="resident-card ${selectMode ? 'selectable' : ''}" data-id="${r._id}" ${selectMode ? `onclick="toggleCard('${r._id}')"` : ''} style="${selectMode ? 'cursor:pointer;' : ''}position:relative;${r.status === 'pending' ? 'box-shadow:0 0 0 2px #f59e0b;' : ''}">
+        ${r.status === 'pending' ? `<div onclick="event.stopPropagation();dismissPending('${r._id}')" title="לחץ אם אישרת את הפנים" style="position:absolute;top:10px;left:10px;z-index:6;background:#f59e0b;color:white;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;cursor:pointer;">⏳ ממתין לאישור וועד</div>` : ''}
+        ${r.status === 'approved' && !selectMode ? `<div style="position:absolute;top:10px;left:10px;z-index:6;background:#16a34a;color:white;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;">✓ אושר על ידי הוועד</div>` : ''}
+        ${selectMode ? `<div class="card-check" id="check-${r._id}" style="position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:50%;background:${selectedIds.has(r._id) ? '#16a34a' : 'rgba(255,255,255,0.9)'};border:2px solid ${selectedIds.has(r._id) ? '#16a34a' : '#d1d5db'};display:flex;align-items:center;justify-content:center;z-index:5;font-size:14px;color:white;">${selectedIds.has(r._id) ? '✓' : ''}</div>` : ''}
+        <div class="resident-photo">
+          ${r.photoUrl
+            ? `<img src="${r.photoUrl}" alt="${r.firstName}" loading="lazy"/>`
+            : `<div class="no-photo">👤</div>`}
+        </div>
+        <div class="resident-info">
+          <div class="resident-name">${r.firstName} ${r.lastName}</div>
+          <div class="resident-apt">🏠 ${r.apartment ? 'דירה ' + r.apartment : '<span style="color:#f59e0b;">— ללא דירה</span>'}</div>
+          <div class="resident-phone">📱 ${r.phone || '<span style="color:#f59e0b;">— ללא טלפון</span>'}</div>
+          ${r.notes ? `<div style="margin-top:6px;padding:6px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:12px;color:#92400e;">📝 ${r.notes}</div>` : ''}
+          ${r.uploadedToPanel ? `<div style="margin-top:6px;display:inline-block;padding:3px 10px;background:#dcfce7;color:#16a34a;border-radius:20px;font-size:11px;font-weight:700;">✅ הועלה לפנל</div>` : ''}
+        </div>
+        <div class="resident-date" style="padding:8px 14px 0;">${new Date(r.createdAt).toLocaleDateString('he-IL')}${r.importedFromPanel ? ' · <span style="color:#2563eb;">מהפנל</span>' : ''}</div>
+        <div class="resident-actions">
+          ${!selectMode ? `
+            <button class="act-btn act-edit" onclick="event.stopPropagation();editResidentName('${r._id}', '${(r.firstName||'').replace(/'/g,'')}', '${(r.lastName||'').replace(/'/g,'')}')" title="ערוך שם">👤 ערוך שם</button>
+            <button class="act-btn act-edit" onclick="event.stopPropagation();editResidentField('${r._id}', '${r.firstName} ${r.lastName}', '${r.apartment || ''}', '${r.phone || ''}')" title="ערוך דירה/טלפון">✏️ ערוך דירה/טלפון</button>
+            <button class="act-btn act-note" onclick="event.stopPropagation();editResidentNote('${r._id}', '${r.firstName} ${r.lastName}', &quot;${(r.notes||'').replace(/"/g,'&#34;').replace(/'/g,'&#39;')}&quot;)" title="הערה">📝 הערה</button>
+            <button class="act-btn act-upload" onclick="event.stopPropagation();uploadSingle('${r._id}')" title="${r.status === 'pending' ? 'אשר והעלה פנים לפנל' : 'העלה פנים לפנל'}">${r.status === 'pending' ? '✓ אשר והעלה לפנל' : '⬆ העלה לפנל'}</button>
+            <button class="act-btn act-panel-del" onclick="event.stopPropagation();deletePanelFace('${r._id}', '${r.firstName} ${r.lastName}')" title="מחק פנים מהפנל בלבד">🗑 מהפנל בלבד</button>
+            <button class="act-btn act-full-del" onclick="event.stopPropagation();deleteResidentFull('${r._id}', '${r.firstName} ${r.lastName}', ${r.uploadedToPanel ? 'true' : 'false'})" title="מחק מהפנל + מהמערכת">🗑 מחק דייר</button>
+          ` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function filterResidents() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    if (!q) { renderResidents(allResidents); return; }
+    const filtered = allResidents.filter(r =>
+      (r.firstName + ' ' + r.lastName).toLowerCase().includes(q) ||
+      r.apartment.toLowerCase().includes(q) ||
+      r.phone.includes(q)
+    );
+    renderResidents(filtered);
+  }
+
+  let selectMode = false;
+  let selectedIds = new Set();
+
+  function toggleSelectMode() {
+    selectMode = !selectMode;
+    selectedIds.clear();
+    document.getElementById('selectModeBtn').textContent = selectMode ? '✕ בטל בחירה' : '✓ בחר דיירים';
+    document.getElementById('selectModeBtn').style.background = selectMode ? '#6b7280' : '#2563eb';
+    document.getElementById('selectAllBtn').style.display = selectMode ? 'inline-block' : 'none';
+    document.getElementById('uploadBtn').style.display = selectMode ? 'inline-block' : 'none';
+    document.getElementById('uploadStatus').textContent = '';
+    updateSelCount();
+    renderResidents(getFiltered());
+  }
+
+  function getFiltered() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    if (!q) return allResidents;
+    return allResidents.filter(r =>
+      (r.firstName + ' ' + r.lastName).toLowerCase().includes(q) ||
+      r.apartment.toLowerCase().includes(q) ||
+      r.phone.includes(q));
+  }
+
+  function toggleCard(id) {
+    if (selectedIds.has(id)) selectedIds.delete(id);
+    else selectedIds.add(id);
+    const check = document.getElementById('check-' + id);
+    if (check) {
+      const on = selectedIds.has(id);
+      check.style.background = on ? '#16a34a' : 'rgba(255,255,255,0.9)';
+      check.style.borderColor = on ? '#16a34a' : '#d1d5db';
+      check.textContent = on ? '✓' : '';
+    }
+    updateSelCount();
+  }
+
+  function selectAll() {
+    const filtered = getFiltered();
+    const allSelected = filtered.every(r => selectedIds.has(r._id));
+    if (allSelected) { selectedIds.clear(); }
+    else { filtered.forEach(r => { if (r.photoUrl) selectedIds.add(r._id); }); }
+    updateSelCount();
+    renderResidents(filtered);
+  }
+
+  function updateSelCount() {
+    document.getElementById('selCount').textContent = selectedIds.size;
+  }
+
+  async function uploadSelected() {
+    if (!selectedIds.size) { alert('נא לבחור לפחות דייר אחד'); return; }
+    await doUpload(Array.from(selectedIds));
+  }
+
+  async function uploadSingle(id) {
+    await doUpload([id]);
+  }
+
+  async function dismissPending(id) {
+    if (!confirm('האם אישרת את הפנים של דייר זה?\n\nלחיצה על אישור תסמן אותו כמאושר ותסיר את התג "ממתין".')) return;
+    try {
+      const res = await fetch('/api/committee/approve-resident', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentId: id })
+      });
+      const data = await res.json();
+      if (data.success) loadResidents();
+      else alert('שגיאה: ' + (data.error || 'לא הצליח'));
+    } catch (e) {
+      alert('שגיאת תקשורת');
+    }
+  }
+
+  async function doUpload(ids) {
+    const status = document.getElementById('uploadStatus');
+    const btn = document.getElementById('uploadBtn');
+    status.style.color = '#2563eb';
+    status.textContent = '⏳ מתחיל...';
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch('/api/committee/upload-faces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentIds: ids, panelMac: selectedPanel })
+      });
+
+      // Read the raw body first so a non-JSON response (HTML error page, etc.)
+      // doesn't throw an opaque "Unexpected token '<'" error with no context.
+      const rawText = await res.text();
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseErr) {
+        console.error('upload-faces: non-JSON response', {
+          httpStatus: res.status,
+          httpStatusText: res.statusText,
+          url: res.url,
+          bodyPreview: rawText.slice(0, 500),
+        });
+        status.style.color = '#ef4444';
+        status.textContent = '❌ שגיאת שרת (HTTP ' + res.status + ') — פרטים מלאים ב-Console (F12)';
+        if (btn) btn.disabled = false;
+        return;
+      }
+
+      if (!res.ok || !data.success) {
+        console.error('upload-faces: start failed', { httpStatus: res.status, data });
+        status.style.color = '#ef4444';
+        status.textContent = '❌ ' + (data.error || 'שגיאה') + ' — פרטים ב-Console (F12)';
+        if (btn) btn.disabled = false;
+        return;
+      }
+
+      pollUploadFacesStatus(data.jobId, btn, status);
+    } catch(e) {
+      console.error('upload-faces: network/fetch error', e);
+      status.style.color = '#ef4444';
+      status.textContent = '❌ שגיאת תקשורת (' + e.message + ') — פרטים ב-Console (F12)';
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function pollUploadFacesStatus(jobId, btn, status) {
+    try {
+      const res = await fetch('/api/committee/upload-faces/status/' + jobId);
+      const data = await res.json();
+      if (!data.success) {
+        console.error('upload-faces: lost track of job', data);
+        status.style.color = '#ef4444';
+        status.textContent = '❌ אבד המעקב אחרי התהליך';
+        if (btn) btn.disabled = false;
+        return;
+      }
+      const job = data.job;
+      if (job.status === 'error') {
+        console.error('upload-faces: job error', job);
+        status.style.color = '#ef4444';
+        status.textContent = '❌ ' + (job.error || 'שגיאה') + ' — פרטים ב-Console (F12)';
+        if (btn) btn.disabled = false;
+        return;
+      }
+      if (job.status === 'done') {
+        status.style.color = '#16a34a';
+        status.textContent = `✅ הועלו ${job.uploaded} בהצלחה` + (job.skipped ? `, ${job.skipped} כבר בפנל` : '') + (job.failed ? `, ${job.failed} נכשלו` : '');
+        if (job.failed) {
+          const failed = job.results.filter(r => !r.success).map(r => r.name + ' (' + r.error + ')').join(', ');
+          console.log('Failed:', failed);
+        }
+        if (btn) btn.disabled = false;
+        selectedIds.clear();
+        updateSelCount();
+        loadResidents();
+        return;
+      }
+      // Still running — show live progress and poll again
+      if (job.total > 0) {
+        status.textContent = '⏳ ' + job.done + '/' + job.total + (job.currentName ? ' · ' + job.currentName : '');
+      } else {
+        status.textContent = '⏳ ' + (job.stage || 'מתחבר...');
+      }
+      setTimeout(function() { pollUploadFacesStatus(jobId, btn, status); }, 1200);
+    } catch (e) {
+      // Network hiccup mid-poll — retry rather than failing immediately
+      setTimeout(function() { pollUploadFacesStatus(jobId, btn, status); }, 2000);
+    }
+  }
+
+  // Delete face from PANEL only (keeps resident in system)
+  async function deletePanelFace(id, name) {
+    if (!confirm('למחוק את הפנים של ' + name + ' מהפנל Genesis?\n\nהדייר יישאר במערכת — רק הפנים יימחקו מהפנל.')) return;
+    const status = document.getElementById('uploadStatus');
+    if (status) { status.style.color = '#2563eb'; status.textContent = '⏳ מוחק פנים מהפנל...'; }
+    try {
+      const res = await fetch('/api/committee/delete-faces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentIds: [id], panelMac: selectedPanel })
+      });
+      const data = await res.json();
+      if (status) {
+        if (data.success && data.deleted) {
+          status.style.color = '#16a34a'; status.textContent = '✅ הפנים של ' + name + ' נמחקו מהפנל';
+        } else {
+          status.style.color = '#f59e0b';
+          status.textContent = '⚠️ ' + (data.results?.[0]?.error || 'לא נמצא בפנל');
+        }
+      }
+    } catch(e) {
+      if (status) { status.style.color = '#ef4444'; status.textContent = '❌ שגיאת תקשורת'; }
+    }
+  }
+
+  // Delete from SYSTEM only (does not touch panel)
+  async function deleteFromSystem(id, name) {
+    if (!confirm('למחוק את ' + name + ' מהמערכת?\n\nהפעולה לא נוגעת בפנל — אם הפנים הועלו לפנל, הם יישארו שם.')) return;
+    try {
+      const res = await fetch('/api/committee/residents/' + id + '?password=' + encodeURIComponent(sessionPass) + '&buildingCode=' + sessionCode, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) loadResidents();
+      else alert('שגיאה: ' + (data.error || 'unknown'));
+    } catch(e) {
+      alert('שגיאת תקשורת');
+    }
+  }
+  async function loadPanelFaces() {
+    const btn = document.getElementById('loadPanelBtn');
+    const status = document.getElementById('panelFacesStatus');
+    const grid = document.getElementById('panelFacesGrid');
+
+    // Lock to whichever panel the dedicated selector shows
+    const facesSel = document.getElementById('panelFacesSelector');
+    currentPanelFacesMac = (facesSel && facesSel.value) ? facesSel.value : selectedPanel;
+
+    // Show active panel badge
+    const badge = document.getElementById('activePanelBadge');
+    if (badge && facesSel && facesSel.selectedIndex >= 0) {
+      badge.textContent = '🔒 מציג פנל: ' + facesSel.options[facesSel.selectedIndex].text;
+      badge.style.display = 'block';
+    }
+
+    btn.disabled = true;
+    const origText = btn.textContent;
+    btn.textContent = '⏳ מתחבר לפנל...';
+    status.style.color = '#2563eb';
+    status.textContent = 'קורא פנים מהפנל — עשוי לקחת כמה שניות...';
+    grid.innerHTML = '';
+    try {
+      const res = await fetch('/api/committee/panel-faces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelMac: currentPanelFacesMac })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        status.style.color = '#ef4444';
+        status.textContent = '❌ ' + (data.error || 'שגיאה');
+        btn.disabled = false; btn.textContent = origText;
+        return;
+      }
+      status.style.color = '#16a34a';
+      status.textContent = '✅ נמצאו ' + data.total + ' פנים בפנל';
+      panelFacesData = data.faces || [];
+      document.getElementById('panelDeleteToolbar').style.display = panelFacesData.length ? 'flex' : 'none';
+      panelSelectMode = false;
+      panelSelectedIds.clear();
+      resetPanelToolbar();
+      renderPanelFaces();
+    } catch(e) {
+      status.style.color = '#ef4444';
+      status.textContent = '❌ שגיאת תקשורת';
+    }
+    btn.disabled = false; btn.textContent = origText;
+  }
+
+  var panelFacesData = [];
+  var panelSelectMode = false;
+  var panelSelectedIds = new Set();
+  var currentPanelFacesMac = null; // tracks which panel's faces are currently loaded
+
+  function renderPanelFaces() {
+    var grid = document.getElementById('panelFacesGrid');
+    if (!panelFacesData.length) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="icon">👤</div><div>אין פנים בפנל</div></div>';
+      return;
+    }
+    grid.innerHTML = panelFacesData.map(function(f) {
+      var photoHtml = f.photo
+        ? '<img src="' + f.photo + '" alt="' + (f.name||'') + '"/>'
+        : '<div class="no-photo">👤</div>';
+      var checkHtml = panelSelectMode
+        ? '<div onclick="togglePanelCard(' + f.id + ')" style="position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:50%;background:' + (panelSelectedIds.has(f.id) ? '#dc2626' : 'rgba(255,255,255,0.9)') + ';border:2px solid ' + (panelSelectedIds.has(f.id) ? '#dc2626' : '#d1d5db') + ';display:flex;align-items:center;justify-content:center;z-index:5;font-size:14px;color:white;cursor:pointer;">' + (panelSelectedIds.has(f.id) ? '✓' : '') + '</div>'
+        : '';
+      return '<div class="resident-card" style="position:relative;' + (panelSelectMode ? 'cursor:pointer;' : '') + '"' + (panelSelectMode ? ' onclick="togglePanelCard(' + f.id + ')"' : '') + '>' +
+        checkHtml +
+        '<div class="resident-photo">' + photoHtml + '</div>' +
+        '<div class="resident-info">' +
+          '<div class="resident-name">' + (f.name || '—') + '</div>' +
+          '<div class="resident-apt">🆔 ' + f.id + '</div>' +
+          '<div style="display:inline-block;margin-top:6px;padding:3px 10px;background:#eff6ff;color:#2563eb;border-radius:20px;font-size:11px;font-weight:700;">⬇ יובא מפנל</div>' +
+        '</div>' +
+        (panelSelectMode ? '' :
+        '<div class="resident-actions">' +
+          '<button class="act-btn act-import-one" onclick="event.stopPropagation();savePanelFace(' + f.id + ')">📥 העבר למאגר</button>' +
+          '<button class="act-btn act-panel-del" onclick="event.stopPropagation();deletePanelById(' + f.id + ', &quot;' + (f.name||'') + '&quot;)">🗑 מחק מהפנל</button>' +
+        '</div>') +
+      '</div>';
+    }).join('');
+  }
+
+  function resetPanelToolbar() {
+    var btn = document.getElementById('panelSelectBtn');
+    btn.textContent = '✓ בחר למחיקה';
+    btn.style.background = '#c2410c';
+    document.getElementById('panelSelectAllBtn').style.display = 'none';
+    document.getElementById('panelDeleteBtn').style.display = 'none';
+    document.getElementById('panelSelCount').textContent = '0';
+  }
+
+  function togglePanelSelectMode() {
+    panelSelectMode = !panelSelectMode;
+    panelSelectedIds.clear();
+    var btn = document.getElementById('panelSelectBtn');
+    btn.textContent = panelSelectMode ? '✕ בטל' : '✓ בחר למחיקה';
+    btn.style.background = panelSelectMode ? '#6b7280' : '#c2410c';
+    document.getElementById('panelSelectAllBtn').style.display = panelSelectMode ? 'inline-block' : 'none';
+    document.getElementById('panelDeleteBtn').style.display = panelSelectMode ? 'inline-block' : 'none';
+    document.getElementById('panelSelCount').textContent = '0';
+    renderPanelFaces();
+  }
+
+  function togglePanelCard(id) {
+    if (panelSelectedIds.has(id)) panelSelectedIds.delete(id);
+    else panelSelectedIds.add(id);
+    document.getElementById('panelSelCount').textContent = panelSelectedIds.size;
+    renderPanelFaces();
+  }
+
+  function panelSelectAll() {
+    var allSelected = panelFacesData.every(function(f) { return panelSelectedIds.has(f.id); });
+    if (allSelected) panelSelectedIds.clear();
+    else panelFacesData.forEach(function(f) { panelSelectedIds.add(f.id); });
+    document.getElementById('panelSelCount').textContent = panelSelectedIds.size;
+    renderPanelFaces();
+  }
+
+  async function deleteSelectedPanel() {
+    if (!panelSelectedIds.size) { alert('נא לבחור לפחות פרצוף אחד'); return; }
+    if (!confirm('למחוק ' + panelSelectedIds.size + ' פנים מהפנל?')) return;
+    var status = document.getElementById('panelFacesStatus');
+    var ids = Array.from(panelSelectedIds);
+    status.style.color = '#2563eb';
+    status.textContent = '⏳ מתחבר לפנל ומוחק ' + ids.length + ' פנים...';
+    try {
+      // Single batch call — one panel login, all deletes in sequence
+      var res = await fetch('/api/committee/delete-panel-ids', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelIds: ids, panelMac: currentPanelFacesMac || selectedPanel })
+      });
+      var data = await res.json();
+      if (data.success) {
+        status.style.color = data.failed ? '#f59e0b' : '#16a34a';
+        status.textContent = '✅ נמחקו ' + data.deleted + (data.failed ? ', ' + data.failed + ' נכשלו' : '');
+      } else {
+        status.style.color = '#ef4444';
+        status.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      status.style.color = '#ef4444';
+      status.textContent = '❌ שגיאת תקשורת';
+    }
+    loadPanelFaces();
+  }
+
+  async function deletePanelById(panelId, name) {
+    if (!confirm('למחוק את הפנים של ' + name + ' (ID ' + panelId + ') מהפנל?')) return;
+    const status = document.getElementById('panelFacesStatus');
+    status.style.color = '#2563eb';
+    status.textContent = '⏳ מוחק מהפנל...';
+    try {
+      const res = await fetch('/api/committee/delete-panel-id', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelId: panelId, panelMac: currentPanelFacesMac || selectedPanel })
+      });
+      const data = await res.json();
+      if (data.success) {
+        status.style.color = '#16a34a';
+        status.textContent = '✅ נמחק מהפנל';
+        loadPanelFaces();
+      } else {
+        status.style.color = '#ef4444';
+        status.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      status.style.color = '#ef4444';
+      status.textContent = '❌ שגיאת תקשורת';
+    }
+  }
+
+  async function importAllToResidents() {
+    if (!confirm('לשמור את כל הפנים מהפנל לרשימת הדיירים?\n\nדיירים שכבר קיימים (לפי שם) ידולגו.\nתוכל לערוך דירה/טלפון אחרי כן.')) return;
+    const btn = document.getElementById('importAllBtn');
+    const status = document.getElementById('panelFacesStatus');
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = '⏳ שומר...';
+    status.style.color = '#2563eb';
+    status.textContent = 'מייבא פנים ושומר תמונות — עשוי לקחת כמה שניות...';
+    try {
+      const res = await fetch('/api/committee/import-faces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, panelMac: selectedPanel })
+      });
+      const data = await res.json();
+      if (data.success) {
+        status.style.color = '#16a34a';
+        status.textContent = '✅ נשמרו ' + data.imported + ' דיירים' + (data.skipped ? ', ' + data.skipped + ' כבר קיימים' : '') + (data.failed ? ', ' + data.failed + ' נכשלו' : '');
+        loadResidents();
+      } else {
+        status.style.color = '#ef4444';
+        status.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      status.style.color = '#ef4444';
+      status.textContent = '❌ שגיאת תקשורת';
+    }
+    btn.disabled = false; btn.textContent = orig;
+  }
+
+  // Edit resident apartment/phone inline
+  async function editResidentField(id, name, currentApt, currentPhone) {
+    const apt = prompt('מספר דירה עבור ' + name + ':', currentApt || '');
+    if (apt === null) return;
+    const phone = prompt('מספר טלפון עבור ' + name + ':', currentPhone || '');
+    if (phone === null) return;
+    try {
+      const res = await fetch('/api/committee/edit-resident', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentId: id, apartment: apt, phone: phone })
+      });
+      const data = await res.json();
+      if (data.success) loadResidents();
+      else alert('שגיאה: ' + (data.error || 'unknown'));
+    } catch(e) { alert('שגיאת תקשורת'); }
+  }
+
+  async function editResidentName(id, currentFirst, currentLast) {
+    const full = prompt('שם מלא של הדייר:', (currentFirst + ' ' + currentLast).trim());
+    if (full === null) return;
+    const trimmed = full.trim();
+    if (!trimmed) { alert('שם לא יכול להיות ריק'); return; }
+    const parts = trimmed.split(/\s+/);
+    const firstName = parts[0];
+    const lastName = parts.slice(1).join(' ');
+    try {
+      const res = await fetch('/api/committee/edit-resident', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentId: id, firstName: firstName, lastName: lastName })
+      });
+      const data = await res.json();
+      if (data.success) loadResidents();
+      else alert('שגיאה: ' + (data.error || 'unknown'));
+    } catch(e) { alert('שגיאת תקשורת'); }
+  }
+
+  async function editResidentNote(id, name, currentNote) {
+    const note = prompt('הערה על ' + name + ':', currentNote || '');
+    if (note === null) return;
+    try {
+      const res = await fetch('/api/committee/edit-resident', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentId: id, notes: note })
+      });
+      const data = await res.json();
+      if (data.success) loadResidents();
+      else alert('שגיאה: ' + (data.error || 'unknown'));
+    } catch(e) { alert('שגיאת תקשורת'); }
+  }
+
+  // Full delete: remove from ALL panels + system in one action
+  async function deleteResidentFull(id, name, uploadedToPanel) {
+    const msg = uploadedToPanel
+      ? 'למחוק את ' + name + ' לחלוטין?\n\n✓ ימחק מכל הפנלים בבניין\n✓ ימחק מהמערכת'
+      : 'למחוק את ' + name + ' מהמערכת?\n\n(לא הועלה לפנל — ימחק מהמערכת בלבד)';
+    if (!confirm(msg)) return;
+
+    const status = document.getElementById('uploadStatus');
+    if (status) { status.style.color = '#2563eb'; status.textContent = '⏳ מוחק ' + name + ' מכל הפנלים...'; }
+
+    // Step 1: delete from ALL panels in the building
+    if (uploadedToPanel) {
+      try {
+        const pres = await fetch('/api/committee/delete-resident-all-panels', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ buildingCode: sessionCode, password: sessionPass, residentIds: [id] })
+        });
+        const pdata = await pres.json();
+        if (pdata.success) {
+          const summary = (pdata.panelResults || []).map(p =>
+            p.panel + ': ' + (p.notFound ? 'לא נמצא' : p.deleted + ' נמחקו')
+          ).join(', ');
+          if (status) { status.style.color = '#0369a1'; status.textContent = '🚪 ' + summary; }
+        }
+      } catch(e) { /* continue to system delete even if panel fails */ }
+    }
+
+    // Step 2: delete from system
+    try {
+      const res = await fetch('/api/committee/residents/' + id + '?password=' + encodeURIComponent(sessionPass) + '&buildingCode=' + sessionCode, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        if (status) { status.style.color = '#16a34a'; status.textContent = '✅ ' + name + ' נמחק לחלוטין'; }
+        loadResidents();
+      } else {
+        if (status) { status.style.color = '#ef4444'; status.textContent = '❌ ' + (data.error || 'שגיאה'); }
+      }
+    } catch(e) {
+      if (status) { status.style.color = '#ef4444'; status.textContent = '❌ שגיאת תקשורת'; }
+    }
+  }
+
+  async function savePanelFace(panelId) {
+    // Look up the face from the already-loaded panelFacesData array
+    const face = panelFacesData.find(function(f) { return f.id === panelId; });
+    if (!face) { alert('פנים לא נמצאו — ייבא מחדש מהפנל'); return; }
+    const name = face.name || '';
+    const photo = face.photo || null;
+    const status = document.getElementById('panelFacesStatus');
+    status.style.color = '#2563eb';
+    status.textContent = '⏳ שומר ' + name + ' למאגר...';
+    try {
+      const res = await fetch('/api/committee/save-panel-face', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buildingCode: sessionCode,
+          password: sessionPass,
+          name: name,
+          photoBase64: photo,
+          panelFaceId: panelId
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        status.style.color = '#16a34a';
+        status.textContent = '✅ ' + name + ' נשמר במאגר — תוכל כעת להעלות לפנל אחר';
+        loadResidents(); // refresh residents list so it shows the new entry
+      } else if (data.error === 'already_exists') {
+        status.style.color = '#f59e0b';
+        status.textContent = '⚠️ ' + name + ' כבר קיים במאגר';
+      } else {
+        status.style.color = '#ef4444';
+        status.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      status.style.color = '#ef4444';
+      status.textContent = '❌ שגיאת תקשורת';
+    }
+  }
+
+  function showQrCommittee() {
+    const url = document.getElementById('regLink').textContent.trim();
+    if (!url) return;
+    const addr = document.getElementById('buildingSubtitle').textContent || sessionCode;
+    document.getElementById('qrModalTitle').textContent = addr;
+    document.getElementById('qrModalUrl').textContent = url;
+    const apiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&format=png&data=' + encodeURIComponent(url);
+    document.getElementById('qrModalCanvas').innerHTML = '<img src="' + apiUrl + '" width="220" height="220" style="border:1px solid #eee;border-radius:8px;padding:8px;" alt="QR Code"/>';
+    document.getElementById('qrModal').style.display = 'flex';
+  }
+
+  function downloadQrCommittee() {
+    const img = document.querySelector('#qrModalCanvas img');
+    if (!img) return;
+    const a = document.createElement('a');
+    a.href = img.src;
+    a.download = 'qr-building-' + sessionCode + '.png';
+    a.target = '_blank';
+    a.click();
+  }
+
+  function printQrCommittee() {
+    const url = document.getElementById('qrModalUrl').textContent;
+    const title = document.getElementById('qrModalTitle').textContent;
+    const img = document.querySelector('#qrModalCanvas img');
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/><title>QR</title>
+    <style>
+      body{font-family:sans-serif;text-align:center;padding:40px;direction:rtl;}
+      h1{font-size:20px;font-weight:900;margin:16px 0 4px;}
+      p{font-size:13px;color:#555;margin-bottom:20px;}
+      img{border:1px solid #eee;border-radius:8px;padding:8px;}
+      .instructions{margin-top:20px;font-size:14px;color:#333;line-height:1.8;}
+      .url{margin-top:12px;font-size:10px;color:#999;word-break:break-all;}
+      @media print{body{padding:20px;}}
+    </style></head><body>
+    <div style="font-size:22px;font-weight:900;letter-spacing:2px;">TADOR <span style="background:#E31B23;color:white;padding:2px 8px;border-radius:4px;font-size:13px;">GENESIS</span></div>
+    <h1>${title}</h1>
+    <p>סרוק את הקוד כדי להירשם לרשימת הדיירים</p>
+    <img src="${img ? img.src : ''}" width="220" height="220"/>
+    <div class="instructions">📱 כיצד להירשם?<br/>סרוק · מלא פרטים · צלם תמונה · שלח</div>
+    <div class="url">${url}</div>
+    <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`);
+    win.document.close();
+  }
+</script>
+
+<!-- QR Code Modal -->
+<div id="qrModal" onclick="if(event.target===this)document.getElementById('qrModal').style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:white;border-radius:16px;padding:28px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <h3 style="font-size:17px;font-weight:900;margin-bottom:4px;" id="qrModalTitle"></h3>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:16px;">סרוק להירשם</p>
+    <div id="qrModalCanvas" style="display:flex;justify-content:center;margin-bottom:12px;"></div>
+    <p style="font-size:10px;color:#9ca3af;margin-bottom:18px;word-break:break-all;" id="qrModalUrl"></p>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <button onclick="printQrCommittee()" style="padding:10px 20px;background:#0a0a0a;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">🖨️ הדפס</button>
+      <button onclick="downloadQrCommittee()" style="padding:10px 20px;background:#7c3aed;color:white;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">⬇ הורד QR</button>
+      <button onclick="document.getElementById('qrModal').style.display='none'" style="padding:10px 20px;background:#f3f3f3;color:#0a0a0a;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">סגור</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

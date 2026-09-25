@@ -1,0 +1,2957 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Manager Panel - Tador</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0d14;
+      --surface: #111520;
+      --surface2: #161c2e;
+      --border: #1e2840;
+      --accent: #2563eb;
+      --green: #10b981;
+      --red: #ef4444;
+      --text: #f1f5f9;
+      --text-dim: #64748b;
+    }
+
+    body.light {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --surface2: #e8edf5;
+      --border: #cbd5e1;
+      --accent: #2563eb;
+      --green: #059669;
+      --red: #dc2626;
+      --text: #0f172a;
+      --text-dim: #64748b;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      padding: 20px;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+
+    h1 { font-size: 32px; margin-bottom: 4px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; }
+
+    .theme-btn {
+      padding: 8px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .theme-btn:hover { border-color: var(--accent); }
+
+    .lang-switch {
+      display: flex;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+    }
+
+    .lang-btn {
+      padding: 8px 16px;
+      background: transparent;
+      color: var(--text-dim);
+      border: none;
+      border-radius: 6px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .lang-btn.active { background: var(--accent); color: white; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .card h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .form-row { display: flex; gap: 12px; margin-bottom: 16px; }
+
+    input, select {
+      flex: 1;
+      padding: 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    button {
+      padding: 12px 24px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    button:hover { opacity: 0.9; }
+    button.danger { background: var(--red); }
+    button.small { padding: 6px 12px; font-size: 13px; }
+    button.success { background: var(--green); }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th {
+      background: var(--surface2);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+    td { font-family: 'JetBrains Mono', monospace; font-size: 14px; }
+
+    .logout-btn { position: fixed; top: 20px; right: 20px; z-index: 100; }
+
+    #loginScreen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #managerPanel { display: none; }
+
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px;
+      width: 400px;
+    }
+
+    .mac-detail {
+      background: var(--bg);
+      padding: 14px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border-left: 3px solid var(--accent);
+    }
+
+    .mac-detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .mac-detail-mac {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--accent);
+    }
+
+    .mac-detail-field {
+      margin-top: 8px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mac-detail-label { color: var(--text-dim); min-width: 220px; font-size: 13px; }
+    .mac-detail-value { color: var(--text); font-size: 14px; flex: 1; }
+
+    .field-edit-btn {
+      padding: 3px 10px !important;
+      font-size: 11px !important;
+      background: var(--surface) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text-dim) !important;
+      cursor: pointer;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .mac-detail-field:hover .field-edit-btn { opacity: 1; }
+    .mac-actions { display: flex; gap: 4px; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      width: 520px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal h3 {
+      font-size: 18px;
+      margin-bottom: 20px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .modal-header h3 {
+      margin-bottom: 0;
+    }
+    .modal-close-btn {
+      background: none;
+      border: none;
+      font-size: 22px;
+      color: var(--text-dim);
+      cursor: pointer;
+      line-height: 1;
+      padding: 0 4px;
+      opacity: 0.7;
+    }
+    .modal-close-btn:hover { opacity: 1; color: var(--text); }
+
+    .modal-field { margin-bottom: 16px; }
+    .modal-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .modal-field input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+    }
+
+    .modal-field input:focus { outline: none; border-color: var(--accent); }
+
+    .modal-buttons { display: flex; gap: 12px; margin-top: 24px; }
+    .modal-buttons button { flex: 1; }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+
+    .copy-btn {
+      padding: 4px 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .installer-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .installer-link:hover { text-decoration: underline; }
+
+    /* Quick Access Grid */
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+    }
+    .quick-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 16px 10px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.08);
+      transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+      cursor: pointer;
+      line-height: 1.3;
+    }
+    .quick-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+      filter: brightness(1.1);
+      text-decoration: none;
+    }
+    .quick-btn:active { transform: translateY(0); }
+    .quick-btn .qb-icon { font-size: 22px; line-height: 1; }
+    .quick-btn .qb-label { font-size: 11.5px; }
+
+    .qb-red    { background: linear-gradient(135deg,#e31b23,#b8151c); }
+    .qb-purple { background: linear-gradient(135deg,#7c3aed,#5b21b6); }
+    .qb-teal   { background: linear-gradient(135deg,#0891b2,#0e7490); }
+    .qb-blue   { background: linear-gradient(135deg,#2563eb,#1d4ed8); }
+    .qb-sky    { background: linear-gradient(135deg,#0ea5e9,#0369a1); }
+    .qb-green  { background: linear-gradient(135deg,#16a34a,#15803d); }
+    .qb-emerald{ background: linear-gradient(135deg,#1a7a4a,#12593a); }
+    .qb-navy   { background: linear-gradient(135deg,#0369a1,#0284c7); }
+    .qb-gray   { background: linear-gradient(135deg,#475569,#334155); }
+
+    .success-msg {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid var(--green);
+      color: var(--green);
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+
+    .error-msg {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--red);
+      color: var(--red);
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+
+    .info-msg {
+      background: rgba(37, 99, 235, 0.12);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+
+    .license-warning-btn {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+      animation: pulse 2s infinite;
+    }
+    .license-warning-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(255, 107, 107, 0.5);
+    }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+
+    .license-paid-btn {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+      margin-left: 4px;
+    }
+    .license-paid-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
+    }
+  </style>
+</head>
+
+<body class="light">
+  <!-- Login Screen -->
+  <div id="loginScreen">
+    <div class="login-card">
+      <h1 data-i18n="loginTitle">כניסת מנהל</h1>
+      <p class="subtitle">Tador Technologies LTD</p>
+      <div class="form-row" style="flex-direction: column; margin-top: 24px;">
+        <input type="text" id="loginUsername" data-i18n-placeholder="username" placeholder="שם משתמש" />
+        <input type="password" id="loginPassword" data-i18n-placeholder="password" placeholder="סיסמה" />
+        <button onclick="login()" data-i18n="loginBtn">התחבר</button>
+      </div>
+      <div id="loginError" class="error-msg" style="display: none; margin-top: 12px;"></div>
+
+      <div class="lang-switch" style="margin-top: 24px; justify-content: center;">
+        <button class="lang-btn" data-lang="en">English</button>
+        <button class="lang-btn active" data-lang="he">עברית</button>
+      </div>
+      <div style="text-align: center; margin-top: 12px;">
+        <button class="theme-btn" onclick="toggleTheme()">🌙</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manager Panel -->
+  <div id="managerPanel">
+    <button class="logout-btn danger" onclick="logout()" data-i18n="logout">Logout</button>
+
+    <div class="container">
+      <div class="header">
+        <div>
+          <h1 data-i18n="panelTitle">Manager Panel</h1>
+          <p class="subtitle" data-i18n="panelSubtitle">Manage installer accounts and MAC assignments</p>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button class="theme-btn" onclick="toggleTheme()">🌙</button>
+          <div class="lang-switch">
+            <button class="lang-btn" data-lang="en">English</button>
+            <button class="lang-btn active" data-lang="he">עברית</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Link -->
+      <div class="card">
+        <h2 data-i18n="quickAccess">🔗 גישה מהירה</h2>
+        <div class="quick-grid">
+          <a href="/installer.html" target="_blank" class="quick-btn qb-gray">
+            <span class="qb-icon">🔧</span>
+            <span class="qb-label" data-i18n="installerPanelLink">פתח פאנל מתקין</span>
+          </a>
+          <a href="/pricelist-login.html" target="_blank" class="quick-btn qb-gray">
+            <span class="qb-icon">📄</span>
+            <span class="qb-label">עריכת מחירון</span>
+          </a>
+          <a href="#" onclick="scrollToAnnouncements(); return false;" class="quick-btn qb-red">
+            <span class="qb-icon">📢</span>
+            <span class="qb-label">שלח הודעה</span>
+          </a>
+          <a href="#" onclick="openMessagesPage(); return false;" class="quick-btn qb-purple" style="position:relative;">
+            <span class="qb-icon">💬</span>
+            <span class="qb-label">הודעות</span>
+            <span id="msgTotalBadge" style="display:none;position:absolute;top:8px;left:8px;background:#ef4444;color:white;border-radius:12px;min-width:20px;height:20px;font-size:11px;line-height:20px;text-align:center;font-weight:800;padding:0 5px;"></span>
+            <span id="msgUpdateBadge" style="display:none;position:absolute;top:8px;left:34px;background:#16a34a;color:white;border-radius:12px;min-width:20px;height:20px;font-size:11px;line-height:20px;text-align:center;font-weight:800;padding:0 5px;" title="עדכוני דיירים חדשים">🏠</span>
+            <span id="msgServiceBadge" style="display:none;position:absolute;top:8px;left:60px;background:#ea580c;color:white;border-radius:12px;min-width:20px;height:20px;font-size:11px;line-height:20px;text-align:center;font-weight:800;padding:0 5px;" title="פניות שירות חדשות">🔧</span>
+          </a>
+          <a href="/committee.html" target="_blank" class="quick-btn qb-green">
+            <span class="qb-icon">👥</span>
+            <span class="qb-label">פנל ועד דיירים</span>
+          </a>
+          <a href="/building-admin.html" target="_blank" class="quick-btn qb-navy">
+            <span class="qb-icon">🏢</span>
+            <span class="qb-label">ניהול בניינים</span>
+          </a>
+          <a href="/rfid-cards.html" target="_blank" class="quick-btn qb-teal">
+            <span class="qb-icon">🪪</span>
+            <span class="qb-label">ניהול כרטיסי RFID</span>
+          </a>
+          <a href="/stats.html" target="_blank" class="quick-btn qb-blue">
+            <span class="qb-icon">📈</span>
+            <span class="qb-label">סטטיסטיקה</span>
+          </a>
+          <a href="https://nexsmart-us.nexhome.ai/login" target="_blank" class="quick-btn qb-sky">
+            <span class="qb-icon">🌐</span>
+            <span class="qb-label">Nexhome Login</span>
+          </a>
+          <a href="https://eu1.voipbell.net/index.php?lang=en_gb" target="_blank" class="quick-btn qb-gray">
+            <span class="qb-icon">☎️</span>
+            <span class="qb-label" data-i18n="voipbellServer">התחברות לשרת Voipbell</span>
+          </a>
+          <a href="#" onclick="exportExcel(); return false;" class="quick-btn qb-emerald">
+            <span class="qb-icon">📊</span>
+            <span class="qb-label">ייצוא Excel</span>
+          </a>
+          <a href="#" onclick="openMergeModal(); return false;" class="quick-btn qb-purple">
+            <span class="qb-icon">🔀</span>
+            <span class="qb-label">מיזוג חשבונות</span>
+          </a>
+          <a href="/notes.html" target="_blank" class="quick-btn qb-teal">
+            <span class="qb-icon">📝</span>
+            <span class="qb-label">תכנותים נוספים</span>
+          </a>
+          <a href="#" onclick="downloadBackup(); return false;" class="quick-btn qb-gray">
+            <span class="qb-icon">📥</span>
+            <span class="qb-label" data-i18n="downloadBackup">הורד גיבוי מסד נתונים</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Create Installer -->
+      <div class="card">
+        <h2 data-i18n="createInstaller">➕ Create Installer Account</h2>
+        <div class="form-row" style="flex-wrap:wrap;gap:8px;">
+          <input type="text" id="newPhone" data-i18n-placeholder="phoneNumber" placeholder="Phone Number (e.g., +972501234567)" />
+          <input type="text" id="newMacs" data-i18n-placeholder="macAddresses" placeholder="MAC Addresses (comma separated, optional)" />
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button id="typeInstallerBtn" onclick="setNewAccountType('installer')"
+              style="padding:8px 14px;border-radius:20px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#dcfce7;color:#16a34a;">
+              ✅ מתקין
+            </button>
+            <button id="typeCommitteeBtn" onclick="setNewAccountType('committee')"
+              style="padding:8px 14px;border-radius:20px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:var(--surface2);color:var(--text-dim);">
+              🏢 ועד
+            </button>
+            <input type="hidden" id="newAccountType" value="installer" />
+          </div>
+          <button onclick="createInstaller()" data-i18n="createBtn">Create</button>
+        </div>
+        <div id="createResult"></div>
+        <div id="globalMessage"></div>
+      </div>
+
+      <!-- Catalog -->
+      <div class="card">
+        <h2>📄 קטלוג מוצרים</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">הקישור יופיע אצל כל הטכנאים כפתור הורדה.</p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="catalogUrlInput" placeholder="https://example.com/catalog.pdf" style="flex:1;min-width:280px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;" />
+          <button class="btn" onclick="saveCatalogUrl()" style="white-space:nowrap;">💾 שמור קישור</button>
+          <button class="btn" onclick="clearCatalogUrl()" style="background:var(--red);white-space:nowrap;">🗑 הסר</button>
+        </div>
+        <div id="catalogStatus" style="margin-top:8px;font-size:13px;"></div>
+      </div>
+
+
+      <!-- Manager File Storage -->
+      <div class="card">
+        <h2>📋 רשימת דיירים לועד</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">העלה קבצי Excel לאחסון פנימי. ניתן להוריד או למחוק בכל עת.</p>
+
+        <!-- Upload zone -->
+        <div id="xlsxDropZone"
+             onclick="document.getElementById('xlsxFileInput').click()"
+             style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:14px;"
+             onmouseover="this.style.borderColor='var(--accent)'"
+             onmouseout="this.style.borderColor='var(--border)'"
+             ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+             ondragleave="this.style.borderColor='var(--border)'"
+             ondrop="handleXlsxDrop(event)">
+          <div style="font-size:32px;margin-bottom:6px;">📊</div>
+          <div style="font-weight:700;font-size:14px;color:var(--text);">לחץ להעלאה או גרור קובץ לכאן</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">.xlsx, .xls עד 20MB</div>
+        </div>
+        <input type="file" id="xlsxFileInput" accept=".xlsx,.xls" style="display:none;" onchange="uploadXlsxFile(this.files[0])" />
+        <div id="xlsxUploadMsg" style="font-size:13px;text-align:center;min-height:16px;margin-bottom:10px;"></div>
+
+        <!-- File list -->
+        <div id="xlsxFileList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="color:var(--text-dim);font-size:13px;text-align:center;padding:12px;">טוען...</div>
+        </div>
+      </div>
+
+      <!-- Manager Image Storage (personal PNG/JPG/PDF) -->
+      <div class="card">
+        <h2>🖼️ תמונות וקבצים</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">העלה תמונות או קבצי PDF לאחסון אישי. ניתן להוריד או למחוק בכל עת.</p>
+
+        <div id="imgDropZone"
+             onclick="document.getElementById('imgFileInput').click()"
+             style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:14px;"
+             onmouseover="this.style.borderColor='var(--accent)'"
+             onmouseout="this.style.borderColor='var(--border)'"
+             ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+             ondragleave="this.style.borderColor='var(--border)'"
+             ondrop="handleImgDrop(event)">
+          <div style="font-size:32px;margin-bottom:6px;">🖼️</div>
+          <div style="font-weight:700;font-size:14px;color:var(--text);">לחץ להעלאה או גרור קובץ לכאן</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">PNG, JPG, PDF עד 10MB</div>
+        </div>
+        <input type="file" id="imgFileInput" accept="image/png,image/jpeg,image/jpg,application/pdf" style="display:none;" onchange="uploadManagerImage(this.files[0])" />
+        <div id="imgUploadMsg" style="font-size:13px;text-align:center;min-height:16px;margin-bottom:10px;"></div>
+
+        <div id="imgFileList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;">
+          <div style="color:var(--text-dim);font-size:13px;text-align:center;padding:12px;grid-column:1/-1;">טוען...</div>
+        </div>
+      </div>
+
+      <!-- Tutorials -->
+      <div class="card">
+        <h2>🎬 סרטוני הדרכה</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">הסרטונים יופיעו אצל כל הטכנאים בלחיצה על "סרטוני הדרכה".</p>
+
+        <!-- Add form -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+          <input type="text" id="tutorialTitleInput" placeholder="שם הסרטון" style="flex:1;min-width:180px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;text-align:right;" />
+          <input type="text" id="tutorialUrlInput" placeholder="https://youtube.com/..." style="flex:2;min-width:240px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;" />
+          <button class="btn" onclick="addTutorial()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;white-space:nowrap;">+ הוסף</button>
+        </div>
+
+        <!-- List -->
+        <div id="tutorialsAdminList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="color:var(--text-dim);font-size:13px;text-align:center;padding:16px;">טוען...</div>
+        </div>
+      </div>
+
+      <!-- Mailing List -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <h2 style="margin:0;">📧 רשימת תפוצה</h2>
+          <button class="btn" onclick="exportMailingList()" style="background:var(--green);font-size:13px;">⬇ ייצוא CSV</button>
+        </div>
+        <div id="mailingListEmpty" style="display:none;color:var(--text-dim);font-size:14px;text-align:center;padding:20px;">אין נרשמים עדיין</div>
+        <table id="mailingTable" style="display:none;">
+          <thead><tr><th>שם</th><th>אימייל</th><th>תאריך הרשמה</th><th>הסר</th></tr></thead>
+          <tbody id="mailingBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Installers List -->
+      <div class="card">
+        <h2 data-i18n="installersList">👥 Installer Accounts</h2>
+        <div style="position:relative;margin-bottom:14px;">
+          <input type="text" id="installerSearch" oninput="filterInstallers(this.value)"
+            placeholder="🔍 חיפוש לפי טלפון, שם, טכנאי, ועד, כתובת או תיאור..."
+            style="width:100%;padding:11px 14px;border:1.5px solid var(--border,#e5e5e5);border-radius:8px;font-family:inherit;font-size:14px;box-sizing:border-box;"/>
+          <div id="installerSearchCount" style="font-size:12px;color:var(--text-dim,#6b7280);margin-top:6px;display:none;"></div>
+        </div>
+        <table id="installersTable">
+          <thead>
+            <tr>
+              <th style="min-width:120px;">מספר טלפון</th>
+              <th style="min-width:130px;">שם טכנאי</th>
+              <th style="min-width:110px;">סיסמה</th>
+              <th style="min-width:220px;">כתובות MAC</th>
+              <th style="min-width:100px;">נוצר</th>
+              <th style="min-width:120px;">פעולה אחרונה</th>
+              <th style="min-width:150px;text-align:center;">ביצוע פעולות</th>
+            </tr>
+          </thead>
+          <tbody id="installersBody"></tbody>
+        </table>
+      </div>
+
+
+
+      <!-- Announcements -->
+      <div class="card">
+        <h2 style="margin:0 0 16px;">📢 הודעות</h2>
+
+        <!-- New announcement form — always visible -->
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:20px;">
+          <textarea id="announcementText" placeholder="כתוב הודעה..." style="width:100%;min-height:80px;padding:10px 12px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:14px;background:var(--bg-card);color:var(--text);resize:vertical;margin-bottom:10px;"></textarea>
+
+          <!-- Image upload -->
+          <div style="margin-bottom:10px;">
+            <input type="file" id="announcementImageInput" accept="image/*" style="display:none;" onchange="previewAnnouncementImage(event)"/>
+            <button onclick="document.getElementById('announcementImageInput').click()" style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;font-family:inherit;font-size:12px;color:var(--text);">📎 הוסף תמונה</button>
+            <span id="announcementImageName" style="font-size:12px;color:var(--text-dim);margin-right:8px;"></span>
+            <button id="announcementImageClear" onclick="clearAnnouncementImage()" style="display:none;padding:4px 8px;border:none;background:none;cursor:pointer;color:#ef4444;font-size:12px;">✕ הסר</button>
+          </div>
+          <img id="announcementImagePreview" style="display:none;max-width:100%;max-height:160px;border-radius:6px;margin-bottom:10px;object-fit:cover;" />
+
+          <!-- Audience + specific recipient -->
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+            <select id="announcementAudience" onchange="toggleSpecificRecipient()" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-family:inherit;font-size:13px;">
+              <option value="all">כולם</option>
+              <option value="installers">מתקינים בלבד</option>
+              <option value="committees">ועדי בתים בלבד</option>
+              <option value="specific">משתמש ספציפי</option>
+            </select>
+            <select id="announcementSpecific" style="display:none;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-family:inherit;font-size:13px;">
+              <option value="">בחר משתמש...</option>
+            </select>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <button onclick="sendAnnouncement()" style="padding:8px 20px;background:var(--primary);color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;">שלח הודעה</button>
+            <span id="announcementMsg" style="font-size:13px;font-weight:600;"></span>
+          </div>
+        </div>
+
+        <!-- Existing announcements list -->
+        <div id="announcementsManagerList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;">טוען...</div>
+        </div>
+      </div>
+
+      <!-- Activity Log -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+          <h2 style="margin:0;">יומן פעילות</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <select id="activityFilterInstaller" onchange="loadActivityLogs()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-family:inherit;font-size:13px;">
+              <option value="">כל המשתמשים</option>
+            </select>
+            <select id="activityFilterAction" onchange="loadActivityLogs()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-family:inherit;font-size:13px;">
+              <option value="">כל הפעולות</option>
+              <option value="login">כניסה למערכת</option>
+              <option value="lookup">התחברות מרחוק</option>
+              <option value="reboot">אתחול</option>
+              <option value="relay_toggle">פתיחת דלת חירום</option>
+              <option value="temp_code">קוד זמני</option>
+              <option value="catalog">קטלוג מוצרים</option>
+              <option value="portfolio">תיק עבודות</option>
+            </select>
+            <button onclick="loadActivityLogs()" style="padding:6px 12px;background:var(--primary);color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">רענן</button>
+          </div>
+        </div>
+        <div id="activityLogWrap" style="max-height:500px;overflow-y:auto;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="position:sticky;top:0;background:var(--bg-card);z-index:1;">
+                <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);font-size:12px;">מתקין</th>
+                <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);font-size:12px;">פעולה</th>
+                <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);font-size:12px;">MAC</th>
+                <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);font-size:12px;">פרטים</th>
+                <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);font-size:12px;">תאריך ושעה</th>
+                <th style="padding:10px;text-align:center;border-bottom:2px solid var(--border);font-size:12px;">סטטוס</th>
+              </tr>
+            </thead>
+            <tbody id="activityLogBody">
+              <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-dim);">טוען...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAC Modal -->
+  <div class="modal-overlay" id="macModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle">Add MAC Address</h3>
+        <button class="modal-close-btn" onclick="closeModal()" title="Close">✕</button>
+      </div>
+      <input type="hidden" id="modalPhone" />
+      <input type="hidden" id="modalOriginalMac" />
+
+      <div class="modal-field" id="macFieldWrap">
+        <label id="labelMac">MAC Address</label>
+        <input type="text" id="modalMac" placeholder="2875D8C16B0F" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelAddress">📍 Address</label>
+        <input type="text" id="modalAddress" placeholder="123 Main St, Apt 5B" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelPurchase">🛒 Date of Purchase</label>
+        <input type="date" id="modalPurchaseDate" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelStart">🟢 Date of Start Working</label>
+        <input type="date" id="modalStartDate" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelNotes">📝 Additional Info</label>
+        <input type="text" id="modalNotes" placeholder="Extra details..." />
+      </div>
+
+
+
+
+
+      <div class="modal-field">
+        <label id="labelModel">💻 דגם מכשיר</label>
+        <select id="modalModel" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;direction:rtl;">
+          <option value="genesis7">Genesis 7</option>
+          <option value="genesis5">Genesis 5</option>
+        </select>
+      </div>
+
+      <div class="modal-field">
+        <label id="labelAnnualFee">💰 Annual License Fee</label>
+        <input type="text" id="modalAnnualFee" placeholder="e.g. 250" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelLicensesPurchased">📊 Licenses Purchased</label>
+        <input type="number" id="modalLicensesPurchased" placeholder="e.g. 5" min="0" />
+      </div>
+
+      <!-- Hidden fields -->
+      <input type="hidden" id="modalTechnicianPhone" />
+
+      <div class="modal-field">
+        <label id="labelCity">🏙️ City</label>
+        <input type="text" id="modalCity" placeholder="City" />
+      </div>
+
+      <div class="modal-field">
+        <label id="labelVoipbell">📞 VoipBell Account</label>
+        <input type="text" id="modalVoipbellAccount" placeholder="VoipBell account name" />
+      </div>
+
+      <!-- Fields removed from UI but kept for backward compat -->
+      <input type="hidden" id="modalTechnicianName" value="" />
+      <input type="hidden" id="modalSupplier" value="" />
+      <input type="hidden" id="modalCommittee" value="" />
+      <input type="hidden" id="modalCommitteePhone" value="" />
+
+      <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeModal()" id="modalCancelBtn">Cancel</button>
+        <button onclick="submitMac()" id="modalSaveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Set Hebrew + RTL immediately
+    document.documentElement.setAttribute('lang', 'he');
+    document.documentElement.setAttribute('dir', 'rtl');
+
+    const translations = {
+      en: {
+        loginTitle: "Manager Login",
+        username: "Username",
+        password: "Password",
+        loginBtn: "Login",
+        logout: "Logout",
+        panelTitle: "Manager Panel",
+        panelSubtitle: "Manage installer accounts and MAC assignments",
+        quickAccess: "🔗 Quick Access",
+        installerPanelLink: "Open Installer Panel",
+        deviceLookupLink: "Open Device Lookup",
+        downloadBackup: "Download Database Backup",
+        voipbellServer: "Voipbell Server Login",
+        createInstaller: "➕ Create Installer Account",
+        phoneNumber: "Phone Number (e.g., +972501234567)",
+        macAddresses: "MAC Addresses (comma separated, optional)",
+        createBtn: "Create",
+        installersList: "👥 Installer Accounts",
+        thPhone: "Phone Number",
+        thPassword: "Password",
+        thMacs: "MAC Addresses",
+        thCreated: "Created",
+        thLastLogin: "Last Login",
+        thActions: "Actions",
+        loginLogs: "📊 Login Activity",
+        thTimestamp: "Timestamp",
+        thIP: "IP Address",
+        addMac: "Add",
+        delete: "Delete",
+        copy: "Copy",
+        copied: "Copied!",
+        never: "Never",
+        accountCreated: "Account created!",
+        savePassword: "save this password",
+        resetPassword: "Reset Password",
+        passwordReset: "Password reset!",
+        newPassword: "New password",
+        address: "Address",
+        notes: "Additional Info",
+        purchaseDate: "Date of Purchase",
+        startDate: "Date of Start Working",
+        city: "City",
+        technicianName: "Technician Name",
+        technicianPhone: "Technician Phone",
+        supplierName: "Supplier Name",
+        committeePhone: "Committee Phone",
+        panelModel: "Model",
+        annualFee: "Annual License Fee",
+        licensesPurchased: "Licenses Purchased",
+        committeeName: "Committee Name",
+        licenseQuestion: "Has the annual license been paid?",
+        oneYear: "1 year since installation",
+        yearsCount: "years since installation",
+        installerDescription: "Installer Description",
+        edit: "Edit",
+      },
+      he: {
+        loginTitle: "כניסת מנהל",
+        username: "שם משתמש",
+        password: "סיסמה",
+        loginBtn: "התחבר",
+        logout: "התנתק",
+        panelTitle: "פאנל מנהל",
+        panelSubtitle: "ניהול חשבונות מתקינים והקצאות MAC",
+        quickAccess: "🔗 גישה מהירה",
+        installerPanelLink: "פתח פאנל מתקין",
+        deviceLookupLink: "פתח חיפוש מכשיר",
+        downloadBackup: "הורד גיבוי מסד נתונים",
+        voipbellServer: "התחברות לשרת Voipbell",
+        createInstaller: "➕ צור חשבון מתקין",
+        phoneNumber: "מספר טלפון (לדוגמה: +972501234567)",
+        macAddresses: "כתובות MAC (מופרדות בפסיקים, אופציונלי)",
+        createBtn: "צור",
+        installersList: "👥 חשבונות מתקינים",
+        thPhone: "מספר טלפון",
+        thPassword: "סיסמה",
+        thMacs: "כתובות MAC",
+        thCreated: "נוצר",
+        thLastLogin: "כניסה אחרונה",
+        thActions: "פעולות",
+        loginLogs: "📊 פעילות התחברות",
+        thTimestamp: "זמן",
+        thIP: "כתובת IP",
+        addMac: "הוסף",
+        delete: "מחק",
+        copy: "העתק",
+        copied: "הועתק!",
+        never: "אף פעם",
+        accountCreated: "חשבון נוצר!",
+        savePassword: "שמור סיסמה זו",
+        resetPassword: "איפוס סיסמה",
+        passwordReset: "הסיסמה אופסה!",
+        newPassword: "סיסמה חדשה",
+        address: "כתובת",
+        notes: "מידע נוסף",
+        purchaseDate: "תאריך רכישה",
+        startDate: "תאריך תחילת עבודה",
+        city: "עיר",
+        technicianName: "שם טכנאי",
+        technicianPhone: "טלפון טכנאי",
+        supplierName: "שם ספק",
+        committeePhone: "טלפון ועד",
+        panelModel: "דגם",
+        annualFee: "דמי רישיון שנתיים",
+        licensesPurchased: "כמה רשיונות נרכשו",
+        committeeName: "שם ועד",
+        licenseQuestion: "האם שולם רישיון שנתי?",
+        oneYear: "שנה מאז התקנה",
+        yearsCount: "שנים מאז התקנה",
+        installerDescription: "תיאור מתקין",
+        edit: "ערוך",
+      }
+    };
+
+    let currentLang = 'he';
+
+    function showMessage(text, type = 'info') {
+      const el = document.getElementById('globalMessage');
+      if (!el) return;
+      const cls = type === 'success' ? 'success-msg' : type === 'error' ? 'error-msg' : 'info-msg';
+      el.className = cls;
+      el.textContent = text;
+      setTimeout(() => { el.textContent = ''; el.className = ''; }, 3500);
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle('light');
+      const isLight = document.body.classList.contains('light');
+      const icon = isLight ? '🌙' : '☀️';
+      document.querySelectorAll('.theme-btn').forEach(b => b.textContent = icon);
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    }
+
+    // Default to light theme
+    if (localStorage.getItem('theme') !== 'dark') document.body.classList.add('light');
+    if (!localStorage.getItem('theme')) localStorage.setItem('theme', 'light');
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[lang][key]) el.textContent = translations[lang][key];
+      });
+
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (translations[lang][key]) el.placeholder = translations[lang][key];
+      });
+
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+      });
+
+      if (document.getElementById('managerPanel').style.display !== 'none') loadData();
+    }
+
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('lang-btn')) setLanguage(e.target.dataset.lang);
+    });
+
+    async function login() {
+      const username = document.getElementById('loginUsername').value;
+      const password = document.getElementById('loginPassword').value;
+
+      const errorDiv = document.getElementById('loginError');
+      errorDiv.style.display = 'none';
+      errorDiv.textContent = '';
+
+      try {
+        const res = await fetch('/api/manager/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          document.getElementById('loginScreen').style.display = 'none';
+          document.getElementById('managerPanel').style.display = 'block';
+          loadData().then(function(){ loadActivityLogs(); populateActivityInstallerFilter(); loadAnnouncements(); populateAnnouncementRecipients(); });
+          loadCatalog();
+          loadMailingList();
+          loadTutorialsAdmin();
+          loadManagerFiles();
+          loadManagerImages();
+          // Keep the messages unread badge fresh even when idle
+          if (!window._msgBadgePoll) window._msgBadgePoll = setInterval(loadUnreadBadges, 15000);
+        } else {
+          errorDiv.textContent = data.error || 'Login failed';
+          errorDiv.style.display = 'block';
+        }
+      } catch (err) {
+        errorDiv.textContent = 'Network error';
+        errorDiv.style.display = 'block';
+      }
+    }
+
+    function logout() {
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('managerPanel').style.display = 'none';
+      document.getElementById('loginUsername').value = '';
+      document.getElementById('loginPassword').value = '';
+      document.getElementById('loginError').style.display = 'none';
+    }
+
+
+    function setNewAccountType(type) {
+      document.getElementById('newAccountType').value = type;
+      const instBtn = document.getElementById('typeInstallerBtn');
+      const commBtn = document.getElementById('typeCommitteeBtn');
+      if (type === 'installer') {
+        instBtn.style.background = '#dcfce7'; instBtn.style.color = '#16a34a';
+        commBtn.style.background = 'var(--surface2)'; commBtn.style.color = 'var(--text-dim)';
+      } else {
+        commBtn.style.background = '#e0e7ff'; commBtn.style.color = '#4338ca';
+        instBtn.style.background = 'var(--surface2)'; instBtn.style.color = 'var(--text-dim)';
+      }
+    }
+
+    async function createInstaller() {
+      const phoneNumber = document.getElementById('newPhone').value;
+      const macs = document.getElementById('newMacs').value;
+      const macAddresses = macs ? macs.split(',').map(m => m.trim().replace(/[:\s-]/g, '').toUpperCase()) : [];
+
+      const accountType = document.getElementById('newAccountType').value;
+      const res = await fetch('/api/manager/installers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber, macAddresses, accountType })
+      });
+
+      const data = await res.json();
+      const resultDiv = document.getElementById('createResult');
+      const t = translations[currentLang];
+
+      if (data.success) {
+        resultDiv.innerHTML = `
+          <div class="success-msg">
+            <strong>${t.accountCreated}</strong><br>
+            ${t.thPhone}: ${data.phoneNumber}<br>
+            ${t.thPassword}: <strong style="font-size: 16px;">${data.password}</strong>
+            <button class="copy-btn small" data-copy="${data.password}">${t.copy}</button>
+            <br><small>(${t.savePassword})</small>
+          </div>
+        `;
+        document.getElementById('newPhone').value = '';
+        document.getElementById('newMacs').value = '';
+        document.getElementById('newAccountType').value = 'installer';
+        setNewAccountType('installer');
+        loadData();
+      } else {
+        resultDiv.innerHTML = `<div class="error-msg">${data.error || 'Error'}</div>`;
+      }
+    }
+
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-copy]');
+      if (!btn) return;
+      const text = btn.getAttribute('data-copy');
+      navigator.clipboard.writeText(text);
+      btn.textContent = translations[currentLang].copied;
+      setTimeout(() => btn.textContent = translations[currentLang].copy, 2000);
+    });
+
+    async function deleteInstaller(phoneNumber) {
+      if (!confirm(`Delete installer ${phoneNumber}?`)) return;
+      await fetch(`/api/manager/installers/${phoneNumber}`, { method: 'DELETE' });
+      loadData();
+    }
+
+    async function resetPassword(phoneNumber) {
+      if (!confirm(`Reset password for ${phoneNumber}?`)) return;
+      const res = await fetch(`/api/manager/installers/${phoneNumber}/reset-password`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        alert(`${translations[currentLang].passwordReset}\n${translations[currentLang].newPassword}: ${data.password}`);
+        loadData();
+      }
+    }
+
+    function openModal(phoneNumber, macObj = null, focusField = null) {
+      const t = translations[currentLang];
+      document.getElementById('modalPhone').value = phoneNumber;
+      document.getElementById('macModal').classList.add('open');
+
+      document.getElementById('macFieldWrap').style.display = macObj ? 'none' : 'block';
+      const macInput = document.getElementById('modalMac');
+      macInput.readOnly = false;
+      macInput.style.background = '';
+      macInput.style.cursor = '';
+      document.getElementById('modalOriginalMac').value = macObj ? macObj.mac : '';
+
+      document.getElementById('modalMac').value = macObj ? (macObj.mac || '') : '';
+      document.getElementById('modalAddress').value = macObj ? (macObj.address || '') : '';
+      const todayStr = new Date().toISOString().split('T')[0];
+      document.getElementById('modalPurchaseDate').value = macObj ? (macObj.purchaseDate || '') : todayStr;
+      document.getElementById('modalStartDate').value = macObj ? (macObj.startDate || '') : '';
+      document.getElementById('modalNotes').value = macObj ? (macObj.notes || '') : '';
+      document.getElementById('modalTechnicianName').value = macObj ? (macObj.technicianName || '') : '';
+      document.getElementById('modalTechnicianPhone').value = macObj ? (macObj.technicianPhone || '') : '';
+      document.getElementById('modalSupplier').value = macObj ? (macObj.supplierName || '') : '';
+      document.getElementById('modalCommitteePhone').value = macObj ? (macObj.committeePhone || '') : '';
+      document.getElementById('modalCity').value = macObj ? (macObj.city || '') : '';
+      document.getElementById('modalModel').value = macObj ? (macObj.panelType || 'genesis7') : 'genesis7';
+      document.getElementById('modalVoipbellAccount').value = macObj ? (macObj.voipbellAccount || '') : '';
+      document.getElementById('modalCommitteePhone').value = macObj ? (macObj.committeePhone || '') : '';
+      document.getElementById('modalAnnualFee').value = macObj ? (macObj.annualFee || '') : '';
+
+      document.getElementById('modalTitle').textContent = macObj ? (t.edit + ' MAC') : ('+ ' + t.addMac);
+      document.getElementById('labelAddress').textContent = '📍 ' + t.address;
+      document.getElementById('labelPurchase').textContent = '🛒 ' + t.purchaseDate;
+      document.getElementById('labelStart').textContent = '🟢 ' + t.startDate;
+      document.getElementById('labelNotes').textContent = '📝 ' + t.notes;
+      document.getElementById('labelTechnician').textContent = '👷 ' + t.technicianName;
+      document.getElementById('labelSupplier').textContent = '🏢 ' + t.supplierName;
+      document.getElementById('labelAnnualFee').textContent = '💰 ' + t.annualFee;
+      document.getElementById('labelCity').textContent = '🏙️ ' + (currentLang === 'he' ? 'עיר' : 'City');
+      document.getElementById('labelVoipbell').textContent = '📞 VoipBell Account';
+
+      document.getElementById('modalCancelBtn').textContent = currentLang === 'he' ? 'ביטול' : 'Cancel';
+      document.getElementById('modalSaveBtn').textContent = currentLang === 'he' ? 'שמור' : 'Save';
+
+      if (focusField) {
+        setTimeout(() => {
+          const fieldMap = {
+            address: 'modalAddress',
+            purchaseDate: 'modalPurchaseDate',
+            startDate: 'modalStartDate',
+            notes: 'modalNotes',
+            technicianName: 'modalTechnicianName',
+            supplierName: 'modalSupplier',
+            annualFee: 'modalAnnualFee',
+            licensesPurchased: 'modalLicensesPurchased',
+            committeeName: 'modalCommittee',
+            committeePhone: 'modalCommitteePhone',
+            technicianPhone: 'modalTechnicianPhone',
+            city: 'modalCity',
+            panelType: 'modalModel',
+            voipbellAccount: 'modalVoipbellAccount',
+          };
+          const el = document.getElementById(fieldMap[focusField]);
+          if (el) { el.focus(); el.select && el.select(); }
+        }, 120);
+      }
+    }
+
+    function closeModal() { document.getElementById('macModal').classList.remove('open'); }
+
+    async function submitMac() {
+      const phoneNumber = document.getElementById('modalPhone').value;
+      const originalMac = document.getElementById('modalOriginalMac').value;
+      const rawMac = originalMac || document.getElementById('modalMac').value;
+      const mac = rawMac.replace(/[:\s-]/g, '').toUpperCase();
+
+      const address = document.getElementById('modalAddress').value;
+      const purchaseDate = document.getElementById('modalPurchaseDate').value;
+      const startDate = document.getElementById('modalStartDate').value;
+      const notes = document.getElementById('modalNotes').value;
+      const technicianName = document.getElementById('modalTechnicianName').value;
+      const technicianPhone = document.getElementById('modalTechnicianPhone').value;
+      const supplierName = document.getElementById('modalSupplier').value;
+      const committeeName = document.getElementById('modalCommittee').value;
+      const committeePhone = document.getElementById('modalCommitteePhone').value;
+      const city = document.getElementById('modalCity').value;
+      const panelType = document.getElementById('modalModel').value;
+      const annualFee = document.getElementById('modalAnnualFee').value;
+      const licensesPurchased = document.getElementById('modalLicensesPurchased').value;
+
+      if (!mac) return alert('MAC address is required');
+
+      if (originalMac) {
+        await fetch(`/api/manager/installers/${phoneNumber}/macs/${originalMac}`, { method: 'DELETE' });
+      }
+
+      const voipbellAccount = document.getElementById('modalVoipbellAccount').value;
+      await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ macAddress: mac, address, city, notes, purchaseDate, startDate, technicianName, technicianPhone, supplierName, committeeName, committeePhone, annualFee, licensesPurchased, panelType, voipbellAccount })
+      });
+
+      closeModal();
+      loadData();
+    }
+
+    async function editField(phoneNumber, mac, field) {
+      const res = await fetch(`/api/manager/installers/${phoneNumber}`);
+      const data = await res.json();
+      const macObj = data.installer.macAddresses.find(m => m.mac === mac);
+      if (!macObj) return;
+      openModal(phoneNumber, macObj, field);
+    }
+
+    function addMac(phoneNumber) { openModal(phoneNumber, null); }
+
+    function editMac(phoneNumber, macObj) { openModal(phoneNumber, macObj); }
+
+    async function removeMac(phoneNumber, mac) {
+      await fetch(`/api/manager/installers/${phoneNumber}/macs/${mac}`, { method: 'DELETE' });
+      loadData();
+    }
+
+    async function uploadMacFile(phoneNumber, mac, input) {
+      const file = input.files[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('phoneNumber', phoneNumber);
+      fd.append('mac', mac);
+      try {
+        showMessage('⏳ מעלה קובץ...', 'info');
+        const res = await fetch('/api/manager/mac-file', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.success) { showMessage('✅ הקובץ הועלה', 'success'); loadData(); }
+        else showMessage('❌ ' + (data.error || 'שגיאה'), 'error');
+      } catch (e) {
+        showMessage('❌ שגיאת תקשורת', 'error');
+      }
+      input.value = '';
+    }
+
+    async function handleLicensePayment(phoneNumber, mac) {
+      const t = translations[currentLang];
+      const confirmed = confirm(t.licenseQuestion);
+      if (!confirmed) return;
+
+      try {
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        const macObj = details.installer.macAddresses.find(m => m.mac === mac);
+        if (!macObj) return showMessage('❌ MAC not found', 'error');
+
+        const res = await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            macAddress: mac,
+            address: macObj.address || '',
+            purchaseDate: macObj.purchaseDate || '',
+            startDate: macObj.startDate || '',
+            notes: macObj.notes || '',
+            technicianName: macObj.technicianName || '',
+            supplierName: macObj.supplierName || '',
+            committeeName: macObj.committeeName || '',
+            annualFee: macObj.annualFee || '',
+            licensesPurchased: macObj.licensesPurchased || '',
+            licensePaid: true,
+          }),
+        });
+
+        if (!res.ok) throw new Error('Failed to update');
+        showMessage(currentLang === 'he' ? '✅ רישיון סומן כשולם!' : '✅ License marked as paid!', 'success');
+        loadData();
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+      }
+    }
+
+    async function handleLicenseUnpaid(phoneNumber, mac) {
+      const confirmed = confirm(currentLang === 'he' ? 'לבטל סימון תשלום?' : 'Mark as unpaid?');
+      if (!confirmed) return;
+
+      try {
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        const macObj = details.installer.macAddresses.find(m => m.mac === mac);
+        if (!macObj) return showMessage('❌ MAC not found', 'error');
+
+        const res = await fetch(`/api/manager/installers/${phoneNumber}/macs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            macAddress: mac,
+            address: macObj.address || '',
+            purchaseDate: macObj.purchaseDate || '',
+            startDate: macObj.startDate || '',
+            notes: macObj.notes || '',
+            technicianName: macObj.technicianName || '',
+            supplierName: macObj.supplierName || '',
+            committeeName: macObj.committeeName || '',
+            annualFee: macObj.annualFee || '',
+            licensesPurchased: macObj.licensesPurchased || '',
+            licensePaid: false,
+          }),
+        });
+
+        if (!res.ok) throw new Error('Failed to update');
+        showMessage(currentLang === 'he' ? '✅ סומן כלא שולם' : '✅ Marked as unpaid', 'success');
+        loadData();
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+      }
+    }
+
+    async function downloadBackup() {
+      try {
+        showMessage(currentLang === 'he' ? 'מוריד גיבוי...' : 'Downloading backup...', 'info');
+        const res = await fetch('/api/manager/backup');
+        if (!res.ok) throw new Error('Backup failed');
+
+        const data = await res.json();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `genesistracer-backup-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showMessage(currentLang === 'he' ? '✅ גיבוי הורד בהצלחה!' : '✅ Backup downloaded successfully!', 'success');
+      } catch (err) {
+        showMessage((currentLang === 'he' ? '❌ שגיאה בהורדת גיבוי: ' : '❌ Error downloading backup: ') + err.message, 'error');
+      }
+    }
+
+
+    // ==================== TUTORIALS ====================
+    let tutorialsData = [];
+
+    async function loadTutorialsAdmin() {
+      const container = document.getElementById('tutorialsAdminList');
+      if (!container) return;
+      try {
+        const res = await fetch('/api/tutorials');
+        const data = await res.json();
+        tutorialsData = data.tutorials || [];
+        renderTutorialsAdmin();
+      } catch(e) {
+        container.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:16px;">שגיאה בטעינה</div>';
+      }
+    }
+
+    function renderTutorialsAdmin() {
+      const container = document.getElementById('tutorialsAdminList');
+      if (!tutorialsData.length) {
+        container.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:16px;">אין סרטונים עדיין</div>';
+        return;
+      }
+      container.innerHTML = tutorialsData.map((t, i) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+          <div style="flex:1;text-align:right;">
+            <div style="font-weight:600;font-size:14px;color:var(--text);">${t.title}</div>
+            <a href="${t.url}" target="_blank" style="font-size:12px;color:var(--accent);word-break:break-all;">${t.url}</a>
+          </div>
+          <button onclick="removeTutorial(${i})" style="background:var(--red);color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;white-space:nowrap;flex-shrink:0;">🗑 הסר</button>
+        </div>
+      `).join('');
+    }
+
+    async function addTutorial() {
+      const title = document.getElementById('tutorialTitleInput').value.trim();
+      const url = document.getElementById('tutorialUrlInput').value.trim();
+      if (!title || !url) return alert('יש למלא שם וקישור');
+      tutorialsData.push({ title, url });
+      await saveTutorialsAdmin();
+      document.getElementById('tutorialTitleInput').value = '';
+      document.getElementById('tutorialUrlInput').value = '';
+    }
+
+    async function removeTutorial(index) {
+      tutorialsData.splice(index, 1);
+      await saveTutorialsAdmin();
+    }
+
+    async function saveTutorialsAdmin() {
+      try {
+        await fetch('/api/manager/tutorials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tutorials: tutorialsData })
+        });
+        renderTutorialsAdmin();
+      } catch(e) {
+        alert('שגיאה בשמירה');
+      }
+    }
+
+
+    // ==================== MANAGER FILE STORAGE ====================
+    async function loadManagerFiles() {
+      const list = document.getElementById('xlsxFileList');
+      if (!list) return;
+      try {
+        const res  = await fetch('/api/manager/files');
+        const data = await res.json();
+        const files = data.files || [];
+        if (!files.length) {
+          list.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:12px;">אין קבצים עדיין</div>';
+          return;
+        }
+        list.innerHTML = files.map(f => {
+          const sizeKB = Math.round((f.size || 0) / 1024);
+          const date   = f.uploadedAt ? new Date(f.uploadedAt).toLocaleDateString('he-IL') : '';
+          const encId  = encodeURIComponent(f.publicId);
+          return `
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+              <span style="font-size:22px;flex-shrink:0;">📊</span>
+              <div style="flex:1;min-width:0;text-align:right;">
+                <div style="font-weight:700;font-size:14px;color:var(--text);">${f.title || f.name}</div>
+                <div style="font-size:11px;color:var(--text-dim);">${sizeKB} KB · ${date}</div>
+              </div>
+              <a href="${f.url}" download="${f.name}" target="_blank"
+                 style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">
+                ⬇ הורד
+              </a>
+              <button onclick="deleteManagerFile('${encId}')"
+                style="background:var(--red);color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;">
+                🗑 מחק
+              </button>
+            </div>
+            <div style="padding:8px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+              <input type="text" value="${f.title || ''}" placeholder="הוסף כותרת..."
+                     id="title-${encId}"
+                     style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;background:var(--surface);color:var(--text);text-align:right;" />
+              <button onclick="saveFileTitle('${encId}', '${f.publicId}')"
+                      style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;">
+                שמור
+              </button>
+            </div>`;
+        }).join('');
+      } catch(e) {
+        list.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;">שגיאה בטעינה</div>';
+      }
+    }
+
+    async function uploadXlsxFile(file) {
+      if (!file) return;
+      const msg = document.getElementById('xlsxUploadMsg');
+      msg.style.color = 'var(--text-dim)';
+      msg.textContent = 'מעלה קובץ...';
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const res  = await fetch('/api/manager/files/upload', { method:'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+          msg.style.color = 'var(--green)';
+          msg.textContent = '✅ הועלה בהצלחה!';
+          loadManagerFiles();
+          setTimeout(() => { msg.textContent = ''; }, 2500);
+        } else {
+          msg.style.color = 'var(--red)';
+          msg.textContent = '❌ ' + (data.error || 'שגיאה');
+        }
+      } catch(e) {
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ שגיאת תקשורת';
+      }
+      document.getElementById('xlsxFileInput').value = '';
+    }
+
+    function handleXlsxDrop(event) {
+      event.preventDefault();
+      document.getElementById('xlsxDropZone').style.borderColor = 'var(--border)';
+      const file = event.dataTransfer.files[0];
+      if (file) uploadXlsxFile(file);
+    }
+
+    async function deleteManagerFile(encodedPublicId) {
+      if (!confirm('למחוק את הקובץ?')) return;
+      const publicId = decodeURIComponent(encodedPublicId);
+      try {
+        const res  = await fetch(`/api/manager/files/${encodedPublicId}`, { method:'DELETE' });
+        const data = await res.json();
+        if (data.success) loadManagerFiles();
+        else alert('שגיאה במחיקה: ' + (data.error || 'unknown'));
+      } catch(e) { alert('שגיאת תקשורת'); }
+    }
+
+    // ===== Manager images (personal PNG/JPG) =====
+    async function loadManagerImages() {
+      const list = document.getElementById('imgFileList');
+      if (!list) return;
+      try {
+        const res  = await fetch('/api/manager/images');
+        const data = await res.json();
+        const imgs = data.images || [];
+        if (!imgs.length) {
+          list.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:12px;grid-column:1/-1;">אין תמונות עדיין</div>';
+          return;
+        }
+        list.innerHTML = imgs.map(f => {
+          const date  = f.uploadedAt ? new Date(f.uploadedAt).toLocaleDateString('he-IL') : '';
+          const encId = encodeURIComponent(f.publicId);
+          const preview = f.isPdf
+            ? `<a href="${f.url}" target="_blank" style="display:flex;align-items:center;justify-content:center;aspect-ratio:1;background:#fef2f2;text-decoration:none;">
+                 <div style="text-align:center;"><div style="font-size:44px;">📄</div><div style="font-size:11px;color:#991b1b;font-weight:700;margin-top:4px;padding:0 6px;word-break:break-word;direction:rtl;unicode-bidi:plaintext;">${f.name}</div></div>
+               </a>`
+            : `<a href="${f.url}" target="_blank" style="display:block;aspect-ratio:1;overflow:hidden;background:#000;">
+                 <img src="${f.url}" style="width:100%;height:100%;object-fit:cover;" />
+               </a>`;
+          return `
+            <div style="background:var(--surface2);border-radius:10px;border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;">
+              ${preview}
+              <div style="padding:8px;text-align:right;">
+                <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">${date}</div>
+                <div style="display:flex;gap:6px;">
+                  <a href="${f.url}" download="${f.name}" target="_blank" style="flex:1;text-align:center;background:var(--accent);color:#fff;border-radius:6px;padding:6px;font-size:12px;font-weight:600;text-decoration:none;">⬇</a>
+                  <button onclick="deleteManagerImage('${encId}')" style="flex:1;background:var(--red);color:#fff;border:none;border-radius:6px;padding:6px;cursor:pointer;font-size:12px;font-weight:600;">🗑</button>
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+      } catch(e) {
+        list.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;grid-column:1/-1;">שגיאה בטעינה</div>';
+      }
+    }
+
+    async function uploadManagerImage(file) {
+      if (!file) return;
+      const msg = document.getElementById('imgUploadMsg');
+      msg.style.color = 'var(--text-dim)';
+      msg.textContent = 'מעלה תמונה...';
+      const formData = new FormData();
+      formData.append('image', file);
+      try {
+        const res  = await fetch('/api/manager/images/upload', { method:'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+          msg.style.color = 'var(--green)';
+          msg.textContent = '✅ הועלה בהצלחה!';
+          loadManagerImages();
+          setTimeout(() => { msg.textContent = ''; }, 2500);
+        } else {
+          msg.style.color = 'var(--red)';
+          msg.textContent = '❌ ' + (data.error || 'שגיאה');
+        }
+      } catch(e) {
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ שגיאת תקשורת';
+      }
+      document.getElementById('imgFileInput').value = '';
+    }
+
+    function handleImgDrop(event) {
+      event.preventDefault();
+      document.getElementById('imgDropZone').style.borderColor = 'var(--border)';
+      const file = event.dataTransfer.files[0];
+      if (file) uploadManagerImage(file);
+    }
+
+    async function deleteManagerImage(encodedPublicId) {
+      if (!confirm('למחוק את התמונה?')) return;
+      try {
+        const res  = await fetch(`/api/manager/images/${encodedPublicId}`, { method:'DELETE' });
+        const data = await res.json();
+        if (data.success) loadManagerImages();
+        else alert('שגיאה במחיקה: ' + (data.error || 'unknown'));
+      } catch(e) { alert('שגיאת תקשורת'); }
+    }
+
+
+
+
+    async function editInstallerPhone(currentPhone) {
+      const newPhone = prompt('מספר טלפון חדש:', currentPhone);
+      if (!newPhone || newPhone.trim() === currentPhone) return;
+      const confirmed = confirm('שינוי מספר הטלפון מ-' + currentPhone + ' ל-' + newPhone.trim() + '\n\nהטכנאי יצטרך להתחבר עם המספר החדש. להמשיך?');
+      if (!confirmed) return;
+      try {
+        const res = await fetch('/api/manager/installers/' + currentPhone + '/change-phone', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newPhoneNumber: newPhone.trim() })
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadData();
+        } else {
+          alert('שגיאה: ' + (data.error || 'unknown'));
+        }
+      } catch(e) { alert('שגיאת תקשורת: ' + e.message); }
+    }
+
+    async function toggleAccountType(phoneNumber, btn) {
+      const current = btn.getAttribute('data-type') || 'installer';
+      const newType = current === 'installer' ? 'committee' : 'installer';
+      try {
+        const res = await fetch('/api/manager/installers/' + phoneNumber + '/account-type', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountType: newType })
+        });
+        const data = await res.json();
+        if (data.success) {
+          btn.setAttribute('data-type', newType);
+          btn.textContent = newType === 'committee' ? 'ועד' : 'מתקין';
+          btn.style.background = newType === 'committee' ? '#e0e7ff' : '#dcfce7';
+          btn.style.color = newType === 'committee' ? '#4338ca' : '#16a34a';
+        } else {
+          alert('שגיאה: ' + (data.error || 'unknown'));
+        }
+      } catch(e) { alert('שגיאת תקשורת'); }
+    }
+
+    async function editInstallerName(phoneNumber) {
+      const currentName = '';
+      const newName = prompt('שם הטכנאי:', currentName);
+      if (newName === null) return;
+      try {
+        const res = await fetch('/api/manager/installers/' + phoneNumber + '/info', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ installerName: newName.trim() })
+        });
+        const data = await res.json();
+        console.log('editInstallerName response:', data);
+        if (data.success) loadData();
+        else alert('שגיאה: ' + (data.error || 'unknown'));
+      } catch(e) { alert('שגיאת תקשורת: ' + e.message); }
+    }
+
+    async function saveFileTitle(encId, publicId) {
+      const input = document.getElementById('title-' + encId);
+      if (!input) return;
+      const title = input.value.trim();
+      try {
+        const res = await fetch('/api/manager/files/title', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publicId: decodeURIComponent(publicId), title })
+        });
+        const data = await res.json();
+        if (data.success) { loadManagerFiles(); }
+        else alert('שגיאה: ' + (data.error || 'unknown'));
+      } catch(e) { alert('שגיאת תקשורת'); }
+    }
+
+    function formatMac(mac) {
+      if (!mac) return '-';
+      if (/^[0-9A-Fa-f]{12}$/.test(mac)) return mac.match(/.{1,2}/g).join(':');
+      return mac;
+    }
+
+    var ACTION_LABELS = { login:'כניסה למערכת', lookup:'התחברות מרחוק', reboot:'אתחול מכשיר', relay_toggle:'פתיחת דלת חירום', temp_code:'קוד זמני', catalog:'קטלוג מוצרים', portfolio:'תיק עבודות' };
+    var ACTION_COLORS = { login:'#6b7280', lookup:'#3b82f6', reboot:'#f59e0b', relay_toggle:'#ef4444', temp_code:'#8b5cf6', catalog:'#0ea5e9', portfolio:'#10b981' };
+
+    async function loadActivityLogs() {
+      var installer = document.getElementById('activityFilterInstaller') ? document.getElementById('activityFilterInstaller').value : '';
+      var action = document.getElementById('activityFilterAction') ? document.getElementById('activityFilterAction').value : '';
+      var body = document.getElementById('activityLogBody');
+      if (!body) return;
+      body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-dim);">טוען...</td></tr>';
+      try {
+        var url = '/api/manager/activity-logs?limit=200';
+        if (installer) url += '&phoneNumber=' + encodeURIComponent(installer);
+        if (action) url += '&action=' + encodeURIComponent(action);
+        var res = await fetch(url);
+        var data = await res.json();
+        if (!data.success || !data.logs.length) {
+          body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-dim);">אין פעילות להצגה</td></tr>';
+          return;
+        }
+        var rows = '';
+        for (var i = 0; i < data.logs.length; i++) {
+          var log = data.logs[i];
+          var actionLabel = ACTION_LABELS[log.action] || log.action;
+          var actionColor = ACTION_COLORS[log.action] || '#6b7280';
+          var date = new Date(log.timestamp);
+          var dateStr = date.toLocaleDateString('he-IL') + ' ' + date.toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'});
+          var detailsStr = '';
+          if (log.action === 'temp_code' && log.details && log.details.pin) {
+            var dayNames = ['א','ב','ג','ד','ה','ו','ש'];
+            var days = (log.details.validWeekdays || []).map(function(d){return dayNames[d];}).join(',');
+            detailsStr = 'קוד: ' + log.details.pin + ' | ' + days + ' | ' + (log.details.expiryType === 'daily' ? 'יומי' : 'ללא הגבלה');
+          } else if (log.action === 'relay_toggle' && log.details && log.details.newMode) {
+            detailsStr = log.details.newMode === 'alwayson' ? 'הופעל' : 'כובה';
+          } else if (log.action === 'login') {
+            detailsStr = log.details && log.details.ip ? 'IP: ' + log.details.ip : '';
+          } else if (log.action === 'lookup' && log.details && log.details.status) {
+            detailsStr = (log.details.project || '') + ' - ' + (log.details.status === 'online' ? 'מחובר' : 'מנותק');
+          } else if (log.action === 'reboot') {
+            detailsStr = (log.details && log.details.source === 'manager') ? 'ע"י מנהל' : 'ע"י מתקין';
+          }
+          rows += '<tr style="border-bottom:1px solid var(--border);">' +
+            '<td style="padding:10px;font-size:13px;font-weight:600;">' + log.phoneNumber + '</td>' +
+            '<td style="padding:10px;"><span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:' + actionColor + '18;color:' + actionColor + ';">' + actionLabel + '</span></td>' +
+            '<td style="padding:10px;font-family:monospace;font-size:12px;color:var(--text-dim);">' + formatMac(log.mac) + '</td>' +
+            '<td style="padding:10px;font-size:12px;color:var(--text-dim);">' + detailsStr + '</td>' +
+            '<td style="padding:10px;font-size:12px;color:var(--text-dim);white-space:nowrap;">' + dateStr + '</td>' +
+            '<td style="padding:10px;text-align:center;">' + (log.success ? 'V' : 'X') + '</td>' +
+            '</tr>';
+        }
+        body.innerHTML = rows;
+      } catch (err) {
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:red;">' + err.message + '</td></tr>';
+      }
+    }
+
+    async function populateActivityInstallerFilter() {
+      var sel = document.getElementById('activityFilterInstaller');
+      if (!sel) return;
+      try {
+        var res = await fetch('/api/manager/installers');
+        var data = await res.json();
+        var installers = [];
+        var committees = [];
+        (data.installers || []).forEach(function(inst) {
+          if (inst.phoneNumber === 'admin') return;
+          if ((inst.accountType || 'installer') === 'committee') {
+            committees.push(inst);
+          } else {
+            installers.push(inst);
+          }
+        });
+        if (installers.length) {
+          var grp1 = document.createElement('optgroup');
+          grp1.label = 'מתקינים';
+          installers.forEach(function(inst) {
+            var opt = document.createElement('option');
+            opt.value = inst.phoneNumber;
+            opt.textContent = (inst.installerName || inst.phoneNumber);
+            grp1.appendChild(opt);
+          });
+          sel.appendChild(grp1);
+        }
+        if (committees.length) {
+          var grp2 = document.createElement('optgroup');
+          grp2.label = 'ועדי בתים';
+          committees.forEach(function(inst) {
+            var opt = document.createElement('option');
+            opt.value = inst.phoneNumber;
+            opt.textContent = (inst.installerName || inst.phoneNumber);
+            grp2.appendChild(opt);
+          });
+          sel.appendChild(grp2);
+        }
+      } catch(e) {}
+    }
+
+    function scrollToAnnouncements() {
+      var el = document.getElementById('newAnnouncementForm');
+      if (el) {
+        el.closest('.card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(function() {
+          el.style.display = 'block';
+          document.getElementById('announcementText').focus();
+        }, 400);
+      }
+    }
+
+    var announcementImageFile = null;
+
+    function previewAnnouncementImage(event) {
+      var file = event.target.files[0];
+      if (!file) return;
+      announcementImageFile = file;
+      document.getElementById('announcementImageName').textContent = file.name;
+      document.getElementById('announcementImageClear').style.display = 'inline';
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var preview = document.getElementById('announcementImagePreview');
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearAnnouncementImage() {
+      announcementImageFile = null;
+      document.getElementById('announcementImageInput').value = '';
+      document.getElementById('announcementImageName').textContent = '';
+      document.getElementById('announcementImageClear').style.display = 'none';
+      document.getElementById('announcementImagePreview').style.display = 'none';
+      document.getElementById('announcementImagePreview').src = '';
+    }
+
+    function toggleSpecificRecipient() {
+      var audience = document.getElementById('announcementAudience').value;
+      var specific = document.getElementById('announcementSpecific');
+      specific.style.display = audience === 'specific' ? 'inline-block' : 'none';
+    }
+
+    async function populateAnnouncementRecipients() {
+      var sel = document.getElementById('announcementSpecific');
+      if (!sel) return;
+      try {
+        var res = await fetch('/api/manager/installers');
+        var data = await res.json();
+        (data.installers || []).forEach(function(inst) {
+          if (inst.phoneNumber === 'admin') return;
+          var opt = document.createElement('option');
+          opt.value = inst.phoneNumber;
+          var typeLabel = (inst.accountType || 'installer') === 'committee' ? ' (ועד)' : ' (מתקין)';
+          opt.textContent = (inst.installerName || inst.phoneNumber) + typeLabel;
+          sel.appendChild(opt);
+        });
+      } catch(e) {}
+    }
+
+    function toggleNewAnnouncement() {
+      // kept for backwards compat with quick access scroll
+    }
+
+    async function sendAnnouncement() {
+      var text = document.getElementById('announcementText').value.trim();
+      var audience = document.getElementById('announcementAudience').value;
+      var specific = document.getElementById('announcementSpecific').value;
+      var msg = document.getElementById('announcementMsg');
+
+      if (!text && !announcementImageFile) {
+        msg.style.color = 'red'; msg.textContent = 'נא להזין הודעה או תמונה'; return;
+      }
+      if (audience === 'specific' && !specific) {
+        msg.style.color = 'red'; msg.textContent = 'נא לבחור משתמש'; return;
+      }
+
+      msg.style.color = 'var(--text-dim)'; msg.textContent = 'שולח...';
+
+      try {
+        var imageUrl = null;
+
+        // Upload image if exists
+        if (announcementImageFile) {
+          var formData = new FormData();
+          formData.append('image', announcementImageFile);
+          formData.append('phoneNumber', 'manager');
+          var uploadRes = await fetch('/api/manager/notes/image', { method: 'POST', body: formData });
+          var uploadData = await uploadRes.json();
+          if (uploadData.success) imageUrl = uploadData.url;
+        }
+
+        var payload = {
+          text: text,
+          audience: audience === 'specific' ? 'specific' : audience,
+          specificPhone: audience === 'specific' ? specific : null,
+          imageUrl: imageUrl,
+        };
+
+        var res = await fetch('/api/manager/announcements', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        var data = await res.json();
+        if (data.success) {
+          msg.style.color = 'green'; msg.textContent = '✅ נשלח בהצלחה';
+          document.getElementById('announcementText').value = '';
+          clearAnnouncementImage();
+          document.getElementById('announcementAudience').value = 'all';
+          toggleSpecificRecipient();
+          setTimeout(function() { msg.textContent = ''; loadAnnouncements(); }, 1200);
+        } else {
+          msg.style.color = 'red'; msg.textContent = data.error || 'שגיאה';
+        }
+      } catch(e) { msg.style.color = 'red'; msg.textContent = 'שגיאת תקשורת'; }
+    }
+
+    async function deleteAnnouncement(id) {
+      if (!confirm('למחוק את ההודעה?')) return;
+      await fetch('/api/manager/announcements/' + id, { method: 'DELETE' });
+      loadAnnouncements();
+    }
+
+    async function loadAnnouncements() {
+      var list = document.getElementById('announcementsManagerList');
+      if (!list) return;
+      try {
+        var res = await fetch('/api/manager/announcements');
+        var data = await res.json();
+        if (!data.announcements.length) {
+          list.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;">אין הודעות עדיין</div>';
+          return;
+        }
+        var audienceLabels = { all: 'כולם', installers: 'מתקינים', committees: 'ועדי בתים' };
+        list.innerHTML = data.announcements.map(function(a) {
+          var date = new Date(a.createdAt).toLocaleDateString('he-IL', {day:'numeric',month:'numeric',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+          var readCount = (a.readBy || []).length;
+          var recipientLabel = a.audience === 'specific' ? ('ל: ' + (a.specificPhone || '')) : (audienceLabels[a.audience] || a.audience);
+          var textHtml = a.text ? '<div style="font-size:14px;line-height:1.6;flex:1;">' + a.text.split('\n').join('<br/>') + '</div>' : '<div style="flex:1;"></div>';
+          var imgHtml = a.imageUrl ? '<img src="' + a.imageUrl + '" style="max-width:100%;border-radius:6px;margin:8px 0;" />' : '';
+          return '<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;">' +
+            '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;">' +
+            textHtml +
+            '<button onclick="deleteAnnouncement(&quot;' + a._id + '&quot;)" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:18px;flex-shrink:0;padding:0 4px;">×</button>' +
+            '</div>' +
+            imgHtml +
+            '<div style="display:flex;align-items:center;gap:12px;font-size:11px;color:var(--text-dim);">' +
+            '<span>' + date + '</span>' +
+            '<span style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:2px 8px;">' + recipientLabel + '</span>' +
+            '<span>נקרא ע"י ' + readCount + '</span>' +
+            '</div>' +
+            '</div>';
+        }).join('');
+      } catch(e) {
+        list.innerHTML = '<div style="color:red;font-size:13px;padding:12px;">שגיאה בטעינה</div>';
+      }
+    }
+
+    async function loadData() {
+      loadUnreadBadges();
+      const installersRes = await fetch('/api/manager/installers');
+      const installersData = await installersRes.json();
+
+      const tbody = document.getElementById('installersBody');
+      tbody.innerHTML = '';
+
+      for (const installer of installersData.installers) {
+        const details = await fetch(`/api/manager/installers/${installer.phoneNumber}`).then(r => r.json());
+        const row = document.createElement('tr');
+        row.dataset.phone = installer.phoneNumber;
+        row.dataset.name  = installer.installerName || installer.phoneNumber;
+
+        // Everything searchable for this account: phone, name, and every field of every MAC
+        const macSearchText = (details.installer.macAddresses || []).map(m => [
+          m.mac, m.address, m.city, m.notes, m.description,
+          m.technicianName, m.technicianPhone, m.committeeName, m.committeePhone,
+          m.supplierName, m.voipbellAccount
+        ].filter(Boolean).join(' ')).join(' ');
+        row.dataset.search = (
+          installer.phoneNumber + ' ' +
+          (installer.installerName || '') + ' ' +
+          macSearchText
+        ).toLowerCase();
+
+        row.innerHTML = `
+          <td>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:13px;">${installer.phoneNumber}</span>
+              <button class="field-edit-btn" onclick="editInstallerPhone('${installer.phoneNumber}')" title="ערוך מספר טלפון" style="opacity:1;">✏️</button>
+            </div>
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <span style="font-weight:600;font-size:13px;">${installer.installerName || '—'}</span>
+              <button class="field-edit-btn" onclick="editInstallerName('${installer.phoneNumber}')" title="ערוך שם" style="opacity:1;">✏️</button>
+            </div>
+            <div style="margin-top:5px;">
+              <button onclick="toggleAccountType('${installer.phoneNumber}', this)"
+                data-type="${installer.accountType || 'installer'}"
+                style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;border:none;cursor:pointer;
+                  background:${(installer.accountType||'installer')==='committee'?'#e0e7ff':'#dcfce7'};
+                  color:${(installer.accountType||'installer')==='committee'?'#4338ca':'#16a34a'};">
+                ${(installer.accountType||'installer')==='committee'?'ועד':'מתקין'}
+              </button>
+            </div>
+          </td>
+          <td>
+            <div class="password-display">
+              ${details.installer.password || 'N/A'}
+              <button class="copy-btn" onclick="copyPassword(this)" data-copy="${details.installer.password || ''}">
+                ${currentLang === 'he' ? 'העתק 📋' : 'Copy 📋'}
+              </button>
+            </div>
+          </td>
+          <td>
+            <div>
+              ${details.installer.macAddresses.map(macObj => `
+                <div class="mac-detail">
+                  <div class="mac-detail-header">
+                    <span class="mac-detail-mac">${macObj.mac}</span>
+                    <div class="mac-actions">
+                      <button class="small" onclick='editMac("${installer.phoneNumber}", ${JSON.stringify(macObj)})'>${translations[currentLang].edit}</button>
+                      <button class="small" onclick="openPanelInfo('${installer.phoneNumber}', '${macObj.mac}')" style="background:#0891b2;color:white;" title="מידע פנל">🔍 מידע</button>
+                      <button class="small danger" onclick="removeMac('${installer.phoneNumber}', '${macObj.mac}')">×</button>
+                    </div>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">🖥️ ${translations[currentLang].panelModel}:</span>
+                    <span class="mac-detail-value">${(macObj.panelType||'genesis7')==='genesis5'?'Genesis 5':'Genesis 7'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "panelType")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📞 VoipBell Account:</span>
+                    <span class="mac-detail-value">${macObj.voipbellAccount || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "voipbellAccount")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📍 ${translations[currentLang].address}:</span>
+                    <span class="mac-detail-value">${macObj.address || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "address")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">🏙️ ${translations[currentLang].city}:</span>
+                    <span class="mac-detail-value">${macObj.city || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "city")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">🛒 ${translations[currentLang].purchaseDate}:</span>
+                    <span class="mac-detail-value">${macObj.purchaseDate || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "purchaseDate")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">🟢 ${translations[currentLang].startDate}:</span>
+                    <span class="mac-detail-value">${macObj.startDate || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "startDate")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📝 ${translations[currentLang].notes}:</span>
+                    <span class="mac-detail-value">${macObj.notes || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "notes")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">💰 ${translations[currentLang].annualFee}:</span>
+                    <span class="mac-detail-value">${macObj.annualFee || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "annualFee")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field">
+                    <span class="mac-detail-label">📊 ${translations[currentLang].licensesPurchased}:</span>
+                    <span class="mac-detail-value">${macObj.licensesPurchased || '—'}</span>
+                    <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "licensesPurchased")'>✏️</button>
+                  </div>
+
+                  <div class="mac-detail-field" style="border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px;">
+                    <span class="mac-detail-label" style="color: var(--green);">💬 תיאור מתקין:</span>
+                    <span class="mac-detail-value" style="color: var(--green); font-style: italic;">
+                      ${(macObj.descriptionInstaller !== undefined && macObj.descriptionInstaller !== '') ? macObj.descriptionInstaller : (macObj.description || '—')}
+                    </span>
+                  </div>
+
+                  <div class="mac-detail-field" style="border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px;">
+                    <span class="mac-detail-label" style="color: #2563eb;">🏛️ תיאור וועד:</span>
+                    <span class="mac-detail-value" style="color: #2563eb; font-style: italic;">
+                      ${macObj.descriptionCommittee || '—'}
+                    </span>
+                  </div>
+
+                  <div class="mac-detail-field" style="border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                    <span class="mac-detail-label" style="color:#7c3aed;">📎 קובץ:</span>
+                    <input type="file" id="macfile-${macObj.mac}" style="display:none;" onchange="uploadMacFile('${installer.phoneNumber}','${macObj.mac}', this)"/>
+                    <button class="small" onclick="document.getElementById('macfile-${macObj.mac}').click()" style="background:#7c3aed;color:white;">⬆ העלה קובץ</button>
+                    <button class="small" onclick="window.open('${macObj.fileUrl || ''}','_blank')" ${macObj.fileUrl ? '' : 'disabled style="opacity:0.4;cursor:not-allowed;"'}>⬇ הורד${macObj.fileName ? ' · ' + macObj.fileName : ''}</button>
+                  </div>
+                </div>
+              `).join('')}
+
+              <button class="small" onclick="addMac('${installer.phoneNumber}')" style="margin-top: 8px;">+ ${translations[currentLang].addMac}</button>
+            </div>
+          </td>
+
+          <td>
+            ${(() => {
+              const warnings = [];
+              const paid = [];
+
+              for (const macObj of details.installer.macAddresses) {
+                if (!macObj.startDate) continue;
+
+                const startDateObj = new Date(macObj.startDate);
+                const now = new Date();
+                const yearsDiff = now.getFullYear() - startDateObj.getFullYear();
+                const monthsDiff = now.getMonth() - startDateObj.getMonth();
+                const daysDiff = now.getDate() - startDateObj.getDate();
+
+                let yearsElapsed = yearsDiff;
+                if (monthsDiff < 0 || (monthsDiff === 0 && daysDiff < 0)) yearsElapsed--;
+
+                if (yearsElapsed >= 1) {
+                  const yearsText = yearsElapsed === 1 ?
+                    translations[currentLang].oneYear :
+                    yearsElapsed + ' ' + translations[currentLang].yearsCount;
+
+                  if (macObj.licensePaid) paid.push({ mac: macObj.mac, years: yearsElapsed, text: yearsText });
+                  else warnings.push({ mac: macObj.mac, years: yearsElapsed, text: yearsText });
+                }
+              }
+
+              let html = '';
+
+              if (warnings.length > 0) {
+                html += warnings.map(w =>
+                  `<button class="license-warning-btn"
+                    onclick="handleLicensePayment('${installer.phoneNumber}','${w.mac}')"
+                    title="${w.text}">
+                    🔔 ${w.years}
+                  </button>`
+                ).join(' ');
+              }
+
+              if (paid.length > 0) {
+                html += paid.map(p =>
+                  `<button class="license-paid-btn"
+                    onclick="handleLicenseUnpaid('${installer.phoneNumber}','${p.mac}')"
+                    title="✅ רישיון שולם - ${p.text}">
+                    ✅ ${p.years}
+                  </button>`
+                ).join(' ');
+              }
+
+              return html || '—';
+            })()}
+          </td>
+
+          <td>${new Date(installer.createdAt).toLocaleString()}</td>
+          <td>${installer.lastLogin ? new Date(installer.lastLogin).toLocaleString() : translations[currentLang].never}</td>
+          <td>
+            <div style="display:flex;flex-direction:column;gap:5px;width:150px;margin:0 auto;">
+              <button class="small" onclick="remoteLogin('${installer.phoneNumber}')" style="background:#5b6abf;color:white;justify-content:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>כניסה מרחוק</button>
+              <button class="small reboot-btn" onclick="rebootInstallerDevices('${installer.phoneNumber}', this)" style="justify-content:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>אתחול</button>
+              <button class="small" onclick="openScheduleModal('${installer.phoneNumber}')" style="background:#0891b2;color:white;justify-content:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>תזמון אתחול</button>
+              <button class="small success" onclick="resetPassword('${installer.phoneNumber}')" style="justify-content:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>איפוס סיסמה</button>
+              <button class="small danger" onclick="deleteInstaller('${installer.phoneNumber}')" style="justify-content:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>מחק</button>
+              <button class="small" onclick="openChat('${installer.phoneNumber}')" style="justify-content:center;gap:6px;background:#7c3aed;color:white;" id="chatBtn-${installer.phoneNumber}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>צ'אט תמיכה <span id="unread-${installer.phoneNumber}" style="display:none;background:#ef4444;color:white;border-radius:50%;width:16px;height:16px;font-size:10px;line-height:16px;text-align:center;margin-right:2px;"></span></button>
+            </div>
+          </td>
+        `;
+
+        tbody.appendChild(row);
+      }
+
+      // Re-apply an active search after the table rebuilds
+      const sv = document.getElementById('installerSearch');
+      if (sv && sv.value.trim()) filterInstallers(sv.value);
+    }
+
+    // Filter installer rows by phone / name / any MAC field
+    function filterInstallers(query) {
+      const q = (query || '').trim().toLowerCase();
+      const rows = document.querySelectorAll('#installersBody tr');
+      const countEl = document.getElementById('installerSearchCount');
+      let shown = 0;
+
+      rows.forEach(row => {
+        if (!q) { row.style.display = ''; return; }
+        const hay = row.dataset.search || '';
+        const match = hay.includes(q);
+        row.style.display = match ? '' : 'none';
+        if (match) shown++;
+      });
+
+      if (!q) {
+        countEl.style.display = 'none';
+      } else {
+        countEl.style.display = 'block';
+        countEl.textContent = shown === 0
+          ? 'לא נמצאו תוצאות'
+          : 'נמצאו ' + shown + ' חשבונות';
+      }
+    }
+
+    // initial labels
+    setLanguage('he');
+
+
+    function copyPassword(btn) {
+      const password = btn.getAttribute('data-copy');
+      navigator.clipboard.writeText(password).then(() => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = currentLang === 'he' ? '✅ הועתק!' : '✅ Copied!';
+        btn.style.background = '#10b981';
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.style.background = '';
+        }, 2000);
+      }).catch(err => {
+        console.error('Copy failed:', err);
+      });
+    }
+
+
+    async function remoteLogin(phoneNumber) {
+      const t = translations[currentLang];
+      
+      try {
+        showMessage(t.loggingIn, 'info');
+        
+        // Get installer details
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        
+        if (!details.success || !details.installer) {
+          return showMessage('❌ ' + (currentLang === 'he' ? 'מתקין לא נמצא' : 'Installer not found'), 'error');
+        }
+        
+        const password = details.installer.password;
+        
+        if (!password) {
+          return showMessage('❌ ' + (currentLang === 'he' ? 'סיסמה לא נמצאה' : 'Password not found'), 'error');
+        }
+        
+        // Auto-login: POST to installer login API
+        const loginRes = await fetch('/api/installer/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber, password, isManagerAccess: true })
+        });
+        
+        const loginData = await loginRes.json();
+        
+        if (loginData.success) {
+          // Store login data in sessionStorage
+          sessionStorage.setItem('installerData', JSON.stringify(loginData.data));
+          
+          // Open installer panel in new tab
+          window.open('/installer.html', '_blank');
+          
+          showMessage('✅ ' + (currentLang === 'he' ? 'נפתח בחלון חדש' : 'Opened in new tab'), 'success');
+        } else {
+          showMessage('❌ ' + (loginData.error || 'Login failed'), 'error');
+        }
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+      }
+    }
+
+    async function editPhoneNumber(oldPhoneNumber) {
+      const t = translations[currentLang];
+      const newPhoneNumber = prompt(t.newPhoneNumber + ':', oldPhoneNumber);
+      
+      if (!newPhoneNumber || newPhoneNumber === oldPhoneNumber) return;
+      
+      // Validate phone number (basic check)
+      if (newPhoneNumber.trim().length < 3) {
+        return showMessage('❌ ' + (currentLang === 'he' ? 'מספר טלפון לא תקין' : 'Invalid phone number'), 'error');
+      }
+      
+      try {
+        showMessage(currentLang === 'he' ? 'מעדכן...' : 'Updating...', 'info');
+        
+        const res = await fetch(`/api/manager/installers/${oldPhoneNumber}/change-phone`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newPhoneNumber: newPhoneNumber.trim() })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          showMessage('✅ ' + t.phoneChanged, 'success');
+          loadData();
+        } else {
+          showMessage('❌ ' + data.error, 'error');
+        }
+      } catch (err) {
+        showMessage('❌ ' + err.message, 'error');
+      }
+    }
+
+
+    // ==================== CATALOG ====================
+    async function loadCatalog() {
+      try {
+        const res = await fetch('/api/catalog');
+        const data = await res.json();
+        const input = document.getElementById('catalogUrlInput');
+        const status = document.getElementById('catalogStatus');
+        if (data.url) {
+          input.value = data.url;
+          status.innerHTML = `<span style="color:var(--green);">✅ קטלוג פעיל: <a href="${data.url}" target="_blank" style="color:var(--accent);">${data.url}</a></span>`;
+        } else {
+          status.innerHTML = '<span style="color:var(--text-dim);">אין קטלוג מוגדר</span>';
+        }
+      } catch(e) {}
+    }
+
+    async function saveCatalogUrl() {
+      const url = document.getElementById('catalogUrlInput').value.trim();
+      if (!url) return clearCatalogUrl();
+      const res = await fetch('/api/manager/catalog', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url }) });
+      const data = await res.json();
+      const status = document.getElementById('catalogStatus');
+      if (data.success) {
+        status.innerHTML = `<span style="color:var(--green);">✅ נשמר בהצלחה: <a href="${url}" target="_blank" style="color:var(--accent);">${url}</a></span>`;
+      } else {
+        status.innerHTML = '<span style="color:var(--red);">❌ שגיאה בשמירה</span>';
+      }
+    }
+
+    async function clearCatalogUrl() {
+      await fetch('/api/manager/catalog', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: null }) });
+      document.getElementById('catalogUrlInput').value = '';
+      document.getElementById('catalogStatus').innerHTML = '<span style="color:var(--text-dim);">הקטלוג הוסר</span>';
+    }
+
+    // ==================== MAILING LIST ====================
+    async function loadMailingList() {
+      try {
+        const res = await fetch('/api/manager/mailing-list');
+        const data = await res.json();
+        const tbody = document.getElementById('mailingBody');
+        const table = document.getElementById('mailingTable');
+        const empty = document.getElementById('mailingListEmpty');
+        tbody.innerHTML = '';
+        if (!data.list || data.list.length === 0) {
+          table.style.display = 'none';
+          empty.style.display = 'block';
+          return;
+        }
+        table.style.display = '';
+        empty.style.display = 'none';
+        data.list.forEach(sub => {
+          const date = sub.subscribedAt ? new Date(sub.subscribedAt).toLocaleDateString('he-IL') : '-';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${sub.name}</td><td>${sub.email}</td><td>${date}</td>
+            <td><button class="small danger" onclick="removeSubscriber('${sub.email}')">🗑</button></td>`;
+          tbody.appendChild(tr);
+        });
+      } catch(e) {}
+    }
+
+    async function removeSubscriber(email) {
+      if (!confirm('להסיר ' + email + ' מרשימת התפוצה?')) return;
+      await fetch('/api/manager/mailing-list/' + encodeURIComponent(email), { method: 'DELETE' });
+      loadMailingList();
+    }
+
+    function exportMailingList() {
+      const rows = document.querySelectorAll('#mailingBody tr');
+      if (!rows.length) return alert('אין נרשמים לייצוא');
+      let csv = 'שם,אימייל,תאריך הרשמה\n';
+      rows.forEach(r => {
+        const cells = r.querySelectorAll('td');
+        csv += `"${cells[0].textContent}","${cells[1].textContent}","${cells[2].textContent}"\n`;
+      });
+      const a = document.createElement('a');
+      a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+      a.download = 'mailing-list.csv';
+      a.click();
+    }
+
+    // ==================== REBOOT ====================
+    async function rebootInstallerDevices(phoneNumber, btn) {
+      if (!confirm('לאתחל את כל המכשירים של ' + phoneNumber + '?')) return;
+      const orig = btn.textContent;
+      btn.textContent = '...מאתחל';
+      btn.disabled = true;
+      try {
+        const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+        const macs = (details.installer?.macAddresses || []).map(m => m.mac);
+        let ok = 0, fail = 0;
+        for (const mac of macs) {
+          const res = await fetch('/api/manager/reboot', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ mac })
+          });
+          const d = await res.json();
+          if (d.success) ok++; else fail++;
+        }
+        alert(`אתחול הושלם: ${ok} הצליחו, ${fail} נכשלו`);
+      } catch(e) { alert('שגיאה: ' + e.message); }
+      btn.textContent = orig;
+      btn.disabled = false;
+    }
+
+    // ==================== SCHEDULE MODAL ====================
+    let schedulePhone = null;
+    let allSchedules = {};
+
+    async function openScheduleModal(phoneNumber) {
+      schedulePhone = phoneNumber;
+      // Load schedules
+      const res = await fetch('/api/manager/auto-reboot');
+      const data = await res.json();
+      allSchedules = data.schedules || {};
+
+      // Load installer MACs
+      const details = await fetch(`/api/manager/installers/${phoneNumber}`).then(r => r.json());
+      const macs = (details.installer?.macAddresses || []).map(m => m.mac);
+
+      const list = document.getElementById('scheduleList');
+      list.innerHTML = macs.map(mac => {
+        const cleanMac = mac.replace(/[:\-\s]/g,'').toUpperCase();
+        const sched = allSchedules[cleanMac];
+        const hasSchedule = sched && sched.enabled;
+        return `
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:10px;">
+            <div style="font-family:monospace;font-weight:700;color:var(--accent);margin-bottom:8px;">${mac}</div>
+            ${hasSchedule ? `<div style="font-size:12px;color:var(--green);margin-bottom:8px;">✅ מתוזמן: ${sched.type==='once' ? sched.onceDateTime : sched.israelTime + ' כל ' + (sched.days||[]).length + ' ימים'}</div>` : '<div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">אין תזמון</div>'}
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+              <label style="font-size:12px;">שעה (ישראל):</label>
+              <input type="time" id="stime-${cleanMac}" value="${sched?.israelTime||'03:00'}" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;" />
+              <select id="stype-${cleanMac}" onchange="toggleDays('${cleanMac}')" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;">
+                <option value="recurring" ${sched?.type!=='once'?'selected':''}>חוזר</option>
+                <option value="once" ${sched?.type==='once'?'selected':''}>חד פעמי</option>
+              </select>
+            </div>
+            <div id="sdays-${cleanMac}" style="display:${sched?.type==='once'?'none':'flex'};gap:5px;flex-wrap:wrap;margin-bottom:8px;">
+              ${['א','ב','ג','ד','ה','ו','ש'].map((d,i) => `
+                <label style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;cursor:pointer;">
+                  <input type="checkbox" id="sday-${cleanMac}-${i}" ${(sched?.days||[0,1,2,3,4,5,6]).includes(i)?'checked':''} style="cursor:pointer;" />
+                  ${d}
+                </label>`).join('')}
+            </div>
+            <div id="sonce-${cleanMac}" style="display:${sched?.type==='once'?'flex':'none'};gap:8px;align-items:center;margin-bottom:8px;">
+              <label style="font-size:12px;">תאריך:</label>
+              <input type="date" id="sdate-${cleanMac}" value="${sched?.onceDateTime?.slice(0,10)||new Date().toISOString().slice(0,10)}" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;" />
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button onclick="saveSchedule('${mac}')" style="padding:5px 10px;background:var(--green);color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;">שמור</button>
+              ${hasSchedule ? `<button onclick="deleteSchedule('${mac}')" style="padding:5px 10px;background:var(--red);color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;">מחק</button>` : ''}
+            </div>
+          </div>`;
+      }).join('') || '<p style="color:var(--text-dim);">אין כתובות MAC</p>';
+
+      document.getElementById('scheduleOverlay').style.display = 'flex';
+    }
+
+    function closeScheduleModal() {
+      document.getElementById('scheduleOverlay').style.display = 'none';
+    }
+
+    function toggleDays(cleanMac) {
+      const type = document.getElementById(`stype-${cleanMac}`).value;
+      document.getElementById(`sdays-${cleanMac}`).style.display = type === 'once' ? 'none' : 'flex';
+      document.getElementById(`sonce-${cleanMac}`).style.display = type === 'once' ? 'flex' : 'none';
+    }
+
+    async function saveSchedule(mac) {
+      const cleanMac = mac.replace(/[:\-\s]/g,'').toUpperCase();
+      const time = document.getElementById(`stime-${cleanMac}`).value || '03:00';
+      const type = document.getElementById(`stype-${cleanMac}`).value;
+      const [hh, mm] = time.split(':').map(Number);
+      const utcHour = (hh - 2 + 24) % 24;
+      let body;
+      if (type === 'once') {
+        const date = document.getElementById(`sdate-${cleanMac}`).value || new Date().toISOString().slice(0,10);
+        body = { mac, type:'once', hour: utcHour, minute: mm, israelTime: time, enabled: true, onceDateTime: date + 'T' + time };
+      } else {
+        const days = [0,1,2,3,4,5,6].filter(i => document.getElementById(`sday-${cleanMac}-${i}`)?.checked);
+        body = { mac, type:'recurring', hour: utcHour, minute: mm, israelTime: time, days: days.length ? days : [0,1,2,3,4,5,6], enabled: true };
+      }
+      await fetch('/api/manager/auto-reboot', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      openScheduleModal(schedulePhone);
+    }
+
+    // ==================== EXCEL EXPORT ====================
+    function exportExcel() {
+      window.open('/api/manager/export-excel', '_blank');
+    }
+
+    // ==================== CHAT ====================
+    let chatPhone = null;
+    let chatPollInterval = null;
+
+    async function openChat(phoneNumber) {
+      chatPhone = phoneNumber;
+      document.getElementById('chatTitle').textContent = phoneNumber;
+      document.getElementById('chatOverlay').style.display = 'flex';
+      document.getElementById('chatInput').value = '';
+      await loadChatMessages();
+      await fetch(`/api/chat/${phoneNumber}/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from:'manager' }) });
+      // update unread badge
+      const badge = document.getElementById(`unread-${phoneNumber}`);
+      if (badge) badge.style.display = 'none';
+      chatPollInterval = setInterval(async () => {
+        await loadChatMessages();
+      }, 10000);
+    }
+
+    function closeChat() {
+      document.getElementById('chatOverlay').style.display = 'none';
+      clearInterval(chatPollInterval);
+      chatPollInterval = null;
+      chatPhone = null;
+    }
+
+    async function loadChatMessages() {
+      if (!chatPhone) return;
+      const res = await fetch(`/api/chat/${chatPhone}`);
+      const data = await res.json();
+      const container = document.getElementById('chatMessages');
+      const wasAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 40;
+      container.innerHTML = data.messages.length === 0
+        ? '<div style="text-align:center;color:var(--text-dim);font-size:13px;margin-top:40px;">אין הודעות עדיין</div>'
+        : data.messages.map(m => {
+            const isManager = m.from === 'manager';
+            const time = new Date(m.timestamp).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'});
+            return `<div style="display:flex;flex-direction:column;align-items:${isManager?'flex-start':'flex-end'};">
+              <div style="max-width:75%;padding:8px 12px;border-radius:${isManager?'4px 16px 16px 16px':'16px 4px 16px 16px'};background:${isManager?'var(--accent)':'var(--surface2)'};color:${isManager?'white':'var(--text)'};font-size:14px;">${m.text}</div>
+              <span style="font-size:10px;color:var(--text-dim);margin-top:2px;">${isManager?'מנהל':'מתקין'} · ${time}</span>
+            </div>`;
+          }).join('');
+      if (wasAtBottom) container.scrollTop = container.scrollHeight;
+
+      // mark as read
+      fetch(`/api/chat/${chatPhone}/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from:'manager' }) });
+    }
+
+    async function sendManagerMessage() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text || !chatPhone) return;
+      input.value = '';
+      await fetch(`/api/chat/${chatPhone}`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ from:'manager', text })
+      });
+      await loadChatMessages();
+    }
+
+    async function loadUnreadBadges() {
+      try {
+        const res = await fetch('/api/chat/unread/all');
+        const data = await res.json();
+        document.querySelectorAll('[id^="unread-"]').forEach(el => {
+          const phone = el.id.replace('unread-','');
+          if (data.counts[phone]) {
+            el.textContent = data.counts[phone];
+            el.style.display = 'inline-block';
+          } else {
+            el.style.display = 'none';
+          }
+        });
+        // Total badge on the quick-access "הודעות" tile
+        const total = Object.values(data.counts || {}).reduce((a,b)=>a+(b||0),0);
+        const tb = document.getElementById('msgTotalBadge');
+        if (tb) {
+          if (total > 0) { tb.textContent = total; tb.style.display = 'block'; }
+          else tb.style.display = 'none';
+        }
+        // Green badge = unread resident-updates
+        const ub = document.getElementById('msgUpdateBadge');
+        if (ub) ub.style.display = (data.updateCount > 0) ? 'block' : 'none';
+        const sb = document.getElementById('msgServiceBadge');
+        if (sb) sb.style.display = (data.serviceCount > 0) ? 'block' : 'none';
+      } catch(e) {}
+    }
+
+    // ==================== MESSAGES PAGE ====================
+    let convPhone = null;
+    let convPollInterval = null;
+    let installerNameMap = {};   // phone -> name
+
+    function buildInstallerNameMap() {
+      installerNameMap = {};
+      document.querySelectorAll('#installersBody tr').forEach(tr => {
+        if (tr.dataset.phone) installerNameMap[tr.dataset.phone] = tr.dataset.name || tr.dataset.phone;
+      });
+    }
+    function nameFor(phone) { return installerNameMap[phone] || phone; }
+
+    async function openMessagesPage() {
+      buildInstallerNameMap();
+      document.getElementById('messagesOverlay').style.display = 'flex';
+      await loadConversationList();
+      convPollInterval = setInterval(async () => {
+        await loadConversationList();
+        if (convPhone) await loadConvMessages(true);
+      }, 8000);
+    }
+
+    function closeMessagesPage() {
+      document.getElementById('messagesOverlay').style.display = 'none';
+      clearInterval(convPollInterval);
+      convPollInterval = null;
+      convPhone = null;
+      loadUnreadBadges();
+    }
+
+    async function loadConversationList() {
+      let counts = {};
+      try {
+        const res = await fetch('/api/chat/unread/all');
+        counts = (await res.json()).counts || {};
+      } catch(e) {}
+      // Conversations = every installer who has a chat. We derive from unread counts + the installer rows.
+      const phones = new Set([...Object.keys(counts)]);
+      document.querySelectorAll('#installersBody tr').forEach(tr => { if (tr.dataset.phone) phones.add(tr.dataset.phone); });
+
+      // Sort: unread first, then by name
+      const list = [...phones].sort((a,b) => {
+        const ua = counts[a]||0, ub = counts[b]||0;
+        if ((ub>0) !== (ua>0)) return ub - ua;
+        return nameFor(a).localeCompare(nameFor(b), 'he');
+      });
+
+      const el = document.getElementById('convList');
+      el.innerHTML = list.map(phone => {
+        const unread = counts[phone] || 0;
+        const active = phone === convPhone;
+        return `<div onclick="openConversation('${phone}')" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;${active?'background:var(--surface);':''}">
+          <div style="min-width:0;">
+            <div style="font-weight:700;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nameFor(phone)}</div>
+            <div style="font-size:11px;color:var(--text-dim);">${phone}</div>
+          </div>
+          ${unread>0?`<span style="background:#ef4444;color:white;border-radius:12px;min-width:20px;height:20px;font-size:11px;line-height:20px;text-align:center;font-weight:800;padding:0 5px;flex-shrink:0;">${unread}</span>`:''}
+        </div>`;
+      }).join('');
+    }
+
+    async function openConversation(phone) {
+      convPhone = phone;
+      document.getElementById('convHeader').innerHTML = `${nameFor(phone)} <span style="color:var(--text-dim);font-size:12px;font-weight:400;">· ${phone}</span>`;
+      document.getElementById('convInputBar').style.display = 'flex';
+      document.getElementById('convInput').value = '';
+      await loadConvMessages();
+      await fetch(`/api/chat/${phone}/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from:'manager' }) });
+      loadConversationList();
+    }
+
+    async function loadConvMessages(keepScroll) {
+      if (!convPhone) return;
+      const requestedPhone = convPhone;   // remember which conversation this fetch is for
+      const res = await fetch(`/api/chat/${requestedPhone}`);
+      const data = await res.json();
+      // If the user switched conversations while this was loading, discard the stale result
+      if (requestedPhone !== convPhone) return;
+      const container = document.getElementById('convMessages');
+      const wasAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 40;
+      container.innerHTML = (!data.messages || data.messages.length === 0)
+        ? '<div style="text-align:center;color:var(--text-dim);font-size:13px;margin-top:40px;">אין הודעות עדיין</div>'
+        : data.messages.map(m => {
+            const isManager = m.from === 'manager';
+            const isUpdate = m.type === 'resident-update';
+            const isService = m.type === 'service-request';
+            const time = new Date(m.timestamp).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'});
+            const bg = isUpdate ? '#16a34a' : (isService ? '#ea580c' : (isManager ? 'var(--accent)' : 'var(--surface2)'));
+            const fg = (isUpdate || isService || isManager) ? 'white' : 'var(--text)';
+            const label = isUpdate ? '🏠 עדכון דייר' : (isService ? '🔧 פניית שירות' : (isManager ? 'מנהל' : nameFor(convPhone)));
+            return `<div style="display:flex;flex-direction:column;align-items:${isManager?'flex-start':'flex-end'};">
+              <div style="max-width:70%;padding:8px 12px;border-radius:${isManager?'4px 16px 16px 16px':'16px 4px 16px 16px'};background:${bg};color:${fg};font-size:14px;word-break:break-word;white-space:pre-wrap;">${m.text}</div>
+              <span style="font-size:10px;color:var(--text-dim);margin-top:2px;">${label} · ${time}</span>
+            </div>`;
+          }).join('');
+      if (!keepScroll || wasAtBottom) container.scrollTop = container.scrollHeight;
+      // Mark read only after we've shown the messages (and only for this conversation)
+      fetch(`/api/chat/${requestedPhone}/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from:'manager' }) });
+    }
+
+    async function sendConvMessage() {
+      const input = document.getElementById('convInput');
+      const text = input.value.trim();
+      if (!text || !convPhone) return;
+      input.value = '';
+      await fetch(`/api/chat/${convPhone}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ from:'manager', text })
+      });
+      await loadConvMessages();
+    }
+
+    async function deleteSchedule(mac) {
+      const cleanMac = mac.replace(/[:\-\s]/g,'').toUpperCase();
+      await fetch(`/api/manager/auto-reboot/${cleanMac}`, { method:'DELETE' });
+      openScheduleModal(schedulePhone);
+    }
+
+  </script>
+
+  <!-- Schedule Modal -->
+  <!-- Chat Modal -->
+  <!-- ══ MESSAGES PAGE (all conversations) ══ -->
+  <div id="messagesOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1001;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:var(--surface);border-radius:16px;width:100%;max-width:920px;height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.4);direction:rtl;overflow:hidden;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-bottom:1px solid var(--border);">
+        <h3 style="margin:0;display:flex;align-items:center;gap:8px;">💬 הודעות</h3>
+        <button onclick="closeMessagesPage()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-dim);">✕</button>
+      </div>
+      <div style="flex:1;display:flex;overflow:hidden;">
+        <!-- Conversation list -->
+        <div id="convList" style="width:280px;border-left:1px solid var(--border);overflow-y:auto;flex-shrink:0;background:var(--surface2);"></div>
+        <!-- Thread -->
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+          <div id="convHeader" style="padding:14px 20px;border-bottom:1px solid var(--border);font-weight:700;color:var(--text-dim);">בחר שיחה מהרשימה</div>
+          <div id="convMessages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;"></div>
+          <div id="convInputBar" style="padding:12px 16px;border-top:1px solid var(--border);display:none;gap:8px;">
+            <input id="convInput" type="text" placeholder="הקלד תשובה..." style="flex:1;padding:10px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;" onkeydown="if(event.key==='Enter')sendConvMessage()" />
+            <button onclick="sendConvMessage()" style="padding:10px 20px;background:var(--accent);color:white;border:none;border-radius:20px;cursor:pointer;font-weight:600;">שלח</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="chatOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border-radius:14px;width:420px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.2);direction:rtl;overflow:hidden;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);">
+        <h3 style="margin:0;display:flex;align-items:center;gap:8px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> צ'אט תמיכה — <span id="chatTitle" style="color:var(--accent);font-size:14px;"></span></h3>
+        <button onclick="closeChat()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-dim);">✕</button>
+      </div>
+      <div id="chatMessages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;min-height:300px;max-height:420px;"></div>
+      <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;">
+        <input id="chatInput" type="text" placeholder="הקלד הודעה..." style="flex:1;padding:10px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;" onkeydown="if(event.key==='Enter')sendManagerMessage()" />
+        <button onclick="sendManagerMessage()" style="padding:10px 18px;background:var(--accent);color:white;border:none;border-radius:20px;cursor:pointer;font-weight:600;">שלח</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="scheduleOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border-radius:14px;padding:24px;width:480px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);direction:rtl;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="margin:0;">🕐 תזמון אתחול אוטומטי</h3>
+        <button onclick="closeScheduleModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-dim);">✕</button>
+      </div>
+      <div id="scheduleList"></div>
+    </div>
+  </div>
+
+
+<!-- ══ MERGE MODAL ══ -->
+<div id="mergeOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--surface);border-radius:16px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,0.4);overflow:hidden;">
+    <div style="padding:20px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+      <button onclick="closeMergeModal()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:20px;">✕</button>
+      <h3 style="margin:0;font-size:16px;font-weight:700;color:var(--text);">🔀 מיזוג חשבונות</h3>
+    </div>
+
+    <div style="padding:22px;">
+      <p style="font-size:13px;color:var(--text-dim);margin-bottom:18px;text-align:right;line-height:1.6;">
+        בחר שני חשבונות למיזוג. כל הפנלים יועברו לחשבון הראשי, והחשבון המשני יימחק.
+      </p>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;">חשבון ראשי (ישאר)</label>
+        <select id="mergePrimary" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:inherit;font-size:14px;">
+          <option value="">בחר חשבון...</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <label style="display:block;font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;">חשבון למיזוג (יימחק)</label>
+        <select id="mergeSecondary" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:inherit;font-size:14px;">
+          <option value="">בחר חשבון...</option>
+        </select>
+      </div>
+
+      <div id="mergeMsg" style="font-size:13px;text-align:center;min-height:18px;margin-bottom:12px;"></div>
+
+      <div style="display:flex;gap:10px;">
+        <button onclick="executeMerge()" style="flex:1;padding:12px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">
+          🔀 מזג חשבונות
+        </button>
+        <button onclick="closeMergeModal()" style="flex:1;padding:12px;background:var(--surface2);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;">
+          ביטול
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openMergeModal() {
+    // Populate dropdowns from current installers data
+    const primary   = document.getElementById('mergePrimary');
+    const secondary = document.getElementById('mergeSecondary');
+    const msg       = document.getElementById('mergeMsg');
+    msg.textContent = '';
+
+    // Get all installers from table rows
+    const rows = document.querySelectorAll('#installersBody tr');
+    const options = ['<option value="">בחר חשבון...</option>'];
+    rows.forEach(row => {
+      const phone = row.dataset.phone;
+      const name  = row.dataset.name || phone;
+      if (phone) options.push(`<option value="${phone}">${name} — ${phone}</option>`);
+    });
+    primary.innerHTML   = options.join('');
+    secondary.innerHTML = options.join('');
+    document.getElementById('mergeOverlay').style.display = 'flex';
+  }
+
+  function closeMergeModal() {
+    document.getElementById('mergeOverlay').style.display = 'none';
+  }
+
+  async function executeMerge() {
+    const primaryPhone   = document.getElementById('mergePrimary').value;
+    const secondaryPhone = document.getElementById('mergeSecondary').value;
+    const msg            = document.getElementById('mergeMsg');
+
+    if (!primaryPhone || !secondaryPhone) {
+      msg.style.color = 'var(--red)';
+      msg.textContent = '⚠️ יש לבחור שני חשבונות';
+      return;
+    }
+    if (primaryPhone === secondaryPhone) {
+      msg.style.color = 'var(--red)';
+      msg.textContent = '⚠️ לא ניתן למזג חשבון עם עצמו';
+      return;
+    }
+
+    const primaryName   = document.getElementById('mergePrimary').selectedOptions[0].text;
+    const secondaryName = document.getElementById('mergeSecondary').selectedOptions[0].text;
+
+    if (!confirm(`מיזוג:
+✅ ראשי: ${primaryName}
+❌ ייסגר: ${secondaryName}
+
+הפנלים של החשבון המשני יועברו לחשבון הראשי. פעולה זו בלתי הפיכה!`)) return;
+
+    msg.style.color = 'var(--text-dim)';
+    msg.textContent = 'מבצע מיזוג...';
+
+    try {
+      const res  = await fetch('/api/manager/installers/merge', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ primaryPhone, secondaryPhone })
+      });
+      const data = await res.json();
+      if (data.success) {
+        msg.style.color = 'var(--green)';
+        msg.textContent = `✅ מוזג! ${data.mergedMacs} פנלים הועברו (סה"כ ${data.total})`;
+        setTimeout(() => { closeMergeModal(); loadData(); }, 1800);
+      } else {
+        msg.style.color = 'var(--red)';
+        msg.textContent = '❌ ' + (data.error || 'שגיאה');
+      }
+    } catch(e) {
+      msg.style.color = 'var(--red)';
+      msg.textContent = '❌ שגיאת תקשורת';
+    }
+  }
+
+  document.getElementById('mergeOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeMergeModal();
+  });
+</script>
+
+<!-- ══ PANEL INFO MODAL ══ -->
+<div id="panelInfoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;align-items:center;justify-content:center;">
+  <div style="background-color:#ffffff;border:2px solid #d1d5db;border-radius:14px;padding:28px;max-width:440px;width:90%;position:relative;box-shadow:0 25px 60px rgba(0,0,0,0.4);">
+    <button onclick="closePanelInfo()" style="position:absolute;top:12px;left:12px;background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280;">✕</button>
+    <h3 style="margin:0 0 20px;font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;color:#111111;">
+      🔍 מידע פנל
+      <span id="panelInfoMac" style="font-family:monospace;font-size:12px;color:var(--text-dim);font-weight:500;"></span>
+    </h3>
+    <div id="panelInfoBody">
+      <div style="text-align:center;padding:24px;color:var(--text-dim);">טוען...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function closePanelInfo() {
+  document.getElementById('panelInfoModal').style.display = 'none';
+}
+
+async function openPanelInfo(phoneNumber, mac) {
+  const modal = document.getElementById('panelInfoModal');
+  const body = document.getElementById('panelInfoBody');
+  const macLabel = document.getElementById('panelInfoMac');
+  macLabel.textContent = mac;
+  body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-dim);">מתחבר לפנל...</div>';
+  modal.style.display = 'flex';
+
+  try {
+    // First get the panel address via lookup
+    const lookupRes = await fetch('/api/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mac: mac.replace(/[:\-]/g, '') })
+    });
+    const lookupData = await lookupRes.json();
+    if (!lookupData.success || !lookupData.fullAddress) {
+      body.innerHTML = '<div style="color:red;text-align:center;padding:20px;">❌ לא נמצאה כתובת לפנל זה.<br/><small style="color:var(--text-dim);">ייתכן שהפנל לא מחובר.</small></div>';
+      return;
+    }
+
+    body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-dim);">קורא מידע מהפנל...</div>';
+
+    const infoRes = await fetch('/api/manager/panel-info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ panelAddress: lookupData.fullAddress })
+    });
+    const infoData = await infoRes.json();
+
+    if (!infoData.success) {
+      body.innerHTML = '<div style="color:red;text-align:center;padding:20px;">❌ ' + (infoData.error || 'שגיאה') + '</div>';
+      return;
+    }
+
+    const i = infoData.info;
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:0;">
+        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #e5e7eb;">
+          <span style="color:#6b7280;font-size:13px;">גרסת תוכנה</span>
+          <span style="font-weight:700;font-size:13px;color:#111111;">${i.softwareVersion}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #e5e7eb;">
+          <span style="color:#6b7280;font-size:13px;">דגם</span>
+          <span style="font-weight:700;font-size:13px;color:#111111;">${i.model}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #e5e7eb;">
+          <span style="color:#6b7280;font-size:13px;">MAC</span>
+          <span style="font-weight:700;font-size:13px;font-family:monospace;color:#111111;">${i.mac}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #e5e7eb;">
+          <span style="color:#6b7280;font-size:13px;">חיבור רשת</span>
+          <span style="font-weight:700;font-size:13px;color:#111111;">${i.networkType}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #e5e7eb;">
+          <span style="color:#6b7280;font-size:13px;">כתובת IP</span>
+          <span style="font-weight:700;font-size:13px;font-family:monospace;color:#111111;">${i.ip}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #e5e7eb;">
+          <span style="color:#6b7280;font-size:13px;">חשבון 2 — שם</span>
+          <span style="font-weight:700;font-size:13px;color:#111111;">${i.account2Name}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px 0;">
+          <span style="color:var(--text-dim);font-size:13px;">חשבון 2 — שרת</span>
+          <span style="font-weight:700;font-size:13px;color:#111111;">${i.account2Server}</span>
+        </div>
+      </div>
+      <div style="margin-top:16px;text-align:center;">
+        <small style="color:var(--text-dim);">${lookupData.fullAddress}</small>
+      </div>
+    `;
+  } catch(e) {
+    body.innerHTML = '<div style="color:red;text-align:center;padding:20px;">❌ ' + e.message + '</div>';
+  }
+}
+
+document.getElementById('panelInfoModal').addEventListener('click', function(e) {
+  if (e.target === this) closePanelInfo();
+});
+</script>
+
+</body>
+</html>
