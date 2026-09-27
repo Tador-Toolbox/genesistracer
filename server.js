@@ -2938,6 +2938,27 @@ app.post('/api/manager/notes/image', upload.single('image'), async (req, res) =>
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// ==================== CHAT IMAGE (paste screenshot) ====================
+app.post('/api/chat/:phoneNumber/image', upload.single('image'), async (req, res) => {
+  try {
+    const { from, text } = req.body;
+    if (!req.file || !from) return res.status(400).json({ success: false, error: 'missing fields' });
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        { folder: 'tador/chat', resource_type: 'image',
+          transformation: [{ quality: 'auto', fetch_format: 'auto', width: 1600, crop: 'limit' }] },
+        (error, result) => error ? reject(error) : resolve(result)
+      ).end(req.file.buffer);
+    });
+    const caption = (text || '').trim() || '📷 תמונה';
+    const msg = await db.sendChatMessage(req.params.phoneNumber, from, caption, undefined, result.secure_url);
+    res.json({ success: true, message: msg });
+  } catch(e) {
+    console.error(`❌ Chat image error:`, e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ==================== VOIPBELL ACCOUNTS NOTES ====================
 app.get('/api/manager/voipbell-notes', async (req, res) => {
   try {

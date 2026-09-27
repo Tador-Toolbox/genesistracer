@@ -499,10 +499,11 @@ async function getChatMessages(phoneNumber) {
     .toArray();
 }
 
-async function sendChatMessage(phoneNumber, from, text, type) {
+async function sendChatMessage(phoneNumber, from, text, type, imageUrl) {
   await connectDB();
   const msg = { phoneNumber, from, text: text.trim(), timestamp: new Date(), read: false };
   if (type) msg.type = type;
+  if (imageUrl) msg.imageUrl = imageUrl;
   await db.collection('chat').insertOne(msg);
   return msg;
 }
