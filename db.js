@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { MongoClient } = require("mongodb");
+const { MongoClient, ObjectId } = require("mongodb");
 const dns = require("dns");
 dns.setDefaultResultOrder("ipv4first");
 
@@ -499,13 +499,21 @@ async function getChatMessages(phoneNumber) {
     .toArray();
 }
 
-async function sendChatMessage(phoneNumber, from, text, type, imageUrl) {
+async function sendChatMessage(phoneNumber, from, text, type, imageUrl, linkUrl) {
   await connectDB();
   const msg = { phoneNumber, from, text: text.trim(), timestamp: new Date(), read: false };
   if (type) msg.type = type;
   if (imageUrl) msg.imageUrl = imageUrl;
+  if (linkUrl) msg.linkUrl = linkUrl;
   await db.collection('chat').insertOne(msg);
   return msg;
+}
+
+async function deleteChatMessage(id) {
+  await connectDB();
+  if (!ObjectId.isValid(id)) return false;
+  const r = await db.collection('chat').deleteOne({ _id: new ObjectId(id) });
+  return r.deletedCount === 1;
 }
 
 async function markMessagesRead(phoneNumber, from) {
@@ -803,6 +811,7 @@ module.exports = {
   getManagerNote,
   getChatMessages,
   sendChatMessage,
+  deleteChatMessage,
   markMessagesRead,
   getUnreadCount,
   getAllUnreadCounts,

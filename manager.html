@@ -2640,7 +2640,7 @@
             const time = new Date(m.timestamp).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'});
             return `<div style="display:flex;flex-direction:column;align-items:${isManager?'flex-start':'flex-end'};">
               <div style="max-width:75%;padding:8px 12px;border-radius:${isManager?'4px 16px 16px 16px':'16px 4px 16px 16px'};background:${isManager?'var(--accent)':'var(--surface2)'};color:${isManager?'white':'var(--text)'};font-size:14px;">${chatBodyHtml(m)}</div>
-              <span style="font-size:10px;color:var(--text-dim);margin-top:2px;">${isManager?'מנהל':'מתקין'} · ${time}</span>
+              <span style="font-size:10px;color:var(--text-dim);margin-top:2px;">${isManager?'מנהל':'מתקין'} · ${time}${chatDelBtn(m, 'chat')}</span>
             </div>`;
           }).join('');
       if (wasAtBottom) container.scrollTop = container.scrollHeight;
@@ -2785,7 +2785,7 @@
             const label = isUpdate ? '🏠 עדכון דייר' : (isService ? '🔧 פניית שירות' : (isManager ? 'מנהל' : nameFor(convPhone)));
             return `<div style="display:flex;flex-direction:column;align-items:${isManager?'flex-start':'flex-end'};">
               <div style="max-width:70%;padding:8px 12px;border-radius:${isManager?'4px 16px 16px 16px':'16px 4px 16px 16px'};background:${bg};color:${fg};font-size:14px;word-break:break-word;white-space:pre-wrap;">${chatBodyHtml(m)}</div>
-              <span style="font-size:10px;color:var(--text-dim);margin-top:2px;">${label} · ${time}</span>
+              <span style="font-size:10px;color:var(--text-dim);margin-top:2px;">${label} · ${time}${chatDelBtn(m, 'conv')}</span>
             </div>`;
           }).join('');
       if (!keepScroll || wasAtBottom) container.scrollTop = container.scrollHeight;
@@ -2793,12 +2793,57 @@
       fetch(`/api/chat/${requestedPhone}/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from:'manager' }) });
     }
 
-    // Image in a chat message: shown above the text; the placeholder caption is hidden
+    // Chat message body: link card, image (+caption), or text with clickable URLs
+    const _chatEsc = t => String(t || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[c]));
+    // Plain URLs in text become short clickable links (long encoded URLs shown decoded and trimmed)
+    function linkifyChatText(text) {
+      return String(text || '').replace(/https?:\/\/[^\s<]+/g, u => {
+        let shown = u; try { shown = decodeURI(u); } catch(e) {}
+        if (shown.length > 50) shown = shown.slice(0, 47) + '…';
+        return `<a href="${u.replace(/"/g, '&quot;')}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;word-break:break-all;">${shown}</a>`;
+      });
+    }
     function chatBodyHtml(m) {
+      if (m.linkUrl && /^https?:\/\//i.test(m.linkUrl)) {
+        const href = m.linkUrl.replace(/"/g, '&quot;');
+        let host = ''; try { host = new URL(m.linkUrl).hostname.replace(/^www\./, ''); } catch(e) {}
+        return `<a href="${href}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;background:rgba(255,255,255,0.15);border:1px solid rgba(127,127,127,0.35);border-radius:10px;padding:8px 12px;">
+          <span style="font-size:20px;">🔗</span>
+          <span style="display:flex;flex-direction:column;min-width:0;"><span style="font-weight:700;text-decoration:underline;">${_chatEsc(m.text)}</span><span style="font-size:11px;opacity:0.8;">${_chatEsc(host)}</span></span>
+        </a>`;
+      }
       const url = m.imageUrl && /^https:\/\//.test(m.imageUrl) ? m.imageUrl.replace(/"/g, '&quot;') : '';
-      if (!url) return m.text;
+      if (!url) return linkifyChatText(m.text);
       const img = `<a href="${url}" target="_blank"><img src="${url}" style="display:block;max-width:100%;max-height:260px;border-radius:10px;cursor:zoom-in;" /></a>`;
-      return m.text && m.text !== '📷 תמונה' ? img + `<div style="margin-top:6px;">${m.text}</div>` : img;
+      return m.text && m.text !== '📷 תמונה' ? img + `<div style="margin-top:6px;">${linkifyChatText(m.text)}</div>` : img;
+    }
+
+    async function deleteChatMessage(id, reload) {
+      if (!id || !confirm('למחוק את ההודעה?')) return;
+      try {
+        const res = await fetch('/api/chat/message/' + encodeURIComponent(id), { method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) return alert('המחיקה נכשלה: ' + (data.error || ''));
+      } catch(e) { return alert('המחיקה נכשלה'); }
+      if (reload === 'conv') loadConvMessages(true); else loadChatMessages();
+    }
+    const chatDelBtn = (m, reload) => m._id ? ` · <span onclick="deleteChatMessage('${m._id}','${reload}')" title="מחק הודעה" style="cursor:pointer;">🗑</span>` : '';
+
+    // Send a named link from the messages page
+    async function sendConvLink() {
+      if (!convPhone) return;
+      const title = (prompt('שם הקישור (מה שיוצג בהודעה):') || '').trim();
+      if (!title) return;
+      const url = (prompt('הדבק את הקישור (https://...):') || '').trim();
+      if (!url) return;
+      if (!/^https?:\/\/\S+$/i.test(url)) return alert('קישור לא תקין — חייב להתחיל ב-https://');
+      const res = await fetch(`/api/chat/${convPhone}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ from:'manager', text: title, linkUrl: url })
+      });
+      const data = await res.json();
+      if (!data.success) return alert('השליחה נכשלה: ' + (data.error || ''));
+      await loadConvMessages();
     }
 
     // Pasted screenshot waiting to be sent in the messages page
@@ -2881,6 +2926,7 @@
           </div>
           <div id="convInputBar" style="padding:12px 16px;border-top:1px solid var(--border);display:none;gap:8px;align-items:flex-end;">
             <textarea id="convInput" rows="1" placeholder="הקלד תשובה... (Shift+Enter לשורה חדשה, Ctrl+V להדבקת תמונה)" style="flex:1;padding:10px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit;resize:none;overflow-y:auto;max-height:140px;line-height:1.4;" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();sendConvMessage();}" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+            <button onclick="sendConvLink()" title="שלח קישור" style="padding:10px 12px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:20px;cursor:pointer;">🔗</button>
             <button id="convSendBtn" onclick="sendConvMessage()" style="padding:10px 20px;background:var(--accent);color:white;border:none;border-radius:20px;cursor:pointer;font-weight:600;">שלח</button>
           </div>
         </div>

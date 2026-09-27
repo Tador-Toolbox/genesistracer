@@ -1280,12 +1280,29 @@
     clearInterval(installerChatPoll); installerChatPoll = null;
   }
 
-  // Image in a chat message: shown above the text; the placeholder caption is hidden
+  // Chat message body: link card, image (+caption), or text with clickable URLs
+  const _chatEsc = t => String(t || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[c]));
+  // Plain URLs in text become short clickable links (long encoded URLs shown decoded and trimmed)
+  function linkifyChatText(text) {
+    return String(text || '').replace(/https?:\/\/[^\s<]+/g, u => {
+      let shown = u; try { shown = decodeURI(u); } catch(e) {}
+      if (shown.length > 50) shown = shown.slice(0, 47) + '…';
+      return `<a href="${u.replace(/"/g, '&quot;')}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;word-break:break-all;">${shown}</a>`;
+    });
+  }
   function chatBodyHtml(m) {
+    if (m.linkUrl && /^https?:\/\//i.test(m.linkUrl)) {
+      const href = m.linkUrl.replace(/"/g, '&quot;');
+      let host = ''; try { host = new URL(m.linkUrl).hostname.replace(/^www\./, ''); } catch(e) {}
+      return `<a href="${href}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;background:rgba(255,255,255,0.15);border:1px solid rgba(127,127,127,0.35);border-radius:10px;padding:8px 12px;">
+        <span style="font-size:20px;">🔗</span>
+        <span style="display:flex;flex-direction:column;min-width:0;"><span style="font-weight:700;text-decoration:underline;">${_chatEsc(m.text)}</span><span style="font-size:11px;opacity:0.8;">${_chatEsc(host)}</span></span>
+      </a>`;
+    }
     const url = m.imageUrl && /^https:\/\//.test(m.imageUrl) ? m.imageUrl.replace(/"/g, '&quot;') : '';
-    if (!url) return m.text;
-    const img = `<a href="${url}" target="_blank"><img src="${url}" style="display:block;max-width:100%;max-height:260px;border-radius:10px;" /></a>`;
-    return m.text && m.text !== '📷 תמונה' ? img + `<div style="margin-top:6px;">${m.text}</div>` : img;
+    if (!url) return linkifyChatText(m.text);
+    const img = `<a href="${url}" target="_blank"><img src="${url}" style="display:block;max-width:100%;max-height:260px;border-radius:10px;cursor:zoom-in;" /></a>`;
+    return m.text && m.text !== '📷 תמונה' ? img + `<div style="margin-top:6px;">${linkifyChatText(m.text)}</div>` : img;
   }
 
   async function loadInstallerChatMessages() {

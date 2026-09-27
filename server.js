@@ -628,16 +628,26 @@ app.post('/api/chat/:phoneNumber/read', async (req, res) => {
 
 app.post('/api/chat/:phoneNumber', async (req, res) => {
   try {
-    const { from, text, type } = req.body;
+    const { from, text, type, linkUrl } = req.body;
     console.log(`💬 Chat POST: phone=${req.params.phoneNumber} from=${from} text=${text}`);
     if (!text || !from) return res.status(400).json({ success: false, error: 'missing fields' });
-    const msg = await db.sendChatMessage(req.params.phoneNumber, from, text, type);
+    if (linkUrl && !/^https?:\/\/\S+$/i.test(linkUrl)) return res.status(400).json({ success: false, error: 'invalid link' });
+    const msg = await db.sendChatMessage(req.params.phoneNumber, from, text, type, undefined, linkUrl);
     console.log(`✅ Chat message saved`);
     res.json({ success: true, message: msg });
   } catch(e) {
     console.error(`❌ Chat POST error:`, e.message);
     res.status(500).json({ success: false, error: e.message });
   }
+});
+
+// Delete a single chat message (manager)
+app.delete('/api/chat/message/:id', async (req, res) => {
+  try {
+    const ok = await db.deleteChatMessage(req.params.id);
+    if (!ok) return res.status(404).json({ success: false, error: 'not found' });
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ==================== MANAGER NOTES ====================
