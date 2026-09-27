@@ -564,6 +564,22 @@ async function getManagerNote(phoneNumber) {
 }
 
 
+// ==================== INSTALL DOCS (installation instructions files) ====================
+async function getInstallDocs() {
+  await connectDB();
+  const doc = await db.collection("settings").findOne({ key: "installDocs" });
+  return doc ? (doc.value || []) : [];
+}
+
+async function saveInstallDocs(docs) {
+  await connectDB();
+  await db.collection("settings").updateOne(
+    { key: "installDocs" },
+    { $set: { key: "installDocs", value: docs, updatedAt: new Date() } },
+    { upsert: true }
+  );
+}
+
 // ==================== TUTORIALS ====================
 async function getTutorials() {
   await connectDB();
@@ -765,6 +781,8 @@ module.exports = {
   saveVoipbellNotes,
   setCatalogUrl,
   getTutorials,
+  getInstallDocs,
+  saveInstallDocs,
   addPortfolioImage,
   getPortfolio,
   deletePortfolioImage,

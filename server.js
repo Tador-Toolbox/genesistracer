@@ -2640,6 +2640,58 @@ app.post('/api/manager/tutorials', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false }); }
 });
 
+// ==================== INSTALL DOCS (installation instructions files) ====================
+app.get('/api/install-docs', async (req, res) => {
+  try {
+    const docs = await db.getInstallDocs();
+    res.json({ success: true, docs });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.post('/api/manager/install-docs/upload', anyFileUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, error: 'No file provided' });
+    // Fix Hebrew (and other UTF-8) filenames that multer decodes as latin1
+    const origName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+    const title = (req.body.title || '').trim() || origName.replace(/\.[^.]+$/, '');
+    const isImage = /^image\//.test(req.file.mimetype);
+    const resourceType = isImage ? 'image' : 'raw';
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          folder: 'tador/install-docs',
+          resource_type: resourceType,
+          public_id: `${Date.now()}_${origName.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
+        },
+        (error, result) => error ? reject(error) : resolve(result)
+      ).end(req.file.buffer);
+    });
+    const doc = { title, name: origName, url: result.secure_url, publicId: result.public_id,
+                  resourceType, size: req.file.size, uploadedAt: new Date() };
+    const docs = await db.getInstallDocs();
+    docs.push(doc);
+    await db.saveInstallDocs(docs);
+    res.json({ success: true, doc });
+  } catch (err) {
+    console.error('Install doc upload error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/manager/install-docs', async (req, res) => {
+  try {
+    const { publicId } = req.query;
+    if (!publicId) return res.status(400).json({ success: false, error: 'publicId required' });
+    const docs = await db.getInstallDocs();
+    const doc = docs.find(d => d.publicId === publicId);
+    if (!doc) return res.status(404).json({ success: false, error: 'not found' });
+    await db.saveInstallDocs(docs.filter(d => d.publicId !== publicId));
+    try { await cloudinary.uploader.destroy(publicId, { resource_type: doc.resourceType || 'raw' }); }
+    catch (e) { console.log('Install doc cloudinary delete failed:', e.message); }
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 
 // ==================== MANAGER FILE STORAGE (XLSX) ====================
 const xlsxUpload = multer({

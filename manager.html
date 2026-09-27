@@ -638,6 +638,24 @@
         </div>
       </div>
 
+      <!-- Install Docs -->
+      <div class="card">
+        <h2>📄 הוראות התקנה</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">הקבצים (PDF, תמונות, Word וכו') יופיעו אצל כל הטכנאים בלחיצה על "הוראות התקנה".</p>
+
+        <!-- Add form -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+          <input type="text" id="installDocTitleInput" placeholder="שם ההוראות (למשל: התקנת פנל T98)" style="flex:1;min-width:180px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;text-align:right;" />
+          <input type="file" id="installDocFileInput" style="flex:2;min-width:220px;font-size:13px;color:var(--text);" />
+          <button class="btn" id="installDocUploadBtn" onclick="uploadInstallDoc()" style="background:linear-gradient(135deg,#0891b2,#0e7490);color:#fff;white-space:nowrap;">⬆ העלה</button>
+        </div>
+
+        <!-- List -->
+        <div id="installDocsAdminList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="color:var(--text-dim);font-size:13px;text-align:center;padding:16px;">טוען...</div>
+        </div>
+      </div>
+
       <!-- Mailing List -->
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
@@ -1037,6 +1055,7 @@
           loadCatalog();
           loadMailingList();
           loadTutorialsAdmin();
+          loadInstallDocsAdmin();
           loadManagerFiles();
           loadManagerImages();
           // Keep the messages unread badge fresh even when idle
@@ -1428,6 +1447,82 @@
         renderTutorialsAdmin();
       } catch(e) {
         alert('שגיאה בשמירה');
+      }
+    }
+
+
+    // ==================== INSTALL DOCS ====================
+    let installDocsData = [];
+
+    function escInstallDoc(t) {
+      return String(t || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[c]));
+    }
+
+    async function loadInstallDocsAdmin() {
+      const container = document.getElementById('installDocsAdminList');
+      if (!container) return;
+      try {
+        const res = await fetch('/api/install-docs');
+        const data = await res.json();
+        installDocsData = data.docs || [];
+        renderInstallDocsAdmin();
+      } catch(e) {
+        container.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:16px;">שגיאה בטעינה</div>';
+      }
+    }
+
+    function renderInstallDocsAdmin() {
+      const container = document.getElementById('installDocsAdminList');
+      if (!installDocsData.length) {
+        container.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:16px;">אין הוראות התקנה עדיין</div>';
+        return;
+      }
+      container.innerHTML = installDocsData.map((d, i) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+          <div style="flex:1;text-align:right;min-width:0;">
+            <div style="font-weight:600;font-size:14px;color:var(--text);">${escInstallDoc(d.title)}</div>
+            <a href="${escInstallDoc(d.url)}" target="_blank" style="font-size:12px;color:var(--accent);word-break:break-all;">${escInstallDoc(d.name)}</a>
+          </div>
+          <button onclick="removeInstallDoc(${i})" style="background:var(--red);color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;white-space:nowrap;flex-shrink:0;">🗑 הסר</button>
+        </div>
+      `).join('');
+    }
+
+    async function uploadInstallDoc() {
+      const fileInput = document.getElementById('installDocFileInput');
+      const titleInput = document.getElementById('installDocTitleInput');
+      const file = fileInput.files[0];
+      if (!file) return alert('יש לבחור קובץ');
+      if (file.size > 25 * 1024 * 1024) return alert('הקובץ גדול מדי (מקסימום 25MB)');
+      const btn = document.getElementById('installDocUploadBtn');
+      btn.disabled = true; btn.textContent = 'מעלה...';
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('title', titleInput.value.trim());
+        const res = await fetch('/api/manager/install-docs/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!data.success) return alert('ההעלאה נכשלה: ' + (data.error || ''));
+        fileInput.value = '';
+        titleInput.value = '';
+        await loadInstallDocsAdmin();
+      } catch(e) {
+        alert('ההעלאה נכשלה');
+      } finally {
+        btn.disabled = false; btn.textContent = '⬆ העלה';
+      }
+    }
+
+    async function removeInstallDoc(index) {
+      const d = installDocsData[index];
+      if (!d || !confirm('למחוק את "' + d.title + '"?')) return;
+      try {
+        const res = await fetch('/api/manager/install-docs?publicId=' + encodeURIComponent(d.publicId), { method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) return alert('המחיקה נכשלה: ' + (data.error || ''));
+        await loadInstallDocsAdmin();
+      } catch(e) {
+        alert('המחיקה נכשלה');
       }
     }
 

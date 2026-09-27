@@ -761,6 +761,12 @@
           <span class="action-card-label">סרטוני הדרכה</span>
         </button>
 
+        <!-- Install Docs -->
+        <button class="action-card" onclick="openInstallDocs()">
+          <span class="material-symbols-outlined">description</span>
+          <span class="action-card-label">הוראות התקנה</span>
+        </button>
+
         <!-- Catalog -->
         <button class="action-card" id="catalogSection" onclick="openCatalog()">
           <span class="material-symbols-outlined">download</span>
@@ -820,6 +826,22 @@
       <textarea class="chat-textarea" id="installerChatInput" placeholder="הקלד הודעה..." rows="1"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendInstallerMessage();}"></textarea>
       <button class="chat-send" onclick="sendInstallerMessage()">שלח</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ INSTALL DOCS MODAL ══ -->
+<div id="installDocsModal" class="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>
+        <span class="material-symbols-outlined" style="font-size:18px;">description</span>
+        הוראות התקנה
+      </h3>
+      <button class="modal-close" onclick="closeInstallDocs()">✕</button>
+    </div>
+    <div class="modal-body" id="installDocsList">
+      <div class="chat-empty">טוען...</div>
     </div>
   </div>
 </div>
@@ -1414,6 +1436,47 @@
       container.innerHTML = '<div class="chat-empty">שגיאה בטעינה</div>';
     }
   }
+
+  // ── Install Docs ──
+  function openInstallDocs() {
+    document.getElementById('installDocsModal').classList.add('open');
+    loadInstallDocsList();
+  }
+  function closeInstallDocs() {
+    document.getElementById('installDocsModal').classList.remove('open');
+  }
+  async function loadInstallDocsList() {
+    const container = document.getElementById('installDocsList');
+    container.innerHTML = '<div class="chat-empty">טוען...</div>';
+    try {
+      const res = await fetch('/api/install-docs');
+      const data = await res.json();
+      const list = data.docs || [];
+      if (!list.length) {
+        container.innerHTML = '<div class="chat-empty">אין הוראות התקנה כרגע</div>';
+        return;
+      }
+      const esc = t => String(t || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[c]));
+      container.innerHTML = list.map(d => {
+        const isPdf = /\.pdf$/i.test(d.name || '');
+        const icon = isPdf ? 'picture_as_pdf' : (d.resourceType === 'image' ? 'image' : 'description');
+        return `
+        <div class="tut-item" onclick="window.open(decodeURIComponent('${encodeURIComponent(d.url)}'),'_blank')">
+          <div class="tut-icon"><span class="material-symbols-outlined">${icon}</span></div>
+          <div class="tut-info">
+            <div class="tut-title">${esc(d.title)}</div>
+            <div class="tut-sub">לחץ לפתיחה</div>
+          </div>
+          <span class="material-symbols-outlined" style="color:var(--gray-400);font-size:18px;">arrow_back_ios</span>
+        </div>`;
+      }).join('');
+    } catch(e) {
+      container.innerHTML = '<div class="chat-empty">שגיאה בטעינה</div>';
+    }
+  }
+  document.getElementById('installDocsModal').addEventListener('click', function(e) {
+    if (e.target === this) closeInstallDocs();
+  });
 
   // Close modals on overlay click
   document.getElementById('installerChatOverlay').addEventListener('click', function(e) {
