@@ -1685,7 +1685,7 @@
     <div class="modal-body" style="padding:20px;">
 
       <div style="background:var(--gray-50);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--gray-500);margin-bottom:16px;line-height:1.7;">
-        🔐 עד 5 קודים קבועים — פתוחים 24/7 בכל הימים. השם נוצר אוטומטית (קוד קבוע 1-5).
+        🔐 עד 5 קודים קבועים — פתוחים 24/7 בכל הימים. השם נוצר אוטומטית (קוד קבוע 1-5). מוצגים גם קודים שהוזנו ידנית בפנל.
       </div>
 
       <!-- Add new code form -->
@@ -2723,10 +2723,12 @@
       }
       if (!data.codes.length) {
         window._permCodesCount = 0;
+        window._permCodeNames = [];
         list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:13px;">אין קודים קבועים</div>';
         return;
       }
       window._permCodesCount = data.codes.length;
+      window._permCodeNames = data.codes.map(c => c.name);
       list.innerHTML = data.codes.map(c => `
         <div style="display:flex;align-items:center;gap:10px;padding:12px;border:1.5px solid var(--gray-200);border-radius:8px;">
           <div style="flex:1;min-width:0;">
@@ -2753,10 +2755,13 @@
     const errEl = document.getElementById('permCodeError');
     errEl.textContent = '';
     if (!/^\d{1,5}$/.test(code)) { errEl.textContent = 'קוד חייב להיות עד 5 ספרות'; return; }
-    // Auto-name: "קוד קבוע N" based on how many exist (max 5)
+    // Auto-name: first free "קוד קבוע N" (max 5 codes, including ones added manually on the panel)
     const existing = window._permCodesCount || 0;
     if (existing >= 5) { errEl.textContent = 'ניתן להוסיף עד 5 קודים קבועים'; return; }
-    const name = 'קוד קבוע ' + (existing + 1);
+    const usedNames = new Set(window._permCodeNames || []);
+    let n = 1;
+    while (usedNames.has('קוד קבוע ' + n)) n++;
+    const name = 'קוד קבוע ' + n;
 
     const btn = document.getElementById('permCodeAddBtn');
     btn.disabled = true;

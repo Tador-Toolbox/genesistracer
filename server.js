@@ -1834,6 +1834,24 @@ app.get('/api/installer/block-history', async (req, res) => {
 
 // ==================== PERMANENT CODES ====================
 const PERM_CODE_PREFIX = 'קוד קבוע ';
+const TEMP_CODE_PREFIX = 'Temporary code';
+
+// Name shown for a code: collapses the doubled prefix older versions wrote ("קוד קבוע קוד קבוע 1")
+function permCodeDisplayName(label) {
+  let name = (label || '').trim();
+  while (name.startsWith(PERM_CODE_PREFIX + PERM_CODE_PREFIX)) name = name.slice(PERM_CODE_PREFIX.length);
+  return name;
+}
+
+// All PIN codes on the panel except temporary codes — includes codes added manually on the panel.
+// PIN records are whatever is left after removing faces and cards.
+async function listPanelPermCodes(host, port, authHeaders) {
+  const get = (type) => panelHttpGetWithHeaders(host, port,
+    `/api/v1/access?page_num=1&page_size=500&type=${type}&label=`, authHeaders).then(r => r?.data?.list || []);
+  const [all, faces, cards] = await Promise.all([get(''), get('face'), get('card')]);
+  const nonPin = new Set([...faces, ...cards].map(i => String(i.id)));
+  return all.filter(i => !nonPin.has(String(i.id)) && !(i.label || '').startsWith(TEMP_CODE_PREFIX));
+}
 
 // CREATE permanent code
 // ==================== SHABBAT MODE (fill light auto <-> alwaysOff) ====================
@@ -1927,7 +1945,7 @@ app.post('/api/installer/permanent-codes', async (req, res) => {
     const listRes = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500', authHeaders);
     const existingList = listRes?.data?.list || [];
 
-    const permanentCodes = existingList.filter(i => (i.label || '').startsWith(PERM_CODE_PREFIX));
+    const permanentCodes = await listPanelPermCodes(host, port, authHeaders);
     if (permanentCodes.length >= 5) {
       return res.json({ success: false, error: 'מקסימום 5 קודים קבועים' });
     }
@@ -1937,8 +1955,9 @@ app.post('/api/installer/permanent-codes', async (req, res) => {
       return res.json({ success: false, error: 'קוד זה כבר קיים במערכת' });
     }
 
+    const label = name.trim().startsWith(PERM_CODE_PREFIX) ? name.trim() : PERM_CODE_PREFIX + name.trim();
     const body = {
-      label: PERM_CODE_PREFIX + name,
+      label,
       password: code,
       effective_date: Date.now(),
       expired_date: 7258175999000,
@@ -1977,14 +1996,10 @@ app.get('/api/installer/permanent-codes', async (req, res) => {
     } catch(e) {}
     const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
-    const listRes = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500', authHeaders);
-    const existingList = listRes?.data?.list || [];
-
-    const codes = existingList
-      .filter(i => (i.label || '').startsWith(PERM_CODE_PREFIX))
+    const codes = (await listPanelPermCodes(host, port, authHeaders))
       .map(i => ({
         id: i.id,
-        name: (i.label || '').slice(PERM_CODE_PREFIX.length),
+        name: permCodeDisplayName(i.label),
         code: i.content || i.password || '',
       }));
 
@@ -2036,7 +2051,7 @@ app.put('/api/installer/permanent-codes/:codeId', async (req, res) => {
 
     // Create new record
     const body = {
-      label: PERM_CODE_PREFIX + name,
+      label: name.trim(),
       password: code,
       effective_date: Date.now(),
       expired_date: 7258175999000,
