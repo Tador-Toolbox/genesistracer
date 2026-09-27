@@ -719,6 +719,21 @@ async function saveAdminNotes(notes) {
   );
 }
 
+async function getVoipbellNotes() {
+  await connectDB();
+  const doc = await db.collection('settings').findOne({ key: 'voipbellNotes' });
+  return doc ? (doc.value || '') : '';
+}
+
+async function saveVoipbellNotes(notes) {
+  await connectDB();
+  await db.collection('settings').updateOne(
+    { key: 'voipbellNotes' },
+    { $set: { key: 'voipbellNotes', value: notes, updatedAt: new Date() } },
+    { upsert: true }
+  );
+}
+
 module.exports = {
   connectDB,
   createInstaller,
@@ -745,6 +760,8 @@ module.exports = {
   getCatalogUrl,
   getAdminNotes,
   saveAdminNotes,
+  getVoipbellNotes,
+  saveVoipbellNotes,
   setCatalogUrl,
   getTutorials,
   addPortfolioImage,

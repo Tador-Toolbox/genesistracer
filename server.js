@@ -2938,6 +2938,22 @@ app.post('/api/manager/notes/image', upload.single('image'), async (req, res) =>
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// ==================== VOIPBELL ACCOUNTS NOTES ====================
+app.get('/api/manager/voipbell-notes', async (req, res) => {
+  try {
+    const notes = await db.getVoipbellNotes();
+    res.json({ success: true, notes });
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.post('/api/manager/voipbell-notes', async (req, res) => {
+  try {
+    const { notes } = req.body;
+    await db.saveVoipbellNotes(notes);
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 const PORT = process.env.PORT || 3000;
 // ==================== RESIDENTS SYSTEM ====================
 
