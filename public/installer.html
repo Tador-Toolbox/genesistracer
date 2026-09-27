@@ -1459,7 +1459,7 @@
       const esc = t => String(t || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[c]));
       container.innerHTML = list.map(d => {
         const isPdf = /\.pdf$/i.test(d.name || '');
-        const icon = isPdf ? 'picture_as_pdf' : (d.resourceType === 'image' ? 'image' : 'description');
+        const icon = d.isLink ? 'link' : (isPdf ? 'picture_as_pdf' : (d.resourceType === 'image' ? 'image' : 'description'));
         return `
         <div class="tut-item" onclick="window.open(decodeURIComponent('${encodeURIComponent(d.url)}'),'_blank')">
           <div class="tut-icon"><span class="material-symbols-outlined">${icon}</span></div>

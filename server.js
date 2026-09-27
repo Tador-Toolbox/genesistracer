@@ -2688,16 +2688,35 @@ app.post('/api/manager/install-docs/upload', anyFileUpload.single('file'), async
   }
 });
 
+// Add an external link (file hosted elsewhere, e.g. Google Drive / Dropbox)
+app.post('/api/manager/install-docs/link', async (req, res) => {
+  try {
+    const title = (req.body.title || '').trim();
+    const url = (req.body.url || '').trim();
+    if (!title || !/^https?:\/\/\S+$/i.test(url)) {
+      return res.status(400).json({ success: false, error: 'נדרש שם וקישור תקין (https://...)' });
+    }
+    const doc = { id: 'link-' + Date.now(), title, name: url, url, isLink: true, uploadedAt: new Date() };
+    const docs = await db.getInstallDocs();
+    docs.push(doc);
+    await db.saveInstallDocs(docs);
+    res.json({ success: true, doc });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 app.delete('/api/manager/install-docs', async (req, res) => {
   try {
-    const { publicId } = req.query;
-    if (!publicId) return res.status(400).json({ success: false, error: 'publicId required' });
+    const key = req.query.publicId || req.query.id;
+    if (!key) return res.status(400).json({ success: false, error: 'id required' });
     const docs = await db.getInstallDocs();
-    const doc = docs.find(d => d.publicId === publicId);
+    const docKey = d => d.publicId || d.id;
+    const doc = docs.find(d => docKey(d) === key);
     if (!doc) return res.status(404).json({ success: false, error: 'not found' });
-    await db.saveInstallDocs(docs.filter(d => d.publicId !== publicId));
-    try { await cloudinary.uploader.destroy(publicId, { resource_type: doc.resourceType || 'raw' }); }
-    catch (e) { console.log('Install doc cloudinary delete failed:', e.message); }
+    await db.saveInstallDocs(docs.filter(d => docKey(d) !== key));
+    if (doc.publicId) {
+      try { await cloudinary.uploader.destroy(doc.publicId, { resource_type: doc.resourceType || 'raw' }); }
+      catch (e) { console.log('Install doc cloudinary delete failed:', e.message); }
+    }
     res.json({ success: true });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
