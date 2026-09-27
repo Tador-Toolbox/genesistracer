@@ -2648,6 +2648,16 @@ app.get('/api/install-docs', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// Clean Cloudinary id: timestamp + the Latin part of the file name (Hebrew letters dropped,
+// not turned into a row of underscores). The original name is kept separately for display.
+function installDocPublicId(origName, resourceType) {
+  const ext = (origName.match(/\.[a-zA-Z0-9]{1,6}$/) || [''])[0].toLowerCase();
+  const base = origName.slice(0, origName.length - ext.length)
+    .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+  // raw files keep their extension in the id (that's what makes the URL end in .pdf); images get it from Cloudinary
+  return `${Date.now()}${base ? '-' + base : ''}${resourceType === 'raw' ? ext : ''}`;
+}
+
 app.post('/api/manager/install-docs/upload', anyFileUpload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, error: 'No file provided' });
@@ -2661,7 +2671,7 @@ app.post('/api/manager/install-docs/upload', anyFileUpload.single('file'), async
         {
           folder: 'tador/install-docs',
           resource_type: resourceType,
-          public_id: `${Date.now()}_${origName.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
+          public_id: installDocPublicId(origName, resourceType),
         },
         (error, result) => error ? reject(error) : resolve(result)
       ).end(req.file.buffer);
