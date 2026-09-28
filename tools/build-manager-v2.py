@@ -55,6 +55,9 @@ rep("""  </style>
     .v2-beta { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 14px; font-size: 13px; margin-bottom: 16px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
     .v2-beta a { color: #92400e; font-weight: 700; }
 
+    .v2-extra-tab { padding: 9px 16px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-weight: 700; }
+    .v2-extra-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
     /* Home tiles */
     .v2-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 24px; }
     .v2-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; cursor: pointer; text-align: right; font-family: inherit; color: var(--text); }
@@ -107,6 +110,7 @@ rep("""  <div id="managerPanel">
       <button class="v2-nav" data-go="content"><span class="ic">📚</span>תוכן למתקינים</button>
       <button class="v2-nav" data-go="files"><span class="ic">🗂️</span>קבצים</button>
       <button class="v2-nav" data-go="activity"><span class="ic">📜</span>יומן פעילות</button>
+      <button class="v2-nav" data-go="extras"><span class="ic">📝</span>תכנותים נוספים</button>
       <div class="v2-side-foot">
         <a href="/manager.html">↩ לעיצוב הקודם</a>
         <button class="v2-nav" onclick="logout()" style="color:#ef4444;"><span class="ic">⏻</span>התנתק</button>
@@ -129,6 +133,18 @@ rep("""            <tbody id="activityLogBody">
             </tbody>
           </table>
         </div>
+      </div>
+
+      <!-- Extras: notes.html + voipbell-accounts.html embedded -->
+      <div class="card" data-screen="extras">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="v2-extra-tab" data-src="/notes.html" onclick="v2Extra(this)">📝 תכנותים נוספים</button>
+            <button class="v2-extra-tab" data-src="/voipbell-accounts.html" onclick="v2Extra(this)">☎️ Voipbell עדכון חשבונות</button>
+          </div>
+          <a id="v2ExtraOpen" href="/notes.html" target="_blank" style="font-size:13px;color:var(--accent);">פתח בחלון חדש ↗</a>
+        </div>
+        <iframe id="v2ExtraFrame" title="תכנותים נוספים" style="width:100%;height:calc(100vh - 230px);min-height:480px;border:1px solid var(--border);border-radius:10px;background:#fff;"></iframe>
       </div>
     </div>
     </main>
@@ -241,7 +257,7 @@ rep("""    function scrollToAnnouncements() {
 v2js = r"""
   <script>
     // ================= V2: screens =================
-    const V2_SCREENS = ['home', 'installers', 'announce', 'content', 'files', 'activity'];
+    const V2_SCREENS = ['home', 'installers', 'announce', 'content', 'files', 'activity', 'extras'];
     function v2Show(screen) {
       if (!V2_SCREENS.includes(screen)) screen = 'home';
       document.querySelectorAll('[data-screen]').forEach(el =>
@@ -256,6 +272,25 @@ v2js = r"""
     });
     document.body.classList.add('v2-body');
     v2Show((location.hash || '#home').slice(1));
+    if (location.hash === '#extras') v2Extra(document.querySelector('.v2-extra-tab'));
+
+    // Extras screen: choose which page to show in the frame (loads only when first opened)
+    function v2Extra(btn) {
+      document.querySelectorAll('.v2-extra-tab').forEach(b => b.classList.toggle('active', b === btn));
+      const f = document.getElementById('v2ExtraFrame');
+      if (f.getAttribute('src') !== btn.dataset.src) f.setAttribute('src', btn.dataset.src);
+      document.getElementById('v2ExtraOpen').href = btn.dataset.src;
+    }
+    // Inside the frame, the pages' own "back to manager" link would load the old page in the frame — hide it
+    document.getElementById('v2ExtraFrame').addEventListener('load', function() {
+      try {
+        this.contentDocument.querySelectorAll('a[href*="manager"], button[onclick*="manager"]').forEach(el => el.style.display = 'none');
+      } catch(e) {}
+    });
+    document.addEventListener('click', e => {
+      if (e.target.closest('[data-go="extras"]') && !document.getElementById('v2ExtraFrame').getAttribute('src'))
+        v2Extra(document.querySelector('.v2-extra-tab'));
+    });
 
     function v2ToggleMac(el) {
       el.closest('.mac-detail').classList.toggle('v2-collapsed');
