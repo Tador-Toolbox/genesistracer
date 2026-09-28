@@ -12,6 +12,13 @@ def rep(old, new, n=1):
 
 s = s.replace('<title>', '<title>V2 · ', 1)
 
+# The old page's "try the new design" button makes no sense inside v2
+rep("""          <a href="/manager-v2.html" class="quick-btn qb-navy">
+            <span class="qb-icon">🧪</span>
+            <span class="qb-label">עיצוב חדש (בבדיקה)</span>
+          </a>
+""", "")
+
 # ---------- 1. CSS for the new shell ----------
 rep("""  </style>
 </head>""", """
