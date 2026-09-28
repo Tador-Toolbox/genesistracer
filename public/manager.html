@@ -1456,6 +1456,190 @@
     }
 
 
+    // ==================== BUILDING ACCESS (residents system) PER MAC ====================
+    // MAC -> buildingCode for every MAC that already has a building (main MAC or extra entrance)
+    let buildingByMac = {};
+    let buildingsCache = [];
+    const normMac = m => String(m || '').replace(/[:\-\s]/g, '').toUpperCase();
+
+    async function loadBuildingMacs() {
+      try {
+        const data = await fetch('/api/buildings').then(r => r.json());
+        buildingsCache = data.buildings || [];
+        buildingByMac = {};
+        buildingsCache.forEach(b => (b.panels || [{ mac: b.mac }]).concat([{ mac: b.mac }])
+          .forEach(p => { if (p.mac) buildingByMac[normMac(p.mac)] = b.buildingCode; }));
+      } catch(e) {}
+    }
+
+    function buildingBtnHtml(phone, mac) {
+      const has = !!buildingByMac[normMac(mac)];
+      return `<button class="small bld-btn" data-mac="${normMac(mac)}" onclick="openBuildingForMac('${phone}', '${mac}')"
+        style="background:${has ? '#16a34a' : '#7c3aed'};color:white;" title="ניהול בניין (דיירים + ועד)">${has ? '🏢 ניהול בניין' : '🏢 צור ניהול בניין'}</button>`;
+    }
+
+    function markBuildingBtn(mac) {
+      document.querySelectorAll(`.bld-btn[data-mac="${normMac(mac)}"]`).forEach(b => {
+        b.style.background = '#16a34a'; b.textContent = '🏢 ניהול בניין';
+      });
+    }
+
+    const bldEsc = t => String(t || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[c]));
+    let bldCtx = null;
+
+    async function openBuildingForMac(phone, mac) {
+      const macs = (window._installerMacs && window._installerMacs[phone]) || [];
+      const macObj = macs.find(m => normMac(m.mac) === normMac(mac)) || { mac };
+      bldCtx = { phone, mac: normMac(mac), macObj };
+      const box = document.getElementById('bldBody');
+      box.innerHTML = '<div style="padding:30px;text-align:center;color:#666;">טוען...</div>';
+      document.getElementById('bldOverlay').style.display = 'flex';
+      try {
+        const data = await fetch('/api/manager/building-by-mac/' + encodeURIComponent(bldCtx.mac)).then(r => r.json());
+        if (data.found) return showBuildingAccess(data.building);
+        showBuildingCreate();
+      } catch(e) {
+        box.innerHTML = '<div style="padding:30px;text-align:center;color:#dc2626;">שגיאת תקשורת</div>';
+      }
+    }
+
+    function showBuildingCreate() {
+      const { macObj, phone } = bldCtx;
+      const guess = [macObj.address, macObj.city].filter(Boolean).join(', ');
+      // This installer's other MACs that already have a building → can join as another entrance
+      const myCodes = [...new Set(((window._installerMacs || {})[phone] || [])
+        .map(m => buildingByMac[normMac(m.mac)]).filter(Boolean))];
+      const joinable = buildingsCache.filter(b => myCodes.includes(b.buildingCode));
+      const inp = 'width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:14px;background:#fff;color:#111;box-sizing:border-box;';
+      document.getElementById('bldBody').innerHTML = `
+        <h3 style="font-size:18px;font-weight:900;margin:0 0 4px;color:#111;">🏢 ניהול בניין חדש</h3>
+        <p style="font-size:13px;color:#666;margin:0 0 18px;">MAC: <b dir="ltr">${bldEsc(bldCtx.mac)}</b></p>
+        ${joinable.length ? `
+        <div style="display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:14px;">
+          <label style="display:inline-flex;gap:8px;align-items:center;cursor:pointer;color:#111;width:auto;font-size:14px;"><input type="radio" name="bldMode" value="new" checked onchange="bldModeChanged()" style="width:auto;margin:0;"> בניין חדש</label>
+          <label style="display:inline-flex;gap:8px;align-items:center;cursor:pointer;color:#111;width:auto;font-size:14px;"><input type="radio" name="bldMode" value="join" onchange="bldModeChanged()" style="width:auto;margin:0;"> הוסף ככניסה נוספת לבניין קיים</label>
+        </div>` : ''}
+        <div id="bldNewFields" style="text-align:right;">
+          <label style="font-size:13px;font-weight:700;color:#111;">כתובת הבניין</label>
+          <input id="bldAddress" value="${bldEsc(guess)}" placeholder="למשל: הרצל 12, תל אביב" style="${inp}margin-top:6px;">
+        </div>
+        <div id="bldJoinFields" style="display:none;text-align:right;">
+          <label style="font-size:13px;font-weight:700;color:#111;">בניין</label>
+          <select id="bldJoinCode" style="${inp}margin:6px 0 12px;">
+            ${joinable.map(b => `<option value="${bldEsc(b.buildingCode)}">${bldEsc(b.address)} (${bldEsc(b.buildingCode)})</option>`).join('')}
+          </select>
+          <label style="font-size:13px;font-weight:700;color:#111;">שם הכניסה</label>
+          <input id="bldJoinLabel" value="${bldEsc(macObj.descriptionInstaller || '')}" placeholder="למשל: כניסה אחורית" style="${inp}margin-top:6px;">
+        </div>
+        <div id="bldErr" style="color:#dc2626;font-size:13px;min-height:18px;margin-top:10px;"></div>
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:8px;">
+          <button id="bldCreateBtn" onclick="submitBuildingForMac()" style="padding:11px 24px;background:#111;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">צור</button>
+          <button onclick="closeBuildingModal()" style="padding:11px 24px;background:#f3f4f6;color:#111;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">ביטול</button>
+        </div>`;
+    }
+
+    function bldModeChanged() {
+      const join = document.querySelector('input[name="bldMode"]:checked')?.value === 'join';
+      document.getElementById('bldNewFields').style.display = join ? 'none' : 'block';
+      document.getElementById('bldJoinFields').style.display = join ? 'block' : 'none';
+    }
+
+    async function submitBuildingForMac() {
+      const join = document.querySelector('input[name="bldMode"]:checked')?.value === 'join';
+      const body = { mac: bldCtx.mac };
+      if (join) {
+        body.joinCode = document.getElementById('bldJoinCode').value;
+        body.label = document.getElementById('bldJoinLabel').value.trim();
+      } else {
+        body.address = document.getElementById('bldAddress').value.trim();
+        if (!body.address) { document.getElementById('bldErr').textContent = 'יש למלא כתובת'; return; }
+      }
+      const btn = document.getElementById('bldCreateBtn');
+      btn.disabled = true; btn.textContent = 'יוצר...';
+      try {
+        const data = await fetch('/api/manager/building-for-mac', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        }).then(r => r.json());
+        if (!data.success) { document.getElementById('bldErr').textContent = data.error || 'שגיאה'; btn.disabled = false; btn.textContent = 'צור'; return; }
+        await loadBuildingMacs();
+        markBuildingBtn(bldCtx.mac);
+        showBuildingAccess(data.building);
+      } catch(e) {
+        document.getElementById('bldErr').textContent = 'שגיאת תקשורת'; btn.disabled = false; btn.textContent = 'צור';
+      }
+    }
+
+    const BLD_BASE = 'https://genesistracer.onrender.com';
+    const qrImgUrl = url => 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&format=png&data=' + encodeURIComponent(url);
+
+    function showBuildingAccess(b) {
+      bldCtx.building = b;
+      const regUrl = BLD_BASE + '/resident-register.html?code=' + b.buildingCode;
+      const comUrl = BLD_BASE + '/committee.html?code=' + b.buildingCode;
+      const entrances = (b.panels || []).map(p => p.label).filter(Boolean).join(' · ');
+      const col = (title, sub, url, file) => `
+        <div style="flex:1;min-width:230px;border:1px solid #e5e7eb;border-radius:12px;padding:16px;">
+          <div style="font-size:15px;font-weight:900;color:#111;">${title}</div>
+          <div style="font-size:12px;color:#666;margin:2px 0 12px;">${sub}</div>
+          <img src="${qrImgUrl(url)}" width="180" height="180" style="border:1px solid #eee;border-radius:8px;padding:6px;background:#fff;" alt="QR">
+          <div dir="ltr" style="font-size:11px;color:#888;margin:10px 0;word-break:break-all;">${bldEsc(url)}</div>
+          <div style="display:flex;gap:8px;justify-content:center;">
+            <button onclick="copyBldText('${url}', this)" style="padding:8px 14px;background:#f3f4f6;color:#111;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">📋 העתק קישור</button>
+            <button onclick="downloadBldQr('${url}', '${file}')" style="padding:8px 14px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">⬇ הורד QR</button>
+          </div>
+        </div>`;
+      document.getElementById('bldBody').innerHTML = `
+        <h3 style="font-size:18px;font-weight:900;margin:0 0 4px;color:#111;">${bldEsc(b.address)}</h3>
+        <p style="font-size:13px;color:#666;margin:0 0 4px;">קוד בניין: <b>${bldEsc(b.buildingCode)}</b> · סיסמת ועד: <b style="font-family:monospace;background:#fef9c3;padding:1px 6px;border-radius:4px;">${bldEsc(b.password)}</b>
+          <button onclick="copyBldText('${bldEsc(b.password)}', this)" title="העתק סיסמה" style="border:none;background:none;cursor:pointer;font-size:13px;">📋</button></p>
+        ${entrances ? `<p style="font-size:12px;color:#888;margin:0 0 16px;">כניסות: ${bldEsc(entrances)}</p>` : '<div style="height:12px;"></div>'}
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+          ${col('🏠 הרשמת דיירים', 'ללובי — הדיירים סורקים ונרשמים', regUrl, 'qr-residents-' + b.buildingCode)}
+          ${col('👥 כניסת ועד', 'לוועד הבית — ניהול הדיירים (עם הסיסמה)', comUrl, 'qr-committee-' + b.buildingCode)}
+        </div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+          <button onclick="printBuildingAccess()" style="padding:11px 24px;background:#111;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">🖨️ הדפס</button>
+          <button onclick="closeBuildingModal()" style="padding:11px 24px;background:#f3f4f6;color:#111;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">סגור</button>
+        </div>`;
+    }
+
+    function closeBuildingModal() { document.getElementById('bldOverlay').style.display = 'none'; }
+
+    async function copyBldText(text, btn) {
+      try { await navigator.clipboard.writeText(text); }
+      catch(e) { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+      const old = btn.textContent; btn.textContent = '✓'; setTimeout(() => btn.textContent = old, 1200);
+    }
+
+    async function downloadBldQr(url, file) {
+      try {
+        const blob = await fetch(qrImgUrl(url).replace('220x220', '600x600')).then(r => r.blob());
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = file + '.png'; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      } catch(e) { window.open(qrImgUrl(url).replace('220x220', '600x600'), '_blank'); }
+    }
+
+    function printBuildingAccess() {
+      const b = bldCtx.building;
+      const regUrl = BLD_BASE + '/resident-register.html?code=' + b.buildingCode;
+      const comUrl = BLD_BASE + '/committee.html?code=' + b.buildingCode;
+      const page = (title, sub, url, extra) => `<div class="page"><div class="logo">TADOR</div><h1>${bldEsc(b.address)}</h1>
+        <h2>${title}</h2><p>${sub}</p><img src="${qrImgUrl(url).replace('220x220','400x400')}" width="320" height="320">
+        <div class="url">${bldEsc(url)}</div>${extra}</div>`;
+      const win = window.open('', '_blank');
+      win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>${bldEsc(b.address)}</title>
+        <style>@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap');
+        body{font-family:'Heebo',sans-serif;text-align:center;margin:0;} .page{padding:40px;page-break-after:always;}
+        .logo{font-size:28px;font-weight:900;letter-spacing:2px;} h1{font-size:24px;margin:20px 0 4px;} h2{font-size:20px;margin:10px 0 4px;}
+        p{color:#555;margin:0 0 20px;} img{border:2px solid #eee;border-radius:8px;padding:10px;} .url{font-size:12px;color:#888;margin-top:12px;direction:ltr;word-break:break-all;}
+        .box{display:inline-block;margin-top:16px;padding:10px 18px;border:2px dashed #111;border-radius:8px;font-size:16px;}</style></head><body>
+        ${page('הרשמת דיירים', 'סרקו את הקוד כדי להירשם למערכת זיהוי הפנים של הבניין', regUrl, `<div class="box">קוד בניין: <b>${bldEsc(b.buildingCode)}</b></div>`)}
+        ${page('כניסת ועד הבית', 'ניהול הדיירים של הבניין', comUrl, `<div class="box">קוד בניין: <b>${bldEsc(b.buildingCode)}</b> · סיסמה: <b>${bldEsc(b.password)}</b></div>`)}
+        <script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body></html>`);
+      win.document.close();
+    }
+
     // ==================== INSTALL DOCS ====================
     let installDocsData = [];
 
@@ -2066,12 +2250,15 @@
       loadUnreadBadges();
       const installersRes = await fetch('/api/manager/installers');
       const installersData = await installersRes.json();
+      await loadBuildingMacs();
+      window._installerMacs = {};
 
       const tbody = document.getElementById('installersBody');
       tbody.innerHTML = '';
 
       for (const installer of installersData.installers) {
         const details = await fetch(`/api/manager/installers/${installer.phoneNumber}`).then(r => r.json());
+        window._installerMacs[installer.phoneNumber] = details.installer.macAddresses || [];
         const row = document.createElement('tr');
         row.dataset.phone = installer.phoneNumber;
         row.dataset.name  = installer.installerName || installer.phoneNumber;
@@ -2127,6 +2314,7 @@
                     <div class="mac-actions">
                       <button class="small" onclick='editMac("${installer.phoneNumber}", ${JSON.stringify(macObj)})'>${translations[currentLang].edit}</button>
                       <button class="small" onclick="openPanelInfo('${installer.phoneNumber}', '${macObj.mac}')" style="background:#0891b2;color:white;" title="מידע פנל">🔍 מידע</button>
+                      ${buildingBtnHtml(installer.phoneNumber, macObj.mac)}
                       <button class="small danger" onclick="removeMac('${installer.phoneNumber}', '${macObj.mac}')">×</button>
                     </div>
                   </div>
@@ -2905,6 +3093,11 @@
 
   <!-- Schedule Modal -->
   <!-- Chat Modal -->
+  <!-- ══ BUILDING ACCESS MODAL (per MAC) ══ -->
+  <div id="bldOverlay" onclick="if(event.target===this)closeBuildingModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;align-items:center;justify-content:center;padding:16px;">
+    <div id="bldBody" style="background-color:#ffffff;color:#111111;border-radius:16px;padding:28px;max-width:640px;width:100%;max-height:92vh;overflow-y:auto;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);direction:rtl;"></div>
+  </div>
+
   <!-- ══ MESSAGES PAGE (all conversations) ══ -->
   <div id="messagesOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1001;align-items:center;justify-content:center;padding:16px;">
     <div style="background:var(--surface);border-radius:16px;width:100%;max-width:920px;height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.4);direction:rtl;overflow:hidden;">

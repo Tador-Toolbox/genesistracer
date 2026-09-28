@@ -3121,6 +3121,64 @@ app.post('/api/buildings/create', async (req, res) => {
   }
 });
 
+// Manager page: building (residents system) for a MAC — as main MAC or as an extra entrance
+function findBuildingByMac(col, cleanMac) {
+  return col.findOne({ $or: [{ mac: cleanMac }, { 'panels.mac': cleanMac }] });
+}
+function buildingAccess(b) {
+  return {
+    address: b.address,
+    buildingCode: b.buildingCode,
+    password: b.password,
+    panels: b.panels || [{ mac: b.mac, label: 'כניסה ראשית' }],
+  };
+}
+
+app.get('/api/manager/building-by-mac/:mac', async (req, res) => {
+  try {
+    const cleanMac = req.params.mac.replace(/[:\-\s]/g, '').toUpperCase();
+    const col = (await require('./db').connectDB()).collection('buildings');
+    const b = await findBuildingByMac(col, cleanMac);
+    res.json({ success: true, found: !!b, building: b ? buildingAccess(b) : null });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Create a building for this MAC, or add the MAC as an entrance of an existing building (joinCode)
+app.post('/api/manager/building-for-mac', async (req, res) => {
+  try {
+    const { mac, address, joinCode, label } = req.body;
+    if (!mac) return res.status(400).json({ success: false, error: 'mac required' });
+    const cleanMac = mac.replace(/[:\-\s]/g, '').toUpperCase();
+    const col = (await require('./db').connectDB()).collection('buildings');
+
+    const existing = await findBuildingByMac(col, cleanMac);
+    if (existing) return res.json({ success: true, existed: true, building: buildingAccess(existing) });
+
+    if (joinCode) {
+      const b = await col.findOne({ buildingCode: joinCode });
+      if (!b) return res.json({ success: false, error: 'הבניין לא נמצא' });
+      const panels = b.panels || [{ mac: b.mac, label: 'כניסה ראשית' }];
+      panels.push({ mac: cleanMac, label: (label || '').trim() || ('כניסה ' + (panels.length + 1)) });
+      await col.updateOne({ buildingCode: joinCode }, { $set: { panels } });
+      return res.json({ success: true, joined: true, building: buildingAccess({ ...b, panels }) });
+    }
+
+    if (!address || !address.trim()) return res.json({ success: false, error: 'נדרשת כתובת בניין' });
+    let buildingCode;
+    do { buildingCode = generateBuildingCode(); } while (await col.findOne({ buildingCode }));
+    const doc = {
+      mac: cleanMac,
+      address: address.trim(),
+      buildingCode,
+      password: generateBuildingPassword(),
+      panels: [{ mac: cleanMac, label: 'כניסה ראשית' }],
+      createdAt: new Date(),
+    };
+    await col.insertOne(doc);
+    res.json({ success: true, created: true, building: buildingAccess(doc) });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 // Manager: list all buildings
 app.get('/api/buildings', async (req, res) => {
   try {
