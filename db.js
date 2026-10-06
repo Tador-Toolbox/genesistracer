@@ -1,6 +1,22 @@
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 const { MongoClient, ObjectId } = require("mongodb");
 const dns = require("dns");
+
+// ==================== PASSWORD HASHING ====================
+// bcrypt for new/updated passwords; legacy MD5 still verified and transparently
+// upgraded to bcrypt on the next successful login (no password resets needed).
+const BCRYPT_ROUNDS = 10;
+function md5(str) { return crypto.createHash("md5").update(str).digest("hex"); }
+function hashPassword(plain) { return bcrypt.hashSync(plain, BCRYPT_ROUNDS); }
+function isLegacyHash(stored) { return !!stored && !stored.startsWith("$2"); }
+function verifyPassword(plain, stored) {
+  if (!stored) return false;
+  if (stored.startsWith("$2")) {                 // bcrypt
+    try { return bcrypt.compareSync(plain, stored); } catch (e) { return false; }
+  }
+  return md5(plain) === stored;                  // legacy MD5
+}
 dns.setDefaultResultOrder("ipv4first");
 
 const uri = process.env.MONGODB_URI;
@@ -38,7 +54,7 @@ async function initDatabase() {
     const adminExists = await installersCollection.findOne({ phoneNumber: adminUser });
 
     if (!adminExists) {
-      const adminPasswordHash = crypto.createHash("md5").update(adminPass).digest("hex");
+      const adminPasswordHash = hashPassword(adminPass);
       await installersCollection.insertOne({
         phoneNumber: adminUser,
         password: adminPasswordHash,
@@ -60,7 +76,7 @@ async function createInstaller(phoneNumber, macAddresses = [], panelType = "gene
   await connectDB();
 
   const password = Math.random().toString(36).slice(-8);
-  const hashedPassword = crypto.createHash("md5").update(password).digest("hex");
+  const hashedPassword = hashPassword(password);
 
   const macDocs = macAddresses.map((mac) => {
     const macData = typeof mac === "string" ? { mac } : mac;
@@ -262,8 +278,12 @@ async function loginInstaller(phoneNumber, password, isManagerAccess = false) {
   const installer = await db.collection("installers").findOne({ phoneNumber });
   if (!installer) return { success: false, error: "Installer not found" };
 
-  const hashedPassword = crypto.createHash("md5").update(password).digest("hex");
-  if (installer.password !== hashedPassword) return { success: false, error: "Invalid password" };
+  if (!verifyPassword(password, installer.password)) return { success: false, error: "Invalid password" };
+
+  // Transparently upgrade a legacy MD5 hash to bcrypt on successful login
+  if (isLegacyHash(installer.password)) {
+    try { await db.collection("installers").updateOne({ phoneNumber }, { $set: { password: hashPassword(password) } }); } catch (e) {}
+  }
 
   // Only update lastLogin and log if it is a real technician login (not manager remote access)
   if (!isManagerAccess) {
@@ -292,8 +312,13 @@ async function loginManager(username, password) {
   const admin = await db.collection("installers").findOne({ phoneNumber: adminUser });
   if (!admin) return { success: false, error: "Admin not found" };
 
-  const hashedPassword = crypto.createHash("md5").update(password).digest("hex");
-  return admin.password === hashedPassword ? { success: true } : { success: false, error: "Invalid credentials" };
+  if (!verifyPassword(password, admin.password)) return { success: false, error: "Invalid credentials" };
+
+  // Transparently upgrade a legacy MD5 hash to bcrypt on successful login
+  if (isLegacyHash(admin.password)) {
+    try { await db.collection("installers").updateOne({ phoneNumber: adminUser }, { $set: { password: hashPassword(password) } }); } catch (e) {}
+  }
+  return { success: true };
 }
 
 async function getInstallers() {
@@ -356,7 +381,7 @@ async function resetPassword(phoneNumber) {
   await connectDB();
 
   const newPassword = Math.random().toString(36).slice(-8);
-  const hashedPassword = crypto.createHash("md5").update(newPassword).digest("hex");
+  const hashedPassword = hashPassword(newPassword);
 
   await db.collection("installers").updateOne(
     { phoneNumber },
