@@ -3,9 +3,11 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 const db = require('./db');
 
 const app = express();
+app.set('trust proxy', 1); // Render runs behind a proxy — needed for correct client IP + rate limiting
 app.use(cors());
 app.use(express.json());
 
@@ -400,14 +402,33 @@ app.get('/api/debug/:mac', async (req, res) => {
 // ==================== MANAGEMENT ENDPOINTS ====================
 
 // Manager login
-app.post('/api/manager/login', async (req, res) => {
+// Login brute-force protection: max 8 failed attempts per IP per 15 min.
+// Successful logins are skipped so a legitimate user is never locked out.
+// A blocked attempt is recorded in activity_logs as 'login_blocked'.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  handler: (req, res) => {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip;
+    const who = req.body?.username || req.body?.phoneNumber || 'unknown';
+    logActivity({ phoneNumber: who, action: 'login_blocked', mac: null, details: { ip }, success: false });
+    res.status(429).json({ success: false, error: 'יותר מדי ניסיונות התחברות. נסה שוב בעוד 15 דקות. / Too many login attempts, try again in 15 minutes.' });
+  },
+});
+
+app.post('/api/manager/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body;
+  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip;
   const result = await db.loginManager(username, password);
   if (result.success) {
-    const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip;
     await logActivity({ phoneNumber: username, action: 'login', mac: null, details: { ip, role: 'manager' }, success: true });
+  } else {
+    await logActivity({ phoneNumber: username || 'unknown', action: 'login_failed', mac: null, details: { ip, role: 'manager' }, success: false });
   }
-  res.json(result);
+  res.status(result.success ? 200 : 401).json(result); // 401 so the rate limiter counts failed attempts
 });
 
 // Create installer account
@@ -936,14 +957,17 @@ app.delete('/api/manager/auto-reboot/:mac', async (req, res) => {
 });
 
 // Installer login
-app.post('/api/installer/login', async (req, res) => {
+app.post('/api/installer/login', loginLimiter, async (req, res) => {
   const { phoneNumber, password, isManagerAccess } = req.body;
+  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip;
   const result = await db.loginInstaller(phoneNumber, password, isManagerAccess === true);
   if (result.success) {
     result.data.ip = req.ip;
-    await logActivity({ phoneNumber, action: 'login', mac: null, details: { ip: req.ip, isManagerAccess: !!isManagerAccess }, success: true });
+    await logActivity({ phoneNumber, action: 'login', mac: null, details: { ip, isManagerAccess: !!isManagerAccess }, success: true });
+  } else {
+    await logActivity({ phoneNumber: phoneNumber || 'unknown', action: 'login_failed', mac: null, details: { ip, isManagerAccess: !!isManagerAccess }, success: false });
   }
-  res.json(result);
+  res.status(result.success ? 200 : 401).json(result); // 401 so the rate limiter counts failed attempts
 });
 
 // ==================== INSTALLER REBOOT ====================
@@ -2361,6 +2385,47 @@ app.get('/api/manager/activity-logs/:phoneNumber', async (req, res) => {
       .limit(50)
       .toArray();
     res.json({ success: true, logs });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== SECURITY OVERVIEW ====================
+// Login-related events from the last 7 days: failed/blocked attempts, successful
+// logins, and IPs that look like brute-force (many attempts or many accounts).
+app.get('/api/manager/security-overview', async (req, res) => {
+  try {
+    const database = await require('./db').connectDB();
+    const col = database.collection('activity_logs');
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const events = await col
+      .find({ action: { $in: ['login', 'login_failed', 'login_blocked'] }, timestamp: { $gte: since } })
+      .sort({ timestamp: -1 })
+      .limit(1000)
+      .toArray();
+
+    const failed = events.filter(e => e.action === 'login_failed' || e.action === 'login_blocked');
+    const success = events.filter(e => e.action === 'login');
+
+    const byIp = {};
+    for (const e of failed) {
+      const ip = e.details?.ip || 'unknown';
+      if (!byIp[ip]) byIp[ip] = { ip, attempts: 0, accounts: new Set(), last: e.timestamp };
+      byIp[ip].attempts++;
+      byIp[ip].accounts.add(e.phoneNumber || 'unknown');
+    }
+    const suspicious = Object.values(byIp)
+      .map(x => ({ ip: x.ip, attempts: x.attempts, accounts: x.accounts.size, last: x.last }))
+      .filter(x => x.attempts >= 5 || x.accounts >= 3)
+      .sort((a, b) => b.attempts - a.attempts);
+
+    res.json({
+      success: true,
+      summary: { failed7d: failed.length, success7d: success.length, suspiciousIps: suspicious.length },
+      suspicious,
+      failed: failed.slice(0, 150),
+      recent: success.slice(0, 60),
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

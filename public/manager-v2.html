@@ -526,6 +526,7 @@
       <button class="v2-nav" data-go="content"><span class="ic">📚</span>תוכן למתקינים</button>
       <button class="v2-nav" data-go="files"><span class="ic">🗂️</span>קבצים</button>
       <button class="v2-nav" data-go="activity"><span class="ic">📜</span>יומן פעילות</button>
+      <button class="v2-nav" data-go="security"><span class="ic">🔒</span>אבטחה</button>
       <button class="v2-nav" data-go="extras"><span class="ic">📝</span>תכנותים נוספים</button>
       <div class="v2-side-foot">
         <a href="/manager.html">↩ לעיצוב הקודם</a>
@@ -854,6 +855,8 @@
             <select id="activityFilterAction" onchange="loadActivityLogs()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-family:inherit;font-size:13px;">
               <option value="">כל הפעולות</option>
               <option value="login">כניסה למערכת</option>
+              <option value="login_failed">כניסה כושלת</option>
+              <option value="login_blocked">כניסה חסומה</option>
               <option value="lookup">התחברות מרחוק</option>
               <option value="reboot">אתחול</option>
               <option value="relay_toggle">פתיחת דלת חירום</option>
@@ -879,6 +882,68 @@
             <tbody id="activityLogBody">
               <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-dim);">טוען...</td></tr>
             </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Security dashboard -->
+      <div class="card" data-screen="security">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+          <h2 style="margin:0;">🔒 אבטחה — ניסיונות התחברות (7 ימים אחרונים)</h2>
+          <button onclick="v2LoadSecurity()" style="padding:6px 12px;background:var(--primary);color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">רענן</button>
+        </div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
+          <div style="flex:1;min-width:150px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
+            <div id="secFailed" style="font-size:26px;font-weight:800;color:#ef4444;">—</div>
+            <div style="font-size:12px;color:var(--text-dim);">ניסיונות כושלים / חסומים</div>
+          </div>
+          <div style="flex:1;min-width:150px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
+            <div id="secSuccess" style="font-size:26px;font-weight:800;color:#16a34a;">—</div>
+            <div style="font-size:12px;color:var(--text-dim);">כניסות מוצלחות</div>
+          </div>
+          <div style="flex:1;min-width:150px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
+            <div id="secSuspicious" style="font-size:26px;font-weight:800;color:#ea580c;">—</div>
+            <div style="font-size:12px;color:var(--text-dim);">כתובות IP חשודות</div>
+          </div>
+        </div>
+
+        <h3 style="margin:18px 0 8px;font-size:15px;">⚠️ כתובות IP חשודות (הרבה ניסיונות / הרבה חשבונות)</h3>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr style="background:var(--bg-card);">
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">IP</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">ניסיונות</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">חשבונות שונים</th>
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">אחרון</th>
+            </tr></thead>
+            <tbody id="secSuspiciousBody"><tr><td colspan="4" style="text-align:center;padding:18px;color:var(--text-dim);">טוען...</td></tr></tbody>
+          </table>
+        </div>
+
+        <h3 style="margin:22px 0 8px;font-size:15px;">❌ ניסיונות כושלים אחרונים</h3>
+        <div style="max-height:320px;overflow-y:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr style="position:sticky;top:0;background:var(--bg-card);z-index:1;">
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">חשבון</th>
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">IP</th>
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">סוג</th>
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">תאריך ושעה</th>
+            </tr></thead>
+            <tbody id="secFailedBody"><tr><td colspan="4" style="text-align:center;padding:18px;color:var(--text-dim);">טוען...</td></tr></tbody>
+          </table>
+        </div>
+
+        <h3 style="margin:22px 0 8px;font-size:15px;">✅ כניסות מוצלחות אחרונות</h3>
+        <div style="max-height:320px;overflow-y:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr style="position:sticky;top:0;background:var(--bg-card);z-index:1;">
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">חשבון</th>
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">IP</th>
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">תפקיד</th>
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">תאריך ושעה</th>
+            </tr></thead>
+            <tbody id="secRecentBody"><tr><td colspan="4" style="text-align:center;padding:18px;color:var(--text-dim);">טוען...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -3496,7 +3561,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
 
   <script>
     // ================= V2: screens =================
-    const V2_SCREENS = ['home', 'installers', 'announce', 'content', 'files', 'activity', 'extras'];
+    const V2_SCREENS = ['home', 'installers', 'announce', 'content', 'files', 'activity', 'security', 'extras'];
     function v2Show(screen) {
       if (!V2_SCREENS.includes(screen)) screen = 'home';
       document.querySelectorAll('[data-screen]').forEach(el =>
@@ -3507,11 +3572,62 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
     }
     document.addEventListener('click', e => {
       const go = e.target.closest('[data-go]');
-      if (go) { e.preventDefault(); v2Show(go.dataset.go); }
+      if (go) { e.preventDefault(); v2Show(go.dataset.go); if (go.dataset.go === 'security') v2LoadSecurity(); }
     });
     document.body.classList.add('v2-body');
     v2Show((location.hash || '#home').slice(1));
     if (location.hash === '#extras') v2Extra(document.querySelector('.v2-extra-tab'));
+    if (location.hash === '#security') v2LoadSecurity();
+
+    // ================= Security dashboard =================
+    function v2SecEsc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    }
+    function v2SecTime(t) {
+      if (!t) return '—';
+      try { return new Date(t).toLocaleString('he-IL'); } catch (e) { return t; }
+    }
+    async function v2LoadSecurity() {
+      const susBody = document.getElementById('secSuspiciousBody');
+      const failBody = document.getElementById('secFailedBody');
+      const recBody = document.getElementById('secRecentBody');
+      try {
+        const res = await fetch('/api/manager/security-overview');
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'error');
+
+        document.getElementById('secFailed').textContent = data.summary.failed7d;
+        document.getElementById('secSuccess').textContent = data.summary.success7d;
+        document.getElementById('secSuspicious').textContent = data.summary.suspiciousIps;
+
+        susBody.innerHTML = data.suspicious.length
+          ? data.suspicious.map(s => `<tr>
+              <td style="padding:8px;font-family:monospace;">${v2SecEsc(s.ip)}</td>
+              <td style="padding:8px;text-align:center;font-weight:700;color:#ef4444;">${s.attempts}</td>
+              <td style="padding:8px;text-align:center;">${s.accounts}</td>
+              <td style="padding:8px;">${v2SecTime(s.last)}</td></tr>`).join('')
+          : '<tr><td colspan="4" style="text-align:center;padding:18px;color:#16a34a;">אין כתובות חשודות 👍</td></tr>';
+
+        failBody.innerHTML = data.failed.length
+          ? data.failed.map(f => `<tr>
+              <td style="padding:8px;">${v2SecEsc(f.phoneNumber)}</td>
+              <td style="padding:8px;font-family:monospace;">${v2SecEsc(f.details && f.details.ip)}</td>
+              <td style="padding:8px;">${f.action === 'login_blocked' ? '🚫 חסום' : '❌ כושל'}</td>
+              <td style="padding:8px;">${v2SecTime(f.timestamp)}</td></tr>`).join('')
+          : '<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--text-dim);">אין ניסיונות כושלים</td></tr>';
+
+        recBody.innerHTML = data.recent.length
+          ? data.recent.map(r => `<tr>
+              <td style="padding:8px;">${v2SecEsc(r.phoneNumber)}</td>
+              <td style="padding:8px;font-family:monospace;">${v2SecEsc(r.details && r.details.ip)}</td>
+              <td style="padding:8px;">${v2SecEsc((r.details && r.details.role) || (r.details && r.details.isManagerAccess ? 'manager-access' : 'installer'))}</td>
+              <td style="padding:8px;">${v2SecTime(r.timestamp)}</td></tr>`).join('')
+          : '<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--text-dim);">אין כניסות</td></tr>';
+      } catch (e) {
+        const err = `<tr><td colspan="4" style="text-align:center;padding:18px;color:#ef4444;">שגיאה בטעינה</td></tr>`;
+        susBody.innerHTML = failBody.innerHTML = recBody.innerHTML = err;
+      }
+    }
 
     // Extras screen: choose which page to show in the frame (loads only when first opened)
     function v2Extra(btn) {
