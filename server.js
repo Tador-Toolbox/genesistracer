@@ -2431,6 +2431,24 @@ app.get('/api/manager/security-overview', async (req, res) => {
   }
 });
 
+// Manually clear the rate-limit block for an IP (unblock a mistaken lockout).
+// Requires the manager username+password since it relaxes a security control.
+app.post('/api/manager/security/unblock', async (req, res) => {
+  const { ip, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  if (!ip) return res.status(400).json({ success: false, error: 'ip required' });
+  try {
+    if (typeof loginLimiter.resetKey === 'function') loginLimiter.resetKey(ip);
+    await logActivity({ phoneNumber: username, action: 'login_unblock', mac: null, details: { ip }, success: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== GENERIC ACTION LOG ====================
 app.post('/api/installer/log-action', async (req, res) => {
   const { action, installerPhone, details = {} } = req.body;

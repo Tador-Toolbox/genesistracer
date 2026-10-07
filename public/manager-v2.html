@@ -908,6 +908,12 @@
           </div>
         </div>
 
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:18px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:700;">🔓 שחרור חסימה ידני:</span>
+          <input id="secUnblockIp" type="text" placeholder="הקלד כתובת IP" style="flex:1;min-width:180px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-family:inherit;font-size:13px;direction:ltr;text-align:left;" />
+          <button onclick="v2Unblock(document.getElementById('secUnblockIp').value.trim())" style="padding:7px 14px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">שחרר</button>
+        </div>
+
         <h3 style="margin:18px 0 8px;font-size:15px;">⚠️ כתובות IP חשודות (הרבה ניסיונות / הרבה חשבונות)</h3>
         <div style="overflow-x:auto;">
           <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -916,8 +922,9 @@
               <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">ניסיונות</th>
               <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">חשבונות שונים</th>
               <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">אחרון</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">פעולה</th>
             </tr></thead>
-            <tbody id="secSuspiciousBody"><tr><td colspan="4" style="text-align:center;padding:18px;color:var(--text-dim);">טוען...</td></tr></tbody>
+            <tbody id="secSuspiciousBody"><tr><td colspan="5" style="text-align:center;padding:18px;color:var(--text-dim);">טוען...</td></tr></tbody>
           </table>
         </div>
 
@@ -1233,6 +1240,7 @@
         const data = await res.json();
 
         if (data.success) {
+          window.__mgr = { username, password }; // kept in memory for admin-only actions (e.g. unblock IP)
           document.getElementById('loginScreen').style.display = 'none';
           document.getElementById('managerPanel').style.display = 'block';
           loadData().then(function(){ loadActivityLogs(); populateActivityInstallerFilter(); loadAnnouncements(); populateAnnouncementRecipients(); });
@@ -3605,8 +3613,9 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
               <td style="padding:8px;font-family:monospace;">${v2SecEsc(s.ip)}</td>
               <td style="padding:8px;text-align:center;font-weight:700;color:#ef4444;">${s.attempts}</td>
               <td style="padding:8px;text-align:center;">${s.accounts}</td>
-              <td style="padding:8px;">${v2SecTime(s.last)}</td></tr>`).join('')
-          : '<tr><td colspan="4" style="text-align:center;padding:18px;color:#16a34a;">אין כתובות חשודות 👍</td></tr>';
+              <td style="padding:8px;">${v2SecTime(s.last)}</td>
+              <td style="padding:8px;text-align:center;"><button onclick="v2Unblock('${v2SecEsc(s.ip)}')" style="padding:4px 10px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">שחרר</button></td></tr>`).join('')
+          : '<tr><td colspan="5" style="text-align:center;padding:18px;color:#16a34a;">אין כתובות חשודות 👍</td></tr>';
 
         failBody.innerHTML = data.failed.length
           ? data.failed.map(f => `<tr>
@@ -3624,9 +3633,25 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
               <td style="padding:8px;">${v2SecTime(r.timestamp)}</td></tr>`).join('')
           : '<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--text-dim);">אין כניסות</td></tr>';
       } catch (e) {
-        const err = `<tr><td colspan="4" style="text-align:center;padding:18px;color:#ef4444;">שגיאה בטעינה</td></tr>`;
+        const err = `<tr><td colspan="5" style="text-align:center;padding:18px;color:#ef4444;">שגיאה בטעינה</td></tr>`;
         susBody.innerHTML = failBody.innerHTML = recBody.innerHTML = err;
       }
+    }
+
+    async function v2Unblock(ip) {
+      if (!ip) { alert('הקלד כתובת IP'); return; }
+      if (!window.__mgr) { alert('יש להתחבר מחדש כדי לשחרר חסימה'); return; }
+      if (!confirm('לשחרר את החסימה עבור ' + ip + '?')) return;
+      try {
+        const res = await fetch('/api/manager/security/unblock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip, username: window.__mgr.username, password: window.__mgr.password })
+        });
+        const data = await res.json();
+        if (data.success) { alert('✅ החסימה שוחררה עבור ' + ip); v2LoadSecurity(); }
+        else alert('❌ ' + (data.error || 'שגיאה'));
+      } catch (e) { alert('❌ שגיאת תקשורת'); }
     }
 
     // Extras screen: choose which page to show in the frame (loads only when first opened)
