@@ -909,9 +909,22 @@
         </div>
 
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:18px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <span style="font-size:13px;font-weight:700;">🔓 שחרור חסימה ידני:</span>
-          <input id="secUnblockIp" type="text" placeholder="הקלד כתובת IP" style="flex:1;min-width:180px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-family:inherit;font-size:13px;direction:ltr;text-align:left;" />
-          <button onclick="v2Unblock(document.getElementById('secUnblockIp').value.trim())" style="padding:7px 14px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">שחרר</button>
+          <span style="font-size:13px;font-weight:700;">כתובת IP ידנית:</span>
+          <input id="secIpInput" type="text" placeholder="הקלד כתובת IP" style="flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-family:inherit;font-size:13px;direction:ltr;text-align:left;" />
+          <button onclick="v2Unblock(document.getElementById('secIpInput').value.trim())" style="padding:7px 14px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">🔓 שחרר חסימה זמנית</button>
+          <button onclick="v2Ban(document.getElementById('secIpInput').value.trim())" style="padding:7px 14px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">🚫 חסום לצמיתות</button>
+        </div>
+
+        <h3 style="margin:18px 0 8px;font-size:15px;">⛔ חסומים לצמיתות (עד שחרור ידני)</h3>
+        <div style="overflow-x:auto;margin-bottom:8px;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr style="background:var(--bg-card);">
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">IP</th>
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">נחסם בתאריך</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">פעולה</th>
+            </tr></thead>
+            <tbody id="secBannedBody"><tr><td colspan="3" style="text-align:center;padding:18px;color:var(--text-dim);">טוען...</td></tr></tbody>
+          </table>
         </div>
 
         <h3 style="margin:18px 0 8px;font-size:15px;">🚫 חסום כעת (חסימות פעילות)</h3>
@@ -935,8 +948,9 @@
               <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">ניסיונות</th>
               <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">חשבונות שונים</th>
               <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">אחרון</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">פעולה</th>
             </tr></thead>
-            <tbody id="secSuspiciousBody"><tr><td colspan="4" style="text-align:center;padding:18px;color:var(--text-dim);">טוען...</td></tr></tbody>
+            <tbody id="secSuspiciousBody"><tr><td colspan="5" style="text-align:center;padding:18px;color:var(--text-dim);">טוען...</td></tr></tbody>
           </table>
         </div>
 
@@ -3625,8 +3639,9 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
               <td style="padding:8px;font-family:monospace;">${v2SecEsc(s.ip)}</td>
               <td style="padding:8px;text-align:center;font-weight:700;color:#ef4444;">${s.attempts}</td>
               <td style="padding:8px;text-align:center;">${s.accounts}</td>
-              <td style="padding:8px;">${v2SecTime(s.last)}</td></tr>`).join('')
-          : '<tr><td colspan="4" style="text-align:center;padding:18px;color:#16a34a;">אין כתובות חשודות 👍</td></tr>';
+              <td style="padding:8px;">${v2SecTime(s.last)}</td>
+              <td style="padding:8px;text-align:center;"><button onclick="v2Ban('${v2SecEsc(s.ip)}')" style="padding:4px 10px;background:#dc2626;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">🚫 חסום</button></td></tr>`).join('')
+          : '<tr><td colspan="5" style="text-align:center;padding:18px;color:#16a34a;">אין כתובות חשודות 👍</td></tr>';
 
         // Live blocked list (separate fetch, independent of history)
         try {
@@ -3641,6 +3656,21 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
             : '<tr><td colspan="3" style="text-align:center;padding:18px;color:#16a34a;">אין חסימות פעילות כרגע 👍</td></tr>';
         } catch (e) {
           document.getElementById('secBlockedBody').innerHTML = '<tr><td colspan="3" style="text-align:center;padding:18px;color:#ef4444;">שגיאה בטעינה</td></tr>';
+        }
+
+        // Permanently banned list
+        try {
+          const nRes = await fetch('/api/manager/security/banned');
+          const nData = await nRes.json();
+          const nBody = document.getElementById('secBannedBody');
+          nBody.innerHTML = (nData.banned && nData.banned.length)
+            ? nData.banned.map(b => `<tr>
+                <td style="padding:8px;font-family:monospace;">${v2SecEsc(b.ip)}</td>
+                <td style="padding:8px;">${v2SecTime(b.bannedAt)}</td>
+                <td style="padding:8px;text-align:center;"><button onclick="v2Unban('${v2SecEsc(b.ip)}')" style="padding:4px 10px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">שחרר</button></td></tr>`).join('')
+            : '<tr><td colspan="3" style="text-align:center;padding:18px;color:#16a34a;">אין חסימות קבועות 👍</td></tr>';
+        } catch (e) {
+          document.getElementById('secBannedBody').innerHTML = '<tr><td colspan="3" style="text-align:center;padding:18px;color:#ef4444;">שגיאה בטעינה</td></tr>';
         }
 
         failBody.innerHTML = data.failed.length
@@ -3676,6 +3706,37 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         });
         const data = await res.json();
         if (data.success) { alert('✅ החסימה שוחררה עבור ' + ip); v2LoadSecurity(); }
+        else alert('❌ ' + (data.error || 'שגיאה'));
+      } catch (e) { alert('❌ שגיאת תקשורת'); }
+    }
+
+    async function v2Ban(ip) {
+      if (!ip) { alert('הקלד כתובת IP'); return; }
+      if (!window.__mgr) { alert('יש להתחבר מחדש כדי לחסום'); return; }
+      if (!confirm('לחסום לצמיתות את ' + ip + '?\nכתובת זו לא תוכל לגשת לאתר עד שתשוחרר ידנית.')) return;
+      try {
+        const res = await fetch('/api/manager/security/ban', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip, username: window.__mgr.username, password: window.__mgr.password })
+        });
+        const data = await res.json();
+        if (data.success) { alert('🚫 ' + ip + ' נחסם לצמיתות'); v2LoadSecurity(); }
+        else alert('❌ ' + (data.error || 'שגיאה'));
+      } catch (e) { alert('❌ שגיאת תקשורת'); }
+    }
+
+    async function v2Unban(ip) {
+      if (!ip || !window.__mgr) return;
+      if (!confirm('לשחרר את החסימה הקבועה עבור ' + ip + '?')) return;
+      try {
+        const res = await fetch('/api/manager/security/unban', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip, username: window.__mgr.username, password: window.__mgr.password })
+        });
+        const data = await res.json();
+        if (data.success) { alert('✅ ' + ip + ' שוחרר'); v2LoadSecurity(); }
         else alert('❌ ' + (data.error || 'שגיאה'));
       } catch (e) { alert('❌ שגיאת תקשורת'); }
     }

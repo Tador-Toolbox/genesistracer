@@ -54,6 +54,29 @@ function isIsraeliIP(ip) {
   return false;
 }
 
+// Manually-banned IPs (persistent, loaded from DB at startup). A banned IP is
+// blocked from the whole site until a manager lifts it.
+const bannedIpSet = new Set();
+async function loadBannedIps() {
+  try {
+    const list = await db.listBannedIps();
+    bannedIpSet.clear();
+    list.forEach(b => bannedIpSet.add(b.ip));
+    console.log(`🔒 Loaded ${bannedIpSet.size} manually-banned IP(s)`);
+  } catch (e) { console.error('⚠️ loadBannedIps failed:', e.message); }
+}
+
+// Middleware: reject manually-banned IPs on every request (runs regardless of the Israel flag)
+app.use((req, res, next) => {
+  if (bannedIpSet.size) {
+    const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.ip;
+    if (bannedIpSet.has(clientIP)) {
+      return res.status(403).json({ success: false, error: 'Access denied. / גישה נדחתה.' });
+    }
+  }
+  next();
+});
+
 // Middleware: Check IP before every request
 app.use((req, res, next) => {
   // Enable/disable IP restriction via environment variable
@@ -2458,6 +2481,51 @@ app.post('/api/manager/security/unblock', async (req, res) => {
     if (typeof loginLimiter.resetKey === 'function') loginLimiter.resetKey(ip);
     blockedIps.delete(ip);
     await logActivity({ phoneNumber: username, action: 'login_unblock', mac: null, details: { ip }, success: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Permanently-banned IPs (manual, until a manager lifts them)
+app.get('/api/manager/security/banned', async (req, res) => {
+  try {
+    const banned = await db.listBannedIps();
+    res.json({ success: true, banned });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/manager/security/ban', async (req, res) => {
+  const { ip, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  if (!ip) return res.status(400).json({ success: false, error: 'ip required' });
+  try {
+    await db.banIp(ip, username);
+    bannedIpSet.add(ip);
+    blockedIps.delete(ip); // it's now permanently banned, drop the temp entry
+    await logActivity({ phoneNumber: username, action: 'ip_banned', mac: null, details: { ip }, success: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/manager/security/unban', async (req, res) => {
+  const { ip, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  if (!ip) return res.status(400).json({ success: false, error: 'ip required' });
+  try {
+    await db.unbanIp(ip);
+    bannedIpSet.delete(ip);
+    await logActivity({ phoneNumber: username, action: 'ip_unbanned', mac: null, details: { ip }, success: true });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -5208,6 +5276,7 @@ app.listen(PORT, () => {
   console.log('Powered by Tador Technologies LTD');
   loadSchedules();
   initNexHomeAccounts();
+  loadBannedIps();
 
   // Keep-alive: ping עצמי כל 10 דקות כדי למנוע שינה ב-Render Free
   const APP_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;

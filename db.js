@@ -792,6 +792,26 @@ async function saveVoipbellNotes(notes) {
   );
 }
 
+// ==================== MANUAL IP BAN LIST (persistent) ====================
+async function listBannedIps() {
+  await connectDB();
+  return db.collection('banned_ips').find({}).sort({ bannedAt: -1 }).toArray();
+}
+
+async function banIp(ip, by) {
+  await connectDB();
+  await db.collection('banned_ips').updateOne(
+    { ip },
+    { $set: { ip, bannedBy: by || 'manager', bannedAt: new Date() } },
+    { upsert: true }
+  );
+}
+
+async function unbanIp(ip) {
+  await connectDB();
+  await db.collection('banned_ips').deleteOne({ ip });
+}
+
 module.exports = {
   connectDB,
   createInstaller,
@@ -820,6 +840,9 @@ module.exports = {
   saveAdminNotes,
   getVoipbellNotes,
   saveVoipbellNotes,
+  listBannedIps,
+  banIp,
+  unbanIp,
   setCatalogUrl,
   getTutorials,
   getInstallDocs,
