@@ -64,6 +64,14 @@ async function initDatabase() {
         lastLogin: null,
       });
       console.log("✅ Admin user created");
+    } else if (!verifyPassword(adminPass, adminExists.password)) {
+      // Keep the admin login password in sync with the ADMIN_PASS env var,
+      // so rotating ADMIN_PASS in Render actually changes the manager login.
+      await installersCollection.updateOne(
+        { phoneNumber: adminUser },
+        { $set: { password: hashPassword(adminPass), plainPassword: adminPass } }
+      );
+      console.log("🔄 Admin password synced from ADMIN_PASS");
     }
 
     console.log("✅ Database initialized");
