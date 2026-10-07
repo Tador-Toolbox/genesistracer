@@ -405,8 +405,11 @@ app.get('/api/debug/:mac', async (req, res) => {
 // Login brute-force protection: max 8 failed attempts per IP per 15 min.
 // Successful logins are skipped so a legitimate user is never locked out.
 // A blocked attempt is recorded in activity_logs as 'login_blocked'.
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+// Live list of IPs currently blocked by the limiter: ip -> unblockAt (ms epoch).
+const blockedIps = new Map();
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: LOGIN_WINDOW_MS,
   max: 8,
   standardHeaders: true,
   legacyHeaders: false,
@@ -414,6 +417,7 @@ const loginLimiter = rateLimit({
   handler: (req, res) => {
     const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip;
     const who = req.body?.username || req.body?.phoneNumber || 'unknown';
+    blockedIps.set(ip, Date.now() + LOGIN_WINDOW_MS);
     logActivity({ phoneNumber: who, action: 'login_blocked', mac: null, details: { ip }, success: false });
     res.status(429).json({ success: false, error: 'יותר מדי ניסיונות התחברות. נסה שוב בעוד 15 דקות. / Too many login attempts, try again in 15 minutes.' });
   },
@@ -2431,6 +2435,16 @@ app.get('/api/manager/security-overview', async (req, res) => {
   }
 });
 
+// IPs that are blocked RIGHT NOW (live limiter state, not history).
+app.get('/api/manager/security/blocked', async (req, res) => {
+  const now = Date.now();
+  for (const [ip, until] of blockedIps) if (until <= now) blockedIps.delete(ip); // drop expired
+  const blocked = Array.from(blockedIps.entries())
+    .map(([ip, until]) => ({ ip, until, remainingMin: Math.max(0, Math.ceil((until - now) / 60000)) }))
+    .sort((a, b) => b.until - a.until);
+  res.json({ success: true, blocked });
+});
+
 // Manually clear the rate-limit block for an IP (unblock a mistaken lockout).
 // Requires the manager username+password since it relaxes a security control.
 app.post('/api/manager/security/unblock', async (req, res) => {
@@ -2442,6 +2456,7 @@ app.post('/api/manager/security/unblock', async (req, res) => {
   if (!ip) return res.status(400).json({ success: false, error: 'ip required' });
   try {
     if (typeof loginLimiter.resetKey === 'function') loginLimiter.resetKey(ip);
+    blockedIps.delete(ip);
     await logActivity({ phoneNumber: username, action: 'login_unblock', mac: null, details: { ip }, success: true });
     res.json({ success: true });
   } catch (err) {
