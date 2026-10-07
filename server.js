@@ -3,6 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const crypto = require('crypto');
+const zlib = require('zlib');
 const rateLimit = require('express-rate-limit');
 const db = require('./db');
 
@@ -594,12 +595,81 @@ app.get('/api/manager/logs', async (req, res) => {
 app.get('/api/manager/backup', async (req, res) => {
   try {
     const backup = await db.getFullDatabaseBackup();
-    
+
     const filename = `genesistracer-backup-${new Date().toISOString().split('T')[0]}.json`;
-    
+
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.json(backup);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== AUTOMATIC DAILY DB BACKUP ====================
+// Dumps ALL collections -> gzip -> private (authenticated) Cloudinary raw file.
+// Keeps a rolling 30 days; older backups are deleted automatically.
+const BACKUP_KEEP_DAYS = 30;
+async function runDailyBackup() {
+  try {
+    const backup = await db.getFullBackup();
+    const gz = zlib.gzipSync(Buffer.from(JSON.stringify(backup), 'utf8'));
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const publicIdBase = `genesistracer-backup-${stamp}`;
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        { folder: 'tador/db-backups', resource_type: 'raw', type: 'authenticated', public_id: publicIdBase, use_filename: false },
+        (error, result) => error ? reject(error) : resolve(result)
+      ).end(gz);
+    });
+    await db.addBackupRecord({ publicId: result.public_id, bytes: result.bytes, filename: publicIdBase + '.json.gz', createdAt: new Date() });
+    console.log(`💾 Daily backup uploaded: ${result.public_id} (${result.bytes} bytes)`);
+    // Prune older than BACKUP_KEEP_DAYS
+    const cutoff = new Date(Date.now() - BACKUP_KEEP_DAYS * 24 * 60 * 60 * 1000);
+    const old = await db.removeBackupRecordsOlderThan(cutoff);
+    for (const o of old) {
+      try { await cloudinary.uploader.destroy(o.publicId, { resource_type: 'raw', type: 'authenticated' }); } catch (e) {}
+    }
+    if (old.length) console.log(`🧹 Pruned ${old.length} backup(s) older than ${BACKUP_KEEP_DAYS} days`);
+    return { success: true, publicId: result.public_id, bytes: result.bytes };
+  } catch (err) {
+    console.error('⚠️ Daily backup failed:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+// List backups (metadata only)
+app.get('/api/manager/backups', async (req, res) => {
+  try {
+    const list = await db.listBackupRecords();
+    res.json({ success: true, backups: list.map(b => ({ publicId: b.publicId, filename: b.filename, bytes: b.bytes, createdAt: b.createdAt })) });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Run a backup now (manager-auth)
+app.post('/api/manager/backups/run', async (req, res) => {
+  const { username, password } = req.body || {};
+  if (username !== (process.env.ADMIN_USER || 'admin') || password !== process.env.ADMIN_PASS) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  const r = await runDailyBackup();
+  res.json(r);
+});
+
+// Get a short-lived signed download URL for a backup (manager-auth)
+app.post('/api/manager/backups/download', async (req, res) => {
+  const { publicId, username, password } = req.body || {};
+  if (username !== (process.env.ADMIN_USER || 'admin') || password !== process.env.ADMIN_PASS) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  if (!publicId) return res.status(400).json({ success: false, error: 'publicId required' });
+  try {
+    const url = cloudinary.utils.private_download_url(publicId, null, {
+      resource_type: 'raw', type: 'authenticated', expires_at: Math.floor(Date.now() / 1000) + 300,
+    });
+    res.json({ success: true, url });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -5277,6 +5347,18 @@ app.listen(PORT, () => {
   loadSchedules();
   initNexHomeAccounts();
   loadBannedIps();
+
+  // Daily DB backup: check hourly, run once per calendar day (survives restarts).
+  async function backupTick() {
+    try {
+      const recs = await db.listBackupRecords();
+      const today = new Date().toISOString().split('T')[0];
+      const hasToday = recs.some(r => new Date(r.createdAt).toISOString().split('T')[0] === today);
+      if (!hasToday) { console.log('⏰ No backup yet today — running daily backup...'); await runDailyBackup(); }
+    } catch (e) { console.error('⚠️ backupTick failed:', e.message); }
+  }
+  setTimeout(backupTick, 60 * 1000);            // first check ~1 min after boot
+  setInterval(backupTick, 60 * 60 * 1000);      // then hourly
 
   // Keep-alive: ping עצמי כל 10 דקות כדי למנוע שינה ב-Render Free
   const APP_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;

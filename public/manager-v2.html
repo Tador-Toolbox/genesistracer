@@ -527,6 +527,7 @@
       <button class="v2-nav" data-go="files"><span class="ic">🗂️</span>קבצים</button>
       <button class="v2-nav" data-go="activity"><span class="ic">📜</span>יומן פעילות</button>
       <button class="v2-nav" data-go="security"><span class="ic">🔒</span>אבטחה</button>
+      <button class="v2-nav" data-go="backups"><span class="ic">💾</span>גיבויים</button>
       <button class="v2-nav" data-go="extras"><span class="ic">📝</span>תכנותים נוספים</button>
       <div class="v2-side-foot">
         <a href="/manager.html">↩ לעיצוב הקודם</a>
@@ -977,6 +978,28 @@
               <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">תאריך ושעה</th>
             </tr></thead>
             <tbody id="secRecentBody"><tr><td colspan="4" style="text-align:center;padding:18px;color:var(--text-dim);">טוען...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Backups -->
+      <div class="card" data-screen="backups">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+          <h2 style="margin:0;">💾 גיבויים אוטומטיים</h2>
+          <div style="display:flex;gap:8px;">
+            <button onclick="v2RunBackup()" style="padding:6px 14px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">⬆ גבה עכשיו</button>
+            <button onclick="v2LoadBackups()" style="padding:6px 12px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">רענן</button>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">גיבוי מלא של בסיס הנתונים נשמר אוטומטית פעם ביום (דחוס ומוצפן בענן), ונשמרים 30 הימים האחרונים. ישנים יותר נמחקים לבד.</p>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr style="background:var(--bg-card);">
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">תאריך ושעה</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">גודל</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">פעולה</th>
+            </tr></thead>
+            <tbody id="secBackupsBody"><tr><td colspan="3" style="text-align:center;padding:18px;color:var(--text-dim);">טוען...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -3595,7 +3618,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
 
   <script>
     // ================= V2: screens =================
-    const V2_SCREENS = ['home', 'installers', 'announce', 'content', 'files', 'activity', 'security', 'extras'];
+    const V2_SCREENS = ['home', 'installers', 'announce', 'content', 'files', 'activity', 'security', 'backups', 'extras'];
     function v2Show(screen) {
       if (!V2_SCREENS.includes(screen)) screen = 'home';
       document.querySelectorAll('[data-screen]').forEach(el =>
@@ -3606,7 +3629,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
     }
     document.addEventListener('click', e => {
       const go = e.target.closest('[data-go]');
-      if (go) { e.preventDefault(); v2Show(go.dataset.go); if (go.dataset.go === 'security') v2LoadSecurity(); }
+      if (go) { e.preventDefault(); v2Show(go.dataset.go); if (go.dataset.go === 'security') v2LoadSecurity(); if (go.dataset.go === 'backups') v2LoadBackups(); }
     });
     document.body.classList.add('v2-body');
     v2Show((location.hash || '#home').slice(1));
@@ -3737,6 +3760,54 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         });
         const data = await res.json();
         if (data.success) { alert('✅ ' + ip + ' שוחרר'); v2LoadSecurity(); }
+        else alert('❌ ' + (data.error || 'שגיאה'));
+      } catch (e) { alert('❌ שגיאת תקשורת'); }
+    }
+
+    // ================= Backups =================
+    function v2FmtBytes(n) {
+      if (!n && n !== 0) return '—';
+      if (n < 1024) return n + ' B';
+      if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+      return (n / 1024 / 1024).toFixed(1) + ' MB';
+    }
+    async function v2LoadBackups() {
+      const body = document.getElementById('secBackupsBody');
+      try {
+        const res = await fetch('/api/manager/backups');
+        const data = await res.json();
+        body.innerHTML = (data.backups && data.backups.length)
+          ? data.backups.map(b => `<tr>
+              <td style="padding:8px;">${v2SecTime(b.createdAt)}</td>
+              <td style="padding:8px;text-align:center;">${v2FmtBytes(b.bytes)}</td>
+              <td style="padding:8px;text-align:center;"><button onclick="v2DownloadBackup('${v2SecEsc(b.publicId)}')" style="padding:4px 12px;background:var(--primary);color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">⬇ הורד</button></td></tr>`).join('')
+          : '<tr><td colspan="3" style="text-align:center;padding:18px;color:var(--text-dim);">אין גיבויים עדיין — לחץ "גבה עכשיו"</td></tr>';
+      } catch (e) {
+        body.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:18px;color:#ef4444;">שגיאה בטעינה</td></tr>';
+      }
+    }
+    async function v2RunBackup() {
+      if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+      if (!confirm('ליצור גיבוי עכשיו?')) return;
+      try {
+        const res = await fetch('/api/manager/backups/run', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: window.__mgr.username, password: window.__mgr.password })
+        });
+        const data = await res.json();
+        if (data.success) { alert('✅ גיבוי נוצר (' + v2FmtBytes(data.bytes) + ')'); v2LoadBackups(); }
+        else alert('❌ ' + (data.error || 'שגיאה'));
+      } catch (e) { alert('❌ שגיאת תקשורת'); }
+    }
+    async function v2DownloadBackup(publicId) {
+      if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+      try {
+        const res = await fetch('/api/manager/backups/download', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publicId, username: window.__mgr.username, password: window.__mgr.password })
+        });
+        const data = await res.json();
+        if (data.success && data.url) window.open(data.url, '_blank');
         else alert('❌ ' + (data.error || 'שגיאה'));
       } catch (e) { alert('❌ שגיאת תקשורת'); }
     }

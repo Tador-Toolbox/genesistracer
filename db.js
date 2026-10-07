@@ -792,6 +792,39 @@ async function saveVoipbellNotes(notes) {
   );
 }
 
+// ==================== FULL BACKUP (all collections) ====================
+async function getFullBackup() {
+  await connectDB();
+  const colls = await db.listCollections().toArray();
+  const data = {};
+  for (const c of colls) {
+    if (c.type && c.type !== 'collection') continue;
+    data[c.name] = await db.collection(c.name).find({}).toArray();
+  }
+  return {
+    exportDate: new Date().toISOString(),
+    version: '3.0',
+    database: db.databaseName,
+    collections: data,
+  };
+}
+
+// Backup catalog (metadata of uploaded backups)
+async function addBackupRecord(rec) {
+  await connectDB();
+  await db.collection('backups').insertOne(rec);
+}
+async function listBackupRecords() {
+  await connectDB();
+  return db.collection('backups').find({}).sort({ createdAt: -1 }).toArray();
+}
+async function removeBackupRecordsOlderThan(date) {
+  await connectDB();
+  const old = await db.collection('backups').find({ createdAt: { $lt: date } }).toArray();
+  if (old.length) await db.collection('backups').deleteMany({ createdAt: { $lt: date } });
+  return old;
+}
+
 // ==================== MANUAL IP BAN LIST (persistent) ====================
 async function listBannedIps() {
   await connectDB();
@@ -843,6 +876,10 @@ module.exports = {
   listBannedIps,
   banIp,
   unbanIp,
+  getFullBackup,
+  addBackupRecord,
+  listBackupRecords,
+  removeBackupRecordsOlderThan,
   setCatalogUrl,
   getTutorials,
   getInstallDocs,
