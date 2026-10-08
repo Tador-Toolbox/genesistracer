@@ -2485,7 +2485,9 @@
       }
     }
 
+    let loadDataRun = 0; // guards against overlapping loadData() calls doubling the list
     async function loadData() {
+      const myRun = ++loadDataRun;
       loadUnreadBadges();
       const installersRes = await fetch('/api/manager/installers');
       const installersData = await installersRes.json();
@@ -2493,7 +2495,7 @@
       window._installerMacs = {};
 
       const tbody = document.getElementById('installersBody');
-      tbody.innerHTML = '';
+      const frag = document.createDocumentFragment();
 
       for (const installer of installersData.installers) {
         const details = await fetch(`/api/manager/installers/${installer.phoneNumber}`).then(r => r.json());
@@ -2710,8 +2712,13 @@
           </td>
         `;
 
-        tbody.appendChild(row);
+        frag.appendChild(row);
       }
+
+      // If a newer loadData() started while we were fetching, let it render instead.
+      if (myRun !== loadDataRun) return;
+      tbody.innerHTML = '';
+      tbody.appendChild(frag);
 
       // Re-apply an active search after the table rebuilds
       const sv = document.getElementById('installerSearch');
