@@ -3367,6 +3367,8 @@ function buildingAccess(b) {
     buildingCode: b.buildingCode,
     password: b.password,
     panels: b.panels || [{ mac: b.mac, label: 'כניסה ראשית' }],
+    registrationMode: b.registrationMode || (b.openRegistration ? 'committee' : 'whitelist'),
+    openRegistration: !!b.openRegistration,
   };
 }
 

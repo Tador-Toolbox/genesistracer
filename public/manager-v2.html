@@ -1808,11 +1808,38 @@
     const BLD_BASE = 'https://genesistracer.onrender.com';
     const qrImgUrl = url => 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&format=png&data=' + encodeURIComponent(url);
 
+    const BLD_MODE_LABELS = {
+      whitelist: 'רשימה מאושרת — רק דיירים שהוזנו מראש ע״י הוועד יכולים להירשם',
+      committee: 'אישור ועד — כל אחד יכול להירשם, הוועד מאשר כל דייר לפני העלאה לפנל',
+      open:      'פתוח לגמרי — כל אחד נרשם ומועלה אוטומטית לפנל (ללא אישור)',
+    };
+    async function v2SetBuildingMode(code, mode) {
+      if (!window.__mgr) { alert('יש להתחבר מחדש כדי לשנות מצב'); return; }
+      const msg = document.getElementById('bldModeMsg');
+      if (msg) msg.textContent = 'שומר...';
+      try {
+        const data = await fetch('/api/buildings/' + encodeURIComponent(code) + '/registration-mode', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode, username: window.__mgr.username, password: window.__mgr.password })
+        }).then(r => r.json());
+        if (data.success) {
+          if (bldCtx.building) { bldCtx.building.registrationMode = mode; bldCtx.building.openRegistration = (mode === 'committee'); }
+          if (msg) { msg.textContent = '✓ נשמר'; setTimeout(() => { if (msg) msg.textContent = ''; }, 1500); }
+        } else if (msg) { msg.textContent = '❌ ' + (data.error || 'שגיאה'); }
+      } catch (e) { if (msg) msg.textContent = '❌ שגיאת תקשורת'; }
+    }
+
     function showBuildingAccess(b) {
       bldCtx.building = b;
       const regUrl = BLD_BASE + '/resident-register.html?code=' + b.buildingCode;
       const comUrl = BLD_BASE + '/committee.html?code=' + b.buildingCode;
       const entrances = (b.panels || []).map(p => p.label).filter(Boolean).join(' · ');
+      const curMode = b.registrationMode || (b.openRegistration ? 'committee' : 'whitelist');
+      const modeRadio = (val, title) => `
+        <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;color:#111;font-size:13px;padding:7px 0;width:auto;">
+          <input type="radio" name="bldRegMode" value="${val}" ${curMode === val ? 'checked' : ''} onchange="v2SetBuildingMode('${bldEsc(b.buildingCode)}','${val}')" style="width:auto;margin:3px 0 0;">
+          <span>${BLD_MODE_LABELS[val]}</span>
+        </label>`;
       const col = (title, sub, url, file) => `
         <div style="flex:1;min-width:230px;border:1px solid #e5e7eb;border-radius:12px;padding:16px;">
           <div style="font-size:15px;font-weight:900;color:#111;">${title}</div>
@@ -1832,6 +1859,13 @@
         <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
           ${col('🏠 הרשמת דיירים', 'ללובי — הדיירים סורקים ונרשמים', regUrl, 'qr-residents-' + b.buildingCode)}
           ${col('👥 כניסת ועד', 'לוועד הבית — ניהול הדיירים (עם הסיסמה)', comUrl, 'qr-committee-' + b.buildingCode)}
+        </div>
+        <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:18px;text-align:right;">
+          <div style="font-size:14px;font-weight:900;color:#111;margin-bottom:4px;">⚙️ מצב הרשמת דיירים</div>
+          ${modeRadio('whitelist')}
+          ${modeRadio('committee')}
+          ${modeRadio('open')}
+          <div id="bldModeMsg" style="font-size:12px;color:#16a34a;min-height:16px;margin-top:4px;"></div>
         </div>
         <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
           <button onclick="printBuildingAccess()" style="padding:11px 24px;background:#111;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">🖨️ הדפס</button>
