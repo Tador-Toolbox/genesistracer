@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const zlib = require('zlib');
 const rateLimit = require('express-rate-limit');
 const db = require('./db');
+const voipbell = require('./voipbell');
 
 const app = express();
 app.set('trust proxy', 1); // Render runs behind a proxy — needed for correct client IP + rate limiting
@@ -3315,6 +3316,18 @@ app.post('/api/manager/voipbell-notes', async (req, res) => {
     await db.saveVoipbellNotes(notes);
     res.json({ success: true });
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Fetch a panel's VoIPBell softphone QR by voipbellAccount name (logs into the portal).
+app.get('/api/manager/voipbell-qr', async (req, res) => {
+  const account = req.query.account;
+  if (!account) return res.status(400).json({ success: false, error: 'account required' });
+  try {
+    const r = await voipbell.getQrForAccount(account);
+    res.json({ success: true, ...r });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
 const PORT = process.env.PORT || 3000;

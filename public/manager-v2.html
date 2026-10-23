@@ -2611,6 +2611,7 @@
                     <span class="mac-detail-label">📞 VoipBell Account:</span>
                     <span class="mac-detail-value">${macObj.voipbellAccount || '—'}</span>
                     <button class="field-edit-btn" onclick='editField("${installer.phoneNumber}", "${macObj.mac}", "voipbellAccount")'>✏️</button>
+                    ${macObj.voipbellAccount ? `<button class="small" onclick="v2VoipbellQr('${encodeURIComponent(macObj.voipbellAccount)}')" style="background:#e11d48;color:#fff;margin-inline-start:6px;">📷 QR</button>` : ''}
                   </div>
 
                   <div class="mac-detail-field">
@@ -3855,6 +3856,46 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         if (data.success && data.url) window.open(data.url, '_blank');
         else alert('❌ ' + (data.error || 'שגיאה'));
       } catch (e) { alert('❌ שגיאת תקשורת'); }
+    }
+
+    // ===== VoIPBell softphone QR (fetched live from eu1.voipbell.net) =====
+    async function v2VoipbellQr(accountEnc) {
+      const account = decodeURIComponent(accountEnc);
+      let ov = document.getElementById('vbQrOverlay');
+      if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'vbQrOverlay';
+        ov.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100000;align-items:center;justify-content:center;';
+        ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
+        ov.innerHTML = '<div id="vbQrBox" style="background:#fff;color:#111;border-radius:14px;padding:22px;max-width:380px;width:92%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.3);"></div>';
+        document.body.appendChild(ov);
+      }
+      const box = document.getElementById('vbQrBox');
+      box.innerHTML = '<div style="padding:30px;color:#666;">📷 מושך QR מ-VoIPBell...<br><span style="font-size:12px;">(כניסה לפורטל — עשוי לקחת כמה שניות)</span></div>';
+      ov.style.display = 'flex';
+      try {
+        const res = await fetch('/api/manager/voipbell-qr?account=' + accountEnc);
+        const data = await res.json();
+        if (!data.success) {
+          box.innerHTML = `<div style="padding:20px;color:#dc2626;font-weight:700;">❌ ${(data.error || 'שגיאה')}</div>
+            <button onclick="document.getElementById('vbQrOverlay').style.display='none'" style="margin-top:10px;padding:9px 20px;background:#f3f4f6;color:#111;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;">סגור</button>`;
+          return;
+        }
+        const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=' + encodeURIComponent(data.payload);
+        box.innerHTML = `
+          <h3 style="margin:0 0 2px;font-size:17px;font-weight:900;">📷 QR — ${account}</h3>
+          <p style="font-size:12px;color:#666;margin:0 0 14px;">intercom #${data.intercomId} · סרוק להוספת סופטפון</p>
+          <img src="${qrUrl}" width="260" height="260" alt="QR" style="border:1px solid #eee;border-radius:10px;padding:6px;background:#fff;">
+          <div dir="ltr" style="font-size:10px;color:#999;margin:10px 0;word-break:break-all;background:#f8f8f8;border-radius:6px;padding:6px;">${data.payload}</div>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+            <button onclick="(function(){var a=document.createElement('a');a.href='${qrUrl}'.replace('300x300','800x800');a.download='voipbell-qr-${account}.png';a.target='_blank';a.click();})()" style="padding:9px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;">⬇ הורד</button>
+            <button onclick="window.open('${qrUrl}'.replace('300x300','800x800'),'_blank')" style="padding:9px 18px;background:#111;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;">🖨️ הדפס</button>
+            <button onclick="document.getElementById('vbQrOverlay').style.display='none'" style="padding:9px 18px;background:#f3f4f6;color:#111;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;">סגור</button>
+          </div>`;
+      } catch (e) {
+        box.innerHTML = `<div style="padding:20px;color:#dc2626;font-weight:700;">❌ שגיאת תקשורת</div>
+          <button onclick="document.getElementById('vbQrOverlay').style.display='none'" style="margin-top:10px;padding:9px 20px;background:#f3f4f6;color:#111;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;">סגור</button>`;
+      }
     }
 
     // Extras screen: choose which page to show in the frame (loads only when first opened)
