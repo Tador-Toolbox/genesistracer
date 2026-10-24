@@ -867,6 +867,49 @@ app.get('/api/manager/resident-submissions', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// Read ALL contacts from a panel, paging past the default page size.
+async function getAllPanelContacts(host, port, token, pageSize = 50) {
+  const all = [];
+  let pageNum = 1, total = Infinity;
+  const auth = { Authorization: 'Bearer ' + token };
+  while (all.length < total) {
+    const pg = await panelHttpGetWithHeaders(host, port,
+      `/api/v1/intercoms/contacts?page_num=${pageNum}&page_size=${pageSize}`, auth);
+    const list = (pg && pg.data && pg.data.list) || [];
+    total = (pg && pg.data && typeof pg.data.total === 'number') ? pg.data.total : list.length;
+    if (!list.length) break;
+    all.push(...list);
+    if (list.length < pageSize) break;
+    pageNum++;
+    if (pageNum > 40) break; // safety cap
+  }
+  return all;
+}
+
+// Installer: read the panel's CURRENT contacts (the "check existing list" button).
+app.get('/api/installer/panel-contacts', async (req, res) => {
+  try {
+    const cleanMac = prCleanMac(req.query.mac);
+    const phoneNumber = (req.query.phone || '').trim();
+    if (!cleanMac) return res.status(400).json({ success: false, error: 'mac required' });
+    if (phoneNumber && !(await prInstallerOwnsMac(phoneNumber, cleanMac))) return res.status(403).json({ success: false, error: 'not your panel' });
+    const panelAddress = await resolvePanelAddress(cleanMac);
+    if (!panelAddress) return res.status(502).json({ success: false, error: 'הפנל אינו מחובר או לא נמצא' });
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes && loginRes.data && loginRes.data.token;
+    if (!token) return res.status(502).json({ success: false, error: 'כניסה לפנל נכשלה' });
+    const contacts = await getAllPanelContacts(host, port, token);
+    let groupcalls = [];
+    try {
+      const g = await panelHttpGetWithHeaders(host, port, '/api/v1/intercoms/contacts/groupcall?page_num=1&page_size=100', { Authorization: 'Bearer ' + token });
+      groupcalls = (g && g.data && g.data.list) || [];
+    } catch (e) {}
+    res.json({ success: true, contacts, groupcalls });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // Manager: approve / reject a submission (push-to-panel wired later)
 app.post('/api/manager/resident-submissions/status', async (req, res) => {
   const { mac, status, username, password } = req.body || {};
