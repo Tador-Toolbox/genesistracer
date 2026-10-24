@@ -2591,6 +2591,7 @@
                   <div class="mac-detail-header">
                     <span class="mac-detail-mac" onclick="v2ToggleMac(this)" style="cursor:pointer;">${macObj.mac}</span>
                     <div class="mac-actions">
+                      <button class="small" onclick="v2PrintAllQr('${installer.phoneNumber}', '${macObj.mac}')" style="background:#0ea5e9;color:#fff;" title="הדפס QR (דיירים / ועד / VoIPBell)">🖨️ QR</button>
                       <button class="small" onclick='editMac("${installer.phoneNumber}", ${JSON.stringify(macObj)})'>${translations[currentLang].edit}</button>
                       <button class="small" onclick="openPanelInfo('${installer.phoneNumber}', '${macObj.mac}')" style="background:#0891b2;color:white;" title="מידע פנל">🔍 מידע</button>
                       ${buildingBtnHtml(installer.phoneNumber, macObj.mac)}
@@ -3896,6 +3897,60 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         box.innerHTML = `<div style="padding:20px;color:#dc2626;font-weight:700;">❌ שגיאת תקשורת</div>
           <button onclick="document.getElementById('vbQrOverlay').style.display='none'" style="margin-top:10px;padding:9px 20px;background:#f3f4f6;color:#111;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;">סגור</button>`;
       }
+    }
+
+    // ===== Print all QRs for a panel: VoIPBell (always, if account) + residents/committee (if a building exists) =====
+    async function v2PrintAllQr(phone, mac) {
+      const macs = (window._installerMacs && window._installerMacs[phone]) || [];
+      const macObj = macs.find(m => normMac(m.mac) === normMac(mac)) || { mac };
+      const vbAccount = (macObj.voipbellAccount || '').trim();
+
+      // Open the print window synchronously (avoids popup blocking), fill it when ready.
+      const w = window.open('', '_blank');
+      if (w) { w.document.write('<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>QR</title></head><body style="font-family:sans-serif;padding:30px;text-align:center;color:#444;">מכין QR להדפסה…</body></html>'); }
+
+      const items = [];
+      // Building QRs (only if a building is linked to this MAC)
+      try {
+        const bd = await fetch('/api/manager/building-by-mac/' + encodeURIComponent(normMac(mac))).then(r => r.json());
+        if (bd && bd.found && bd.building) {
+          const b = bd.building;
+          items.push({ title: '🏠 הרשמת דיירים', sub: b.address || '', data: BLD_BASE + '/resident-register.html?code=' + b.buildingCode });
+          items.push({ title: '👥 כניסת ועד', sub: 'קוד: ' + b.buildingCode + ' · סיסמה: ' + (b.password || ''), data: BLD_BASE + '/committee.html?code=' + b.buildingCode });
+        }
+      } catch (e) {}
+      // VoIPBell QR (only if the MAC has a voipbellAccount)
+      if (vbAccount) {
+        try {
+          const q = await fetch('/api/manager/voipbell-qr?account=' + encodeURIComponent(vbAccount)).then(r => r.json());
+          if (q && q.success) items.push({ title: '📞 VoIPBell', sub: 'הוספת סופטפון · ' + vbAccount, data: q.payload });
+        } catch (e) {}
+      }
+
+      if (!items.length) {
+        if (w) w.close();
+        alert('אין QR להדפסה (אין בניין מקושר ואין חשבון VoIPBell לפנל זה)');
+        return;
+      }
+
+      const qrBig = d => 'https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=10&data=' + encodeURIComponent(d);
+      const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      const cards = items.map(it => `
+        <div style="border:1px solid #ddd;border-radius:12px;padding:16px;width:300px;display:inline-block;vertical-align:top;margin:10px;">
+          <div style="font-size:18px;font-weight:800;margin-bottom:2px;">${esc(it.title)}</div>
+          <div style="font-size:12px;color:#666;min-height:16px;margin-bottom:10px;">${esc(it.sub)}</div>
+          <img src="${qrBig(it.data)}" width="260" height="260" style="border:1px solid #eee;border-radius:8px;padding:6px;">
+        </div>`).join('');
+      const html = `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>QR — ${esc(mac)}</title>
+        <style>@media print{.noprint{display:none}} body{font-family:Arial,'Heebo',sans-serif;text-align:center;padding:24px;color:#111;}</style></head>
+        <body>
+          <h2 style="margin:0 0 4px;">קודי QR — ${esc(mac)}</h2>
+          <div style="font-size:13px;color:#666;margin-bottom:18px;">${esc(macObj.address || '')}</div>
+          <div>${cards}</div>
+          <button class="noprint" onclick="window.print()" style="margin-top:20px;padding:10px 26px;font-size:15px;font-weight:700;background:#0ea5e9;color:#fff;border:none;border-radius:8px;cursor:pointer;">🖨️ הדפס</button>
+          <script>window.onload=function(){var i=document.images,n=i.length,c=0;if(!n){window.print();return;}for(var k=0;k<n;k++){if(i[k].complete)done();else{i[k].onload=done;i[k].onerror=done;}}function done(){if(++c>=n)setTimeout(function(){window.print();},200);}};<\/script>
+        </body></html>`;
+      if (w) { w.document.open(); w.document.write(html); w.document.close(); w.focus(); }
     }
 
     // Extras screen: choose which page to show in the frame (loads only when first opened)
