@@ -75,14 +75,12 @@
           <th>שם משפחה</th>
           <th>מספר דירה</th>
           <th>טלפון דייר</th>
-          <th class="sip">SIP</th>
           <th class="del"></th>
         </tr>
       </thead>
       <tbody id="rows"></tbody>
     </table>
   </div>
-  <div class="hint">מספר ה‑SIP מוקצה אוטומטית מ‑1001 לפי סדר הדיירים.</div>
 
   <div class="actions">
     <button class="b b-add" onclick="addRow()">➕ הוסף דייר</button>
@@ -121,7 +119,6 @@
       <td><input class="f-last"  value="${esc(r.lastName)}"  placeholder="שם משפחה"></td>
       <td><input class="f-apt"   value="${esc(r.apartment)}" placeholder="דירה" inputmode="numeric"></td>
       <td><input class="f-phone" value="${esc(r.phone)}"     placeholder="05X-XXXXXXX" inputmode="tel"></td>
-      <td class="sip"></td>
       <td class="del"><button class="xbtn" title="מחק" onclick="this.closest('tr').remove();renumber()">✕</button></td>
     </tr>`;
   }
@@ -134,7 +131,7 @@
   }
   function renumber(){
     const trs = document.querySelectorAll('#rows tr');
-    trs.forEach((tr,i)=>{ tr.querySelector('.num').textContent = i+1; tr.querySelector('.sip').textContent = 1001 + i; });
+    trs.forEach((tr,i)=>{ tr.querySelector('.num').textContent = i+1; });
   }
   function collect(){
     const out = [];
