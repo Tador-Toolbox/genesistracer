@@ -56,7 +56,11 @@ async function vbLogin() {
   // 1) GET the login page → scrape the rotating passphrase
   const page = await vbGet(`${VB_URL}/index.php`);
   const m = String(page.data).match(/CryptoJS\.AES\.encrypt\([^,]+,\s*["']([0-9a-fA-F]{16,})["']/);
-  if (!m) throw new Error('Could not scrape VoIPBell login passphrase');
+  if (!m) {
+    // No login form on the page — most likely we're already authenticated. Accept it.
+    if (!isLoginPage(page.data)) { session.ts = Date.now(); return; }
+    throw new Error('Could not scrape VoIPBell login passphrase');
+  }
   const passphrase = m[1];
 
   // 2) encrypt exactly like the browser's password_protect()
@@ -75,7 +79,14 @@ async function vbLogin() {
 }
 
 async function ensureLogin() {
-  if (session.ts && Date.now() - session.ts < 7 * 60 * 1000) return;  // ~7 min
+  if (session.ts && Date.now() - session.ts < 6 * 60 * 1000) return;  // trust a very recent login
+  // Otherwise check the REAL auth state — only log in if actually logged out.
+  // (Blindly re-logging in while the portal session is still valid returns the
+  //  dashboard instead of the login form, so the passphrase scrape fails.)
+  try {
+    const r = await vbGet(`${VB_URL}/index.php?p=intercom`);
+    if (!isLoginPage(r.data) && String(r.data).length > 500) { session.ts = Date.now(); return; }
+  } catch (e) { /* fall through to login */ }
   // back-to-back logins can be rejected; retry a few times with back-off
   let lastErr;
   for (let i = 0; i < 4; i++) {
