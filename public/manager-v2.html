@@ -3929,24 +3929,39 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         <table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#f6f7f9;"><th style="padding:6px 8px;">SIP</th><th style="padding:6px 8px;text-align:right;">שם</th><th style="padding:6px 8px;">דירה</th><th style="padding:6px 8px;text-align:right;">טלפון</th></tr></thead><tbody>${rows || '<tr><td colspan="4" style="padding:12px;text-align:center;color:#888;">ריק</td></tr>'}</tbody></table>`;
       ov.style.display = 'flex';
     }
+    function v2Busy(show, text) {
+      let o = document.getElementById('v2Busy');
+      if (!o) { o = document.createElement('div'); o.id = 'v2Busy'; o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100001;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700;'; document.body.appendChild(o); }
+      o.textContent = text || '…'; o.style.display = show ? 'flex' : 'none';
+    }
     async function v2ResidentStatus(mac, status) {
       if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
-      const verb = status === 'approved' ? 'לאשר' : 'לדחות';
+      const verb = status === 'approved' ? 'לאשר ולהעלות לפנל' : 'לדחות';
       if (!confirm(verb + ' את רשימת הדיירים של ' + mac + '?')) return;
+      if (status === 'approved') v2Busy(true, 'מעלה לפנל… (עשוי לקחת כמה שניות)');
       try {
         const res = await fetch('/api/manager/resident-submissions/status', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mac, status, username: window.__mgr.username, password: window.__mgr.password })
         });
         const d = await res.json();
+        v2Busy(false);
         if (d.success) {
           if (status === 'approved') {
             const s = (window.__residents || {})[mac]; const n = s ? (s.residents || []).length : 0;
-            alert('✓ אושר. זכור לפתוח ' + n + ' רישיונות VoIPBell לבניין. (ההעלאה לפנל תתווסף בשלב הבא.)');
+            const p = d.push; let m = '✓ אושר.';
+            if (p && !p.error) {
+              m += '\nהעלאה לפנל: ' + p.created + ' נוצרו, ' + p.skipped + ' כבר קיימים, ' + p.failed + ' נכשלו';
+              if (p.groupsNamed) m += ', ' + p.groupsNamed + ' קבוצות דירה נוצרו';
+            } else if (p && p.error) {
+              m += '\n⚠ ההעלאה לפנל נכשלה: ' + p.error + '\nאפשר ללחוץ אישור שוב לניסיון נוסף.';
+            }
+            m += '\n\nזכור לפתוח ' + n + ' רישיונות VoIPBell לבניין.';
+            alert(m);
           }
           v2LoadResidents();
         } else alert('❌ ' + (d.error || 'שגיאה'));
-      } catch (e) { alert('❌ שגיאת תקשורת'); }
+      } catch (e) { v2Busy(false); alert('❌ שגיאת תקשורת'); }
     }
 
     // ===== VoIPBell softphone QR (fetched live from eu1.voipbell.net) =====

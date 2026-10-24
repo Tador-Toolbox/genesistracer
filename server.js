@@ -910,7 +910,93 @@ app.get('/api/installer/panel-contacts', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// Manager: approve / reject a submission (push-to-panel wired later)
+// Pad an apartment number to 2 digits for the panel call_number ("3" -> "03").
+function prPad2(apt) { apt = String(apt == null ? '' : apt).trim(); return /^\d+$/.test(apt) ? apt.padStart(2, '0') : apt; }
+
+// Create one contact on the panel via curl. Panel POSTs take NO Authorization
+// through the NexHome tunnel — only Content-Type + Origin + Referer (same as relay).
+function panelCreateContactCurl(host, port, contact) {
+  return new Promise((resolve) => {
+    const os = require('os'), fs = require('fs'), path = require('path');
+    const tmp = path.join(os.tmpdir(), `contact_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+    try { fs.writeFileSync(tmp, JSON.stringify(contact)); } catch (e) { return resolve({ ok: false, error: 'tmp write' }); }
+    const cmd = `curl -s --max-time 15 -X POST ` +
+      `-H "Content-Type: application/json;charset=UTF-8" ` +
+      `-H "Origin: http://${host}:${port}" -H "Referer: http://${host}:${port}/" ` +
+      `--data @${tmp} "http://${host}:${port}/api/v1/intercoms/contacts"`;
+    exec(cmd, { maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      fs.unlink(tmp, () => {});
+      if (err) return resolve({ ok: false, error: err.message });
+      let j = null; try { j = JSON.parse(stdout); } catch (e) {}
+      resolve({ ok: !!(j && j.status === 'OK'), raw: (stdout || '').slice(0, 160) });
+    });
+  });
+}
+// Rename an auto-created apartment group call via curl PATCH.
+function panelPatchGroupcallCurl(host, port, id, name) {
+  return new Promise((resolve) => {
+    const os = require('os'), fs = require('fs'), path = require('path');
+    const tmp = path.join(os.tmpdir(), `gc_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+    try { fs.writeFileSync(tmp, JSON.stringify({ name })); } catch (e) { return resolve({ ok: false }); }
+    const cmd = `curl -s --max-time 15 -X PATCH ` +
+      `-H "Content-Type: application/json;charset=UTF-8" ` +
+      `-H "Origin: http://${host}:${port}" -H "Referer: http://${host}:${port}/" ` +
+      `--data @${tmp} "http://${host}:${port}/api/v1/intercoms/contacts/groupcall/${id}"`;
+    exec(cmd, { maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      fs.unlink(tmp, () => {});
+      resolve({ ok: !err });
+    });
+  });
+}
+
+// Push an approved resident list to the panel's Contacts.
+// Dedupes by sip_number (so re-running won't duplicate), then names apartment groups.
+async function pushResidentsToPanel(cleanMac, residents) {
+  const rep = { created: 0, skipped: 0, failed: 0, groupsNamed: 0, error: null };
+  const panelAddress = await resolvePanelAddress(cleanMac);
+  if (!panelAddress) { rep.error = 'הפנל אינו מחובר או לא נמצא'; return rep; }
+  const [host, portStr] = panelAddress.split(':');
+  const port = parseInt(portStr) || 80;
+
+  // Read existing contacts to dedupe by SIP
+  const existingSips = new Set();
+  try {
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes && loginRes.data && loginRes.data.token;
+    if (token) { (await getAllPanelContacts(host, port, token)).forEach(c => existingSips.add(String(c.sip_number))); }
+  } catch (e) {}
+
+  for (const r of (residents || [])) {
+    const name = ((r.firstName || '') + ' ' + (r.lastName || '')).trim();
+    const sip = String(r.sip);
+    if (existingSips.has(sip)) { rep.skipped++; continue; }
+    const contact = { name, sip_account_id: 2, call_number: prPad2(r.apartment), sip_number: sip, contact_group_id: 1, top: 'false', allow_unlock: 'true' };
+    const out = await panelCreateContactCurl(host, port, contact);
+    if (out.ok) { rep.created++; existingSips.add(sip); } else { rep.failed++; }
+  }
+
+  // Name the apartment groups (apartments with 2+ residents -> auto group call)
+  try {
+    const byApt = {};
+    (residents || []).forEach(r => { const cn = prPad2(r.apartment); if (cn) (byApt[cn] = byApt[cn] || []).push(r); });
+    const multi = Object.keys(byApt).filter(cn => byApt[cn].length >= 2);
+    if (multi.length) {
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+      const token = loginRes && loginRes.data && loginRes.data.token;
+      if (token) {
+        const g = await panelHttpGetWithHeaders(host, port, '/api/v1/intercoms/contacts/groupcall?page_num=1&page_size=100', { Authorization: 'Bearer ' + token });
+        const gcs = (g && g.data && g.data.list) || [];
+        for (const cn of multi) {
+          const gc = gcs.find(x => String(x.call_number) === cn);
+          if (gc && gc.id) { const pr = await panelPatchGroupcallCurl(host, port, gc.id, 'דירה ' + cn); if (pr.ok) rep.groupsNamed++; }
+        }
+      }
+    }
+  } catch (e) {}
+  return rep;
+}
+
+// Manager: approve (pushes to the panel) / reject a submission
 app.post('/api/manager/resident-submissions/status', async (req, res) => {
   const { mac, status, username, password } = req.body || {};
   const adminUser = process.env.ADMIN_USER || 'admin';
@@ -922,8 +1008,13 @@ app.post('/api/manager/resident-submissions/status', async (req, res) => {
   }
   try {
     const doc = await db.setPanelResidentsStatus(prCleanMac(mac), status, username);
-    try { await logActivity({ phoneNumber: username, action: 'residents_' + status, mac: prCleanMac(mac), details: { count: ((doc && doc.residents) || []).length }, success: true }); } catch (e) {}
-    res.json({ success: true, status: doc ? doc.status : status });
+    let push = null;
+    if (status === 'approved') {
+      try { push = await pushResidentsToPanel(prCleanMac(mac), (doc && doc.residents) || []); }
+      catch (e) { push = { error: e.message }; }
+    }
+    try { await logActivity({ phoneNumber: username, action: 'residents_' + status, mac: prCleanMac(mac), details: { count: ((doc && doc.residents) || []).length, push }, success: true }); } catch (e) {}
+    res.json({ success: true, status: doc ? doc.status : status, push });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
