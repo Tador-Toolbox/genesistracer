@@ -57,8 +57,25 @@ async function vbPostForm(url, fields, extra = {}) {
   return res;
 }
 
+// A real logged-in portal page carries the top-right "conected as: <user>"
+// banner (the portal's own spelling). That's the only reliable auth signal —
+// HTML length / "introduce your credentials" are not present in the raw markup.
+function isLoggedIn(html) {
+  return typeof html === 'string' && /conected as/i.test(html);
+}
+// The login page is the one that carries the password-encrypt form.
 function isLoginPage(html) {
-  return typeof html === 'string' && html.toLowerCase().includes('introduce your credentials');
+  const s = typeof html === 'string' ? html : '';
+  return /CryptoJS\.AES\.encrypt\(|password_protect|do_login|introduce your credentials/i.test(s);
+}
+// Scrape the rotating passphrase (2nd arg of CryptoJS.AES.encrypt). Accept any
+// quoted token, not just hex — the format can vary per page load.
+function scrapePassphrase(html) {
+  const s = String(html);
+  let m = s.match(/CryptoJS\.AES\.encrypt\s*\([^,]+,\s*["']([^"']{6,})["']/);
+  if (m) return m[1];
+  m = s.match(/AES\.encrypt\s*\([^,]+,\s*["']([^"']{6,})["']/);
+  return m ? m[1] : null;
 }
 
 async function vbLogin() {
@@ -66,28 +83,31 @@ async function vbLogin() {
   const pass = process.env.VOIPBELL_PASS;
   if (!user || !pass) throw new Error('VoIPBell not configured (set VOIPBELL_USER / VOIPBELL_PASS)');
 
-  // 1) GET the login page → scrape the rotating passphrase
+  // 1) GET the entry page. If it's already a logged-in page, we're done.
   const page = await vbGet(`${VB_URL}/index.php`);
-  const m = String(page.data).match(/CryptoJS\.AES\.encrypt\([^,]+,\s*["']([0-9a-fA-F]{16,})["']/);
-  if (!m) {
-    // No login form on the page — most likely we're already authenticated. Accept it.
-    if (!isLoginPage(page.data)) { session.ts = Date.now(); return; }
+  if (isLoggedIn(page.data)) { dbg('vbLogin:already-authed'); session.ts = Date.now(); return; }
+
+  // 2) scrape the rotating passphrase from the login form
+  const passphrase = scrapePassphrase(page.data);
+  if (!passphrase) {
+    // Capture the region around "encrypt" so we can see the real format.
+    const idx = String(page.data).search(/AES\.encrypt/i);
+    dbg('vbLogin:no-passphrase', { encReg: idx >= 0 ? snippet(String(page.data).slice(idx - 40, idx + 160)) : '(no AES.encrypt in page)', len: String(page.data).length });
     throw new Error('Could not scrape VoIPBell login passphrase');
   }
-  const passphrase = m[1];
-
-  // 2) encrypt exactly like the browser's password_protect()
+  // 3) encrypt exactly like the browser's password_protect()
   const encPass = CryptoJS.AES.encrypt(pass, passphrase).toString();
 
-  // 3) small delay (the fresh passphrase must commit server-side) then POST
+  // 4) small delay (the fresh passphrase must commit server-side) then POST
   await sleep(900);
   await vbPostForm(`${VB_URL}/index.php?a=login`,
     { username: user, password: encPass, do_login: '' },
     { Referer: `${VB_URL}/index.php` });
 
-  // 4) verify
+  // 4) verify — a logged-in page must carry the "conected as" banner
   const check = await vbGet(`${VB_URL}/index.php?p=intercom`);
-  if (isLoginPage(check.data)) throw new Error('VoIPBell login failed (check creds / another session is active)');
+  if (!isLoggedIn(check.data)) { dbg('vbLogin:verify-failed', { len: String(check.data).length }); throw new Error('VoIPBell login failed (check creds / another session is active)'); }
+  dbg('vbLogin:ok');
   session.ts = Date.now();
 }
 
@@ -98,7 +118,7 @@ async function ensureLogin() {
   //  dashboard instead of the login form, so the passphrase scrape fails.)
   try {
     const r = await vbGet(`${VB_URL}/index.php?p=intercom`);
-    if (!isLoginPage(r.data) && String(r.data).length > 500) { session.ts = Date.now(); return; }
+    if (isLoggedIn(r.data)) { dbg('ensureLogin:still-authed'); session.ts = Date.now(); return; }
   } catch (e) { /* fall through to login */ }
   // back-to-back logins can be rejected; retry a few times with back-off
   let lastErr;
