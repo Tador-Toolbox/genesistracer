@@ -57,8 +57,13 @@ async function vbPostForm(url, fields, extra = {}) {
   return res;
 }
 
+// The portal's login page carries the password-encrypt login form. Detect it by
+// those form markers (language-independent) — the prompt text itself is Spanish
+// ("por favor introduzca los datos de acceso"), so matching English text failed
+// and the page was wrongly treated as already-authenticated.
 function isLoginPage(html) {
-  return typeof html === 'string' && html.toLowerCase().includes('introduce your credentials');
+  if (typeof html !== 'string') return false;
+  return /password_protect\(|do_login|index\.php\?a=login/i.test(html);
 }
 
 async function vbLogin() {
