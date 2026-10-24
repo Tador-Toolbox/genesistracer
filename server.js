@@ -811,6 +811,79 @@ app.post('/api/installer/description', async (req, res) => {
 });
 
 
+// ==================== RESIDENTER: installer resident/contact list per panel ====================
+function prCleanMac(m) { return String(m || '').replace(/[:\s-]/g, '').toUpperCase(); }
+function prSanitizeResidents(arr) {
+  const out = [];
+  let sip = 1001;                          // SIP auto-assigned sequentially from 1001 (server is authoritative)
+  (Array.isArray(arr) ? arr : []).forEach(r => {
+    if (!r) return;
+    const firstName = String(r.firstName || '').trim().slice(0, 60);
+    const lastName  = String(r.lastName  || '').trim().slice(0, 60);
+    const apartment = String(r.apartment || '').trim().slice(0, 20);
+    const phone     = String(r.phone     || '').trim().slice(0, 30);
+    if (!firstName && !lastName && !apartment && !phone) return; // skip blank rows
+    out.push({ firstName, lastName, apartment, phone, sip: sip++ });
+  });
+  return out;
+}
+async function prInstallerOwnsMac(phoneNumber, cleanMac) {
+  try {
+    const d = await db.getInstallerDetails(phoneNumber);
+    return !!(d && Array.isArray(d.macAddresses) && d.macAddresses.some(m => prCleanMac(m.mac) === cleanMac));
+  } catch (e) { return false; }
+}
+
+// Installer: load the saved resident list for a panel
+app.get('/api/installer/residents', async (req, res) => {
+  try {
+    const cleanMac = prCleanMac(req.query.mac);
+    if (!cleanMac) return res.status(400).json({ success: false, error: 'mac required' });
+    const doc = await db.getPanelResidents(cleanMac);
+    res.json({ success: true, residents: doc ? doc.residents : [], status: doc ? (doc.status || 'draft') : 'draft' });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Installer: save (draft) or submit (pending approval) the resident list
+app.post('/api/installer/residents/save', async (req, res) => {
+  try {
+    const phoneNumber = (req.body.phoneNumber || '').trim();
+    const cleanMac = prCleanMac(req.body.mac);
+    if (!phoneNumber || !cleanMac) return res.status(400).json({ success: false, error: 'phoneNumber and mac required' });
+    if (!(await prInstallerOwnsMac(phoneNumber, cleanMac))) return res.status(403).json({ success: false, error: 'not your panel' });
+    const residents = prSanitizeResidents(req.body.residents);
+    const status = req.body.submit ? 'pending' : 'draft';
+    const doc = await db.savePanelResidents(cleanMac, phoneNumber, residents, status);
+    try { await logActivity({ phoneNumber, action: req.body.submit ? 'residents_submit' : 'residents_save', mac: cleanMac, details: { count: residents.length }, success: true }); } catch (e) {}
+    res.json({ success: true, residents: doc.residents, status: doc.status });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Manager: list resident submissions (optionally filter by ?status=pending)
+app.get('/api/manager/resident-submissions', async (req, res) => {
+  try {
+    const list = await db.listPanelResidentSubmissions(req.query.status);
+    res.json({ success: true, submissions: list });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Manager: approve / reject a submission (push-to-panel wired later)
+app.post('/api/manager/resident-submissions/status', async (req, res) => {
+  const { mac, status, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  if (!mac || !['approved', 'rejected', 'pending', 'draft'].includes(status)) {
+    return res.status(400).json({ success: false, error: 'mac and valid status required' });
+  }
+  try {
+    const doc = await db.setPanelResidentsStatus(prCleanMac(mac), status, username);
+    try { await logActivity({ phoneNumber: username, action: 'residents_' + status, mac: prCleanMac(mac), details: { count: ((doc && doc.residents) || []).length }, success: true }); } catch (e) {}
+    res.json({ success: true, status: doc ? doc.status : status });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // Keep-alive ping endpoint
 app.get('/api/ping', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 

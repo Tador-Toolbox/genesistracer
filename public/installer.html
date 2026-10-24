@@ -699,6 +699,12 @@
           <span class="action-card-label">החלפת קוד קבוע</span>
         </button>
 
+        <!-- Residents list (residenter) -->
+        <button class="action-card" onclick="openResidenter()">
+          <span class="material-symbols-outlined">groups</span>
+          <span class="action-card-label">רשימת דיירים</span>
+        </button>
+
         <!-- Shabbat Mode (fill light off / auto) -->
         <button class="action-card" id="shabbatCard" onclick="toggleShabbatMode()">
           <span class="material-symbols-outlined">clear_night</span>
@@ -1020,6 +1026,18 @@
     } else {
       document.getElementById('loginError').textContent = data.error || 'כניסה נכשלה';
     }
+  }
+
+  // Open the residents list page (residenter) for the selected panel.
+  function openResidenter() {
+    if (!selectedMac) return alert('בחר כתובת MAC תחילה');
+    const macObj = (installerData?.macAddresses || []).find(m => m.mac === selectedMac) || {};
+    try {
+      localStorage.setItem('residenterCtx', JSON.stringify({
+        mac: selectedMac, phone: installerData.phoneNumber, addr: (macObj.address || '')
+      }));
+    } catch (e) {}
+    window.open('/residenter.html', '_blank');
   }
 
   function logout() {

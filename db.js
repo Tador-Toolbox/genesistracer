@@ -845,8 +845,45 @@ async function unbanIp(ip) {
   await db.collection('banned_ips').deleteOne({ ip });
 }
 
+// ==================== PANEL RESIDENTS (installer "residenter" tool) ====================
+// One document per panel MAC holding the installer-entered resident/contact list + status.
+// Self-contained (its own collection, panel_residents); push-to-panel is a separate step.
+async function getPanelResidents(mac) {
+  await connectDB();
+  return db.collection('panel_residents').findOne({ mac });
+}
+async function savePanelResidents(mac, phoneNumber, residents, status) {
+  await connectDB();
+  const now = new Date();
+  const set = { mac, residents: Array.isArray(residents) ? residents : [], updatedAt: now };
+  if (phoneNumber) set.phoneNumber = phoneNumber;
+  if (status) set.status = status;
+  if (status === 'pending') set.submittedAt = now;
+  await db.collection('panel_residents').updateOne(
+    { mac }, { $set: set, $setOnInsert: { createdAt: now } }, { upsert: true }
+  );
+  return db.collection('panel_residents').findOne({ mac });
+}
+async function listPanelResidentSubmissions(status) {
+  await connectDB();
+  const q = status ? { status } : {};
+  return db.collection('panel_residents').find(q)
+    .sort({ submittedAt: -1, updatedAt: -1 }).limit(500).toArray();
+}
+async function setPanelResidentsStatus(mac, status, by) {
+  await connectDB();
+  const set = { status, updatedAt: new Date() };
+  if (status === 'approved') { set.approvedAt = new Date(); set.approvedBy = by || 'manager'; }
+  await db.collection('panel_residents').updateOne({ mac }, { $set: set });
+  return db.collection('panel_residents').findOne({ mac });
+}
+
 module.exports = {
   connectDB,
+  getPanelResidents,
+  savePanelResidents,
+  listPanelResidentSubmissions,
+  setPanelResidentsStatus,
   createInstaller,
   assignMacToInstaller,
   removeMacFromInstaller,

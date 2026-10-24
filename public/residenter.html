@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>רשימת דיירים — Tador</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap">
+<style>
+  :root{
+    --red:#e8001c; --red-dark:#c20017; --ink:#17202a; --muted:#64717e;
+    --line:#e6eaef; --bg:#f4f6f8; --card:#fff; --ok:#2e9e3f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Heebo",Arial,sans-serif;line-height:1.5}
+  .wrap{max-width:860px;margin:0 auto;padding:16px}
+  header{background:var(--red);color:#fff;border-radius:16px;padding:16px 20px;display:flex;
+    align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
+  header img{height:26px}
+  header .t{font-size:1.25rem;font-weight:800}
+  header .s{font-size:.8rem;opacity:.92}
+  .bar{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+    margin-bottom:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+  .bar .meta{font-size:.9rem;color:var(--muted)}
+  .bar .meta b{color:var(--ink)}
+  .status{font-size:.82rem;font-weight:700;padding:3px 10px;border-radius:20px}
+  .st-draft{background:#eef1f4;color:#64717e}
+  .st-pending{background:#fff4d6;color:#9a6b00}
+  .st-approved{background:#e4f6e6;color:#2e7d32}
+  .st-rejected{background:#fde4e4;color:#c62828}
+  .tablewrap{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:auto}
+  table{width:100%;border-collapse:collapse;min-width:620px}
+  th,td{padding:8px 8px;text-align:right;border-bottom:1px solid var(--line);font-size:.9rem}
+  th{background:#fafbfc;font-weight:700;font-size:.82rem;color:var(--muted);white-space:nowrap}
+  td input{width:100%;border:1px solid transparent;border-radius:7px;padding:7px 8px;font:inherit;
+    background:#fbfcfd;color:var(--ink)}
+  td input:focus{outline:none;border-color:var(--red);background:#fff}
+  td.num,td.sip{color:var(--muted);text-align:center;font-weight:700;width:58px}
+  td.del{width:40px;text-align:center}
+  .xbtn{border:none;background:none;color:#c0c7d0;cursor:pointer;font-size:18px;line-height:1}
+  .xbtn:hover{color:var(--red)}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+  button.b{border:none;border-radius:10px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer}
+  .b-add{background:#eef1f4;color:var(--ink)}
+  .b-save{background:#111;color:#fff}
+  .b-send{background:var(--red);color:#fff}
+  .b:disabled{opacity:.5;cursor:default}
+  .msg{margin-top:10px;font-size:.88rem;min-height:18px}
+  .msg.ok{color:var(--ok)} .msg.err{color:var(--red)}
+  .hint{font-size:.8rem;color:var(--muted);margin:6px 2px 0}
+  @media (max-width:520px){ header .t{font-size:1.05rem} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="t">רשימת דיירים</div>
+      <div class="s">הזנת דיירים לפנל והגשה לאישור</div>
+    </div>
+    <img src="/tador-logo-white.png" alt="Tador">
+  </header>
+
+  <div class="bar">
+    <div class="meta">פנל: <b id="macLbl">—</b> <span id="addrLbl"></span></div>
+    <div><span id="statusLbl" class="status st-draft">טיוטה</span></div>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="num">#</th>
+          <th>שם פרטי</th>
+          <th>שם משפחה</th>
+          <th>מספר דירה</th>
+          <th>טלפון דייר</th>
+          <th class="sip">SIP</th>
+          <th class="del"></th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="hint">מספר ה‑SIP מוקצה אוטומטית מ‑1001 לפי סדר הדיירים.</div>
+
+  <div class="actions">
+    <button class="b b-add" onclick="addRow()">➕ הוסף דייר</button>
+    <button class="b b-save" id="saveBtn" onclick="save(false)">💾 שמור טיוטה</button>
+    <button class="b b-send" id="sendBtn" onclick="save(true)">📤 שלח לאישור</button>
+  </div>
+  <div class="msg" id="msg"></div>
+</div>
+
+<script>
+  const qs = new URLSearchParams(location.hash.slice(1) || location.search);
+  // Context can come from the URL (#mac=..&phone=..) or from localStorage set by the installer portal.
+  let ctx = {};
+  try { ctx = JSON.parse(localStorage.getItem('residenterCtx') || '{}'); } catch(e){}
+  const MAC   = (qs.get('mac')   || ctx.mac   || '').replace(/[:\s-]/g,'').toUpperCase();
+  const PHONE = (qs.get('phone') || ctx.phone || '').trim();
+  const ADDR  = (qs.get('addr')  || ctx.addr  || '').trim();
+
+  document.getElementById('macLbl').textContent = MAC || '—';
+  if (ADDR) document.getElementById('addrLbl').textContent = '· ' + ADDR;
+
+  const STATUS = { draft:['טיוטה','st-draft'], pending:['ממתין לאישור','st-pending'],
+                   approved:['אושר','st-approved'], rejected:['נדחה','st-rejected'] };
+  function setStatus(s){
+    const [txt,cls] = STATUS[s] || STATUS.draft;
+    const el = document.getElementById('statusLbl');
+    el.textContent = txt; el.className = 'status ' + cls;
+  }
+
+  function rowHtml(r){
+    r = r || {};
+    return `<tr>
+      <td class="num"></td>
+      <td><input class="f-first" value="${esc(r.firstName)}" placeholder="שם פרטי"></td>
+      <td><input class="f-last"  value="${esc(r.lastName)}"  placeholder="שם משפחה"></td>
+      <td><input class="f-apt"   value="${esc(r.apartment)}" placeholder="דירה" inputmode="numeric"></td>
+      <td><input class="f-phone" value="${esc(r.phone)}"     placeholder="05X-XXXXXXX" inputmode="tel"></td>
+      <td class="sip"></td>
+      <td class="del"><button class="xbtn" title="מחק" onclick="this.closest('tr').remove();renumber()">✕</button></td>
+    </tr>`;
+  }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  function addRow(r){
+    document.getElementById('rows').insertAdjacentHTML('beforeend', rowHtml(r));
+    renumber();
+    if (!r) { const inputs = document.querySelectorAll('#rows tr:last-child input'); if (inputs[0]) inputs[0].focus(); }
+  }
+  function renumber(){
+    const trs = document.querySelectorAll('#rows tr');
+    trs.forEach((tr,i)=>{ tr.querySelector('.num').textContent = i+1; tr.querySelector('.sip').textContent = 1001 + i; });
+  }
+  function collect(){
+    const out = [];
+    document.querySelectorAll('#rows tr').forEach(tr=>{
+      const g = c => tr.querySelector(c).value.trim();
+      const row = { firstName:g('.f-first'), lastName:g('.f-last'), apartment:g('.f-apt'), phone:g('.f-phone') };
+      if (row.firstName || row.lastName || row.apartment || row.phone) out.push(row);
+    });
+    return out;
+  }
+
+  function msg(t, ok){ const m=document.getElementById('msg'); m.textContent=t; m.className='msg '+(ok?'ok':'err'); }
+
+  async function save(submit){
+    if (!MAC || !PHONE){ msg('חסר מידע על הפנל (MAC/טלפון) — פתח מחדש מהפורטל.', false); return; }
+    const residents = collect();
+    if (submit && !residents.length){ msg('אין דיירים לשליחה.', false); return; }
+    if (submit && !confirm('לשלוח ' + residents.length + ' דיירים לאישור המנהל?')) return;
+    const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);
+    msg(submit ? 'שולח…' : 'שומר…', true);
+    try{
+      const res = await fetch('/api/installer/residents/save', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ phoneNumber:PHONE, mac:MAC, residents, submit })
+      });
+      const d = await res.json();
+      if (!d.success){ msg(d.error || 'שגיאה בשמירה', false); }
+      else {
+        render(d.residents); setStatus(d.status);
+        msg(submit ? '✓ נשלח לאישור המנהל' : '✓ נשמר', true);
+      }
+    }catch(e){ msg('שגיאת רשת: '+e.message, false); }
+    finally{ btns.forEach(b=>b.disabled=false); }
+  }
+
+  function render(list){
+    const tb = document.getElementById('rows'); tb.innerHTML='';
+    (list && list.length ? list : [null,null,null]).forEach(r=>addRow(r));
+    renumber();
+  }
+
+  async function load(){
+    if (!MAC){ render([]); return; }
+    try{
+      const d = await fetch('/api/installer/residents?mac='+encodeURIComponent(MAC)).then(r=>r.json());
+      if (d.success){ render(d.residents); setStatus(d.status); }
+      else render([]);
+    }catch(e){ render([]); }
+  }
+  load();
+</script>
+</body>
+</html>
