@@ -12,6 +12,18 @@ const qrCache = {};                 // account -> { payload, intercomId, ts }
 const QR_TTL = 60 * 60 * 1000;      // 1h (QR payload is stable per panel)
 let chain = Promise.resolve();      // serialize all portal ops (single session per user)
 
+// Rolling debug log (viewable at /api/manager/voipbell-debug)
+const debugLog = [];
+function dbg(step, extra) {
+  debugLog.push({ t: new Date().toISOString(), step, ...(extra || {}) });
+  while (debugLog.length > 60) debugLog.shift();
+}
+function snippet(data) {
+  try { return String(typeof data === 'object' ? JSON.stringify(data) : data).replace(/\s+/g, ' ').slice(0, 300); }
+  catch (e) { return '(unprintable)'; }
+}
+function getDebug() { return debugLog.slice(-40); }
+
 function cookieHeader() {
   return Object.entries(session.cookies).map(([k, v]) => `${k}=${v}`).join('; ');
 }
@@ -31,6 +43,7 @@ async function vbGet(url, extra = {}) {
     maxRedirects: 0, validateStatus: s => s >= 200 && s < 400, timeout: 20000,
   });
   storeCookies(res.headers['set-cookie']);
+  dbg('GET', { url: url.split('?')[0] + (url.includes('print=') ? '?print' : url.includes('background=') ? '?list' : ''), status: res.status, len: String(res.data || '').length, body: snippet(res.data) });
   return res;
 }
 async function vbPostForm(url, fields, extra = {}) {
@@ -128,21 +141,31 @@ async function getQrForAccount(account) {
 
   // serialize portal access (single session)
   const run = chain.then(async () => {
-    await ensureLogin();
+    dbg('getQr:start', { account: acct });
 
-    let list = await vbGet(listUrl(acct), { 'X-Requested-With': 'XMLHttpRequest', Referer: `${VB_URL}/index.php?p=intercom` });
-    if (isLoginPage(list.data)) { session.ts = 0; await ensureLogin(); list = await vbGet(listUrl(acct), { 'X-Requested-With': 'XMLHttpRequest' }); }
+    // Fetch the list, parsing to JSON; one re-login + retry if it comes back as
+    // HTML / a redirect / the login page (non-JSON).
+    async function fetchList() {
+      await ensureLogin();
+      const res = await vbGet(listUrl(acct), { 'X-Requested-With': 'XMLHttpRequest', Referer: `${VB_URL}/index.php?p=intercom` });
+      if (typeof res.data === 'object' && res.data && res.data.data) return res.data;       // already JSON
+      if (typeof res.data === 'string') { try { return JSON.parse(res.data); } catch (e) {} }
+      return null; // not JSON (redirect/login/html)
+    }
 
-    let data;
-    try { data = typeof list.data === 'string' ? JSON.parse(list.data) : list.data; }
-    catch (e) { throw new Error('Unexpected VoIPBell list response'); }
+    let data = await fetchList();
+    if (!data) { dbg('list:not-json → re-login+retry'); session.ts = 0; data = await fetchList(); }
+    if (!data) throw new Error('Unexpected VoIPBell list response (not JSON) — see voipbell-debug');
+
     const rows = (data && data.data) || [];
+    dbg('list:ok', { rows: rows.length, names: rows.slice(0, 5).map(r => r.name) });
     const row = rows.find(r => String(r.name).trim().toLowerCase() === acct.toLowerCase()) || rows[0];
-    if (!row) throw new Error(`VoIPBell account "${acct}" not found`);
+    if (!row) { dbg('row:not-found', { account: acct, got: rows.map(r => r.name) }); throw new Error(`VoIPBell account "${acct}" not found`); }
 
     const idm = String(row.action).match(/print=(\d+)/);
-    if (!idm) throw new Error('Could not find intercom id for ' + acct);
+    if (!idm) { dbg('id:not-found', { name: row.name, action: snippet(row.action) }); throw new Error('Could not find intercom id for ' + acct); }
     const intercomId = idm[1];
+    dbg('matched', { name: row.name, intercomId });
 
     const printPage = await vbGet(`${VB_URL}/index.php?p=intercom&print=${intercomId}`, { Referer: `${VB_URL}/index.php?p=intercom` });
     const pm = String(printPage.data).match(/(eyJ[A-Za-z0-9+/=]{20,})/);
@@ -156,4 +179,4 @@ async function getQrForAccount(account) {
   return run;
 }
 
-module.exports = { getQrForAccount };
+module.exports = { getQrForAccount, getDebug };

@@ -3318,6 +3318,11 @@ app.post('/api/manager/voipbell-notes', async (req, res) => {
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// Debug log of the last VoIPBell portal operations (for diagnosing QR issues).
+app.get('/api/manager/voipbell-debug', (req, res) => {
+  res.json({ success: true, log: voipbell.getDebug() });
+});
+
 // Fetch a panel's VoIPBell softphone QR by voipbellAccount name (logs into the portal).
 app.get('/api/manager/voipbell-qr', async (req, res) => {
   const account = req.query.account;
