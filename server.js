@@ -3323,16 +3323,6 @@ app.get('/api/manager/voipbell-debug', (req, res) => {
   res.json({ success: true, log: voipbell.getDebug() });
 });
 
-// READ-ONLY probe of the VoIPBell entry page (diagnose login detection).
-app.get('/api/manager/voipbell-probe', async (req, res) => {
-  try {
-    const r = await voipbell.probeLogin();
-    res.json({ success: true, ...r });
-  } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
-  }
-});
-
 // Fetch a panel's VoIPBell softphone QR by voipbellAccount name (logs into the portal).
 app.get('/api/manager/voipbell-qr', async (req, res) => {
   const account = req.query.account;

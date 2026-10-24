@@ -184,36 +184,4 @@ async function getQrForAccount(account) {
   return run;
 }
 
-// READ-ONLY diagnostic. Fetches the entry page and reports what's actually in
-// it (login markers, passphrase format). Does NOT change the login path.
-async function probeLogin() {
-  const res = await vbGet(`${VB_URL}/index.php`);
-  const html = String(res.data || '');
-  const around = (re, pad = 180) => {
-    const i = html.search(re);
-    return i < 0 ? null : html.slice(Math.max(0, i - 40), i + pad).replace(/\s+/g, ' ');
-  };
-  const passM = html.match(/CryptoJS\.AES\.encrypt\([^,]+,\s*["']([0-9a-fA-F]{16,})["']/);
-  return {
-    len: html.length,
-    status: res.status,
-    markers: {
-      aesEncrypt: /AES\.encrypt/i.test(html),
-      password_protect: /password_protect/i.test(html),
-      do_login: /do_login/i.test(html),
-      namePassword: /name=["']?password/i.test(html),
-      credentials: /introduce your credentials/i.test(html),
-      conectedAs: /conected as/i.test(html),
-      formLogin: /a=login/i.test(html),
-    },
-    passphraseRegexMatches: !!passM,
-    passphrase: passM ? passM[1] : null,
-    aesRegion: around(/AES\.encrypt/i),
-    passwordRegion: around(/name=["']?password/i),
-    formRegion: around(/<form/i, 240),
-    head: html.slice(0, 600).replace(/\s+/g, ' '),
-    tail: html.slice(-1200).replace(/\s+/g, ' '),
-  };
-}
-
-module.exports = { getQrForAccount, getDebug, probeLogin };
+module.exports = { getQrForAccount, getDebug };
