@@ -86,7 +86,7 @@
 
   <div class="actions">
     <button class="b b-add" onclick="addRow()">➕ הוסף דייר</button>
-    <button class="b b-check" onclick="checkPanel()">🔍 בדוק רשימה בפנל</button>
+    <button class="b b-check" onclick="pullPanel()">⬇ משוך רשימה מהפנל</button>
     <button class="b b-save" id="saveBtn" onclick="save(false)">💾 שמור טיוטה</button>
     <button class="b b-send" id="sendBtn" onclick="save(true)">📤 שלח לאישור</button>
   </div>
@@ -184,57 +184,28 @@
       else render([]);
     }catch(e){ render([]); }
   }
-  // ── Check the panel's current contacts (live read over the NexHome tunnel) ──
-  async function checkPanel(){
+  // ── Pull the panel's current contacts straight into the editable list ──
+  async function pullPanel(){
     if (!MAC){ msg('חסר MAC', false); return; }
+    if (collect().length && !confirm('להחליף את הרשימה הנוכחית ברשימה מהפנל?')) return;
     const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);
-    msg('קורא מהפנל… (עשוי לקחת כמה שניות)', true);
+    msg('מושך רשימה מהפנל… (עשוי לקחת כמה שניות)', true);
     try{
       const url = '/api/installer/panel-contacts?mac='+encodeURIComponent(MAC)+(PHONE?('&phone='+encodeURIComponent(PHONE)):'');
       const d = await fetch(url).then(r=>r.json());
       if (!d.success){ msg(d.error || 'שגיאה בקריאה מהפנל', false); return; }
-      msg('', true);
-      showPanelModal(d.contacts||[], d.groupcalls||[]);
-    }catch(e){ msg('שגיאת רשת: '+e.message, false); }
-    finally{ btns.forEach(b=>b.disabled=false); }
-  }
-  function showPanelModal(contacts, groupcalls){
-    const gcName = {}; (groupcalls||[]).forEach(g => gcName[g.call_number]=g.name);
-    const row = c => `<tr>
-      <td style="padding:6px;">${esc(c.call_number)}${gcName[c.call_number]?(' · '+esc(gcName[c.call_number])):''}</td>
-      <td style="padding:6px;">${esc(c.name)}</td>
-      <td style="padding:6px;text-align:center;">${esc(c.sip_number)}</td>
-      <td style="padding:6px;">${esc(c.contact_group_name||'')}</td></tr>`;
-    const tbl = list => `<table style="width:100%;border-collapse:collapse;font-size:.85rem;"><thead><tr style="background:#f6f7f9;"><th style="padding:6px;text-align:right;">דירה</th><th style="padding:6px;text-align:right;">שם</th><th style="padding:6px;">SIP</th><th style="padding:6px;text-align:right;">קבוצה</th></tr></thead><tbody>${list.map(row).join('')||'<tr><td colspan="4" style="padding:10px;text-align:center;color:#888;">אין</td></tr>'}</tbody></table>`;
-    let ov = document.getElementById('panelOv');
-    if(!ov){
-      ov=document.createElement('div'); ov.id='panelOv';
-      ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;display:flex;align-items:center;justify-content:center;';
-      ov.onclick=e=>{ if(e.target===ov) ov.style.display='none'; };
-      ov.innerHTML='<div id="panelBox" style="background:#fff;color:#17202a;border-radius:14px;padding:18px;max-width:620px;width:94%;max-height:86vh;overflow:auto;"></div>';
-      document.body.appendChild(ov);
-    }
-    document.getElementById('panelBox').innerHTML =
-      `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h3 style="margin:0;">רשימה קיימת בפנל — ${contacts.length}</h3><button onclick="document.getElementById('panelOv').style.display='none'" style="border:none;background:#eee;border-radius:6px;padding:4px 10px;cursor:pointer;">✕</button></div>
-       ${tbl(contacts)}
-       <div style="margin-top:10px;"><button class="b b-add" onclick="importFromPanel()" style="font-size:.85rem;padding:8px 14px;">⬇ ייבא לרשימה</button></div>`;
-    window.__panelContacts = contacts;
-    ov.style.display='flex';
-  }
-  function importFromPanel(){
-    const list = window.__panelContacts || [];
-    if(!list.length) return;
-    if(!confirm('לייבא '+list.length+' אנשי קשר מהפנל לרשימה? (טלפון אינו נשמר בפנל ויישאר ריק למילוי)')) return;
-    const tb=document.getElementById('rows'); tb.innerHTML='';
-    list.slice().sort((a,b)=>String(a.call_number).localeCompare(String(b.call_number),undefined,{numeric:true}))
-      .forEach(c=>{
+      const list = (d.contacts||[]).slice().sort((a,b)=>String(a.call_number).localeCompare(String(b.call_number),undefined,{numeric:true}));
+      const tb=document.getElementById('rows'); tb.innerHTML='';
+      list.forEach(c=>{
         const parts=String(c.name||'').trim().split(/\s+/);
         const firstName=parts.shift()||''; const lastName=parts.join(' ');
         addRow({ firstName, lastName, apartment:String(c.call_number||'').replace(/^0+/,''), phone:'' });
       });
-    renumber();
-    document.getElementById('panelOv').style.display='none';
-    msg('✓ יובאו '+list.length+' מהפנל — השלם טלפונים ושמור', true);
+      if (!list.length) addRow();
+      renumber();
+      msg('✓ נמשכו '+list.length+' מהפנל — השלם טלפונים ושמור', true);
+    }catch(e){ msg('שגיאת רשת: '+e.message, false); }
+    finally{ btns.forEach(b=>b.disabled=false); }
   }
 
   load();
