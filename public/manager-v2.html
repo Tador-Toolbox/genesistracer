@@ -1022,10 +1022,11 @@
               <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">פנל (MAC)</th>
               <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">מתקין</th>
               <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">דיירים</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">דירות (רישיונות)</th>
               <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">סטטוס</th>
               <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">פעולות</th>
             </tr></thead>
-            <tbody id="residentsBody"><tr><td colspan="5" style="text-align:center;padding:18px;color:var(--text-dim);">טוען...</td></tr></tbody>
+            <tbody id="residentsBody"><tr><td colspan="6" style="text-align:center;padding:18px;color:var(--text-dim);">טוען...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -3894,19 +3895,21 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           const st = stMap[s.status] || stMap.draft;
           const mac = v2SecEsc(s.mac || '');
           const cnt = (s.residents || []).length;
+          const apt = (s.apartmentsCount != null) ? s.apartmentsCount : new Set((s.residents || []).map(r => String((r && r.apartment) || '').trim()).filter(Boolean)).size;
           return `<tr>
             <td style="padding:8px;"><b>${mac}</b></td>
             <td style="padding:8px;text-align:center;">${v2SecEsc(s.phoneNumber || '')}</td>
             <td style="padding:8px;text-align:center;font-weight:700;">${cnt}</td>
+            <td style="padding:8px;text-align:center;font-weight:700;color:var(--accent);">${apt}</td>
             <td style="padding:8px;text-align:center;"><span style="color:${st[1]};font-weight:700;">${st[0]}</span></td>
             <td style="padding:8px;text-align:center;white-space:nowrap;">
               <button onclick="v2ViewResidents('${mac}')" style="padding:4px 10px;margin:2px;background:#eef1f4;color:#111;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">👁 צפה</button>
               <button onclick="v2ResidentStatus('${mac}','approved')" style="padding:4px 10px;margin:2px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">✓ אשר</button>
               <button onclick="v2ResidentStatus('${mac}','rejected')" style="padding:4px 10px;margin:2px;background:#ef4444;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">✕ דחה</button>
             </td></tr>`;
-        }).join('') : '<tr><td colspan="5" style="text-align:center;padding:18px;color:var(--text-dim);">אין רשימות דיירים עדיין</td></tr>';
+        }).join('') : '<tr><td colspan="6" style="text-align:center;padding:18px;color:var(--text-dim);">אין רשימות דיירים עדיין</td></tr>';
       } catch (e) {
-        body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:#ef4444;">שגיאה בטעינה</td></tr>';
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:18px;color:#ef4444;">שגיאה בטעינה</td></tr>';
       }
     }
     function v2ViewResidents(mac) {
@@ -3948,7 +3951,8 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         v2Busy(false);
         if (d.success) {
           if (status === 'approved') {
-            const s = (window.__residents || {})[mac]; const n = s ? (s.residents || []).length : 0;
+            const s = (window.__residents || {})[mac];
+            const n = s ? ((s.apartmentsCount != null) ? s.apartmentsCount : new Set((s.residents || []).map(r => String((r && r.apartment) || '').trim()).filter(Boolean)).size) : 0;
             const p = d.push; let m = '✓ אושר.';
             if (p && !p.error) {
               m += '\nהעלאה לפנל: ' + p.created + ' נוצרו, ' + p.skipped + ' כבר קיימים, ' + p.failed + ' נכשלו';
@@ -3956,7 +3960,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
             } else if (p && p.error) {
               m += '\n⚠ ההעלאה לפנל נכשלה: ' + p.error + '\nאפשר ללחוץ אישור שוב לניסיון נוסף.';
             }
-            m += '\n\nזכור לפתוח ' + n + ' רישיונות VoIPBell לבניין.';
+            m += '\n\nזכור לפתוח ' + n + ' רישיונות VoIPBell (רישיון לכל דירה).';
             alert(m);
           }
           v2LoadResidents();

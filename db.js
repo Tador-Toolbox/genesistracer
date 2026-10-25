@@ -856,6 +856,8 @@ async function savePanelResidents(mac, phoneNumber, residents, status) {
   await connectDB();
   const now = new Date();
   const set = { mac, residents: Array.isArray(residents) ? residents : [], updatedAt: now };
+  // Licenses are counted per apartment (one VoIPBell license per distinct apartment).
+  set.apartmentsCount = new Set((set.residents || []).map(r => String((r && r.apartment) || '').trim()).filter(Boolean)).size;
   if (phoneNumber) set.phoneNumber = phoneNumber;
   if (status) set.status = status;
   if (status === 'pending') set.submittedAt = now;
