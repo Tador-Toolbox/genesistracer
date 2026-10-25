@@ -48,6 +48,11 @@
   .msg{margin-top:10px;font-size:.88rem;min-height:18px}
   .msg.ok{color:var(--ok)} .msg.err{color:var(--red)}
   .hint{font-size:.8rem;color:var(--muted);margin:6px 2px 0}
+  .summary{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 2px 2px}
+  .counts{font-weight:800;font-size:.95rem}
+  .counts b{color:var(--red)}
+  .saved{font-size:.8rem;color:var(--muted)}
+  .note{font-size:.78rem;color:var(--muted);margin:4px 2px 0;line-height:1.4}
   @media (max-width:520px){ header .t{font-size:1.05rem} }
 </style>
 </head>
@@ -81,6 +86,12 @@
       <tbody id="rows"></tbody>
     </table>
   </div>
+
+  <div class="summary">
+    <div class="counts" id="counts">דיירים: 0 · דירות (רישיונות): <b>0</b></div>
+    <div class="saved" id="savedLbl"></div>
+  </div>
+  <div class="note">הרשימה נשמרת עבור פנל זה. "שמור טיוטה" ו"שלח לאישור" מעדכנים את אותה רשימה, ובפתיחה הבאה היא נטענת שוב.</div>
 
   <div class="actions">
     <button class="b b-add" onclick="addRow()">➕ הוסף דייר</button>
@@ -132,6 +143,21 @@
   function renumber(){
     const trs = document.querySelectorAll('#rows tr');
     trs.forEach((tr,i)=>{ tr.querySelector('.num').textContent = i+1; });
+    updateCounts();
+  }
+  // Live count: residents filled in, and distinct apartments (= VoIPBell licenses).
+  function updateCounts(){
+    const apts = new Set(); let people = 0;
+    document.querySelectorAll('#rows tr').forEach(tr=>{
+      const f=tr.querySelector('.f-first').value.trim();
+      const l=tr.querySelector('.f-last').value.trim();
+      const a=tr.querySelector('.f-apt').value.trim();
+      const p=tr.querySelector('.f-phone').value.trim();
+      if (f||l||a||p) people++;
+      if (a) apts.add(a);
+    });
+    const el=document.getElementById('counts');
+    if (el) el.innerHTML = 'דיירים: '+people+' · דירות (רישיונות): <b>'+apts.size+'</b>';
   }
   function collect(){
     const out = [];
@@ -149,7 +175,8 @@
     if (!MAC || !PHONE){ msg('חסר מידע על הפנל (MAC/טלפון) — פתח מחדש מהפורטל.', false); return; }
     const residents = collect();
     if (submit && !residents.length){ msg('אין דיירים לשליחה.', false); return; }
-    if (submit && !confirm('לשלוח ' + residents.length + ' דיירים לאישור המנהל?')) return;
+    const aptCount = new Set(residents.map(r=>String(r.apartment||'').trim()).filter(Boolean)).size;
+    if (submit && !confirm('לשלוח ' + residents.length + ' דיירים (' + aptCount + ' דירות / רישיונות) לאישור המנהל?')) return;
     const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);
     msg(submit ? 'שולח…' : 'שומר…', true);
     try{
@@ -161,6 +188,7 @@
       if (!d.success){ msg(d.error || 'שגיאה בשמירה', false); }
       else {
         render(d.residents); setStatus(d.status);
+        try { document.getElementById('savedLbl').textContent = (submit ? 'נשלח ' : 'נשמר ') + new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}); } catch(e){}
         msg(submit ? '✓ נשלח לאישור המנהל' : '✓ נשמר', true);
       }
     }catch(e){ msg('שגיאת רשת: '+e.message, false); }
@@ -205,6 +233,7 @@
     finally{ btns.forEach(b=>b.disabled=false); }
   }
 
+  document.getElementById('rows').addEventListener('input', updateCounts);
   load();
 </script>
 </body>
