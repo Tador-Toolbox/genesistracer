@@ -15,9 +15,13 @@
   .wrap{max-width:860px;margin:0 auto;padding:16px}
   header{background:var(--red);color:#fff;border-radius:16px;padding:16px 20px;display:flex;
     align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
+  header .hright{display:flex;align-items:center;gap:12px}
   header img{height:26px}
   header .t{font-size:1.25rem;font-weight:800}
   header .s{font-size:.8rem;opacity:.92}
+  .langseg{display:inline-flex;border:1px solid rgba(255,255,255,.65);border-radius:8px;overflow:hidden}
+  .langseg button{border:none;background:transparent;color:#fff;padding:5px 11px;font:inherit;font-weight:700;font-size:.78rem;cursor:pointer}
+  .langseg button.on{background:#fff;color:var(--red)}
   .bar{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
     margin-bottom:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
   .bar .meta{font-size:.9rem;color:var(--muted)}
@@ -30,6 +34,7 @@
   .tablewrap{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:auto}
   table{width:100%;border-collapse:collapse;min-width:620px}
   th,td{padding:8px 8px;text-align:right;border-bottom:1px solid var(--line);font-size:.9rem}
+  html[dir=ltr] th, html[dir=ltr] td{text-align:left}
   th{background:#fafbfc;font-weight:700;font-size:.82rem;color:var(--muted);white-space:nowrap}
   td input{width:100%;border:1px solid transparent;border-radius:7px;padding:7px 8px;font:inherit;
     background:#fbfcfd;color:var(--ink)}
@@ -67,17 +72,23 @@
 <div class="wrap">
   <header>
     <div>
-      <div class="t">רשימת דיירים</div>
-      <div class="s">הזנת דיירים לפנל והגשה לאישור</div>
+      <div class="t" data-i18n="h_title">רשימת דיירים</div>
+      <div class="s" data-i18n="h_sub">הזנת דיירים לפנל והגשה לאישור</div>
     </div>
-    <img src="/tador-logo-white.png" alt="Tador">
+    <div class="hright">
+      <div class="langseg">
+        <button id="lhe" onclick="setLang('he')">עברית</button>
+        <button id="len" onclick="setLang('en')">English</button>
+      </div>
+      <img src="/tador-logo-white.png" alt="Tador">
+    </div>
   </header>
 
   <div id="gate" style="display:none;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px;text-align:center;max-width:360px;margin:24px auto;">
-    <h2 style="margin:0 0 6px;font-size:1.15rem;">כניסת ועד בית</h2>
-    <p style="margin:0 0 16px;color:var(--muted);font-size:.88rem;">הזן את הקוד שקיבלת מהמנהל כדי לרשום את דיירי הבניין.</p>
-    <input id="gateCode" placeholder="קוד" autocapitalize="characters" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit;text-align:center;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;">
-    <button class="b b-send" onclick="submitGate()" style="width:100%;">כניסה</button>
+    <h2 style="margin:0 0 6px;font-size:1.15rem;" data-i18n="g_title">כניסת ועד בית</h2>
+    <p style="margin:0 0 16px;color:var(--muted);font-size:.88rem;" data-i18n="g_desc">הזן את הקוד שקיבלת מהמנהל כדי לרשום את דיירי הבניין.</p>
+    <input id="gateCode" data-i18n-ph="g_code" placeholder="קוד" autocapitalize="characters" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit;text-align:center;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;">
+    <button class="b b-send" onclick="submitGate()" style="width:100%;" data-i18n="g_enter">כניסה</button>
     <div id="gateMsg" class="msg err" style="margin-top:8px;"></div>
   </div>
 
@@ -88,8 +99,8 @@
   </div>
 
   <div class="connbox">
-    <div class="connnote">⚠️ כדי שהמידע יתעדכן למערכת, יש לוודא שהפנל מחובר לאינטרנט ורשום לשרת.</div>
-    <button class="b b-check" onclick="checkConnection()">🔌 בדיקת חיבור</button>
+    <div class="connnote" data-i18n="conn_note">⚠️ כדי שהמידע יתעדכן למערכת, יש לוודא שהפנל מחובר לאינטרנט ורשום לשרת.</div>
+    <button class="b b-check" onclick="checkConnection()" data-i18n="conn_btn">🔌 בדיקת חיבור</button>
     <span id="connResult" class="connres"></span>
   </div>
 
@@ -98,10 +109,10 @@
       <thead>
         <tr>
           <th class="num">#</th>
-          <th>שם פרטי</th>
-          <th>שם משפחה</th>
-          <th>מספר דירה</th>
-          <th>טלפון דייר</th>
+          <th data-i18n="th_first">שם פרטי</th>
+          <th data-i18n="th_last">שם משפחה</th>
+          <th data-i18n="th_apt">מספר דירה</th>
+          <th data-i18n="th_phone">טלפון דייר</th>
           <th class="del"></th>
         </tr>
       </thead>
@@ -110,28 +121,79 @@
   </div>
 
   <div class="summary">
-    <div class="counts" id="counts">דיירים: 0 · דירות (רישיונות): <b>0</b></div>
+    <div class="counts" id="counts"></div>
     <div class="saved" id="savedLbl"></div>
   </div>
-  <div class="note">הרשימה נשמרת עבור פנל זה. "שמור טיוטה" ו"שלח לאישור" מעדכנים את אותה רשימה, ובפתיחה הבאה היא נטענת שוב.</div>
+  <div class="note" data-i18n="list_note">הרשימה נשמרת עבור פנל זה. "שמור טיוטה" ו"שלח לאישור" מעדכנים את אותה רשימה, ובפתיחה הבאה היא נטענת שוב.</div>
 
   <div class="grpopt">
-    <span>שם קבוצת דירה בפנל:</span>
-    <label><input type="radio" name="grpby" value="apartment" checked> לפי דירה (דירה 07)</label>
-    <label><input type="radio" name="grpby" value="family"> לפי שם משפחה (משפחת שלמה)</label>
+    <span data-i18n="grp_label">שם קבוצת דירה בפנל:</span>
+    <label><input type="radio" name="grpby" value="apartment" checked> <span data-i18n="grp_apartment">לפי דירה (דירה 07)</span></label>
+    <label><input type="radio" name="grpby" value="family"> <span data-i18n="grp_family">לפי שם משפחה (משפחת שלמה)</span></label>
   </div>
 
   <div class="actions">
-    <button class="b b-add" onclick="addRow()">➕ הוסף דייר</button>
-    <button class="b b-check" id="pullBtn" onclick="pullPanel()">⬇ משוך רשימה מהפנל</button>
-    <button class="b b-save" id="saveBtn" onclick="save(false)">💾 שמור טיוטה</button>
-    <button class="b b-send" id="sendBtn" onclick="save(true)">📤 שלח לאישור</button>
+    <button class="b b-add" onclick="addRow()" data-i18n="b_add">➕ הוסף דייר</button>
+    <button class="b b-check" id="pullBtn" onclick="pullPanel()" data-i18n="b_pull">⬇ משוך רשימה מהפנל</button>
+    <button class="b b-save" id="saveBtn" onclick="save(false)" data-i18n="b_save">💾 שמור טיוטה</button>
+    <button class="b b-send" id="sendBtn" onclick="save(true)" data-i18n="b_send">📤 שלח לאישור</button>
   </div>
   <div class="msg" id="msg"></div>
   </div>
 </div>
 
 <script>
+  const I18N = {
+    he: {
+      h_title:'רשימת דיירים', h_sub:'הזנת דיירים לפנל והגשה לאישור',
+      g_title:'כניסת ועד בית', g_desc:'הזן את הקוד שקיבלת מהמנהל כדי לרשום את דיירי הבניין.',
+      g_code:'קוד', g_enter:'כניסה', g_need_code:'הזן קוד', g_checking:'בודק…', g_wrong:'קוד שגוי',
+      meta_panel:'פנל:', meta_committee:'רישום דיירי הבניין',
+      conn_note:'⚠️ כדי שהמידע יתעדכן למערכת, יש לוודא שהפנל מחובר לאינטרנט ורשום לשרת.',
+      conn_btn:'🔌 בדיקת חיבור', conn_checking:'בודק…', conn_online:'✓ הפנל מחובר',
+      conn_offline:'✗ הפנל לא מחובר לאינטרנט או רשום לשרת', conn_err:'✗ שגיאה בבדיקה',
+      th_first:'שם פרטי', th_last:'שם משפחה', th_apt:'מספר דירה', th_phone:'טלפון דייר',
+      ph_first:'שם פרטי', ph_last:'שם משפחה', ph_apt:'דירה', ph_phone:'05X-XXXXXXX', del_title:'מחק',
+      counts:(p,a)=>'דיירים: '+p+' · דירות (רישיונות): <b>'+a+'</b>',
+      list_note:'הרשימה נשמרת עבור פנל זה. "שמור טיוטה" ו"שלח לאישור" מעדכנים את אותה רשימה, ובפתיחה הבאה היא נטענת שוב.',
+      grp_label:'שם קבוצת דירה בפנל:', grp_apartment:'לפי דירה (דירה 07)', grp_family:'לפי שם משפחה (משפחת שלמה)',
+      b_add:'➕ הוסף דייר', b_pull:'⬇ משוך רשימה מהפנל', b_save:'💾 שמור טיוטה', b_send:'📤 שלח לאישור',
+      st_draft:'טיוטה', st_pending:'ממתין לאישור', st_approved:'אושר', st_rejected:'נדחה',
+      save_missing_panel:'חסר מידע על הפנל — פתח מחדש מהפורטל.', save_missing_code:'חסר קוד', save_none:'אין דיירים לשליחה.',
+      confirm_send:(n,a)=>'לשלוח ' + n + ' דיירים (' + a + ' דירות / רישיונות) לאישור המנהל?',
+      sending:'שולח…', saving:'שומר…', save_err:'שגיאה בשמירה', sent_ok:'✓ נשלח לאישור המנהל', saved_ok:'✓ נשמר',
+      net_err:m=>'שגיאת רשת: '+m, saved_sent_lbl:'נשלח ', saved_saved_lbl:'נשמר ',
+      pull_missing_mac:'חסר MAC', pull_confirm:'להחליף את הרשימה הנוכחית ברשימה מהפנל?',
+      pull_loading:'מושך רשימה מהפנל… (עשוי לקחת כמה שניות)', pull_err:'שגיאה בקריאה מהפנל',
+      pull_ok:n=>'✓ נמשכו '+n+' מהפנל — השלם טלפונים ושמור', locale:'he-IL'
+    },
+    en: {
+      h_title:'Residents list', h_sub:'Enter residents for the panel and submit for approval',
+      g_title:'Building committee login', g_desc:'Enter the code you received from the manager to register the building residents.',
+      g_code:'Code', g_enter:'Enter', g_need_code:'Enter a code', g_checking:'Checking…', g_wrong:'Wrong code',
+      meta_panel:'Panel:', meta_committee:'Building resident registration',
+      conn_note:'⚠️ For the data to sync to the system, make sure the panel is connected to the internet and registered to the server.',
+      conn_btn:'🔌 Check connection', conn_checking:'Checking…', conn_online:'✓ Panel connected',
+      conn_offline:'✗ Panel is not connected to the internet or registered to the server', conn_err:'✗ Check failed',
+      th_first:'First name', th_last:'Last name', th_apt:'Apartment', th_phone:'Resident phone',
+      ph_first:'First name', ph_last:'Last name', ph_apt:'Apt', ph_phone:'05X-XXXXXXX', del_title:'Delete',
+      counts:(p,a)=>'Residents: '+p+' · Apartments (licenses): <b>'+a+'</b>',
+      list_note:'The list is saved for this panel. "Save draft" and "Submit for approval" update the same list, and it loads again next time you open it.',
+      grp_label:'Apartment group name on the panel:', grp_apartment:'By apartment (Apartment 07)', grp_family:'By family name (The Shlomo family)',
+      b_add:'➕ Add resident', b_pull:'⬇ Pull list from panel', b_save:'💾 Save draft', b_send:'📤 Submit for approval',
+      st_draft:'Draft', st_pending:'Pending approval', st_approved:'Approved', st_rejected:'Rejected',
+      save_missing_panel:'Panel info missing — reopen from the portal.', save_missing_code:'Missing code', save_none:'No residents to send.',
+      confirm_send:(n,a)=>'Send ' + n + ' residents (' + a + ' apartments / licenses) for manager approval?',
+      sending:'Sending…', saving:'Saving…', save_err:'Save error', sent_ok:'✓ Sent for manager approval', saved_ok:'✓ Saved',
+      net_err:m=>'Network error: '+m, saved_sent_lbl:'Sent ', saved_saved_lbl:'Saved ',
+      pull_missing_mac:'Missing MAC', pull_confirm:'Replace the current list with the list from the panel?',
+      pull_loading:'Pulling list from the panel… (may take a few seconds)', pull_err:'Error reading from the panel',
+      pull_ok:n=>'✓ Pulled '+n+' from the panel — fill in phones and save', locale:'en-GB'
+    }
+  };
+  let LANG = 'he';
+  const tr = () => I18N[LANG];
+
   const qs = new URLSearchParams(location.hash.slice(1) || location.search);
   // Context can come from the URL (#mac=..&phone=..) or from localStorage set by the installer portal.
   let ctx = {};
@@ -142,46 +204,74 @@
   let CODE = (qs.get('code') || '').trim().toUpperCase();              // committee link code
   let MODE = (MAC && PHONE) ? 'installer' : (CODE ? 'committee' : 'gate');
 
-  if (MODE === 'installer') {
-    document.getElementById('macLbl').textContent = MAC || '—';
-    if (ADDR) document.getElementById('addrLbl').textContent = '· ' + ADDR;
-  } else {
-    const meta = document.querySelector('.bar .meta'); if (meta) meta.textContent = 'רישום דיירי הבניין';
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  function updateMeta(){
+    const d = tr(), meta = document.querySelector('.bar .meta');
+    if (!meta) return;
+    if (MODE === 'installer') {
+      meta.innerHTML = d.meta_panel + ' <b>' + esc(MAC || '—') + '</b> ' + (ADDR ? '<span>· ' + esc(ADDR) + '</span>' : '');
+    } else {
+      meta.textContent = d.meta_committee;
+    }
   }
 
-  function showMain(){ document.getElementById('main').style.display=''; document.getElementById('gate').style.display='none'; }
+  function applyLang(lang){
+    LANG = (lang === 'en') ? 'en' : 'he';
+    const d = tr();
+    document.documentElement.lang = LANG;
+    document.documentElement.dir  = (LANG === 'en') ? 'ltr' : 'rtl';
+    document.title = d.h_title + ' — Tador';
+    try { localStorage.setItem('residenterLang', LANG); } catch(e){}
+    document.querySelectorAll('[data-i18n]').forEach(el=>{ const k=el.getAttribute('data-i18n'); if (d[k]!=null) el.textContent = d[k]; });
+    document.querySelectorAll('[data-i18n-ph]').forEach(el=>{ const k=el.getAttribute('data-i18n-ph'); if (d[k]!=null) el.placeholder = d[k]; });
+    document.getElementById('lhe').className = (LANG==='he' ? 'on' : '');
+    document.getElementById('len').className = (LANG==='en' ? 'on' : '');
+    document.querySelectorAll('#rows .f-first').forEach(i=>i.placeholder=d.ph_first);
+    document.querySelectorAll('#rows .f-last').forEach(i=>i.placeholder=d.ph_last);
+    document.querySelectorAll('#rows .f-apt').forEach(i=>i.placeholder=d.ph_apt);
+    document.querySelectorAll('#rows .f-phone').forEach(i=>i.placeholder=d.ph_phone);
+    document.querySelectorAll('#rows .xbtn').forEach(b=>b.title=d.del_title);
+    updateMeta();
+    setStatus(curStatus);
+    updateCounts();
+  }
+  function setLang(l){ applyLang(l); }
+
+  function showMain(){ document.getElementById('main').style.display=''; document.getElementById('gate').style.display='none'; updateMeta(); }
   function showGate(err){ document.getElementById('main').style.display='none'; document.getElementById('gate').style.display='block'; if (err) document.getElementById('gateMsg').textContent = err; }
   function adaptCommitteeUI(){ const pb=document.getElementById('pullBtn'); if (pb) pb.style.display='none'; }
   async function submitGate(){
     const c = document.getElementById('gateCode').value.trim().toUpperCase();
-    if (!c){ document.getElementById('gateMsg').textContent='הזן קוד'; return; }
-    CODE = c; document.getElementById('gateMsg').textContent='בודק…';
+    if (!c){ document.getElementById('gateMsg').textContent=tr().g_need_code; return; }
+    CODE = c; document.getElementById('gateMsg').textContent=tr().g_checking;
     const ok = await loadByCode();
     if (ok){ MODE='committee'; showMain(); adaptCommitteeUI(); }
-    else { document.getElementById('gateMsg').textContent='קוד שגוי'; }
+    else { document.getElementById('gateMsg').textContent=tr().g_wrong; }
   }
 
-  const STATUS = { draft:['טיוטה','st-draft'], pending:['ממתין לאישור','st-pending'],
-                   approved:['אושר','st-approved'], rejected:['נדחה','st-rejected'] };
+  let curStatus = 'draft';
+  const STCLS = { draft:'st-draft', pending:'st-pending', approved:'st-approved', rejected:'st-rejected' };
   function setStatus(s){
-    const [txt,cls] = STATUS[s] || STATUS.draft;
+    curStatus = STCLS[s] ? s : 'draft';
+    const d = tr();
+    const map = { draft:d.st_draft, pending:d.st_pending, approved:d.st_approved, rejected:d.st_rejected };
     const el = document.getElementById('statusLbl');
-    el.textContent = txt; el.className = 'status ' + cls;
+    el.textContent = map[curStatus]; el.className = 'status ' + STCLS[curStatus];
   }
   function setGroupBy(v){ document.querySelectorAll('input[name=grpby]').forEach(r=>{ r.checked = (r.value === (v || 'apartment')); }); }
 
   function rowHtml(r){
-    r = r || {};
+    r = r || {}; const d = tr();
     return `<tr>
       <td class="num"></td>
-      <td><input class="f-first" value="${esc(r.firstName)}" placeholder="שם פרטי"></td>
-      <td><input class="f-last"  value="${esc(r.lastName)}"  placeholder="שם משפחה"></td>
-      <td><input class="f-apt"   value="${esc(r.apartment)}" placeholder="דירה" inputmode="numeric"></td>
-      <td><input class="f-phone" value="${esc(r.phone)}"     placeholder="05X-XXXXXXX" inputmode="tel"></td>
-      <td class="del"><button class="xbtn" title="מחק" onclick="this.closest('tr').remove();renumber()">✕</button></td>
+      <td><input class="f-first" value="${esc(r.firstName)}" placeholder="${esc(d.ph_first)}"></td>
+      <td><input class="f-last"  value="${esc(r.lastName)}"  placeholder="${esc(d.ph_last)}"></td>
+      <td><input class="f-apt"   value="${esc(r.apartment)}" placeholder="${esc(d.ph_apt)}" inputmode="numeric"></td>
+      <td><input class="f-phone" value="${esc(r.phone)}"     placeholder="${esc(d.ph_phone)}" inputmode="tel"></td>
+      <td class="del"><button class="xbtn" title="${esc(d.del_title)}" onclick="this.closest('tr').remove();renumber()">✕</button></td>
     </tr>`;
   }
-  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
   function addRow(r){
     document.getElementById('rows').insertAdjacentHTML('beforeend', rowHtml(r));
@@ -205,7 +295,7 @@
       if (a) apts.add(a);
     });
     const el=document.getElementById('counts');
-    if (el) el.innerHTML = 'דיירים: '+people+' · דירות (רישיונות): <b>'+apts.size+'</b>';
+    if (el) el.innerHTML = tr().counts(people, apts.size);
   }
   function collect(){
     const out = [];
@@ -220,14 +310,15 @@
   function msg(t, ok){ const m=document.getElementById('msg'); m.textContent=t; m.className='msg '+(ok?'ok':'err'); }
 
   async function save(submit){
-    if (MODE==='installer' && (!MAC || !PHONE)){ msg('חסר מידע על הפנל — פתח מחדש מהפורטל.', false); return; }
-    if (MODE==='committee' && !CODE){ msg('חסר קוד', false); return; }
+    const d = tr();
+    if (MODE==='installer' && (!MAC || !PHONE)){ msg(d.save_missing_panel, false); return; }
+    if (MODE==='committee' && !CODE){ msg(d.save_missing_code, false); return; }
     const residents = collect();
-    if (submit && !residents.length){ msg('אין דיירים לשליחה.', false); return; }
+    if (submit && !residents.length){ msg(d.save_none, false); return; }
     const aptCount = new Set(residents.map(r=>String(r.apartment||'').trim()).filter(Boolean)).size;
-    if (submit && !confirm('לשלוח ' + residents.length + ' דיירים (' + aptCount + ' דירות / רישיונות) לאישור המנהל?')) return;
+    if (submit && !confirm(d.confirm_send(residents.length, aptCount))) return;
     const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);
-    msg(submit ? 'שולח…' : 'שומר…', true);
+    msg(submit ? d.sending : d.saving, true);
     try{
       const groupNameBy = ((document.querySelector('input[name=grpby]:checked')||{}).value) || 'apartment';
       const endpoint = (MODE==='committee') ? '/api/residents/by-code/save' : '/api/installer/residents/save';
@@ -236,14 +327,14 @@
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify(payload)
       });
-      const d = await res.json();
-      if (!d.success){ msg(d.error || 'שגיאה בשמירה', false); }
+      const dd = await res.json();
+      if (!dd.success){ msg(dd.error || d.save_err, false); }
       else {
-        render(d.residents); setStatus(d.status);
-        try { document.getElementById('savedLbl').textContent = (submit ? 'נשלח ' : 'נשמר ') + new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}); } catch(e){}
-        msg(submit ? '✓ נשלח לאישור המנהל' : '✓ נשמר', true);
+        render(dd.residents); setStatus(dd.status);
+        try { document.getElementById('savedLbl').textContent = (submit ? d.saved_sent_lbl : d.saved_saved_lbl) + new Date().toLocaleTimeString(d.locale,{hour:'2-digit',minute:'2-digit'}); } catch(e){}
+        msg(submit ? d.sent_ok : d.saved_ok, true);
       }
-    }catch(e){ msg('שגיאת רשת: '+e.message, false); }
+    }catch(e){ msg(d.net_err(e.message), false); }
     finally{ btns.forEach(b=>b.disabled=false); }
   }
 
@@ -262,7 +353,7 @@
   }
   async function load(){
     if (MODE==='gate'){ showGate(); return; }
-    if (MODE==='committee'){ const ok=await loadByCode(); if (ok){ showMain(); adaptCommitteeUI(); } else { showGate('קוד שגוי'); } return; }
+    if (MODE==='committee'){ const ok=await loadByCode(); if (ok){ showMain(); adaptCommitteeUI(); } else { showGate(tr().g_wrong); } return; }
     showMain();
     if (!MAC){ render([]); return; }
     try{
@@ -273,15 +364,16 @@
   }
   // ── Pull the panel's current contacts straight into the editable list ──
   async function pullPanel(){
-    if (!MAC){ msg('חסר MAC', false); return; }
-    if (collect().length && !confirm('להחליף את הרשימה הנוכחית ברשימה מהפנל?')) return;
+    const d = tr();
+    if (!MAC){ msg(d.pull_missing_mac, false); return; }
+    if (collect().length && !confirm(d.pull_confirm)) return;
     const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);
-    msg('מושך רשימה מהפנל… (עשוי לקחת כמה שניות)', true);
+    msg(d.pull_loading, true);
     try{
       const url = '/api/installer/panel-contacts?mac='+encodeURIComponent(MAC)+(PHONE?('&phone='+encodeURIComponent(PHONE)):'');
-      const d = await fetch(url).then(r=>r.json());
-      if (!d.success){ msg(d.error || 'שגיאה בקריאה מהפנל', false); return; }
-      const list = (d.contacts||[]).slice().sort((a,b)=>String(a.call_number).localeCompare(String(b.call_number),undefined,{numeric:true}));
+      const resp = await fetch(url).then(r=>r.json());
+      if (!resp.success){ msg(resp.error || d.pull_err, false); return; }
+      const list = (resp.contacts||[]).slice().sort((a,b)=>String(a.call_number).localeCompare(String(b.call_number),undefined,{numeric:true}));
       const tb=document.getElementById('rows'); tb.innerHTML='';
       list.forEach(c=>{
         const parts=String(c.name||'').trim().split(/\s+/);
@@ -290,26 +382,30 @@
       });
       if (!list.length) addRow();
       renumber();
-      msg('✓ נמשכו '+list.length+' מהפנל — השלם טלפונים ושמור', true);
-    }catch(e){ msg('שגיאת רשת: '+e.message, false); }
+      msg(d.pull_ok(list.length), true);
+    }catch(e){ msg(d.net_err(e.message), false); }
     finally{ btns.forEach(b=>b.disabled=false); }
   }
 
   // Check whether the panel is online + registered to the server (remote access).
   async function checkConnection(){
-    const el=document.getElementById('connResult');
-    el.textContent='בודק…'; el.style.color='var(--muted)';
+    const d = tr(), el=document.getElementById('connResult');
+    el.textContent=d.conn_checking; el.style.color='var(--muted)';
     try{
       const url = (MODE==='committee')
         ? '/api/residents/by-code/panel-check?code='+encodeURIComponent(CODE)
         : '/api/installer/panel-check?mac='+encodeURIComponent(MAC);
-      const d = await fetch(url).then(r=>r.json());
-      if (d.success && d.online){ el.textContent='✓ הפנל מחובר'; el.style.color='#2e9e3f'; }
-      else { el.textContent='✗ הפנל לא מחובר לאינטרנט או רשום לשרת'; el.style.color='var(--red)'; }
-    }catch(e){ el.textContent='✗ שגיאה בבדיקה'; el.style.color='var(--red)'; }
+      const r = await fetch(url).then(r=>r.json());
+      if (r.success && r.online){ el.textContent=d.conn_online; el.style.color='#2e9e3f'; }
+      else { el.textContent=d.conn_offline; el.style.color='var(--red)'; }
+    }catch(e){ el.textContent=d.conn_err; el.style.color='var(--red)'; }
   }
 
   document.getElementById('rows').addEventListener('input', updateCounts);
+
+  // Initial language: remembered choice, else Hebrew.
+  try { LANG = (localStorage.getItem('residenterLang')==='en') ? 'en' : 'he'; } catch(e){}
+  applyLang(LANG);
   load();
 </script>
 </body>
