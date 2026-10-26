@@ -4086,6 +4086,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           <div class="qs">${esc(it.sub)}</div>
           <img src="${qr(it.data, 300)}">
           <div class="qe">${esc(it.exp)}</div>
+          ${/^https?:/i.test(it.data) ? `<a class="qlink" href="${esc(it.data)}">${esc(it.data)}</a>` : ''}
         </div>`).join('');
 
       // ---- Page 2: VoIPBell app setup guide (only when there is a VoIPBell account) ----
@@ -4132,6 +4133,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           .qc .qs{font-size:12px;color:#666;min-height:15px;margin:2px 0 10px;}
           .qc img{width:240px;height:240px;border:1px solid #eee;border-radius:8px;padding:6px;}
           .qc .qe{font-size:11.5px;color:#555;line-height:1.4;margin-top:9px;text-align:right;}
+          .qc .qlink{display:block;font-size:10px;color:#0369a1;word-break:break-all;margin-top:7px;direction:ltr;text-align:center;}
           .ghd{background:#e8001c;color:#fff;border-radius:12px;padding:11px 16px;text-align:center;margin-bottom:10px;}
           .ghd img{height:20px;width:auto;margin-bottom:6px;}
           .ghd h1{margin:0;font-size:18px;}
