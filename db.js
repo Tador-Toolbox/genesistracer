@@ -904,6 +904,13 @@ async function getPanelResidentsByCode(code) {
   if (!code) return null;
   return db.collection('panel_residents').findOne({ committeeCode: String(code).trim().toUpperCase() });
 }
+// Append a dated history entry (sent to manager / uploaded to panel / approved / rejected).
+async function addResidentHistory(mac, entry) {
+  await connectDB();
+  await db.collection('panel_residents').updateOne(
+    { mac }, { $push: { history: Object.assign({ at: new Date() }, entry || {}) } }
+  );
+}
 
 module.exports = {
   connectDB,
@@ -913,6 +920,7 @@ module.exports = {
   setPanelResidentsStatus,
   setResidentListCode,
   getPanelResidentsByCode,
+  addResidentHistory,
   createInstaller,
   assignMacToInstaller,
   removeMacFromInstaller,

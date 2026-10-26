@@ -3931,9 +3931,22 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         ov.innerHTML = '<div id="resViewBox" style="background:#fff;color:#111;border-radius:14px;padding:20px;max-width:560px;width:94%;max-height:86vh;overflow:auto;"></div>';
         document.body.appendChild(ov);
       }
+      const evName = { submit: 'נשלח למנהל', uploaded: 'הועלה לפנל', upload_failed: 'העלאה נכשלה', approved: 'אושר', rejected: 'נדחה' };
+      const hist = (s.history || []).slice().reverse();
+      const histHtml = hist.length ? ('<div style="font-weight:800;margin:16px 0 6px;">היסטוריה</div>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:12.5px;"><tbody>' +
+        hist.map(h => {
+          const d = h.at ? new Date(h.at).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+          let extra = '';
+          if (h.event === 'submit' && h.count != null) extra = ' (' + h.count + ' דיירים)';
+          if (h.event === 'uploaded') extra = ' (' + (h.created || 0) + ' נוצרו' + (h.skipped ? (', ' + h.skipped + ' קיימים') : '') + (h.failed ? (', ' + h.failed + ' נכשלו') : '') + ')';
+          if (h.event === 'upload_failed' && h.error) extra = ' (' + v2SecEsc(h.error) + ')';
+          return '<tr><td style="padding:4px 8px;border-bottom:1px solid #eee;white-space:nowrap;">' + d + '</td><td style="padding:4px 8px;border-bottom:1px solid #eee;">' + (evName[h.event] || h.event) + extra + (h.by ? (' · ' + v2SecEsc(h.by)) : '') + '</td></tr>';
+        }).join('') + '</tbody></table>') : '<div style="color:#888;font-size:12px;margin-top:14px;">אין היסטוריה עדיין</div>';
       document.getElementById('resViewBox').innerHTML =
         `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h3 style="margin:0;">דיירים — ${v2SecEsc(mac)}</h3><button onclick="document.getElementById('resViewOverlay').style.display='none'" style="border:none;background:#eee;border-radius:6px;padding:4px 10px;cursor:pointer;">✕</button></div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#f6f7f9;"><th style="padding:6px 8px;">SIP</th><th style="padding:6px 8px;text-align:right;">שם</th><th style="padding:6px 8px;">דירה</th><th style="padding:6px 8px;text-align:right;">טלפון</th></tr></thead><tbody>${rows || '<tr><td colspan="4" style="padding:12px;text-align:center;color:#888;">ריק</td></tr>'}</tbody></table>`;
+        <table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#f6f7f9;"><th style="padding:6px 8px;">SIP</th><th style="padding:6px 8px;text-align:right;">שם</th><th style="padding:6px 8px;">דירה</th><th style="padding:6px 8px;text-align:right;">טלפון</th></tr></thead><tbody>${rows || '<tr><td colspan="4" style="padding:12px;text-align:center;color:#888;">ריק</td></tr>'}</tbody></table>
+        ${histHtml}`;
       ov.style.display = 'flex';
     }
     function v2ResidentLinkByMac() {

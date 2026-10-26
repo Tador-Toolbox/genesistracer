@@ -854,6 +854,7 @@ app.post('/api/installer/residents/save', async (req, res) => {
     const residents = prSanitizeResidents(req.body.residents);
     const status = req.body.submit ? 'pending' : 'draft';
     const doc = await db.savePanelResidents(cleanMac, phoneNumber, residents, status);
+    if (req.body.submit) { try { await db.addResidentHistory(cleanMac, { event: 'submit', by: phoneNumber, count: residents.length }); } catch (e) {} }
     try { await logActivity({ phoneNumber, action: req.body.submit ? 'residents_submit' : 'residents_save', mac: cleanMac, details: { count: residents.length }, success: true }); } catch (e) {}
     res.json({ success: true, residents: doc.residents, status: doc.status });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
@@ -1012,6 +1013,12 @@ app.post('/api/manager/resident-submissions/status', async (req, res) => {
     if (status === 'approved') {
       try { push = await pushResidentsToPanel(prCleanMac(mac), (doc && doc.residents) || []); }
       catch (e) { push = { error: e.message }; }
+      try {
+        await db.addResidentHistory(prCleanMac(mac), {
+          event: (push && !push.error) ? 'uploaded' : 'upload_failed', by: username,
+          created: push && push.created, skipped: push && push.skipped, failed: push && push.failed, error: push && push.error
+        });
+      } catch (e) {}
     }
     try { await logActivity({ phoneNumber: username, action: 'residents_' + status, mac: prCleanMac(mac), details: { count: ((doc && doc.residents) || []).length, push }, success: true }); } catch (e) {}
     res.json({ success: true, status: doc ? doc.status : status, push });
@@ -1050,6 +1057,7 @@ app.post('/api/residents/by-code/save', async (req, res) => {
     const residents = prSanitizeResidents(req.body.residents);
     const status = req.body.submit ? 'pending' : 'draft';
     const saved = await db.savePanelResidents(doc.mac, undefined, residents, status);
+    if (req.body.submit) { try { await db.addResidentHistory(doc.mac, { event: 'submit', by: 'committee', count: residents.length }); } catch (e) {} }
     try { await logActivity({ phoneNumber: 'committee', action: req.body.submit ? 'residents_submit_committee' : 'residents_save_committee', mac: doc.mac, details: { count: residents.length }, success: true }); } catch (e) {}
     res.json({ success: true, residents: saved.residents, status: saved.status });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
