@@ -647,7 +647,7 @@
       <div class="search-wrap">
         <span class="material-symbols-outlined">search</span>
         <input class="search-input" id="macSearch" type="text"
-               placeholder="חפש מכשיר לפי שם או כתובת MAC..."
+               data-i18n-ph="searchPh" placeholder="חפש מכשיר לפי שם או כתובת MAC..."
                oninput="filterMacList(this.value)" />
       </div>
 
@@ -678,7 +678,7 @@
       <div class="action-grid">
 
         <!-- ═══ Group 1: Panel actions ═══ -->
-        <div class="action-section-header">פעולות פנל</div>
+        <div class="action-section-header" data-i18n="secPanel">פעולות פנל</div>
         <!-- Emergency Door Open -->
         <button class="action-card" id="relayBtn" onclick="toggleRelay()">
           <span id="relayBadge" class="action-badge badge-loading">...</span>
@@ -690,13 +690,13 @@
         <!-- Temporary Code -->
         <button class="action-card" id="tempCodeBtn" onclick="openTempCode()">
           <span class="material-symbols-outlined">password</span>
-          <span class="action-card-label">הנפקת קוד זמני</span>
+          <span class="action-card-label" data-i18n="tempCodeBtn">הנפקת קוד זמני</span>
         </button>
 
         <!-- Permanent Codes -->
         <button class="action-card" onclick="openPermCodes()">
           <span class="material-symbols-outlined">vpn_key</span>
-          <span class="action-card-label">החלפת קוד קבוע</span>
+          <span class="action-card-label" data-i18n="permCodeBtn">החלפת קוד קבוע</span>
         </button>
 
         <!-- Residents list (residenter) -->
@@ -714,7 +714,7 @@
         <!-- Block User -->
         <button class="action-card" onclick="openBlockUser()">
           <span class="material-symbols-outlined">block</span>
-          <span class="action-card-label">חסום משתמש</span>
+          <span class="action-card-label" data-i18n="blockUserBtn">חסום משתמש</span>
         </button>
 
         <!-- Reboot -->
@@ -727,50 +727,50 @@
         <!-- Panel History -->
         <button class="action-card" onclick="openPanelHistory()">
           <span class="material-symbols-outlined">history</span>
-          <span class="action-card-label">היסטוריה</span>
+          <span class="action-card-label" data-i18n="historyBtn">היסטוריה</span>
         </button>
 
         <!-- ═══ Group 2: Residents & faces ═══ -->
-        <div class="action-section-header">דיירים ופנים</div>
+        <div class="action-section-header" data-i18n="secResidents">דיירים ופנים</div>
         <!-- Face Management -->
         <button class="action-card" id="faceManagementBtn" onclick="window.open('https://genesistracer.onrender.com/committee.html','_blank')">
           <span class="material-symbols-outlined">face</span>
-          <span class="action-card-label">ניהול זיהוי פנים</span>
+          <span class="action-card-label" data-i18n="faceBtn">ניהול זיהוי פנים</span>
         </button>
 
         <!-- Resident Update -->
         <button class="action-card" onclick="openResidentUpdate()">
           <span class="material-symbols-outlined">person_edit</span>
-          <span class="action-card-label">עדכון דייר</span>
+          <span class="action-card-label" data-i18n="residentUpdateBtn">עדכון דייר</span>
         </button>
 
         <!-- ═══ Group 3: Communication with manager ═══ -->
-        <div class="action-section-header">תקשורת עם המנהל</div>
+        <div class="action-section-header" data-i18n="secComm">תקשורת עם המנהל</div>
         <!-- Announcements -->
         <button class="action-card" id="announcementsBtn" onclick="openAnnouncements()" style="position:relative;">
           <span class="material-symbols-outlined">campaign</span>
-          <span class="action-card-label">הודעות</span>
+          <span class="action-card-label" data-i18n="messagesBtn">הודעות</span>
           <span id="announcementsBadge" style="display:none;position:absolute;top:8px;left:8px;background:var(--red);color:white;border-radius:50%;width:18px;height:18px;font-size:10px;line-height:18px;text-align:center;font-weight:800;"></span>
         </button>
 
         <!-- Service Request -->
         <button class="action-card" onclick="openServiceRequest()">
           <span class="material-symbols-outlined">build</span>
-          <span class="action-card-label">פניית שירות</span>
+          <span class="action-card-label" data-i18n="serviceBtn">פניית שירות</span>
         </button>
 
         <!-- ═══ Group 4: Info & resources ═══ -->
-        <div class="action-section-header">מידע ומשאבים</div>
+        <div class="action-section-header" data-i18n="secInfo">מידע ומשאבים</div>
         <!-- Tutorials -->
         <button class="action-card" onclick="openTutorials()">
           <span class="material-symbols-outlined">play_circle</span>
-          <span class="action-card-label">סרטוני הדרכה</span>
+          <span class="action-card-label" data-i18n="tutorialsBtn">סרטוני הדרכה</span>
         </button>
 
         <!-- Install Docs -->
         <button class="action-card" onclick="openInstallDocs()">
           <span class="material-symbols-outlined">description</span>
-          <span class="action-card-label">הוראות התקנה</span>
+          <span class="action-card-label" data-i18n="docsBtn">הוראות התקנה</span>
         </button>
 
         <!-- Catalog -->
@@ -782,15 +782,15 @@
         <!-- Resident Example (hidden) -->
         <button class="action-card" id="residentExampleBtn" onclick="downloadResidentExampleInstaller()" style="display:none;">
           <span class="material-symbols-outlined">people</span>
-          <span class="action-card-label">רשימת דיירים לדוגמא</span>
+          <span class="action-card-label" data-i18n="sampleResidentsBtn">רשימת דיירים לדוגמא</span>
         </button>
 
         <!-- Portfolio - full width -->
         <button class="action-card" onclick="openPortfolio()" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;gap:14px;padding:16px 18px;">
           <span class="material-symbols-outlined" style="font-size:28px;">photo_library</span>
           <div style="text-align:right;">
-            <div class="action-card-label" style="font-size:13px;">תיק עבודות</div>
-            <div style="font-size:11px;color:var(--gray-500);font-weight:500;margin-top:2px;">תמונות מהתקנות שלי</div>
+            <div class="action-card-label" style="font-size:13px;" data-i18n="portfolioBtn">תיק עבודות</div>
+            <div style="font-size:11px;color:var(--gray-500);font-weight:500;margin-top:2px;" data-i18n="portfolioSub">תמונות מהתקנות שלי</div>
           </div>
           <span class="material-symbols-outlined" style="margin-right:auto;color:var(--gray-400);font-size:18px;">arrow_back_ios</span>
         </button>
@@ -801,14 +801,14 @@
 
       <!-- Mailing List -->
       <div class="mailing-section">
-        <h3>רשימת תפוצה</h3>
-        <p>עדכונים על מוצרים חדשים ומבצעים בלעדיים.</p>
+        <h3 data-i18n="mailTitle">רשימת תפוצה</h3>
+        <p data-i18n="mailSub">עדכונים על מוצרים חדשים ומבצעים בלעדיים.</p>
         <div class="mailing-input-wrap">
           <span class="material-symbols-outlined">mail</span>
-          <input class="mailing-input" id="subEmail" type="email" placeholder="כתובת אימייל..." />
+          <input class="mailing-input" id="subEmail" type="email" data-i18n-ph="mailPh" placeholder="כתובת אימייל..." />
         </div>
         <div id="subMsg" class="status-msg" style="color:white;margin-bottom:8px;"></div>
-        <button class="btn-red" onclick="submitSubscribe()">הצטרפות</button>
+        <button class="btn-red" onclick="submitSubscribe()" data-i18n="mailBtn">הצטרפות</button>
       </div>
 
     </div>
@@ -877,6 +877,15 @@
       panelTitle:"Device Lookup", panelSubtitle:"Select a MAC and press Remote Access",
       lookupBtn:"Remote Access", logoutBtn:"Logout", rebootBtn:"Reboot",
       supportBtn:"Support", catalogBtn:"Catalog", residentsListBtn:"Residents List",
+      searchPh:"Search device by name or MAC...",
+      secPanel:"Panel Actions", secResidents:"Residents & Faces", secComm:"Manager Communication", secInfo:"Info & Resources",
+      emergencyBtn:"Emergency Door Open", tempCodeBtn:"Issue Temporary Code", permCodeBtn:"Change Permanent Code",
+      blockUserBtn:"Block User", historyBtn:"History", faceBtn:"Face Recognition", residentUpdateBtn:"Resident Update",
+      messagesBtn:"Messages", serviceBtn:"Service Request", tutorialsBtn:"Tutorials", docsBtn:"Installation Guides",
+      sampleResidentsBtn:"Sample Residents List", portfolioBtn:"Portfolio", portfolioSub:"Photos from my installations",
+      mailTitle:"Mailing List", mailSub:"Updates on new products and exclusive deals.", mailPh:"Email address...", mailBtn:"Subscribe",
+      shabbatOff:"Shabbat Mode", shabbatOn:"Cancel Shabbat Mode",
+      shabbatAlertOn:"🕯️ Shabbat mode enabled — fill light is off", shabbatAlertOff:"☀️ Shabbat mode canceled — fill light back to AUTO",
       tipLabel:"Technical Note:", tipText:"It is recommended to configure panel settings from a computer for maximum comfort and accuracy.",
       deviceFound:"DEVICE FOUND", deviceOffline:"DEVICE NOT FOUND", offlineMsg:"Please check if the device has an internet connection.", error:"ERROR",
       mac:"MAC", serial:"SERIAL", project:"PROJECT", status:"STATUS", openBackend:"Connect",
@@ -889,6 +898,15 @@
       panelTitle:"חיפוש מכשיר", panelSubtitle:"בחר כתובת MAC ולחץ התחברות מרחוק",
       lookupBtn:"התחברות מרחוק", logoutBtn:"התנתק", rebootBtn:"אתחול מכשיר",
       supportBtn:"תמיכה", catalogBtn:"קטלוג מוצרים", residentsListBtn:"רשימת דיירים",
+      searchPh:"חפש מכשיר לפי שם או כתובת MAC...",
+      secPanel:"פעולות פנל", secResidents:"דיירים ופנים", secComm:"תקשורת עם המנהל", secInfo:"מידע ומשאבים",
+      emergencyBtn:"פתיחת דלת חירום", tempCodeBtn:"הנפקת קוד זמני", permCodeBtn:"החלפת קוד קבוע",
+      blockUserBtn:"חסום משתמש", historyBtn:"היסטוריה", faceBtn:"ניהול זיהוי פנים", residentUpdateBtn:"עדכון דייר",
+      messagesBtn:"הודעות", serviceBtn:"פניית שירות", tutorialsBtn:"סרטוני הדרכה", docsBtn:"הוראות התקנה",
+      sampleResidentsBtn:"רשימת דיירים לדוגמא", portfolioBtn:"תיק עבודות", portfolioSub:"תמונות מהתקנות שלי",
+      mailTitle:"רשימת תפוצה", mailSub:"עדכונים על מוצרים חדשים ומבצעים בלעדיים.", mailPh:"כתובת אימייל...", mailBtn:"הצטרפות",
+      shabbatOff:"מצב שבת", shabbatOn:"בטל מצב שבת",
+      shabbatAlertOn:"🕯️ מצב שבת הופעל — תאורת המילוי כבויה", shabbatAlertOff:"☀️ מצב שבת בוטל — תאורת המילוי חזרה ל-AUTO",
       tipLabel:"המלצה טכנית:", tipText:"מומלץ לבצע הגדרות פנל דרך מחשב לצורך נוחות מירבית ודיוק בפרמטרים המורחבים.",
       deviceFound:"מכשיר נמצא", deviceOffline:"מכשיר לא נמצא", offlineMsg:"יש לבדוק האם למכשיר יש חיבור אינטרנט.", error:"שגיאה",
       mac:"MAC", serial:"מספר סידורי", project:"פרויקט", status:"סטטוס", openBackend:"התחבר",
@@ -913,6 +931,11 @@
       const k = el.getAttribute('data-i18n');
       if (translations[lang][k]) el.textContent = translations[lang][k];
     });
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+      const k = el.getAttribute('data-i18n-ph');
+      if (translations[lang][k]) el.placeholder = translations[lang][k];
+    });
+    updateShabbatLabel();
     document.getElementById('langHe').classList.toggle('active', lang === 'he');
     document.getElementById('langEn').classList.toggle('active', lang === 'en');
     const heIcon = document.querySelector('#langHe .material-symbols-outlined');
@@ -2743,16 +2766,20 @@
   }
 
   // ==================== PERMANENT CODES ====================
+  let shabbatState = false;
+  function updateShabbatLabel() {
+    const label = document.getElementById('shabbatLabel');
+    const card = document.getElementById('shabbatCard');
+    if (!label) return;
+    const t = translations[currentLang] || {};
+    label.textContent = shabbatState ? (t.shabbatOn || 'בטל מצב שבת') : (t.shabbatOff || 'מצב שבת');
+    if (card) card.style.background = shabbatState ? '#1e293b' : '';
+  }
   async function loadShabbatStatus(panelAddress) {
     try {
       const r = await fetch('/api/installer/shabbat-mode?panelAddress=' + encodeURIComponent(panelAddress));
       const data = await r.json();
-      const label = document.getElementById('shabbatLabel');
-      const card = document.getElementById('shabbatCard');
-      if (data.success && label) {
-        if (data.shabbatOn) { label.textContent = 'בטל מצב שבת'; if (card) card.style.background = '#1e293b'; }
-        else { label.textContent = 'מצב שבת'; if (card) card.style.background = ''; }
-      }
+      if (data.success) { shabbatState = !!data.shabbatOn; updateShabbatLabel(); }
     } catch(e) {}
   }
 
@@ -2766,7 +2793,7 @@
     const prevLabel = label.textContent;
     card.style.pointerEvents = 'none';
     card.style.opacity = '0.6';
-    label.textContent = 'מעדכן...';
+    label.textContent = (currentLang === 'he' ? 'מעדכן...' : 'Updating...');
     try {
       const r = await fetch('/api/installer/shabbat-mode', {
         method: 'POST',
@@ -2774,15 +2801,14 @@
         body: JSON.stringify({ panelAddress: lastPanelAddress, installerPhone: installerData?.phoneNumber })
       });
       const data = await r.json();
+      const t = translations[currentLang] || {};
       if (data.success) {
         if (data.shabbatOn) {
-          label.textContent = 'בטל מצב שבת';
-          card.style.background = '#1e293b';
-          alert('🕯️ מצב שבת הופעל — תאורת המילוי כבויה');
+          shabbatState = true; updateShabbatLabel();
+          alert(t.shabbatAlertOn || '🕯️ מצב שבת הופעל — תאורת המילוי כבויה');
         } else {
-          label.textContent = 'מצב שבת';
-          card.style.background = '';
-          alert('☀️ מצב שבת בוטל — תאורת המילוי חזרה ל-AUTO');
+          shabbatState = false; updateShabbatLabel();
+          alert(t.shabbatAlertOff || '☀️ מצב שבת בוטל — תאורת המילוי חזרה ל-AUTO');
         }
       } else {
         label.textContent = prevLabel;
