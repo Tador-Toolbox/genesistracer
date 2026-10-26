@@ -1018,6 +1018,43 @@ app.post('/api/manager/resident-submissions/status', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// Manager: generate (or fetch) the committee code for a panel's resident list
+app.post('/api/manager/resident-submissions/link', async (req, res) => {
+  const { mac, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  const cleanMac = prCleanMac(mac);
+  if (!cleanMac) return res.status(400).json({ success: false, error: 'mac required' });
+  try {
+    const code = await db.setResidentListCode(cleanMac);
+    res.json({ success: true, code });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Committee (public, code-protected): load the resident list by code
+app.get('/api/residents/by-code', async (req, res) => {
+  try {
+    const doc = await db.getPanelResidentsByCode(req.query.code);
+    if (!doc) return res.status(404).json({ success: false, error: 'קוד שגוי' });
+    res.json({ success: true, residents: doc.residents || [], status: doc.status || 'draft' });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Committee (public, code-protected): save/submit the resident list by code
+app.post('/api/residents/by-code/save', async (req, res) => {
+  try {
+    const doc = await db.getPanelResidentsByCode(req.body.code);
+    if (!doc) return res.status(404).json({ success: false, error: 'קוד שגוי' });
+    const residents = prSanitizeResidents(req.body.residents);
+    const status = req.body.submit ? 'pending' : 'draft';
+    const saved = await db.savePanelResidents(doc.mac, undefined, residents, status);
+    try { await logActivity({ phoneNumber: 'committee', action: req.body.submit ? 'residents_submit_committee' : 'residents_save_committee', mac: doc.mac, details: { count: residents.length }, success: true }); } catch (e) {}
+    res.json({ success: true, residents: saved.residents, status: saved.status });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // Keep-alive ping endpoint
 app.get('/api/ping', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 

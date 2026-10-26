@@ -879,6 +879,31 @@ async function setPanelResidentsStatus(mac, status, by) {
   await db.collection('panel_residents').updateOne({ mac }, { $set: set });
   return db.collection('panel_residents').findOne({ mac });
 }
+// Committee self-service: a code the building committee uses to open the list page.
+function genResidentCode() {
+  const alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I ambiguity
+  let c = ''; for (let i = 0; i < 6; i++) c += alpha[Math.floor(Math.random() * alpha.length)];
+  return c;
+}
+async function setResidentListCode(mac) {
+  await connectDB();
+  const existing = await db.collection('panel_residents').findOne({ mac });
+  if (existing && existing.committeeCode) return existing.committeeCode;   // reuse if already issued
+  let code;
+  for (let i = 0; i < 8; i++) { code = genResidentCode(); if (!(await db.collection('panel_residents').findOne({ committeeCode: code }))) break; }
+  const now = new Date();
+  await db.collection('panel_residents').updateOne(
+    { mac },
+    { $set: { committeeCode: code, updatedAt: now }, $setOnInsert: { residents: [], status: 'draft', apartmentsCount: 0, createdAt: now } },
+    { upsert: true }
+  );
+  return code;
+}
+async function getPanelResidentsByCode(code) {
+  await connectDB();
+  if (!code) return null;
+  return db.collection('panel_residents').findOne({ committeeCode: String(code).trim().toUpperCase() });
+}
 
 module.exports = {
   connectDB,
@@ -886,6 +911,8 @@ module.exports = {
   savePanelResidents,
   listPanelResidentSubmissions,
   setPanelResidentsStatus,
+  setResidentListCode,
+  getPanelResidentsByCode,
   createInstaller,
   assignMacToInstaller,
   removeMacFromInstaller,

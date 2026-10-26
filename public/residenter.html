@@ -66,6 +66,15 @@
     <img src="/tador-logo-white.png" alt="Tador">
   </header>
 
+  <div id="gate" style="display:none;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px;text-align:center;max-width:360px;margin:24px auto;">
+    <h2 style="margin:0 0 6px;font-size:1.15rem;">כניסת ועד בית</h2>
+    <p style="margin:0 0 16px;color:var(--muted);font-size:.88rem;">הזן את הקוד שקיבלת מהמנהל כדי לרשום את דיירי הבניין.</p>
+    <input id="gateCode" placeholder="קוד" autocapitalize="characters" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit;text-align:center;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;">
+    <button class="b b-send" onclick="submitGate()" style="width:100%;">כניסה</button>
+    <div id="gateMsg" class="msg err" style="margin-top:8px;"></div>
+  </div>
+
+  <div id="main">
   <div class="bar">
     <div class="meta">פנל: <b id="macLbl">—</b> <span id="addrLbl"></span></div>
     <div><span id="statusLbl" class="status st-draft">טיוטה</span></div>
@@ -95,11 +104,12 @@
 
   <div class="actions">
     <button class="b b-add" onclick="addRow()">➕ הוסף דייר</button>
-    <button class="b b-check" onclick="pullPanel()">⬇ משוך רשימה מהפנל</button>
+    <button class="b b-check" id="pullBtn" onclick="pullPanel()">⬇ משוך רשימה מהפנל</button>
     <button class="b b-save" id="saveBtn" onclick="save(false)">💾 שמור טיוטה</button>
     <button class="b b-send" id="sendBtn" onclick="save(true)">📤 שלח לאישור</button>
   </div>
   <div class="msg" id="msg"></div>
+  </div>
 </div>
 
 <script>
@@ -110,9 +120,27 @@
   const MAC   = (qs.get('mac')   || ctx.mac   || '').replace(/[:\s-]/g,'').toUpperCase();
   const PHONE = (qs.get('phone') || ctx.phone || '').trim();
   const ADDR  = (qs.get('addr')  || ctx.addr  || '').trim();
+  let CODE = (qs.get('code') || '').trim().toUpperCase();              // committee link code
+  let MODE = (MAC && PHONE) ? 'installer' : (CODE ? 'committee' : 'gate');
 
-  document.getElementById('macLbl').textContent = MAC || '—';
-  if (ADDR) document.getElementById('addrLbl').textContent = '· ' + ADDR;
+  if (MODE === 'installer') {
+    document.getElementById('macLbl').textContent = MAC || '—';
+    if (ADDR) document.getElementById('addrLbl').textContent = '· ' + ADDR;
+  } else {
+    const meta = document.querySelector('.bar .meta'); if (meta) meta.textContent = 'רישום דיירי הבניין';
+  }
+
+  function showMain(){ document.getElementById('main').style.display=''; document.getElementById('gate').style.display='none'; }
+  function showGate(err){ document.getElementById('main').style.display='none'; document.getElementById('gate').style.display='block'; if (err) document.getElementById('gateMsg').textContent = err; }
+  function adaptCommitteeUI(){ const pb=document.getElementById('pullBtn'); if (pb) pb.style.display='none'; }
+  async function submitGate(){
+    const c = document.getElementById('gateCode').value.trim().toUpperCase();
+    if (!c){ document.getElementById('gateMsg').textContent='הזן קוד'; return; }
+    CODE = c; document.getElementById('gateMsg').textContent='בודק…';
+    const ok = await loadByCode();
+    if (ok){ MODE='committee'; showMain(); adaptCommitteeUI(); }
+    else { document.getElementById('gateMsg').textContent='קוד שגוי'; }
+  }
 
   const STATUS = { draft:['טיוטה','st-draft'], pending:['ממתין לאישור','st-pending'],
                    approved:['אושר','st-approved'], rejected:['נדחה','st-rejected'] };
@@ -172,7 +200,8 @@
   function msg(t, ok){ const m=document.getElementById('msg'); m.textContent=t; m.className='msg '+(ok?'ok':'err'); }
 
   async function save(submit){
-    if (!MAC || !PHONE){ msg('חסר מידע על הפנל (MAC/טלפון) — פתח מחדש מהפורטל.', false); return; }
+    if (MODE==='installer' && (!MAC || !PHONE)){ msg('חסר מידע על הפנל — פתח מחדש מהפורטל.', false); return; }
+    if (MODE==='committee' && !CODE){ msg('חסר קוד', false); return; }
     const residents = collect();
     if (submit && !residents.length){ msg('אין דיירים לשליחה.', false); return; }
     const aptCount = new Set(residents.map(r=>String(r.apartment||'').trim()).filter(Boolean)).size;
@@ -180,9 +209,11 @@
     const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);
     msg(submit ? 'שולח…' : 'שומר…', true);
     try{
-      const res = await fetch('/api/installer/residents/save', {
+      const endpoint = (MODE==='committee') ? '/api/residents/by-code/save' : '/api/installer/residents/save';
+      const payload  = (MODE==='committee') ? { code:CODE, residents, submit } : { phoneNumber:PHONE, mac:MAC, residents, submit };
+      const res = await fetch(endpoint, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ phoneNumber:PHONE, mac:MAC, residents, submit })
+        body: JSON.stringify(payload)
       });
       const d = await res.json();
       if (!d.success){ msg(d.error || 'שגיאה בשמירה', false); }
@@ -201,7 +232,17 @@
     renumber();
   }
 
+  async function loadByCode(){
+    try{
+      const d = await fetch('/api/residents/by-code?code='+encodeURIComponent(CODE)).then(r=>r.json());
+      if (d.success){ render(d.residents); setStatus(d.status); return true; }
+      return false;
+    }catch(e){ return false; }
+  }
   async function load(){
+    if (MODE==='gate'){ showGate(); return; }
+    if (MODE==='committee'){ const ok=await loadByCode(); if (ok){ showMain(); adaptCommitteeUI(); } else { showGate('קוד שגוי'); } return; }
+    showMain();
     if (!MAC){ render([]); return; }
     try{
       const d = await fetch('/api/installer/residents?mac='+encodeURIComponent(MAC)).then(r=>r.json());

@@ -1013,7 +1013,10 @@
       <div class="card" data-screen="residents">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
           <h2 style="margin:0;">🧍 רשימות דיירים</h2>
-          <button onclick="v2LoadResidents()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">רענן</button>
+          <div style="display:flex;gap:8px;">
+            <button onclick="v2ResidentLinkByMac()" style="padding:6px 12px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">🔗 קישור לוועד (MAC)</button>
+            <button onclick="v2LoadResidents()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">רענן</button>
+          </div>
         </div>
         <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">רשימות דיירים שהמתקינים הזינו לפנלים. אישור רשימה יסמן אותה כמאושרת ויזכיר לפתוח רישיונות VoIPBell לפי מספר הדיירים. (ההעלאה בפועל לפנל תתווסף בשלב הבא.)</p>
         <div style="overflow-x:auto;">
@@ -3904,6 +3907,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
             <td style="padding:8px;text-align:center;"><span style="color:${st[1]};font-weight:700;">${st[0]}</span></td>
             <td style="padding:8px;text-align:center;white-space:nowrap;">
               <button onclick="v2ViewResidents('${mac}')" style="padding:4px 10px;margin:2px;background:#eef1f4;color:#111;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">👁 צפה</button>
+              <button onclick="v2ResidentLink('${mac}')" style="padding:4px 10px;margin:2px;background:#0ea5e9;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">🔗 קישור לוועד</button>
               <button onclick="v2ResidentStatus('${mac}','approved')" style="padding:4px 10px;margin:2px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">✓ אשר</button>
               <button onclick="v2ResidentStatus('${mac}','rejected')" style="padding:4px 10px;margin:2px;background:#ef4444;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">✕ דחה</button>
             </td></tr>`;
@@ -3931,6 +3935,23 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h3 style="margin:0;">דיירים — ${v2SecEsc(mac)}</h3><button onclick="document.getElementById('resViewOverlay').style.display='none'" style="border:none;background:#eee;border-radius:6px;padding:4px 10px;cursor:pointer;">✕</button></div>
         <table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#f6f7f9;"><th style="padding:6px 8px;">SIP</th><th style="padding:6px 8px;text-align:right;">שם</th><th style="padding:6px 8px;">דירה</th><th style="padding:6px 8px;text-align:right;">טלפון</th></tr></thead><tbody>${rows || '<tr><td colspan="4" style="padding:12px;text-align:center;color:#888;">ריק</td></tr>'}</tbody></table>`;
       ov.style.display = 'flex';
+    }
+    function v2ResidentLinkByMac() {
+      const mac = window.prompt('הזן כתובת MAC של הפנל ליצירת קישור לוועד:');
+      if (mac && mac.trim()) v2ResidentLink(mac.trim());
+    }
+    async function v2ResidentLink(mac) {
+      if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+      try {
+        const d = await fetch('/api/manager/resident-submissions/link', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mac, username: window.__mgr.username, password: window.__mgr.password })
+        }).then(r => r.json());
+        if (d.success) {
+          const link = location.origin + '/residenter.html#code=' + d.code;
+          window.prompt('קישור לוועד הבית (העתק ושלח בוואטסאפ):\nהקוד: ' + d.code, link);
+        } else alert('❌ ' + (d.error || 'שגיאה'));
+      } catch (e) { alert('❌ שגיאת תקשורת'); }
     }
     function v2Busy(show, text) {
       let o = document.getElementById('v2Busy');
