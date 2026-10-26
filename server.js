@@ -840,7 +840,7 @@ app.get('/api/installer/residents', async (req, res) => {
     const cleanMac = prCleanMac(req.query.mac);
     if (!cleanMac) return res.status(400).json({ success: false, error: 'mac required' });
     const doc = await db.getPanelResidents(cleanMac);
-    res.json({ success: true, residents: doc ? doc.residents : [], status: doc ? (doc.status || 'draft') : 'draft' });
+    res.json({ success: true, residents: doc ? doc.residents : [], status: doc ? (doc.status || 'draft') : 'draft', groupNameBy: doc ? (doc.groupNameBy || 'apartment') : 'apartment' });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
@@ -853,7 +853,7 @@ app.post('/api/installer/residents/save', async (req, res) => {
     if (!(await prInstallerOwnsMac(phoneNumber, cleanMac))) return res.status(403).json({ success: false, error: 'not your panel' });
     const residents = prSanitizeResidents(req.body.residents);
     const status = req.body.submit ? 'pending' : 'draft';
-    const doc = await db.savePanelResidents(cleanMac, phoneNumber, residents, status);
+    const doc = await db.savePanelResidents(cleanMac, phoneNumber, residents, status, { groupNameBy: req.body.groupNameBy });
     if (req.body.submit) { try { await db.addResidentHistory(cleanMac, { event: 'submit', by: phoneNumber, count: residents.length }); } catch (e) {} }
     try { await logActivity({ phoneNumber, action: req.body.submit ? 'residents_submit' : 'residents_save', mac: cleanMac, details: { count: residents.length }, success: true }); } catch (e) {}
     res.json({ success: true, residents: doc.residents, status: doc.status });
@@ -952,7 +952,7 @@ function panelPatchGroupcallCurl(host, port, id, name) {
 
 // Push an approved resident list to the panel's Contacts.
 // Dedupes by sip_number (so re-running won't duplicate), then names apartment groups.
-async function pushResidentsToPanel(cleanMac, residents) {
+async function pushResidentsToPanel(cleanMac, residents, groupNameBy) {
   const rep = { created: 0, skipped: 0, failed: 0, groupsNamed: 0, error: null };
   const panelAddress = await resolvePanelAddress(cleanMac);
   if (!panelAddress) { rep.error = 'הפנל אינו מחובר או לא נמצא'; return rep; }
@@ -989,7 +989,14 @@ async function pushResidentsToPanel(cleanMac, residents) {
         const gcs = (g && g.data && g.data.list) || [];
         for (const cn of multi) {
           const gc = gcs.find(x => String(x.call_number) === cn);
-          if (gc && gc.id) { const pr = await panelPatchGroupcallCurl(host, port, gc.id, 'דירה ' + cn); if (pr.ok) rep.groupsNamed++; }
+          if (!gc || !gc.id) continue;
+          let gname = 'דירה ' + cn;                 // default: name by apartment
+          if (groupNameBy === 'family') {
+            const surnames = [...new Set((byApt[cn] || []).map(r => String((r && r.lastName) || '').trim()).filter(Boolean))];
+            if (surnames.length === 1) gname = surnames[0];   // one shared surname -> use it; else keep "דירה NN"
+          }
+          const pr = await panelPatchGroupcallCurl(host, port, gc.id, gname);
+          if (pr.ok) rep.groupsNamed++;
         }
       }
     }
@@ -1011,7 +1018,7 @@ app.post('/api/manager/resident-submissions/status', async (req, res) => {
     const doc = await db.setPanelResidentsStatus(prCleanMac(mac), status, username);
     let push = null;
     if (status === 'approved') {
-      try { push = await pushResidentsToPanel(prCleanMac(mac), (doc && doc.residents) || []); }
+      try { push = await pushResidentsToPanel(prCleanMac(mac), (doc && doc.residents) || [], doc && doc.groupNameBy); }
       catch (e) { push = { error: e.message }; }
       try {
         await db.addResidentHistory(prCleanMac(mac), {
@@ -1045,7 +1052,7 @@ app.get('/api/residents/by-code', async (req, res) => {
   try {
     const doc = await db.getPanelResidentsByCode(req.query.code);
     if (!doc) return res.status(404).json({ success: false, error: 'קוד שגוי' });
-    res.json({ success: true, residents: doc.residents || [], status: doc.status || 'draft' });
+    res.json({ success: true, residents: doc.residents || [], status: doc.status || 'draft', groupNameBy: doc.groupNameBy || 'apartment' });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
@@ -1056,7 +1063,7 @@ app.post('/api/residents/by-code/save', async (req, res) => {
     if (!doc) return res.status(404).json({ success: false, error: 'קוד שגוי' });
     const residents = prSanitizeResidents(req.body.residents);
     const status = req.body.submit ? 'pending' : 'draft';
-    const saved = await db.savePanelResidents(doc.mac, undefined, residents, status);
+    const saved = await db.savePanelResidents(doc.mac, undefined, residents, status, { groupNameBy: req.body.groupNameBy });
     if (req.body.submit) { try { await db.addResidentHistory(doc.mac, { event: 'submit', by: 'committee', count: residents.length }); } catch (e) {} }
     try { await logActivity({ phoneNumber: 'committee', action: req.body.submit ? 'residents_submit_committee' : 'residents_save_committee', mac: doc.mac, details: { count: residents.length }, success: true }); } catch (e) {}
     res.json({ success: true, residents: saved.residents, status: saved.status });

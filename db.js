@@ -852,12 +852,14 @@ async function getPanelResidents(mac) {
   await connectDB();
   return db.collection('panel_residents').findOne({ mac });
 }
-async function savePanelResidents(mac, phoneNumber, residents, status) {
+async function savePanelResidents(mac, phoneNumber, residents, status, extra) {
   await connectDB();
   const now = new Date();
   const set = { mac, residents: Array.isArray(residents) ? residents : [], updatedAt: now };
   // Licenses are counted per apartment (one VoIPBell license per distinct apartment).
   set.apartmentsCount = new Set((set.residents || []).map(r => String((r && r.apartment) || '').trim()).filter(Boolean)).size;
+  // How apartment groups are named on the panel: 'apartment' (דירה NN) or 'family' (surname).
+  if (extra && ['apartment', 'family'].includes(extra.groupNameBy)) set.groupNameBy = extra.groupNameBy;
   if (phoneNumber) set.phoneNumber = phoneNumber;
   if (status) set.status = status;
   if (status === 'pending') set.submittedAt = now;
