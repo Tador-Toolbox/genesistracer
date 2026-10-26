@@ -1016,6 +1016,7 @@
     const data = await res.json();
     if (data.success) {
       installerData = data.data;
+      if (installerData.defaultLang) setLanguage(installerData.defaultLang);
       selectedMac = installerData.macAddresses.length > 0 ? installerData.macAddresses[0].mac : null;
       document.getElementById('loginScreen').style.display  = 'none';
       document.getElementById('installerPanel').style.display = 'block';
@@ -1060,6 +1061,7 @@
     if (stored) {
       try {
         installerData = JSON.parse(stored);
+        if (installerData.defaultLang) setLanguage(installerData.defaultLang);
         selectedMac = installerData.macAddresses.length > 0 ? installerData.macAddresses[0].mac : null;
         document.getElementById('loginScreen').style.display  = 'none';
         document.getElementById('installerPanel').style.display = 'block';

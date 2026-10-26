@@ -273,6 +273,18 @@ async function updateMacField(phoneNumber, macAddress, field, value) {
 }
 
 
+// Per-installer default UI language ('he' | 'en') for the installer portal.
+async function setInstallerDefaultLang(phoneNumber, lang) {
+  await connectDB();
+  const value = (lang === 'en') ? 'en' : 'he';
+  const r = await db.collection('installers').updateOne(
+    { phoneNumber },
+    { $set: { defaultLang: value } }
+  );
+  if (!r.matchedCount) throw new Error('Installer not found');
+  return value;
+}
+
 async function removeMacFromInstaller(phoneNumber, macAddress) {
   await connectDB();
   const current = await db.collection("installers").findOne({ phoneNumber });
@@ -308,6 +320,7 @@ async function loginInstaller(phoneNumber, password, isManagerAccess = false) {
     data: {
       phoneNumber: installer.phoneNumber,
       macAddresses: installer.macAddresses || [],
+      defaultLang: (installer.defaultLang === 'en' ? 'en' : 'he'),
     },
   };
 }
@@ -929,6 +942,7 @@ module.exports = {
   snapshotMacs,
   getMacHistory,
   loginInstaller,
+  setInstallerDefaultLang,
   loginManager,
   getInstallers,
   getInstallerDetails,

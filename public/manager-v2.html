@@ -1414,6 +1414,23 @@
       loadData();
     }
 
+    // Set an installer account's default portal language ('he' | 'en').
+    async function setInstallerLang(phoneNumber, lang, btn) {
+      if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+      try {
+        const d = await fetch('/api/manager/installer-lang', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber, lang, username: window.__mgr.username, password: window.__mgr.password })
+        }).then(r => r.json());
+        if (!d.success) { alert('❌ ' + (d.error || 'שגיאה')); return; }
+        btn.parentElement.querySelectorAll('button[data-lang]').forEach(b => {
+          const on = (b.dataset.lang === d.defaultLang);
+          b.style.background = on ? '#e8001c' : '#eceff3';
+          b.style.color = on ? '#fff' : '#64717e';
+        });
+      } catch (e) { alert('❌ שגיאת תקשורת'); }
+    }
+
     async function resetPassword(phoneNumber) {
       if (!confirm(`Reset password for ${phoneNumber}?`)) return;
       const res = await fetch(`/api/manager/installers/${phoneNumber}/reset-password`, { method: 'POST' });
@@ -2580,6 +2597,8 @@
           macSearchText
         ).toLowerCase();
 
+        const dlang = (details.installer.defaultLang === 'en' ? 'en' : 'he');
+
         row.innerHTML = `
           <td>
             <div style="display:flex;align-items:center;gap:6px;">
@@ -2600,6 +2619,13 @@
                   color:${(installer.accountType||'installer')==='committee'?'#4338ca':'#16a34a'};">
                 ${(installer.accountType||'installer')==='committee'?'ועד':'מתקין'}
               </button>
+            </div>
+            <div style="margin-top:5px;display:flex;align-items:center;gap:4px;">
+              <span style="font-size:10px;color:var(--text-dim,#888);">${currentLang==='he'?'שפת ברירת מחדל:':'Default lang:'}</span>
+              <button onclick="setInstallerLang('${installer.phoneNumber}','he',this)" data-lang="he"
+                style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:14px;border:none;cursor:pointer;background:${dlang==='he'?'#e8001c':'#eceff3'};color:${dlang==='he'?'#fff':'#64717e'};">עב</button>
+              <button onclick="setInstallerLang('${installer.phoneNumber}','en',this)" data-lang="en"
+                style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:14px;border:none;cursor:pointer;background:${dlang==='en'?'#e8001c':'#eceff3'};color:${dlang==='en'?'#fff':'#64717e'};">EN</button>
             </div>
           </td>
           <td>
