@@ -56,6 +56,10 @@
   .grpopt{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:12px 2px 2px;font-size:.86rem}
   .grpopt > span{font-weight:700;color:var(--muted)}
   .grpopt label{display:inline-flex;gap:5px;align-items:center;cursor:pointer}
+  .connbox{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:#fff9e6;border:1px solid #f0e2b0;border-radius:10px;padding:10px 14px;margin-bottom:12px}
+  .connnote{font-size:.85rem;color:#8a6d00;flex:1;min-width:200px;line-height:1.4}
+  .connres{font-weight:700;font-size:.88rem}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .connbox{background:#2a2410;border-color:#4a3f1a} :root:not([data-theme="light"]) .connnote{color:#d8c178}}
   @media (max-width:520px){ header .t{font-size:1.05rem} }
 </style>
 </head>
@@ -81,6 +85,12 @@
   <div class="bar">
     <div class="meta">פנל: <b id="macLbl">—</b> <span id="addrLbl"></span></div>
     <div><span id="statusLbl" class="status st-draft">טיוטה</span></div>
+  </div>
+
+  <div class="connbox">
+    <div class="connnote">⚠️ כדי שהמידע יתעדכן למערכת, יש לוודא שהפנל מחובר לאינטרנט ורשום לשרת.</div>
+    <button class="b b-check" onclick="checkConnection()">🔌 בדיקת חיבור</button>
+    <span id="connResult" class="connres"></span>
   </div>
 
   <div class="tablewrap">
@@ -283,6 +293,20 @@
       msg('✓ נמשכו '+list.length+' מהפנל — השלם טלפונים ושמור', true);
     }catch(e){ msg('שגיאת רשת: '+e.message, false); }
     finally{ btns.forEach(b=>b.disabled=false); }
+  }
+
+  // Check whether the panel is online + registered to the server (remote access).
+  async function checkConnection(){
+    const el=document.getElementById('connResult');
+    el.textContent='בודק…'; el.style.color='var(--muted)';
+    try{
+      const url = (MODE==='committee')
+        ? '/api/residents/by-code/panel-check?code='+encodeURIComponent(CODE)
+        : '/api/installer/panel-check?mac='+encodeURIComponent(MAC);
+      const d = await fetch(url).then(r=>r.json());
+      if (d.success && d.online){ el.textContent='✓ הפנל מחובר'; el.style.color='#2e9e3f'; }
+      else { el.textContent='✗ הפנל לא מחובר לאינטרנט או רשום לשרת'; el.style.color='var(--red)'; }
+    }catch(e){ el.textContent='✗ שגיאה בבדיקה'; el.style.color='var(--red)'; }
   }
 
   document.getElementById('rows').addEventListener('input', updateCounts);

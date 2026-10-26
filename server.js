@@ -1070,6 +1070,32 @@ app.post('/api/residents/by-code/save', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// Check whether a panel is reachable (online + registered to the server) via the NexHome tunnel.
+async function checkPanelOnline(cleanMac) {
+  try {
+    const addr = await resolvePanelAddress(cleanMac);
+    if (!addr) return false;
+    const [host, portStr] = addr.split(':');
+    const port = parseInt(portStr) || 80;
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    return !!(loginRes && loginRes.data && loginRes.data.token);
+  } catch (e) { return false; }
+}
+app.get('/api/installer/panel-check', async (req, res) => {
+  try {
+    const cleanMac = prCleanMac(req.query.mac);
+    if (!cleanMac) return res.status(400).json({ success: false, error: 'mac required' });
+    res.json({ success: true, online: await checkPanelOnline(cleanMac) });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.get('/api/residents/by-code/panel-check', async (req, res) => {
+  try {
+    const doc = await db.getPanelResidentsByCode(req.query.code);
+    if (!doc) return res.status(404).json({ success: false, error: 'קוד שגוי' });
+    res.json({ success: true, online: await checkPanelOnline(doc.mac) });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // Keep-alive ping endpoint
 app.get('/api/ping', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
