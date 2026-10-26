@@ -993,7 +993,7 @@ async function pushResidentsToPanel(cleanMac, residents, groupNameBy) {
           let gname = 'דירה ' + cn;                 // default: name by apartment
           if (groupNameBy === 'family') {
             const surnames = [...new Set((byApt[cn] || []).map(r => String((r && r.lastName) || '').trim()).filter(Boolean))];
-            if (surnames.length === 1) gname = surnames[0];   // one shared surname -> use it; else keep "דירה NN"
+            if (surnames.length === 1) gname = 'משפחת ' + surnames[0];   // one shared surname -> "משפחת <שם>"; else keep "דירה NN"
           }
           const pr = await panelPatchGroupcallCurl(host, port, gc.id, gname);
           if (pr.ok) rep.groupsNamed++;
