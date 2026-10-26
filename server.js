@@ -4838,6 +4838,23 @@ app.post('/api/buildings/:code/rename-panel', async (req, res) => {
 });
 
 
+// Manager: edit a building's address (e.g. fix a typo)
+app.post('/api/buildings/:code/address', async (req, res) => {
+  try {
+    const { address, username, password } = req.body;
+    if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASS) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!address || !address.trim()) return res.json({ success: false, error: 'address required' });
+    const database = await require('./db').connectDB();
+    const r = await database.collection('buildings').updateOne(
+      { buildingCode: req.params.code }, { $set: { address: address.trim() } }
+    );
+    if (!r.matchedCount) return res.json({ success: false, error: 'Building not found' });
+    res.json({ success: true, address: address.trim() });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 // Committee: delete multiple faces from panel in ONE connection (resolve + login once)
 app.post('/api/committee/delete-panel-ids', async (req, res) => {
   try {

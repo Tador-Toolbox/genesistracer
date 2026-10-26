@@ -418,6 +418,7 @@
         <td>
           <button class="btn btn-black btn-sm" onclick="openDrawer('${b.buildingCode}','${b.address}')" style="margin-left:6px;">👥 דיירים</button>
           <button class="btn btn-sm" onclick="showQr('${b.buildingCode}','${b.address}')" style="background:#7c3aed;margin-left:6px;">📱 QR</button>
+          <button class="btn btn-sm" onclick="editBuildingAddress('${b.buildingCode}','${b.address}')" title="ערוך כתובת" style="background:#0ea5e9;margin-left:6px;">✏️ כתובת</button>
           <button class="btn btn-sm" onclick="cycleRegMode('${b.buildingCode}', '${b.registrationMode || (b.openRegistration ? 'committee' : 'whitelist')}')" title="מצב רישום דיירים" style="margin-left:6px;background:${regModeColor(b.registrationMode || (b.openRegistration ? 'committee' : 'whitelist'))};">
             ${regModeLabel(b.registrationMode || (b.openRegistration ? 'committee' : 'whitelist'))}
           </button>
@@ -436,6 +437,20 @@
     loadBuildings();
   }
 
+  async function editBuildingAddress(code, current) {
+    const address = prompt('כתובת הבניין:', current || '');
+    if (address === null) return;
+    if (!address.trim()) { alert('כתובת ריקה'); return; }
+    try {
+      const res = await fetch('/api/buildings/' + code + '/address', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: address.trim(), username: authUser, password: authPass })
+      });
+      const data = await res.json();
+      if (data.success) loadBuildings();
+      else alert('שגיאה: ' + (data.error || 'לא הצליח'));
+    } catch (e) { alert('שגיאת תקשורת'); }
+  }
   async function toggleHidePanelFaces(code, hide) {
     const msg = hide
       ? 'להסתיר את "פנים בפנל Genesis" מהוועד?\n\nהוועד לא יראה יותר את החלק הזה בפנל שלו.'
