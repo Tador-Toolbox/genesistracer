@@ -983,6 +983,12 @@ async function listResidentSwapsByBuilding(buildingCode, status) {
   if (status) q.status = status;
   return db.collection('resident_swaps').find(q).sort({ approvedAt: -1, createdAt: -1 }).limit(200).toArray();
 }
+async function listResidentSwapsByPhone(phoneNumber, status) {
+  await connectDB();
+  const q = { phoneNumber: String(phoneNumber || '').trim() };
+  if (status) q.status = status;
+  return db.collection('resident_swaps').find(q).sort({ approvedAt: -1, createdAt: -1 }).limit(100).toArray();
+}
 
 module.exports = {
   connectDB,
@@ -994,6 +1000,7 @@ module.exports = {
   getResidentSwap,
   setResidentSwapStatus,
   listResidentSwapsByBuilding,
+  listResidentSwapsByPhone,
   setPanelResidentsStatus,
   setResidentListCode,
   getPanelResidentsByCode,

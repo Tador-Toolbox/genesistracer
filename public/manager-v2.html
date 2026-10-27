@@ -528,7 +528,7 @@
       <button class="v2-nav" data-go="activity"><span class="ic">📜</span>יומן פעילות</button>
       <button class="v2-nav" data-go="security"><span class="ic">🔒</span>אבטחה</button>
       <button class="v2-nav" data-go="backups"><span class="ic">💾</span>גיבויים</button>
-      <button class="v2-nav" data-go="residents"><span class="ic">🧍</span>רשימות דיירים</button>
+      <button class="v2-nav" data-go="residents"><span class="ic">🧍</span>רשימות דיירים<span class="bdg" id="v2ResBadge"></span></button>
       <button class="v2-nav" data-go="extras"><span class="ic">📝</span>תכנותים נוספים</button>
       <div class="v2-side-foot">
         <a href="/manager.html">↩ לעיצוב הקודם</a>
@@ -3990,10 +3990,15 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
             : (s.status === 'approved'
               ? `<button onclick="window.open('/swap-form.html?id=${s._id}','_blank')" style="padding:4px 10px;margin:2px;background:#0ea5e9;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">📄 טופס</button>`
               : '—');
+          // Date + summary (how many entered / left)
+          let dt = ''; try { dt = new Date(s.approvedAt || s.createdAt).toLocaleDateString('he-IL'); } catch (e) {}
+          const nIn = asg ? asg.length : (s.entering || []).length;
+          const nOut = (s.leaving || []).length;
+          const summary = `📅 ${dt} · <span style="color:#16a34a;">נכנסו ${nIn}</span> · <span style="color:#ef4444;">עזבו ${nOut}</span>`;
           return `<tr>
             <td style="padding:8px;"><b>${v2SecEsc(s.panelLabel || s.mac)}</b><div style="font-size:11px;color:var(--text-dim);">${v2SecEsc(s.mac)}</div></td>
             <td style="padding:8px;text-align:center;font-weight:800;">${v2SecEsc(s.apartment)}</td>
-            <td style="padding:8px;"><span style="color:#ef4444;">${leaving}</span> &larr; <span style="color:#16a34a;font-weight:700;">${entering}</span></td>
+            <td style="padding:8px;"><span style="color:#ef4444;">${leaving}</span> &larr; <span style="color:#16a34a;font-weight:700;">${entering}</span><div style="font-size:11px;color:var(--text-dim);margin-top:4px;">${summary}</div></td>
             <td style="padding:8px;text-align:center;"><span style="color:${st[1]};font-weight:700;">${st[0]}</span></td>
             <td style="padding:8px;text-align:center;white-space:nowrap;">${actions}</td></tr>`;
         }).join('');
@@ -4421,6 +4426,22 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
       document.querySelectorAll('#installersBody .mac-detail').forEach(md => md.classList.toggle('v2-collapsed', collapsed));
     }
 
+    // Sidebar badge for רשימות דיירים: count of pending resident-list submissions + pending swaps.
+    async function v2RefreshResidentsBadge() {
+      const bdg = document.getElementById('v2ResBadge');
+      if (!bdg) return;
+      try {
+        const [subs, swaps] = await Promise.all([
+          fetch('/api/manager/resident-submissions').then(r => r.json()).catch(() => ({})),
+          fetch('/api/manager/resident-swaps?status=pending').then(r => r.json()).catch(() => ({}))
+        ]);
+        const pendSubs = (subs.submissions || []).filter(s => s.status === 'pending').length;
+        const pendSwaps = (swaps.swaps || []).length;
+        const n = pendSubs + pendSwaps;
+        bdg.textContent = n; bdg.style.display = n ? 'inline-block' : 'none';
+      } catch (e) {}
+    }
+
     // Home tiles + sidebar badge, refreshed periodically
     async function v2RefreshTiles() {
       if (document.getElementById('managerPanel').style.display !== 'block') return;
@@ -4431,6 +4452,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         const bdg = document.getElementById('v2MsgBadge');
         bdg.textContent = unread; bdg.style.display = unread ? 'inline-block' : 'none';
       } catch(e) {}
+      v2RefreshResidentsBadge();
       try {
         const macs = window._installerMacs || {};
         const phones = Object.keys(macs);

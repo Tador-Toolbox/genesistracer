@@ -752,6 +752,12 @@
 
         <!-- ═══ Group 3: Communication with manager ═══ -->
         <div class="action-section-header" data-i18n="secComm">תקשורת עם המנהל</div>
+
+        <!-- Approved resident-update (swap) notifications for this installer -->
+        <div id="swapMsgBox" style="grid-column:1/-1;display:none;background:#eef7ee;border:1.5px solid #bfe3c0;border-radius:12px;padding:12px 14px;">
+          <div id="swapMsgTitle" style="font-size:13px;font-weight:800;color:#15803d;margin-bottom:8px;">📢 עדכוני דייר אושרו</div>
+          <div id="swapMsgList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
         <!-- Announcements -->
         <button class="action-card" id="announcementsBtn" onclick="openAnnouncements()" style="position:relative;">
           <span class="material-symbols-outlined">campaign</span>
@@ -944,6 +950,7 @@
       if (translations[lang][k]) el.placeholder = translations[lang][k];
     });
     updateShabbatLabel();
+    if (typeof renderSwapMsgs === 'function') renderSwapMsgs();
     document.getElementById('langHe').classList.toggle('active', lang === 'he');
     document.getElementById('langEn').classList.toggle('active', lang === 'en');
     const heIcon = document.querySelector('#langHe .material-symbols-outlined');
@@ -1055,6 +1062,7 @@
       loadCatalog();
       loadResidentExampleInstaller();
       loadManagerNote(installerData.phoneNumber);
+      loadInstallerSwaps();
     } else {
       document.getElementById('loginError').textContent = data.error || 'כניסה נכשלה';
     }
@@ -1085,6 +1093,40 @@
     window.open('/resident-update-v2.html', '_blank');
   }
 
+  // Approved resident-update (swap) notifications from the manager, for this installer.
+  window._instSwaps = [];
+  async function loadInstallerSwaps() {
+    if (!installerData || !installerData.phoneNumber) return;
+    try {
+      const d = await fetch('/api/installer/swaps?phone=' + encodeURIComponent(installerData.phoneNumber)).then(r => r.json());
+      window._instSwaps = (d.success && d.swaps) ? d.swaps : [];
+    } catch (e) { window._instSwaps = []; }
+    renderSwapMsgs();
+  }
+  function renderSwapMsgs() {
+    const box = document.getElementById('swapMsgBox'), list = document.getElementById('swapMsgList'), title = document.getElementById('swapMsgTitle');
+    if (!box || !list) return;
+    const he = currentLang === 'he';
+    const swaps = window._instSwaps || [];
+    if (!swaps.length) { box.style.display = 'none'; return; }
+    if (title) title.textContent = he ? '📢 עדכוני דייר אושרו' : '📢 Resident updates approved';
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    list.innerHTML = swaps.map(s => {
+      let dt = ''; try { dt = new Date(s.approvedAt).toLocaleDateString(he ? 'he-IL' : 'en-GB'); } catch (e) {}
+      const names = (s.assignments || []).map(a => esc(a.name) + ' (' + esc(a.sip) + ')').join(', ');
+      const aptLbl = he ? 'דירה' : 'Apt', newLbl = he ? 'דיירים חדשים' : 'New residents';
+      const dlLbl = he ? '📄 הורד טופס' : '📄 Download form', okLbl = he ? '✓ עודכנו הדיירים' : '✓ Residents updated';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid #d6ead6;border-radius:9px;padding:9px 12px;">
+        <div style="font-size:13px;text-align:${he ? 'right' : 'left'};">
+          <b style="color:#15803d;">${okLbl}</b> · ${aptLbl} ${esc(s.apartment)}${dt ? (' · ' + dt) : ''}${s.panelLabel ? (' · ' + esc(s.panelLabel)) : ''}
+          <div style="font-size:12px;color:#555;margin-top:2px;">${newLbl}: ${names || '—'}</div>
+        </div>
+        <button onclick="window.open('/swap-form.html?id=${s._id}','_blank')" style="background:#0ea5e9;color:#fff;border:none;border-radius:7px;padding:7px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">${dlLbl}</button>
+      </div>`;
+    }).join('');
+    box.style.display = 'block';
+  }
+
   function logout() {
     installerData = null; selectedMac = null; lastPanelAddress = null;
     document.getElementById('loginScreen').style.display  = 'flex';
@@ -1112,6 +1154,7 @@
         renderMacList();
         loadCatalog();
         loadManagerNote(installerData.phoneNumber);
+      loadInstallerSwaps();
         sessionStorage.removeItem('installerData');
       } catch(e) {}
     }

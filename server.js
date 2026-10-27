@@ -1211,6 +1211,21 @@ app.post('/api/manager/resident-swaps/status', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// Installer portal: approved resident-update (swap) notifications this installer submitted.
+app.get('/api/installer/swaps', async (req, res) => {
+  try {
+    const phone = String(req.query.phone || '').trim();
+    if (!phone) return res.status(400).json({ success: false, error: 'phone required' });
+    const swaps = await db.listResidentSwapsByPhone(phone, 'approved');
+    res.json({
+      success: true, swaps: (swaps || []).map(s => ({
+        _id: String(s._id), apartment: s.apartment, panelLabel: s.panelLabel || '', mac: s.mac,
+        approvedAt: s.approvedAt, assignments: (s.applyReport && s.applyReport.assignments) || []
+      }))
+    });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // Committee portal: approved resident-update (swap) notifications for this building.
 app.get('/api/committee/swaps', async (req, res) => {
   try {
