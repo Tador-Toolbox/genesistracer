@@ -1150,7 +1150,8 @@ app.post('/api/installer/resident-swap/save', async (req, res) => {
     }));
     const entering = (Array.isArray(req.body.entering) ? req.body.entering : []).map(e => ({
       firstName: String((e && e.firstName) || '').trim().slice(0, 60),
-      lastName: String((e && e.lastName) || '').trim().slice(0, 60)
+      lastName: String((e && e.lastName) || '').trim().slice(0, 60),
+      sip: String((e && e.sip) != null ? e.sip : '').trim().slice(0, 10)   // preview SIP computed at submit
     })).filter(e => e.firstName || e.lastName);
     if (!entering.length) return res.status(400).json({ success: false, error: 'אין דיירים נכנסים' });
     if (entering.length > 5) return res.status(400).json({ success: false, error: 'מקסימום 5 דיירים לדירה' });
@@ -1181,6 +1182,13 @@ app.post('/api/manager/resident-swaps/status', async (req, res) => {
   try {
     const swap = await db.getResidentSwap(id);
     if (!swap) return res.status(404).json({ success: false, error: 'swap not found' });
+    // Resolve the building (committee) this panel belongs to, so the committee portal can show it.
+    let buildingCode = '';
+    try {
+      const col = (await require('./db').connectDB()).collection('buildings');
+      const b = await findBuildingByMac(col, swap.mac);
+      if (b && b.buildingCode) buildingCode = b.buildingCode;
+    } catch (e) {}
     let report = null;
     if (status === 'approved') {
       try { report = await applySwapToPanel(swap.mac, swap); }
@@ -1197,9 +1205,49 @@ app.post('/api/manager/resident-swaps/status', async (req, res) => {
         });
       } catch (e) {}
     }
-    const updated = await db.setResidentSwapStatus(id, status, username, report);
+    const updated = await db.setResidentSwapStatus(id, status, username, report, buildingCode ? { buildingCode } : null);
     try { await logActivity({ phoneNumber: username, action: 'resident_swap_' + status, mac: swap.mac, details: { apartment: swap.apartment, report }, success: true }); } catch (e) {}
     res.json({ success: true, status: updated ? updated.status : status, report });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Committee portal: approved resident-update (swap) notifications for this building.
+app.get('/api/committee/swaps', async (req, res) => {
+  try {
+    const code = String(req.query.code || '').trim().toUpperCase();
+    const password = String(req.query.password || '');
+    if (!code) return res.status(400).json({ success: false, error: 'code required' });
+    const database = await require('./db').connectDB();
+    const b = await database.collection('buildings').findOne({ buildingCode: code, password });
+    if (!b) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    const swaps = await db.listResidentSwapsByBuilding(code, 'approved');
+    res.json({
+      success: true, swaps: (swaps || []).map(s => ({
+        _id: String(s._id), apartment: s.apartment, panelLabel: s.panelLabel || '', mac: s.mac,
+        approvedAt: s.approvedAt,
+        assignments: (s.applyReport && s.applyReport.assignments) || []
+      }))
+    });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Public (swap id is the token): data for the "new residents" printable form of one swap.
+app.get('/api/swap-form', async (req, res) => {
+  try {
+    const swap = await db.getResidentSwap(req.query.id);
+    if (!swap) return res.status(404).json({ success: false, error: 'not found' });
+    // Prefer the real assigned numbers from the apply report; fall back to the submitted preview.
+    let residents = (swap.applyReport && swap.applyReport.assignments) || null;
+    if (!residents) {
+      residents = (swap.entering || []).map(e => ({
+        name: ((e.firstName || '') + ' ' + (e.lastName || '')).trim(),
+        apartment: swap.apartment, sip: e.sip || ''
+      }));
+    }
+    res.json({
+      success: true, apartment: swap.apartment, panelLabel: swap.panelLabel || '',
+      status: swap.status, residents
+    });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 

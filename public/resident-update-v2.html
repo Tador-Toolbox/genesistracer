@@ -259,6 +259,10 @@
       if (f || l) entering.push({ firstName:f, lastName:l });
     });
     if (!entering.length){ msg(d.need_enter, false); return; }
+    // Preview resident numbers (SIP): highest on the panel + 1, +2, ... (manager re-checks on approval).
+    let base = 1000;
+    contacts.forEach(c=>{ const n=parseInt(c.sip_number,10); if(!isNaN(n)&&n>base) base=n; });
+    entering.forEach((e,i)=>{ e.sip = String(base + i + 1); });
     if (entering.length > 5){ msg(d.max5, false); return; }
     if (!confirm(d.confirm(leaving.length, entering.length, selApt))) return;
     const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);

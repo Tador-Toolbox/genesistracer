@@ -3969,22 +3969,33 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
     async function v2LoadSwaps() {
       const tb = document.getElementById('swapsBody');
       if (!tb) return;
+      const stMap = { pending: ['ממתין', '#9a6b00'], approved: ['אושר', '#2e7d32'], rejected: ['נדחה', '#c62828'] };
       try {
-        const d = await fetch('/api/manager/resident-swaps?status=pending').then(r => r.json());
-        const swaps = d.swaps || [];
-        if (!swaps.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-dim);">אין בקשות ממתינות</td></tr>'; return; }
+        const d = await fetch('/api/manager/resident-swaps').then(r => r.json());
+        let swaps = d.swaps || [];
+        // pending first, then most-recent others
+        swaps.sort((a, b) => (a.status === 'pending' ? -1 : 0) - (b.status === 'pending' ? -1 : 0));
+        if (!swaps.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-dim);">אין בקשות</td></tr>'; return; }
         tb.innerHTML = swaps.map(s => {
+          const st = stMap[s.status] || stMap.pending;
           const leaving = (s.leaving || []).map(l => v2SecEsc(l.name) + (l.sip ? (' (' + v2SecEsc(l.sip) + ')') : '')).join(', ') || '—';
-          const entering = (s.entering || []).map(e => v2SecEsc(((e.firstName || '') + ' ' + (e.lastName || '')).trim())).join(', ') || '—';
+          // Numbers the incoming residents get: real (apply report) if approved, else the preview.
+          const asg = (s.applyReport && s.applyReport.assignments) || null;
+          const entering = asg
+            ? asg.map(a => v2SecEsc(a.name) + ' <b style="color:var(--accent);">→ ' + v2SecEsc(a.sip) + '</b>').join(', ')
+            : (s.entering || []).map(e => v2SecEsc(((e.firstName || '') + ' ' + (e.lastName || '')).trim()) + (e.sip ? ' <b style="color:var(--accent);">→ ' + v2SecEsc(e.sip) + '</b>' : '')).join(', ');
+          const actions = (s.status === 'pending')
+            ? `<button onclick="v2SwapStatus('${s._id}','approved')" style="padding:4px 10px;margin:2px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">✓ אשר</button>
+               <button onclick="v2SwapStatus('${s._id}','rejected')" style="padding:4px 10px;margin:2px;background:#ef4444;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">✕ דחה</button>`
+            : (s.status === 'approved'
+              ? `<button onclick="window.open('/swap-form.html?id=${s._id}','_blank')" style="padding:4px 10px;margin:2px;background:#0ea5e9;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">📄 טופס</button>`
+              : '—');
           return `<tr>
             <td style="padding:8px;"><b>${v2SecEsc(s.panelLabel || s.mac)}</b><div style="font-size:11px;color:var(--text-dim);">${v2SecEsc(s.mac)}</div></td>
             <td style="padding:8px;text-align:center;font-weight:800;">${v2SecEsc(s.apartment)}</td>
             <td style="padding:8px;"><span style="color:#ef4444;">${leaving}</span> &larr; <span style="color:#16a34a;font-weight:700;">${entering}</span></td>
-            <td style="padding:8px;text-align:center;"><span style="color:#9a6b00;font-weight:700;">ממתין</span></td>
-            <td style="padding:8px;text-align:center;white-space:nowrap;">
-              <button onclick="v2SwapStatus('${s._id}','approved')" style="padding:4px 10px;margin:2px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">✓ אשר</button>
-              <button onclick="v2SwapStatus('${s._id}','rejected')" style="padding:4px 10px;margin:2px;background:#ef4444;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">✕ דחה</button>
-            </td></tr>`;
+            <td style="padding:8px;text-align:center;"><span style="color:${st[1]};font-weight:700;">${st[0]}</span></td>
+            <td style="padding:8px;text-align:center;white-space:nowrap;">${actions}</td></tr>`;
         }).join('');
       } catch (e) {
         tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:#ef4444;">שגיאה בטעינה</td></tr>';

@@ -924,7 +924,10 @@ async function getPanelResidentsByCode(code) {
 async function addResidentHistory(mac, entry) {
   await connectDB();
   await db.collection('panel_residents').updateOne(
-    { mac }, { $push: { history: Object.assign({ at: new Date() }, entry || {}) } }
+    { mac },
+    { $push: { history: Object.assign({ at: new Date() }, entry || {}) },
+      $setOnInsert: { createdAt: new Date(), residents: [], status: 'draft', apartmentsCount: 0 } },
+    { upsert: true }
   );
 }
 
@@ -962,7 +965,7 @@ async function getResidentSwap(id) {
   let _id; try { _id = new ObjectId(String(id)); } catch (e) { return null; }
   return db.collection('resident_swaps').findOne({ _id });
 }
-async function setResidentSwapStatus(id, status, by, applyReport) {
+async function setResidentSwapStatus(id, status, by, applyReport, extra) {
   await connectDB();
   const { ObjectId } = require('mongodb');
   let _id; try { _id = new ObjectId(String(id)); } catch (e) { throw new Error('bad id'); }
@@ -970,8 +973,15 @@ async function setResidentSwapStatus(id, status, by, applyReport) {
   if (by) set.by = by;
   if (status === 'approved') set.approvedAt = new Date();
   if (applyReport) set.applyReport = applyReport;
+  if (extra && typeof extra === 'object') Object.assign(set, extra);
   await db.collection('resident_swaps').updateOne({ _id }, { $set: set });
   return db.collection('resident_swaps').findOne({ _id });
+}
+async function listResidentSwapsByBuilding(buildingCode, status) {
+  await connectDB();
+  const q = { buildingCode: String(buildingCode || '').trim().toUpperCase() };
+  if (status) q.status = status;
+  return db.collection('resident_swaps').find(q).sort({ approvedAt: -1, createdAt: -1 }).limit(200).toArray();
 }
 
 module.exports = {
@@ -983,6 +993,7 @@ module.exports = {
   listResidentSwaps,
   getResidentSwap,
   setResidentSwapStatus,
+  listResidentSwapsByBuilding,
   setPanelResidentsStatus,
   setResidentListCode,
   getPanelResidentsByCode,

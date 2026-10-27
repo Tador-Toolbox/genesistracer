@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>טופס דיירים חדשים — Tador</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap">
+<style>
+  *{box-sizing:border-box}
+  body{font-family:"Heebo",Arial,sans-serif;color:#111;margin:0;background:#f4f6f8}
+  .page{max-width:780px;margin:0 auto;padding:26px 28px}
+  .bar{display:flex;gap:8px;justify-content:center;padding:10px;position:sticky;top:0;background:#fafafa;border-bottom:1px solid #eee}
+  .bar button{padding:8px 20px;font:inherit;font-weight:700;border:none;border-radius:8px;cursor:pointer}
+  .prt{background:#111;color:#fff}
+  .ghd{background:#e8001c;color:#fff;border-radius:12px;padding:14px 18px;text-align:center;margin-bottom:12px}
+  .ghd img{height:22px;margin-bottom:6px}
+  .ghd h1{margin:0;font-size:19px}
+  .ghd p{margin:4px 0 0;font-size:12px;opacity:.92}
+  .sub{font-size:12px;color:#666;text-align:start;margin:4px 2px 8px}
+  table{width:100%;border-collapse:collapse;margin-top:4px}
+  th,td{border:1px solid #ddd;padding:8px 10px;font-size:14px;text-align:center}
+  th{background:#f4f6f8;color:#333;font-weight:800}
+  td.fn{text-align:start;font-weight:600}
+  td.fnum{font-weight:800;color:#e8001c}
+  .foot{text-align:center;color:#888;font-size:11px;margin-top:10px}
+  .msg{text-align:center;color:#666;padding:30px}
+  @media print{.bar{display:none} body{background:#fff} .page{padding:12px 14px}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <button class="prt" onclick="window.print()">🖨️ הדפס / Print</button>
+</div>
+<div class="page" id="page"><div class="msg">טוען…</div></div>
+<script>
+  const id = new URLSearchParams(location.search).get('id') || '';
+  const LOGO = '/tador-logo-white.png';
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  async function load(){
+    const page = document.getElementById('page');
+    if (!id){ page.innerHTML = '<div class="msg">חסר מזהה טופס</div>'; return; }
+    try{
+      const d = await fetch('/api/swap-form?id=' + encodeURIComponent(id)).then(r=>r.json());
+      if (!d.success){ page.innerHTML = '<div class="msg">הטופס לא נמצא</div>'; return; }
+      const rows = (d.residents||[]).map(r=>{
+        const name = r.name || ((r.firstName||'') + ' ' + (r.lastName||'')).trim();
+        return '<tr><td class="fn">'+esc(name)+'</td><td>'+esc(r.apartment||d.apartment||'')+'</td><td class="fnum">'+esc(r.sip||'')+'</td></tr>';
+      }).join('');
+      page.innerHTML =
+        '<div class="ghd"><img src="'+LOGO+'" alt="Tador"><h1>הגדרת דיירים חדשים — VoIPBell</h1>'
+        + '<p>הדיירים החדשים שנוספו' + (d.panelLabel?(' · '+esc(d.panelLabel)):'') + (d.apartment?(' · דירה '+esc(d.apartment)):'') + '</p></div>'
+        + '<div class="sub">מצאו את שמכם והזינו את "מספר דייר" בשדה Apartment number באפליקציה.</div>'
+        + '<table><thead><tr><th>שם דייר</th><th>מספר דירה</th><th>מספר דייר</th></tr></thead><tbody>'
+        + (rows || '<tr><td colspan="3" style="color:#888;">אין דיירים חדשים</td></tr>')
+        + '</tbody></table>'
+        + '<div class="foot">Tador Technologies · לתמיכה פנו למתקין</div>';
+    }catch(e){ page.innerHTML = '<div class="msg">שגיאה בטעינה</div>'; }
+  }
+  load();
+</script>
+</body>
+</html>

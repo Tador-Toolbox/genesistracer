@@ -107,6 +107,12 @@
       </div>
     </div>
 
+    <!-- Manager messages: approved resident updates (swaps) -->
+    <div id="mgrMsgBox" style="display:none;background:#eef7ee;border:1.5px solid #bfe3c0;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:800;color:#15803d;margin-bottom:10px;">📢 הודעות מנהל</div>
+      <div id="mgrMsgList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
     <div class="panel-header">
       <div>
         <h1>רשימת דיירים</h1>
@@ -283,8 +289,34 @@
     else { await loadResidents(); }
   }
 
+  // Approved resident-update (swap) notifications from the manager.
+  async function loadMgrMessages() {
+    const box = document.getElementById('mgrMsgBox'), list = document.getElementById('mgrMsgList');
+    if (!box || !list) return;
+    try {
+      const d = await fetch('/api/committee/swaps?code=' + encodeURIComponent(sessionCode) + '&password=' + encodeURIComponent(sessionPass)).then(r => r.json());
+      const swaps = (d.success && d.swaps) ? d.swaps : [];
+      if (!swaps.length) { box.style.display = 'none'; return; }
+      const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      list.innerHTML = swaps.map(s => {
+        let dt = ''; try { dt = new Date(s.approvedAt).toLocaleDateString('he-IL'); } catch (e) {}
+        const names = (s.assignments || []).map(a => esc(a.name) + ' (' + esc(a.sip) + ')').join(', ');
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid #d6ead6;border-radius:9px;padding:9px 12px;">
+          <div style="font-size:13px;">
+            <b style="color:#15803d;">✓ עדכון דייר אושר</b> · דירה ${esc(s.apartment)}${dt ? (' · ' + dt) : ''}
+            <div style="font-size:12px;color:#555;margin-top:2px;">דיירים חדשים: ${names || '—'}</div>
+          </div>
+          <button onclick="window.open('/swap-form.html?id=${s._id}','_blank')" style="background:#0ea5e9;color:#fff;border:none;border-radius:7px;padding:7px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">📄 הורד טופס</button>
+        </div>`;
+      }).join('');
+      box.style.display = 'block';
+    } catch (e) { box.style.display = 'none'; }
+  }
+
   async function loadResidents() {
     const grid = document.getElementById('residentsGrid');
+
+    loadMgrMessages();
 
     // Load panels for this building
     try {
