@@ -744,6 +744,12 @@
           <span class="action-card-label" data-i18n="residentUpdateBtn">עדכון דייר</span>
         </button>
 
+        <!-- Resident Update v2 (beta) — swap a resident, send for manager approval -->
+        <button class="action-card" onclick="openSwapV2()">
+          <span class="material-symbols-outlined">published_with_changes</span>
+          <span class="action-card-label" data-i18n="swapV2Btn">עדכון דייר גרסא 2</span>
+        </button>
+
         <!-- ═══ Group 3: Communication with manager ═══ -->
         <div class="action-section-header" data-i18n="secComm">תקשורת עם המנהל</div>
         <!-- Announcements -->
@@ -882,6 +888,7 @@
       emergencyBtn:"Emergency Door Open", tempCodeBtn:"Issue Temporary Code", permCodeBtn:"Change Permanent Code",
       blockUserBtn:"Block User", historyBtn:"History", faceBtn:"Face Recognition", residentUpdateBtn:"Resident Update",
       messagesBtn:"Messages", serviceBtn:"Service Request", tutorialsBtn:"Tutorials", docsBtn:"Installation Guides",
+      swapV2Btn:"Resident Update v2",
       sampleResidentsBtn:"Sample Residents List", portfolioBtn:"Portfolio", portfolioSub:"Photos from my installations",
       mailTitle:"Mailing List", mailSub:"Updates on new products and exclusive deals.", mailPh:"Email address...", mailBtn:"Subscribe",
       shabbatOff:"Shabbat Mode", shabbatOn:"Cancel Shabbat Mode",
@@ -903,6 +910,7 @@
       emergencyBtn:"פתיחת דלת חירום", tempCodeBtn:"הנפקת קוד זמני", permCodeBtn:"החלפת קוד קבוע",
       blockUserBtn:"חסום משתמש", historyBtn:"היסטוריה", faceBtn:"ניהול זיהוי פנים", residentUpdateBtn:"עדכון דייר",
       messagesBtn:"הודעות", serviceBtn:"פניית שירות", tutorialsBtn:"סרטוני הדרכה", docsBtn:"הוראות התקנה",
+      swapV2Btn:"עדכון דייר גרסא 2",
       sampleResidentsBtn:"רשימת דיירים לדוגמא", portfolioBtn:"תיק עבודות", portfolioSub:"תמונות מהתקנות שלי",
       mailTitle:"רשימת תפוצה", mailSub:"עדכונים על מוצרים חדשים ומבצעים בלעדיים.", mailPh:"כתובת אימייל...", mailBtn:"הצטרפות",
       shabbatOff:"מצב שבת", shabbatOn:"בטל מצב שבת",
@@ -1062,6 +1070,19 @@
       }));
     } catch (e) {}
     window.open('/residenter.html', '_blank');
+  }
+
+  // Open the Resident Update v2 (beta) page for the selected panel.
+  function openSwapV2() {
+    if (!selectedMac) return alert(currentLang === 'he' ? 'בחר כתובת MAC תחילה' : 'Select a panel first');
+    const macObj = (installerData?.macAddresses || []).find(m => m.mac === selectedMac) || {};
+    try {
+      localStorage.setItem('swapCtx', JSON.stringify({
+        mac: selectedMac, phone: installerData.phoneNumber, addr: (macObj.address || ''),
+        label: (macObj.descriptionInstaller || macObj.description || ''), lang: currentLang
+      }));
+    } catch (e) {}
+    window.open('/resident-update-v2.html', '_blank');
   }
 
   function logout() {

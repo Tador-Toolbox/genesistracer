@@ -950,6 +950,107 @@ function panelPatchGroupcallCurl(host, port, id, name) {
   });
 }
 
+// Edit one existing contact via curl PATCH (change name + sip_number, keep apartment).
+// HAR-confirmed: PATCH /api/v1/intercoms/contacts/{id}, no Authorization (tunnel headers only),
+// body {name,sip_account_id,call_number,sip_number,contact_group_id,top,email}, returns {status:"OK"}.
+function panelPatchContactCurl(host, port, id, contact) {
+  return new Promise((resolve) => {
+    const os = require('os'), fs = require('fs'), path = require('path');
+    const tmp = path.join(os.tmpdir(), `cedit_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+    try { fs.writeFileSync(tmp, JSON.stringify(contact)); } catch (e) { return resolve({ ok: false, error: 'tmp write' }); }
+    const cmd = `curl -s --max-time 15 -X PATCH ` +
+      `-H "Content-Type: application/json;charset=UTF-8" ` +
+      `-H "Origin: http://${host}:${port}" -H "Referer: http://${host}:${port}/" ` +
+      `--data @${tmp} "http://${host}:${port}/api/v1/intercoms/contacts/${id}"`;
+    exec(cmd, { maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      fs.unlink(tmp, () => {});
+      if (err) return resolve({ ok: false, error: err.message });
+      let j = null; try { j = JSON.parse(stdout); } catch (e) {}
+      resolve({ ok: !!(j && j.status === 'OK'), raw: (stdout || '').slice(0, 160) });
+    });
+  });
+}
+// Delete contacts via curl POST batchdelete. HAR-confirmed: POST /api/v1/intercoms/contacts/batchdelete,
+// no Authorization, body {list:[id,...]}, returns {status:"OK"}.
+function panelBatchDeleteCurl(host, port, ids) {
+  return new Promise((resolve) => {
+    const os = require('os'), fs = require('fs'), path = require('path');
+    const tmp = path.join(os.tmpdir(), `cdel_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+    try { fs.writeFileSync(tmp, JSON.stringify({ list: ids })); } catch (e) { return resolve({ ok: false, error: 'tmp write' }); }
+    const cmd = `curl -s --max-time 15 -X POST ` +
+      `-H "Content-Type: application/json;charset=UTF-8" ` +
+      `-H "Origin: http://${host}:${port}" -H "Referer: http://${host}:${port}/" ` +
+      `--data @${tmp} "http://${host}:${port}/api/v1/intercoms/contacts/batchdelete"`;
+    exec(cmd, { maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      fs.unlink(tmp, () => {});
+      if (err) return resolve({ ok: false, error: err.message });
+      let j = null; try { j = JSON.parse(stdout); } catch (e) {}
+      resolve({ ok: !!(j && j.status === 'OK'), raw: (stdout || '').slice(0, 160) });
+    });
+  });
+}
+
+// Apply a resident swap to the panel (one apartment). Edits departing contacts in place
+// (name -> new resident, sip_number -> last+N), creates extra incoming, and deletes any
+// surplus departing contacts (more leaving than entering). SIP base = highest sip on the panel.
+async function applySwapToPanel(cleanMac, swap) {
+  const rep = { edited: 0, created: 0, deleted: 0, failed: 0, error: null, assignments: [] };
+  const panelAddress = await resolvePanelAddress(cleanMac);
+  if (!panelAddress) { rep.error = 'הפנל אינו מחובר או לא נמצא'; return rep; }
+  const [host, portStr] = panelAddress.split(':');
+  const port = parseInt(portStr) || 80;
+
+  let contacts = [];
+  try {
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes && loginRes.data && loginRes.data.token;
+    if (!token) { rep.error = 'כניסה לפנל נכשלה'; return rep; }
+    contacts = await getAllPanelContacts(host, port, token);
+  } catch (e) { rep.error = e.message; return rep; }
+
+  const apt = prPad2(swap.apartment);
+  const leaving = Array.isArray(swap.leaving) ? swap.leaving : [];
+  const entering = Array.isArray(swap.entering) ? swap.entering : [];
+
+  // SIP base = highest sip_number across the whole panel; incoming get base+1, base+2, ...
+  let base = 1000;
+  contacts.forEach(c => { const n = parseInt(c.sip_number, 10); if (!isNaN(n) && n > base) base = n; });
+
+  // Resolve each departing contact's panel id (stored contactId first, else match by sip_number).
+  const leavingIds = leaving.map(l => {
+    if (l.contactId != null && l.contactId !== '') return l.contactId;
+    const m = contacts.find(c => String(c.sip_number) === String(l.sip));
+    return m ? m.id : null;
+  });
+
+  const n = entering.length;
+  for (let i = 0; i < n; i++) {
+    const e = entering[i] || {};
+    const name = ((e.firstName || '') + ' ' + (e.lastName || '')).trim() || String(e.name || '').trim();
+    const sip = String(base + i + 1);
+    if (i < leavingIds.length && leavingIds[i] != null) {
+      const contact = { name, sip_account_id: 2, call_number: apt, sip_number: sip, contact_group_id: 1, top: 'false', email: '' };
+      const out = await panelPatchContactCurl(host, port, leavingIds[i], contact);
+      if (out.ok) rep.edited++; else rep.failed++;
+    } else {
+      const contact = { name, sip_account_id: 2, call_number: apt, sip_number: sip, contact_group_id: 1, top: 'false', allow_unlock: 'true' };
+      const out = await panelCreateContactCurl(host, port, contact);
+      if (out.ok) rep.created++; else rep.failed++;
+    }
+    rep.assignments.push({ name, apartment: apt, sip });
+  }
+
+  // Surplus departing (more leaving than entering) -> delete them.
+  if (leavingIds.length > n) {
+    const delIds = leavingIds.slice(n).filter(x => x != null);
+    if (delIds.length) {
+      const out = await panelBatchDeleteCurl(host, port, delIds);
+      if (out.ok) rep.deleted += delIds.length; else rep.failed += delIds.length;
+    }
+  }
+  return rep;
+}
+
 // Push an approved resident list to the panel's Contacts.
 // Dedupes by sip_number (so re-running won't duplicate), then names apartment groups.
 async function pushResidentsToPanel(cleanMac, residents, groupNameBy) {
@@ -1029,6 +1130,76 @@ app.post('/api/manager/resident-submissions/status', async (req, res) => {
     }
     try { await logActivity({ phoneNumber: username, action: 'residents_' + status, mac: prCleanMac(mac), details: { count: ((doc && doc.residents) || []).length, push }, success: true }); } catch (e) {}
     res.json({ success: true, status: doc ? doc.status : status, push });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ── Resident swap ("עדכון דייר גרסא 2" beta) ──
+// Installer submits a per-apartment swap: departing resident(s) out, incoming name(s) in.
+app.post('/api/installer/resident-swap/save', async (req, res) => {
+  try {
+    const phoneNumber = (req.body.phoneNumber || '').trim();
+    const cleanMac = prCleanMac(req.body.mac);
+    if (!phoneNumber || !cleanMac) return res.status(400).json({ success: false, error: 'phoneNumber and mac required' });
+    if (!(await prInstallerOwnsMac(phoneNumber, cleanMac))) return res.status(403).json({ success: false, error: 'not your panel' });
+    const apartment = String(req.body.apartment || '').trim();
+    if (!apartment) return res.status(400).json({ success: false, error: 'apartment required' });
+    const leaving = (Array.isArray(req.body.leaving) ? req.body.leaving : []).map(l => ({
+      name: String((l && l.name) || '').trim().slice(0, 80),
+      sip: String((l && l.sip) != null ? l.sip : '').trim(),
+      contactId: (l && l.contactId != null) ? l.contactId : null
+    }));
+    const entering = (Array.isArray(req.body.entering) ? req.body.entering : []).map(e => ({
+      firstName: String((e && e.firstName) || '').trim().slice(0, 60),
+      lastName: String((e && e.lastName) || '').trim().slice(0, 60)
+    })).filter(e => e.firstName || e.lastName);
+    if (!entering.length) return res.status(400).json({ success: false, error: 'אין דיירים נכנסים' });
+    if (entering.length > 5) return res.status(400).json({ success: false, error: 'מקסימום 5 דיירים לדירה' });
+    const rec = await db.saveResidentSwap({ mac: cleanMac, phoneNumber, panelLabel: req.body.panelLabel, apartment, leaving, entering, by: phoneNumber });
+    try { await logActivity({ phoneNumber, action: 'resident_swap_submit', mac: cleanMac, details: { apartment, leaving: leaving.length, entering: entering.length }, success: true }); } catch (e) {}
+    res.json({ success: true, id: String(rec._id) });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Manager: list resident swaps (optionally ?status=pending)
+app.get('/api/manager/resident-swaps', async (req, res) => {
+  try {
+    const list = await db.listResidentSwaps(req.query.status);
+    res.json({ success: true, swaps: (list || []).map(s => ({ ...s, _id: String(s._id) })) });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Manager: approve (→ apply to panel) or reject a resident swap
+app.post('/api/manager/resident-swaps/status', async (req, res) => {
+  const { id, status, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  if (!id || !['approved', 'rejected'].includes(status)) {
+    return res.status(400).json({ success: false, error: 'id and valid status required' });
+  }
+  try {
+    const swap = await db.getResidentSwap(id);
+    if (!swap) return res.status(404).json({ success: false, error: 'swap not found' });
+    let report = null;
+    if (status === 'approved') {
+      try { report = await applySwapToPanel(swap.mac, swap); }
+      catch (e) { report = { error: e.message }; }
+      // Dated history on the panel's resident doc: leaving, entering, intercom + date.
+      try {
+        await db.addResidentHistory(swap.mac, {
+          event: (report && !report.error && !report.failed) ? 'swap' : 'swap_partial',
+          by: username, apartment: swap.apartment, panelLabel: swap.panelLabel || '',
+          leaving: (swap.leaving || []).map(l => (l.name || '') + (l.sip ? ' (' + l.sip + ')' : '')),
+          entering: (report && report.assignments || []).map(a => a.name + ' (' + a.sip + ')'),
+          edited: report && report.edited, created: report && report.created, deleted: report && report.deleted,
+          failed: report && report.failed, error: report && report.error
+        });
+      } catch (e) {}
+    }
+    const updated = await db.setResidentSwapStatus(id, status, username, report);
+    try { await logActivity({ phoneNumber: username, action: 'resident_swap_' + status, mac: swap.mac, details: { apartment: swap.apartment, report }, success: true }); } catch (e) {}
+    res.json({ success: true, status: updated ? updated.status : status, report });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 

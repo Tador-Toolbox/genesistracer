@@ -928,11 +928,61 @@ async function addResidentHistory(mac, entry) {
   );
 }
 
+// ── Resident swaps ("עדכון דייר גרסא 2" beta) — one apartment at a time ──
+// collection resident_swaps: { mac, phoneNumber, panelLabel, apartment,
+//   leaving:[{name,sip,contactId}], entering:[{firstName,lastName}],
+//   status(pending|approved|rejected), by, createdAt, approvedAt, applyReport }
+async function saveResidentSwap(doc) {
+  await connectDB();
+  const now = new Date();
+  const rec = {
+    mac: doc.mac,
+    phoneNumber: doc.phoneNumber || '',
+    panelLabel: doc.panelLabel || '',
+    apartment: String(doc.apartment || '').trim(),
+    leaving: Array.isArray(doc.leaving) ? doc.leaving : [],
+    entering: Array.isArray(doc.entering) ? doc.entering : [],
+    status: 'pending',
+    by: doc.by || '',
+    createdAt: now,
+    updatedAt: now,
+  };
+  const r = await db.collection('resident_swaps').insertOne(rec);
+  rec._id = r.insertedId;
+  return rec;
+}
+async function listResidentSwaps(status) {
+  await connectDB();
+  const q = status ? { status } : {};
+  return db.collection('resident_swaps').find(q).sort({ createdAt: -1 }).limit(500).toArray();
+}
+async function getResidentSwap(id) {
+  await connectDB();
+  const { ObjectId } = require('mongodb');
+  let _id; try { _id = new ObjectId(String(id)); } catch (e) { return null; }
+  return db.collection('resident_swaps').findOne({ _id });
+}
+async function setResidentSwapStatus(id, status, by, applyReport) {
+  await connectDB();
+  const { ObjectId } = require('mongodb');
+  let _id; try { _id = new ObjectId(String(id)); } catch (e) { throw new Error('bad id'); }
+  const set = { status, updatedAt: new Date() };
+  if (by) set.by = by;
+  if (status === 'approved') set.approvedAt = new Date();
+  if (applyReport) set.applyReport = applyReport;
+  await db.collection('resident_swaps').updateOne({ _id }, { $set: set });
+  return db.collection('resident_swaps').findOne({ _id });
+}
+
 module.exports = {
   connectDB,
   getPanelResidents,
   savePanelResidents,
   listPanelResidentSubmissions,
+  saveResidentSwap,
+  listResidentSwaps,
+  getResidentSwap,
+  setResidentSwapStatus,
   setPanelResidentsStatus,
   setResidentListCode,
   getPanelResidentsByCode,

@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>עדכון דייר v2 — Tador</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap">
+<style>
+  :root{ --red:#e8001c; --ink:#17202a; --muted:#64717e; --line:#e6eaef; --bg:#f4f6f8; --card:#fff; --ok:#2e9e3f; --blue:#0ea5e9; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Heebo",Arial,sans-serif;line-height:1.5}
+  .wrap{max-width:860px;margin:0 auto;padding:16px}
+  header{background:var(--red);color:#fff;border-radius:16px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
+  header .hright{display:flex;align-items:center;gap:12px}
+  header img{height:26px}
+  header .t{font-size:1.25rem;font-weight:800}
+  header .t .beta{font-size:.62rem;font-weight:800;background:#fff;color:var(--red);border-radius:6px;padding:1px 6px;vertical-align:middle;margin-inline-start:6px}
+  header .s{font-size:.8rem;opacity:.92}
+  .langseg{display:inline-flex;border:1px solid rgba(255,255,255,.65);border-radius:8px;overflow:hidden}
+  .langseg button{border:none;background:transparent;color:#fff;padding:5px 11px;font:inherit;font-weight:700;font-size:.78rem;cursor:pointer}
+  .langseg button.on{background:#fff;color:var(--red)}
+  .bar{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:.9rem;color:var(--muted)}
+  .bar b{color:var(--ink)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+  .card h3{margin:0 0 4px;font-size:1rem}
+  .card .sub{font-size:.82rem;color:var(--muted);margin-bottom:10px}
+  .step-n{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--red);color:#fff;font-weight:800;font-size:.8rem;align-items:center;justify-content:center;margin-inline-end:7px;vertical-align:middle}
+  .leavelist{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto}
+  .aptgroup{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .aptgroup .apthd{background:#fafbfc;padding:6px 12px;font-size:.8rem;font-weight:800;color:var(--muted)}
+  .lrow{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--line);cursor:pointer}
+  .lrow:first-of-type{border-top:0}
+  .lrow input{width:18px;height:18px;accent-color:var(--red);cursor:pointer}
+  .lrow .lname{flex:1;font-weight:600;font-size:.92rem}
+  .lrow .lsip{font-size:.8rem;color:var(--muted);font-weight:700}
+  .lrow.dis{opacity:.4;cursor:not-allowed}
+  .lrow.sel{background:#fff1f3}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--line);font-size:.9rem}
+  html[dir=ltr] th, html[dir=ltr] td{text-align:left}
+  th{background:#fafbfc;font-weight:700;font-size:.8rem;color:var(--muted)}
+  td input{width:100%;border:1px solid transparent;border-radius:7px;padding:7px 8px;font:inherit;background:#fbfcfd}
+  td input:focus{outline:none;border-color:var(--red);background:#fff}
+  td.apt input{background:#eef1f4;color:var(--muted);font-weight:700;text-align:center}
+  td.del{width:40px;text-align:center}
+  .xbtn{border:none;background:none;color:#c0c7d0;cursor:pointer;font-size:18px}
+  .xbtn:hover{color:var(--red)}
+  button.b{border:none;border-radius:10px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer}
+  .b-add{background:#eef1f4;color:var(--ink)}
+  .b-send{background:var(--red);color:#fff}
+  .b:disabled{opacity:.5;cursor:default}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+  .msg{margin-top:10px;font-size:.9rem;min-height:18px}
+  .msg.ok{color:var(--ok)} .msg.err{color:var(--red)}
+  .note{font-size:.8rem;color:var(--muted);margin-top:8px;line-height:1.4}
+  .selinfo{font-size:.86rem;font-weight:700;margin:4px 2px}
+  .selinfo b{color:var(--red)}
+  @media (max-width:520px){ header .t{font-size:1.02rem} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="t"><span data-i18n="h_title">עדכון דייר</span><span class="beta">v2 · BETA</span></div>
+      <div class="s" data-i18n="h_sub">החלפת דייר בדירה — שליחה לאישור המנהל</div>
+    </div>
+    <div class="hright">
+      <div class="langseg">
+        <button id="lhe" onclick="setLang('he')">עברית</button>
+        <button id="len" onclick="setLang('en')">English</button>
+      </div>
+      <img src="/tador-logo-white.png" alt="Tador">
+    </div>
+  </header>
+
+  <div class="bar"><span data-i18n="panel_lbl">פנל:</span> <b id="macLbl">—</b> <span id="addrLbl"></span></div>
+
+  <div id="loadMsg" class="msg" style="margin:0 2px 12px"></div>
+
+  <div id="main" style="display:none">
+    <!-- Step 1: who is leaving -->
+    <div class="card">
+      <h3><span class="step-n">1</span><span data-i18n="s1_title">מי עוזב?</span></h3>
+      <div class="sub" data-i18n="s1_sub">בחרו את הדייר/ים שעוזבים — מאותה דירה בלבד.</div>
+      <div class="leavelist" id="leaveList"></div>
+      <div class="selinfo" id="selInfo"></div>
+    </div>
+
+    <!-- Step 2: who is entering -->
+    <div class="card">
+      <h3><span class="step-n">2</span><span data-i18n="s2_title">מי נכנס?</span></h3>
+      <div class="sub" data-i18n="s2_sub">הזינו את הדייר/ים הנכנסים. הדירה מתמלאת אוטומטית (אותה דירה). עד 5 דיירים.</div>
+      <table>
+        <thead><tr>
+          <th data-i18n="th_first">שם פרטי</th>
+          <th data-i18n="th_last">שם משפחה</th>
+          <th data-i18n="th_apt">דירה</th>
+          <th class="del"></th>
+        </tr></thead>
+        <tbody id="enterRows"></tbody>
+      </table>
+      <div class="actions">
+        <button class="b b-add" id="addBtn" onclick="addEnter()" data-i18n="b_add">➕ הוסף דייר נכנס</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="b b-send" id="sendBtn" onclick="send()" data-i18n="b_send">📤 שלח לאישור</button>
+    </div>
+    <div class="msg" id="msg"></div>
+    <div class="note" data-i18n="foot_note">לאחר השליחה, המנהל מאשר והשינוי מתבצע בפנל: שם הדייר העוזב מוחלף בנכנס עם מספר דייר (SIP) חדש. השארת רישיון ישן אינה ניתנת לביטול.</div>
+  </div>
+</div>
+
+<script>
+  const I18N = {
+    he: {
+      dir:'rtl', h_title:'עדכון דייר', h_sub:'החלפת דייר בדירה — שליחה לאישור המנהל', panel_lbl:'פנל:',
+      s1_title:'מי עוזב?', s1_sub:'בחרו את הדייר/ים שעוזבים — מאותה דירה בלבד.',
+      s2_title:'מי נכנס?', s2_sub:'הזינו את הדייר/ים הנכנסים. הדירה מתמלאת אוטומטית (אותה דירה). עד 5 דיירים.',
+      th_first:'שם פרטי', th_last:'שם משפחה', th_apt:'דירה', ph_first:'שם פרטי', ph_last:'שם משפחה',
+      b_add:'➕ הוסף דייר נכנס', b_send:'📤 שלח לאישור',
+      foot_note:'לאחר השליחה, המנהל מאשר והשינוי מתבצע בפנל: שם הדייר העוזב מוחלף בנכנס עם מספר דייר (SIP) חדש. השארת רישיון ישן אינה ניתנת לביטול.',
+      loading:'טוען את רשימת הדיירים מהפנל…',
+      load_err:'לא ניתן לקרוא מהפנל — ודאו שהפנל מחובר לאינטרנט ורשום לשרת, ונסו שוב.',
+      load_empty:'אין דיירים בפנל זה.',
+      apt_word:'דירה', sip_word:'מס׳ דייר',
+      sel_none:'לא נבחרו דיירים עוזבים.', sel_some:n=>'נבחרו '+n+' דיירים עוזבים · דירה ',
+      need_leave:'בחרו לפחות דייר אחד שעוזב.', need_enter:'הזינו לפחות דייר אחד נכנס.',
+      max5:'מקסימום 5 דיירים לדירה.',
+      confirm:(l,e,a)=>'לשלוח לאישור? דירה '+a+': '+l+' עוזבים, '+e+' נכנסים.',
+      sending:'שולח…', sent_ok:'✓ נשלח לאישור המנהל', save_err:'שגיאה בשליחה', net_err:m=>'שגיאת רשת: '+m,
+      del_title:'הסר'
+    },
+    en: {
+      dir:'ltr', h_title:'Resident Update', h_sub:'Swap a resident in an apartment — send for manager approval', panel_lbl:'Panel:',
+      s1_title:'Who is leaving?', s1_sub:'Select the departing resident(s) — from the same apartment only.',
+      s2_title:'Who is moving in?', s2_sub:'Enter the incoming resident(s). The apartment fills in automatically (same apartment). Up to 5.',
+      th_first:'First name', th_last:'Last name', th_apt:'Apt', ph_first:'First name', ph_last:'Last name',
+      b_add:'➕ Add incoming resident', b_send:'📤 Send for approval',
+      foot_note:'After you send, the manager approves and the change is applied on the panel: the departing resident name is replaced by the incoming one with a new resident number (SIP). An old license cannot be revoked.',
+      loading:'Loading the resident list from the panel…',
+      load_err:'Could not read from the panel — make sure it is connected to the internet and registered to the server, then try again.',
+      load_empty:'No residents on this panel.',
+      apt_word:'Apt', sip_word:'Res. no.',
+      sel_none:'No departing residents selected.', sel_some:n=>n+' departing selected · Apt ',
+      need_leave:'Select at least one departing resident.', need_enter:'Enter at least one incoming resident.',
+      max5:'Maximum 5 residents per apartment.',
+      confirm:(l,e,a)=>'Send for approval? Apt '+a+': '+l+' leaving, '+e+' moving in.',
+      sending:'Sending…', sent_ok:'✓ Sent for manager approval', save_err:'Send error', net_err:m=>'Network error: '+m,
+      del_title:'Remove'
+    }
+  };
+  let LANG = 'he';
+  const tr = () => I18N[LANG];
+
+  // Context from the installer portal (localStorage swapCtx {mac,phone,addr,label,lang}).
+  let ctx = {};
+  try { ctx = JSON.parse(localStorage.getItem('swapCtx') || '{}'); } catch(e){}
+  const MAC   = String(ctx.mac || '').replace(/[:\s-]/g,'').toUpperCase();
+  const PHONE = String(ctx.phone || '').trim();
+  const ADDR  = String(ctx.addr || '').trim();
+  const LABEL = String(ctx.label || '').trim();
+
+  let contacts = [];       // live panel contacts: {id,name,call_number,sip_number}
+  let selApt = null;       // the apartment currently locked for selection
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  function applyLang(lang){
+    LANG = (lang==='en') ? 'en' : 'he';
+    const d = tr();
+    document.documentElement.lang = LANG;
+    document.documentElement.dir  = (LANG==='en') ? 'ltr' : 'rtl';
+    document.title = d.h_title + ' v2 — Tador';
+    try { localStorage.setItem('swapLang', LANG); } catch(e){}
+    document.querySelectorAll('[data-i18n]').forEach(el=>{ const k=el.getAttribute('data-i18n'); if (d[k]!=null) el.textContent=d[k]; });
+    document.getElementById('lhe').className = (LANG==='he'?'on':'');
+    document.getElementById('len').className = (LANG==='en'?'on':'');
+    document.querySelectorAll('#enterRows .f-first').forEach(i=>i.placeholder=d.ph_first);
+    document.querySelectorAll('#enterRows .f-last').forEach(i=>i.placeholder=d.ph_last);
+    document.querySelectorAll('#enterRows .xbtn').forEach(b=>b.title=d.del_title);
+    renderLeave();   // re-render list text in the chosen language
+    updateSel();
+  }
+  function setLang(l){ applyLang(l); }
+
+  function apt2(a){ a=String(a==null?'':a).trim(); return /^\d+$/.test(a) ? a.padStart(2,'0') : a; }
+
+  // ── Step 1: leaving list, grouped by apartment ──
+  function renderLeave(){
+    const host = document.getElementById('leaveList');
+    if (!host) return;
+    const d = tr();
+    if (!contacts.length){ host.innerHTML=''; return; }
+    // group by apartment (call_number)
+    const groups = {};
+    contacts.forEach(c => { const a = String(c.call_number||'').trim() || '—'; (groups[a]=groups[a]||[]).push(c); });
+    const aptKeys = Object.keys(groups).sort((a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true}));
+    host.innerHTML = aptKeys.map(a=>{
+      const rows = groups[a].slice().sort((x,y)=>String(x.sip_number).localeCompare(String(y.sip_number),undefined,{numeric:true})).map(c=>{
+        const sel = isSel(c.id);
+        const dis = (selApt!==null && String(a)!==String(selApt)) ? ' dis' : '';
+        return `<label class="lrow${sel?' sel':''}${dis}">
+          <input type="checkbox" data-id="${esc(c.id)}" ${sel?'checked':''} ${dis?'disabled':''} onchange="toggleLeave(this,'${esc(a)}')">
+          <span class="lname">${esc(c.name||'')}</span>
+          <span class="lsip">${d.sip_word}: ${esc(c.sip_number||'')}</span>
+        </label>`;
+      }).join('');
+      return `<div class="aptgroup"><div class="apthd">${d.apt_word} ${esc(a)}</div>${rows}</div>`;
+    }).join('');
+  }
+  let selectedIds = [];
+  function isSel(id){ return selectedIds.map(String).includes(String(id)); }
+  function toggleLeave(cb, apt){
+    const id = cb.getAttribute('data-id');
+    if (cb.checked){ selectedIds.push(id); selApt = apt; }
+    else { selectedIds = selectedIds.filter(x=>String(x)!==String(id)); if (!selectedIds.length) selApt = null; }
+    renderLeave(); updateSel(); syncApt();
+  }
+  function selectedContacts(){ return contacts.filter(c=>isSel(c.id)); }
+  function updateSel(){
+    const el = document.getElementById('selInfo'); if (!el) return;
+    const d = tr(), n = selectedIds.length;
+    el.innerHTML = n ? (d.sel_some(n) + '<b>' + esc(selApt) + '</b>') : d.sel_none;
+  }
+
+  // ── Step 2: entering rows ──
+  function enterRowHtml(){
+    const d = tr();
+    return `<tr>
+      <td><input class="f-first" placeholder="${esc(d.ph_first)}"></td>
+      <td><input class="f-last"  placeholder="${esc(d.ph_last)}"></td>
+      <td class="apt"><input class="f-apt" value="${esc(selApt||'')}" readonly></td>
+      <td class="del"><button class="xbtn" title="${esc(d.del_title)}" onclick="this.closest('tr').remove()">✕</button></td>
+    </tr>`;
+  }
+  function addEnter(){
+    if (document.querySelectorAll('#enterRows tr').length >= 5){ msg(tr().max5, false); return; }
+    document.getElementById('enterRows').insertAdjacentHTML('beforeend', enterRowHtml());
+    const inp = document.querySelector('#enterRows tr:last-child .f-first'); if (inp) inp.focus();
+  }
+  function syncApt(){ document.querySelectorAll('#enterRows .f-apt').forEach(i=>i.value = selApt || ''); }
+
+  function msg(t, ok){ const m=document.getElementById('msg'); m.textContent=t; m.className='msg '+(ok?'ok':'err'); }
+
+  async function send(){
+    const d = tr();
+    const leaving = selectedContacts();
+    if (!leaving.length){ msg(d.need_leave, false); return; }
+    const entering = [];
+    document.querySelectorAll('#enterRows tr').forEach(tr=>{
+      const f = tr.querySelector('.f-first').value.trim();
+      const l = tr.querySelector('.f-last').value.trim();
+      if (f || l) entering.push({ firstName:f, lastName:l });
+    });
+    if (!entering.length){ msg(d.need_enter, false); return; }
+    if (entering.length > 5){ msg(d.max5, false); return; }
+    if (!confirm(d.confirm(leaving.length, entering.length, selApt))) return;
+    const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);
+    msg(d.sending, true);
+    try{
+      const payload = {
+        phoneNumber: PHONE, mac: MAC, panelLabel: LABEL, apartment: selApt,
+        leaving: leaving.map(c=>({ name:c.name, sip:c.sip_number, contactId:c.id })),
+        entering
+      };
+      const res = await fetch('/api/installer/resident-swap/save', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      });
+      const r = await res.json();
+      if (!r.success){ msg(r.error || d.save_err, false); }
+      else {
+        msg(d.sent_ok, true);
+        selectedIds = []; selApt = null;
+        document.getElementById('enterRows').innerHTML = ''; addEnter();
+        renderLeave(); updateSel();
+      }
+    }catch(e){ msg(d.net_err(e.message), false); }
+    finally{ btns.forEach(b=>b.disabled=false); }
+  }
+
+  async function load(){
+    const lm = document.getElementById('loadMsg');
+    document.getElementById('macLbl').textContent = MAC || '—';
+    if (ADDR || LABEL) document.getElementById('addrLbl').textContent = '· ' + (LABEL ? LABEL + (ADDR?(' · '+ADDR):'') : ADDR);
+    if (!MAC){ lm.textContent = tr().load_err; lm.className='msg err'; return; }
+    lm.textContent = tr().loading; lm.className='msg';
+    try{
+      const d = await fetch('/api/installer/panel-contacts?mac='+encodeURIComponent(MAC)+(PHONE?('&phone='+encodeURIComponent(PHONE)):'')).then(r=>r.json());
+      if (!d.success){ lm.textContent = tr().load_err; lm.className='msg err'; return; }
+      contacts = (d.contacts||[]).map(c=>({ id:c.id, name:c.name||'', call_number:String(c.call_number==null?'':c.call_number), sip_number:String(c.sip_number==null?'':c.sip_number) }));
+      if (!contacts.length){ lm.textContent = tr().load_empty; lm.className='msg'; }
+      else { lm.textContent=''; }
+      document.getElementById('main').style.display = '';
+      renderLeave(); updateSel(); addEnter();
+    }catch(e){ lm.textContent = tr().load_err + ' (' + e.message + ')'; lm.className='msg err'; }
+  }
+
+  try { LANG = (ctx.lang==='en' || localStorage.getItem('swapLang')==='en') ? 'en' : 'he'; } catch(e){}
+  applyLang(LANG);
+  load();
+</script>
+</body>
+</html>

@@ -1034,6 +1034,27 @@
         </div>
       </div>
 
+      <!-- Resident swaps (עדכון דייר גרסא 2 · beta) -->
+      <div class="card" data-screen="residents">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+          <h2 style="margin:0;">🔁 עדכוני דייר <span style="font-size:11px;font-weight:800;background:var(--accent);color:#fff;border-radius:6px;padding:1px 7px;vertical-align:middle;">גרסא 2 · BETA</span></h2>
+          <button onclick="v2LoadSwaps()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">רענן</button>
+        </div>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">בקשות החלפת דייר מהמתקינים/ועד. אישור יבצע את השינוי בפנל: שם הדייר העוזב מוחלף בנכנס עם מספר דייר (SIP) חדש, ועודף דיירים עוזבים נמחק.</p>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr style="background:var(--bg-card);">
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">פנל</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">דירה</th>
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">עוזבים ← נכנסים</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">סטטוס</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">פעולות</th>
+            </tr></thead>
+            <tbody id="swapsBody"><tr><td colspan="5" style="text-align:center;padding:18px;color:var(--text-dim);">טוען...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Extras: notes.html + voipbell-accounts.html embedded -->
       <div class="card" data-screen="extras">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
@@ -3941,6 +3962,52 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
       } catch (e) {
         body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:18px;color:#ef4444;">שגיאה בטעינה</td></tr>';
       }
+      v2LoadSwaps();
+    }
+
+    // ── Resident swaps (עדכון דייר גרסא 2 · beta) ──
+    async function v2LoadSwaps() {
+      const tb = document.getElementById('swapsBody');
+      if (!tb) return;
+      try {
+        const d = await fetch('/api/manager/resident-swaps?status=pending').then(r => r.json());
+        const swaps = d.swaps || [];
+        if (!swaps.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-dim);">אין בקשות ממתינות</td></tr>'; return; }
+        tb.innerHTML = swaps.map(s => {
+          const leaving = (s.leaving || []).map(l => v2SecEsc(l.name) + (l.sip ? (' (' + v2SecEsc(l.sip) + ')') : '')).join(', ') || '—';
+          const entering = (s.entering || []).map(e => v2SecEsc(((e.firstName || '') + ' ' + (e.lastName || '')).trim())).join(', ') || '—';
+          return `<tr>
+            <td style="padding:8px;"><b>${v2SecEsc(s.panelLabel || s.mac)}</b><div style="font-size:11px;color:var(--text-dim);">${v2SecEsc(s.mac)}</div></td>
+            <td style="padding:8px;text-align:center;font-weight:800;">${v2SecEsc(s.apartment)}</td>
+            <td style="padding:8px;"><span style="color:#ef4444;">${leaving}</span> &larr; <span style="color:#16a34a;font-weight:700;">${entering}</span></td>
+            <td style="padding:8px;text-align:center;"><span style="color:#9a6b00;font-weight:700;">ממתין</span></td>
+            <td style="padding:8px;text-align:center;white-space:nowrap;">
+              <button onclick="v2SwapStatus('${s._id}','approved')" style="padding:4px 10px;margin:2px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">✓ אשר</button>
+              <button onclick="v2SwapStatus('${s._id}','rejected')" style="padding:4px 10px;margin:2px;background:#ef4444;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">✕ דחה</button>
+            </td></tr>`;
+        }).join('');
+      } catch (e) {
+        tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:#ef4444;">שגיאה בטעינה</td></tr>';
+      }
+    }
+    async function v2SwapStatus(id, status) {
+      if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+      if (!confirm(status === 'approved' ? 'לאשר ולבצע את השינוי בפנל?' : 'לדחות את הבקשה?')) return;
+      if (status === 'approved') v2Busy(true, 'מבצע בפנל… (עשוי לקחת כמה שניות)');
+      try {
+        const d = await fetch('/api/manager/resident-swaps/status', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, status, username: window.__mgr.username, password: window.__mgr.password })
+        }).then(r => r.json());
+        v2Busy(false);
+        if (!d.success) { alert('❌ ' + (d.error || 'שגיאה')); return; }
+        if (status === 'approved') {
+          const r = d.report || {};
+          if (r.error) alert('⚠ אושר אך ההחלה בפנל נכשלה: ' + r.error + '\nאפשר לנסות שוב.');
+          else alert('✓ בוצע בפנל — עודכנו: ' + (r.edited || 0) + ', נוספו: ' + (r.created || 0) + ', נמחקו: ' + (r.deleted || 0) + (r.failed ? (' , נכשלו: ' + r.failed) : ''));
+        }
+        v2LoadSwaps();
+      } catch (e) { v2Busy(false); alert('❌ שגיאת תקשורת'); }
     }
     function v2ViewResidents(mac) {
       const s = (window.__residents || {})[mac]; if (!s) return;
