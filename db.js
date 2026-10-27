@@ -378,6 +378,7 @@ async function getInstallerDetails(phoneNumber) {
     createdAt: installer.createdAt,
     lastLogin: installer.lastLogin,
     managerNote: installer.managerNote || '',
+    defaultLang: (installer.defaultLang === 'en' ? 'en' : 'he'),
   };
 }
 
