@@ -25,14 +25,15 @@
   .card h3{margin:0 0 4px;font-size:1rem}
   .card .sub{font-size:.82rem;color:var(--muted);margin-bottom:10px}
   .step-n{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--red);color:#fff;font-weight:800;font-size:.8rem;align-items:center;justify-content:center;margin-inline-end:7px;vertical-align:middle}
-  .leavelist{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto}
-  .aptgroup{border:1px solid var(--line);border-radius:10px;overflow:hidden}
-  .aptgroup .apthd{background:#fafbfc;padding:6px 12px;font-size:.8rem;font-weight:800;color:var(--muted)}
-  .lrow{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--line);cursor:pointer}
+  .leavelist{display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow:auto}
+  .aptgroup{border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:0 0 auto}
+  .aptgroup .apthd{background:#fafbfc;padding:7px 12px;font-size:.8rem;font-weight:800;color:var(--muted)}
+  .lrow{display:flex;align-items:center;gap:10px;padding:9px 12px;min-height:42px;border-top:1px solid var(--line);cursor:pointer}
   .lrow:first-of-type{border-top:0}
-  .lrow input{width:18px;height:18px;accent-color:var(--red);cursor:pointer}
-  .lrow .lname{flex:1;font-weight:600;font-size:.92rem}
-  .lrow .lsip{font-size:.8rem;color:var(--muted);font-weight:700}
+  .lrow input{flex:0 0 auto;width:18px;height:18px;accent-color:var(--red);cursor:pointer}
+  .lrow .lname{flex:1 1 auto;min-width:0;font-weight:600;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lrow .lname.empty{color:var(--muted);font-weight:500;font-style:italic}
+  .lrow .lsip{flex:0 0 auto;font-size:.8rem;color:var(--muted);font-weight:700;white-space:nowrap}
   .lrow.dis{opacity:.4;cursor:not-allowed}
   .lrow.sel{background:#fff1f3}
   table{width:100%;border-collapse:collapse}
@@ -125,7 +126,7 @@
       loading:'טוען את רשימת הדיירים מהפנל…',
       load_err:'לא ניתן לקרוא מהפנל — ודאו שהפנל מחובר לאינטרנט ורשום לשרת, ונסו שוב.',
       load_empty:'אין דיירים בפנל זה.',
-      apt_word:'דירה', sip_word:'מס׳ דייר',
+      apt_word:'דירה', sip_word:'מס׳ דייר', noname:'(ללא שם)',
       sel_none:'לא נבחרו דיירים עוזבים.', sel_some:n=>'נבחרו '+n+' דיירים עוזבים · דירה ',
       need_leave:'בחרו לפחות דייר אחד שעוזב.', need_enter:'הזינו לפחות דייר אחד נכנס.',
       max5:'מקסימום 5 דיירים לדירה.',
@@ -143,7 +144,7 @@
       loading:'Loading the resident list from the panel…',
       load_err:'Could not read from the panel — make sure it is connected to the internet and registered to the server, then try again.',
       load_empty:'No residents on this panel.',
-      apt_word:'Apt', sip_word:'Res. no.',
+      apt_word:'Apt', sip_word:'Res. no.', noname:'(no name)',
       sel_none:'No departing residents selected.', sel_some:n=>n+' departing selected · Apt ',
       need_leave:'Select at least one departing resident.', need_enter:'Enter at least one incoming resident.',
       max5:'Maximum 5 residents per apartment.',
@@ -202,10 +203,12 @@
       const rows = groups[a].slice().sort((x,y)=>String(x.sip_number).localeCompare(String(y.sip_number),undefined,{numeric:true})).map(c=>{
         const sel = isSel(c.id);
         const dis = (selApt!==null && String(a)!==String(selApt)) ? ' dis' : '';
+        const nm = String(c.name||'').trim();
+        const nameHtml = nm ? `<span class="lname">${esc(nm)}</span>` : `<span class="lname empty">${esc(d.noname)}</span>`;
         return `<label class="lrow${sel?' sel':''}${dis}">
           <input type="checkbox" data-id="${esc(c.id)}" ${sel?'checked':''} ${dis?'disabled':''} onchange="toggleLeave(this,'${esc(a)}')">
-          <span class="lname">${esc(c.name||'')}</span>
-          <span class="lsip">${d.sip_word}: ${esc(c.sip_number||'')}</span>
+          ${nameHtml}
+          <span class="lsip">${d.sip_word}: ${esc(c.sip_number||'—')}</span>
         </label>`;
       }).join('');
       return `<div class="aptgroup"><div class="apthd">${d.apt_word} ${esc(a)}</div>${rows}</div>`;
