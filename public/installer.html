@@ -1058,7 +1058,7 @@
     const macObj = (installerData?.macAddresses || []).find(m => m.mac === selectedMac) || {};
     try {
       localStorage.setItem('residenterCtx', JSON.stringify({
-        mac: selectedMac, phone: installerData.phoneNumber, addr: (macObj.address || '')
+        mac: selectedMac, phone: installerData.phoneNumber, addr: (macObj.address || ''), lang: currentLang
       }));
     } catch (e) {}
     window.open('/residenter.html', '_blank');

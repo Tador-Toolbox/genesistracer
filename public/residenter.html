@@ -403,8 +403,13 @@
 
   document.getElementById('rows').addEventListener('input', updateCounts);
 
-  // Initial language: remembered choice, else Hebrew.
-  try { LANG = (localStorage.getItem('residenterLang')==='en') ? 'en' : 'he'; } catch(e){}
+  // Initial language priority: URL (#lang=) > installer account default (ctx.lang) > remembered choice > Hebrew.
+  (function(){
+    const ok = v => (v === 'en' || v === 'he') ? v : null;
+    let init = ok(qs.get('lang')) || ok(ctx && ctx.lang);
+    if (!init) { try { init = ok(localStorage.getItem('residenterLang')); } catch(e){} }
+    LANG = init || 'he';
+  })();
   applyLang(LANG);
   load();
 </script>
