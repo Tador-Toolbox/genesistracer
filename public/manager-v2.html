@@ -4096,29 +4096,34 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
       }
 
       // Resident setup form (last page): name + apartment + resident number (= SIP, 1001+).
-      // Primary source = the resident-tool saved list; fall back to a live panel pull.
+      // Read the LIVE panel first (shows EVERYTHING on the panel — people + screens/IP rows);
+      // fall back to the resident-tool saved list only if the panel is unreachable.
+      // formSource records which one supplied the data, shown on the printed page.
       let formRows = [];
+      let formSource = '';
       try {
-        const rr = await fetch('/api/installer/residents?mac=' + encodeURIComponent(normMac(mac))).then(r => r.json());
-        if (rr && rr.success && (rr.residents || []).length) {
-          formRows = rr.residents.map(r => ({
-            name: [r.firstName, r.lastName].filter(Boolean).join(' '),
-            apt: r.apartment != null ? String(r.apartment) : '',
-            num: r.sip != null ? String(r.sip) : ''
-          }));
+        const pc = await fetch('/api/installer/panel-contacts?mac=' + encodeURIComponent(normMac(mac))).then(r => r.json());
+        if (pc && pc.success && (pc.contacts || []).length) {
+          formRows = pc.contacts.slice()
+            .sort((a, b) => String(a.sip_number).localeCompare(String(b.sip_number), undefined, { numeric: true }))
+            .map(c => ({
+              name: c.name || '',
+              apt: c.call_number != null ? String(c.call_number) : '',
+              num: c.sip_number != null ? String(c.sip_number) : ''
+            }));
+          formSource = 'panel';
         }
       } catch (e) {}
       if (!formRows.length) {
         try {
-          const pc = await fetch('/api/installer/panel-contacts?mac=' + encodeURIComponent(normMac(mac))).then(r => r.json());
-          if (pc && pc.success && (pc.contacts || []).length) {
-            formRows = pc.contacts.slice()
-              .sort((a, b) => String(a.sip_number).localeCompare(String(b.sip_number), undefined, { numeric: true }))
-              .map(c => ({
-                name: c.name || '',
-                apt: c.call_number != null ? String(c.call_number) : '',
-                num: c.sip_number != null ? String(c.sip_number) : ''
-              }));
+          const rr = await fetch('/api/installer/residents?mac=' + encodeURIComponent(normMac(mac))).then(r => r.json());
+          if (rr && rr.success && (rr.residents || []).length) {
+            formRows = rr.residents.map(r => ({
+              name: [r.firstName, r.lastName].filter(Boolean).join(' '),
+              apt: r.apartment != null ? String(r.apartment) : '',
+              num: r.sip != null ? String(r.sip) : ''
+            }));
+            formSource = 'saved';
           }
         } catch (e) {}
       }
@@ -4140,6 +4145,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         addr: macObj.address || '',
         showGuide: showGuide,
         form: formRows,
+        formSource: formSource,
         items: items.map(it => ({
           kind: it.kind || '',
           data: it.data,
@@ -4173,6 +4179,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           foot: 'Tador Technologies · לתמיכה פנו למתקין',
           formTitle: 'טופס הגדרת דיירים — VoIPBell', formSub: 'מצאו את שמכם והזינו את "מספר דייר" בשדה Apartment number באפליקציה.',
           fName: 'שם דייר', fApt: 'מספר דירה', fNum: 'מספר דייר',
+          fSrcPanel: 'מקור הנתונים: הפנל (מעודכן)', fSrcSaved: 'מקור הנתונים: גיבוי מהשרת',
           dlL: ['🤖 אנדרואיד', '🍎 iPhone'], dlS: ['Google Play', 'App Store'],
           vidL: ['🤖 אנדרואיד', '🍎 iPhone'], vidS: ['סרטון התקנה', 'סרטון התקנה'],
           steps: [
@@ -4199,6 +4206,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           foot: 'Tador Technologies · For support, contact your installer',
           formTitle: 'Resident Setup Form — VoIPBell', formSub: 'Find your name and enter the "Resident number" in the app\'s Apartment number field.',
           fName: 'Resident name', fApt: 'Apartment', fNum: 'Resident number',
+          fSrcPanel: 'Data source: the panel (live)', fSrcSaved: 'Data source: server backup',
           dlL: ['🤖 Android', '🍎 iPhone'], dlS: ['Google Play', 'App Store'],
           vidL: ['🤖 Android', '🍎 iPhone'], vidS: ['Setup video', 'Setup video'],
           steps: [
@@ -4257,6 +4265,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           .ftbl th{background:#f4f6f8;color:#333;font-weight:800;}
           .ftbl .fn{text-align:start;font-weight:600;}
           .ftbl .fnum{font-weight:800;color:#e8001c;}
+          .fsrc{font-size:11px;color:#666;text-align:start;margin:6px 2px 2px;}
           @media print{.noprint{display:none} .page{padding:12px 14px;}}
         </style></head>
         <body>
@@ -4293,7 +4302,9 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
               var p3="";
               if(d.form && d.form.length){
                 var frows=d.form.map(function(r){return "<tr><td class='fn'>"+esc(r.name)+"</td><td>"+esc(r.apt)+"</td><td class='fnum'>"+esc(r.num)+"</td></tr>";}).join("");
+                var srcTxt = d.formSource==='panel' ? t.fSrcPanel : (d.formSource==='saved' ? t.fSrcSaved : '');
                 p3="<div class='page p3'><div class='ghd'><img src='"+d.logo+"' alt='Tador'><h1>"+esc(t.formTitle)+"</h1><p>"+esc(t.formSub)+"</p></div>"
+                  +(srcTxt ? "<div class='fsrc'>"+esc(srcTxt)+"</div>" : "")
                   +"<table class='ftbl'><thead><tr><th>"+esc(t.fName)+"</th><th>"+esc(t.fApt)+"</th><th>"+esc(t.fNum)+"</th></tr></thead><tbody>"+frows+"</tbody></table>"
                   +"<div class='foot'>"+esc(t.foot)+"</div></div>";
               }
