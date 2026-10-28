@@ -68,15 +68,13 @@
               document.getElementById("doc").dir=t.dir;
               document.getElementById("lhe").className=(lang==="he"?"on":"");
               document.getElementById("len").className=(lang==="en"?"on":"");
-              // Building QRs (resident registration + committee login) show only when the
-              // manager enabled it for this panel (URL &building=1 → showBuilding).
-              var hasVb=d.items.some(function(it){return it.kind==="voipbell";});
-              var cards=d.items.filter(function(it){return it.kind==="voipbell"||showBuilding;}).map(function(it){
+              function cardHtml(it){
                 var isHttp=/^https?:/i.test(it.data);
                 return "<div class='qc'><div class='qt'>"+esc(t.titles[it.kind])+"</div><div class='qs'>"+esc(sub(t,it))+"</div><img src='"+qr(it.data,300)+"'><div class='qe'>"+esc(t.exp[it.kind])+"</div>"+(isHttp?"<a class='qlink' href='"+esc(it.data)+"'>"+esc(it.data)+"</a>":"")+"</div>";
-              }).join("");
-              // No VoIPBell account on this panel → say so instead of omitting it.
-              if(!hasVb){ cards="<div class='qc'><div class='qt'>📞 VoIPBell</div><div class='qe' style='text-align:center;color:#999;margin-top:26px;'>"+esc(t.noVb)+"</div></div>"+cards; }
+              }
+              // Building QRs (committee + resident registration) — page 1, only when the manager
+              // enabled it for this panel. The VoIPBell scan QR is moved to the END of the print.
+              var cards=d.items.filter(function(it){return (it.kind==="residents"||it.kind==="committee")&&showBuilding;}).map(cardHtml).join("");
               var p2="";
               if(d.showGuide){
                 var mini=function(arr,L,S){return arr.map(function(x,i){return "<div class='mq'><img src='"+qr(x.d,220)+"'><b>"+esc(L[i])+"</b><small>"+esc(S[i])+"</small></div>";}).join("");};
@@ -96,7 +94,15 @@
                   +"<table class='ftbl'><thead><tr><th>"+esc(t.fName)+"</th><th>"+esc(t.fApt)+"</th><th>"+esc(t.fNum)+"</th></tr></thead><tbody>"+frows+"</tbody></table>"
                   +"<div class='foot'>"+esc(t.foot)+"</div></div>";
               }
-              document.getElementById("root").innerHTML="<div class='page'><h2>"+esc(t.pageTitle)+" — "+esc(d.mac)+"</h2><div class='addr'>"+esc(d.addr)+"</div><div class='qrow'>"+cards+"</div></div>"+p2+p3;
+              // VoIPBell scan QR (or a "no account" card) — the LAST page.
+              var vb=d.items.filter(function(it){return it.kind==="voipbell";})[0];
+              var vbCard = vb ? cardHtml(vb)
+                : "<div class='qc'><div class='qt'>📞 VoIPBell</div><div class='qe' style='text-align:center;color:#999;margin-top:26px;'>"+esc(t.noVb)+"</div></div>";
+              var header="<h2>"+esc(t.pageTitle)+" — "+esc(d.mac)+"</h2><div class='addr'>"+esc(d.addr)+"</div>";
+              var page1 = cards ? ("<div class='page'>"+header+"<div class='qrow'>"+cards+"</div></div>") : "";
+              var pVbBreak = (page1||p2||p3) ? " p2" : "";
+              var pVb = "<div class='page"+pVbBreak+"'>"+(page1?"":header)+"<div class='qrow'>"+vbCard+"</div></div>";
+              document.getElementById("root").innerHTML = page1 + p2 + p3 + pVb;
               document.querySelector(".prt").textContent=t.print;
             }
             function setLang(l){render(l);}
