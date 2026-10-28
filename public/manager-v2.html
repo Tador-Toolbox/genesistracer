@@ -1452,6 +1452,23 @@
       } catch (e) { alert('❌ שגיאת תקשורת'); }
     }
 
+    // Toggle whether the installer's QR print includes the building barcodes (ועד + הרשמת דיירים).
+    async function v2ToggleBuildingQr(phoneNumber, mac, btn) {
+      if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+      const next = btn.getAttribute('data-on') !== '1';
+      try {
+        const d = await fetch('/api/manager/mac-flag', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber, mac, field: 'qrShowBuilding', value: next, username: window.__mgr.username, password: window.__mgr.password })
+        }).then(r => r.json());
+        if (!d.success) { alert('❌ ' + (d.error || 'שגיאה')); return; }
+        btn.setAttribute('data-on', next ? '1' : '0');
+        btn.style.background = next ? '#16a34a' : '#64748b';
+        btn.textContent = '🏢 בניין ' + (next ? '✓' : '✗');
+        try { (window._installerMacs[phoneNumber] || []).forEach(m => { if (normMac(m.mac) === normMac(mac)) m.qrShowBuilding = next; }); } catch (e) {}
+      } catch (e) { alert('❌ שגיאת תקשורת'); }
+    }
+
     async function resetPassword(phoneNumber) {
       if (!confirm(`Reset password for ${phoneNumber}?`)) return;
       const res = await fetch(`/api/manager/installers/${phoneNumber}/reset-password`, { method: 'POST' });
@@ -2665,6 +2682,7 @@
                     <span class="mac-detail-mac" onclick="v2ToggleMac(this)" style="cursor:pointer;">${macObj.mac}</span>
                     <div class="mac-actions">
                       <button class="small" onclick="v2PrintAllQr('${installer.phoneNumber}', '${macObj.mac}')" style="background:#0ea5e9;color:#fff;" title="הדפס QR (דיירים / ועד / VoIPBell)">🖨️ QR</button>
+                      <button class="small" onclick="v2ToggleBuildingQr('${installer.phoneNumber}','${macObj.mac}', this)" data-on="${macObj.qrShowBuilding ? 1 : 0}" title="הצגת ברקודי בניין (ועד + הרשמת דיירים) בהדפסת ה‑QR של המתקין" style="background:${macObj.qrShowBuilding ? '#16a34a' : '#64748b'};color:#fff;">🏢 בניין ${macObj.qrShowBuilding ? '✓' : '✗'}</button>
                       <button class="small" onclick='editMac("${installer.phoneNumber}", ${JSON.stringify(macObj)})'>${translations[currentLang].edit}</button>
                       <button class="small" onclick="openPanelInfo('${installer.phoneNumber}', '${macObj.mac}')" style="background:#0891b2;color:white;" title="מידע פנל">🔍 מידע</button>
                       ${buildingBtnHtml(installer.phoneNumber, macObj.mac)}

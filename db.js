@@ -263,7 +263,7 @@ async function updateMacField(phoneNumber, macAddress, field, value) {
   await connectDB();
   const allowedFields = ['description', 'descriptionInstaller', 'descriptionCommittee', 'notes', 'address', 'city', 'purchaseDate',
     'startDate', 'annualFee', 'licensesPurchased', 'licensePaid', 'panelType', 'voipbellAccount',
-    'technicianName', 'technicianPhone', 'supplierName', 'committeeName', 'committeePhone'];
+    'technicianName', 'technicianPhone', 'supplierName', 'committeeName', 'committeePhone', 'qrShowBuilding'];
   if (!allowedFields.includes(field)) throw new Error('Field not allowed: ' + field);
 
   await db.collection('installers').updateOne(

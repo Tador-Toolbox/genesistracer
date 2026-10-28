@@ -1281,6 +1281,24 @@ app.post('/api/manager/resident-submissions/link', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// Manager: toggle a per-MAC boolean flag (e.g. qrShowBuilding — whether the installer's
+// QR print includes the committee + resident-registration building barcodes).
+app.post('/api/manager/mac-flag', async (req, res) => {
+  const { phoneNumber, mac, field, value, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  const allowed = ['qrShowBuilding'];
+  if (!phoneNumber || !mac || !allowed.includes(field)) {
+    return res.status(400).json({ success: false, error: 'phoneNumber, mac and valid field required' });
+  }
+  try {
+    await db.updateMacField(phoneNumber, String(mac).replace(/[:\s-]/g, '').toUpperCase(), field, !!value);
+    res.json({ success: true, value: !!value });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // Manager: set an installer account's default portal language ('he' | 'en')
 app.post('/api/manager/installer-lang', async (req, res) => {
   const { phoneNumber, lang, username, password } = req.body || {};

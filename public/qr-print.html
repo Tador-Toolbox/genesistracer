@@ -55,7 +55,6 @@
 <body>
   <div class="bar noprint">
     <div class="seg"><button id="lhe" onclick="setLang('he')">עברית</button><button id="len" onclick="setLang('en')">English</button></div>
-    <button class="prt" id="tglBuilding" onclick="toggleBuilding()" style="display:none;background:#0ea5e9;"></button>
     <button class="prt" onclick="window.print()">🖨️</button>
   </div>
   <div id="root"><div class="page"><p style="text-align:center;color:#666;padding:40px;">מכין QR…</p></div></div>
@@ -69,9 +68,8 @@
               document.getElementById("doc").dir=t.dir;
               document.getElementById("lhe").className=(lang==="he"?"on":"");
               document.getElementById("len").className=(lang==="en"?"on":"");
-              // Building QRs (resident registration + committee login) are hidden unless toggled on.
-              var isBuilding=function(k){return k==="residents"||k==="committee";};
-              var hasBuilding=d.items.some(function(it){return isBuilding(it.kind);});
+              // Building QRs (resident registration + committee login) show only when the
+              // manager enabled it for this panel (URL &building=1 → showBuilding).
               var hasVb=d.items.some(function(it){return it.kind==="voipbell";});
               var cards=d.items.filter(function(it){return it.kind==="voipbell"||showBuilding;}).map(function(it){
                 var isHttp=/^https?:/i.test(it.data);
@@ -79,10 +77,6 @@
               }).join("");
               // No VoIPBell account on this panel → say so instead of omitting it.
               if(!hasVb){ cards="<div class='qc'><div class='qt'>📞 VoIPBell</div><div class='qe' style='text-align:center;color:#999;margin-top:26px;'>"+esc(t.noVb)+"</div></div>"+cards; }
-              // Toggle button only when there is something to show/hide.
-              var tgl=document.getElementById("tglBuilding");
-              tgl.style.display=hasBuilding?"inline-block":"none";
-              tgl.textContent=showBuilding?t.hideBuilding:t.showBuilding;
               var p2="";
               if(d.showGuide){
                 var mini=function(arr,L,S){return arr.map(function(x,i){return "<div class='mq'><img src='"+qr(x.d,220)+"'><b>"+esc(L[i])+"</b><small>"+esc(S[i])+"</small></div>";}).join("");};
@@ -106,12 +100,12 @@
               document.querySelector(".prt").textContent=t.print;
             }
             function setLang(l){render(l);}
-            function toggleBuilding(){ showBuilding=!showBuilding; render(CUR); }
     async function boot() {
       const qsp = new URLSearchParams(location.search);
       const MAC = (qsp.get('mac') || '').replace(/[:\s-]/g, '').toUpperCase();
       const ACCOUNT = (qsp.get('account') || '').trim();
       const ADDR = (qsp.get('addr') || '').trim();
+      showBuilding = (qsp.get('building') === '1');   // manager-enabled per panel
       const BLD_BASE = 'https://genesistracer.onrender.com';
       const LOGO = location.origin + '/tador-logo-white.png';
       const items = [];

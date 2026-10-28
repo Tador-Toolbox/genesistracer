@@ -1006,7 +1006,8 @@
     const addr = (m.address || descFor(m) || '').trim();
     const url = '/qr-print.html?mac=' + encodeURIComponent(mac)
       + (acct ? '&account=' + encodeURIComponent(acct) : '')
-      + (addr ? '&addr=' + encodeURIComponent(addr) : '');
+      + (addr ? '&addr=' + encodeURIComponent(addr) : '')
+      + (m.qrShowBuilding ? '&building=1' : '');   // building QRs only if the manager enabled it
     window.open(url, '_blank');
   }
 
