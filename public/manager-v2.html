@@ -4336,7 +4336,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           gDl: 'הורדת האפליקציה', gVid: 'סרטון הדרכה · דקה וחצי', gSteps: 'השלבים',
           foot: 'Tador Technologies · לתמיכה פנו למתקין',
           formTitle: 'טופס הגדרת דיירים — VoIPBell', formSub: 'מצאו את שמכם והזינו את "מספר דייר" בשדה Apartment number באפליקציה.',
-          fName: 'שם דייר', fApt: 'מספר דירה', fNum: 'מספר דייר',
+          fName: 'שם דייר', fApt: 'מספר דירה', fNum: 'מספר דייר / דירה*', fNote: '* "מספר דייר" הוא המספר שמזינים בשדה Apartment number בעת רישום האפליקציה (אינו מספר הדירה בפועל).',
           fSrcPanel: 'מקור הנתונים: הנתונים נמשכו מהפנל ומעודכנים להיום', fSrcSaved: 'מקור הנתונים: גיבוי מהשרת', noVb: 'אין QR של חשבון VoIPBell לפנל זה',
           dlL: ['🤖 אנדרואיד', '🍎 iPhone'], dlS: ['Google Play', 'App Store'],
           vidL: ['🤖 אנדרואיד', '🍎 iPhone'], vidS: ['סרטון התקנה', 'סרטון התקנה'],
@@ -4363,7 +4363,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           gDl: 'Download the app', gVid: 'Setup video · 1.5 min', gSteps: 'Steps',
           foot: 'Tador Technologies · For support, contact your installer',
           formTitle: 'Resident Setup Form — VoIPBell', formSub: 'Find your name and enter the "Resident number" in the app\'s Apartment number field.',
-          fName: 'Resident name', fApt: 'Apartment', fNum: 'Resident number',
+          fName: 'Resident name', fApt: 'Apartment', fNum: 'Resident / Apartment no.*', fNote: '* The "Resident number" is what you enter in the app\'s Apartment number field when registering (not the actual apartment).',
           fSrcPanel: 'Data source: pulled from the panel, up to date as of today', fSrcSaved: 'Data source: server backup', noVb: 'No VoIPBell QR for this panel',
           dlL: ['🤖 Android', '🍎 iPhone'], dlS: ['Google Play', 'App Store'],
           vidL: ['🤖 Android', '🍎 iPhone'], vidS: ['Setup video', 'Setup video'],
@@ -4464,7 +4464,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
                 var frows=d.form.map(function(r){return "<tr><td class='fn'>"+esc(r.name)+"</td><td>"+esc(r.apt)+"</td><td class='fnum'>"+esc(r.num)+"</td></tr>";}).join("");
                 var srcTxt = d.formSource==='panel' ? t.fSrcPanel : (d.formSource==='saved' ? t.fSrcSaved : '');
                 p3="<div class='page p3'><div class='ghd'><img src='"+d.logo+"' alt='Tador'><h1>"+esc(t.formTitle)+"</h1><p>"+esc(t.formSub)+"</p></div>"
-                  +(srcTxt ? "<div class='fsrc'>"+esc(srcTxt)+"</div>" : "")
+                  +"<div class='fsrc' style='color:#e8001c;font-weight:600;'>"+esc(t.fNote)+"</div>"+(srcTxt ? "<div class='fsrc'>"+esc(srcTxt)+"</div>" : "")
                   +"<table class='ftbl'><thead><tr><th>"+esc(t.fName)+"</th><th>"+esc(t.fApt)+"</th><th>"+esc(t.fNum)+"</th></tr></thead><tbody>"+frows+"</tbody></table>"
                   +"<div class='foot'>"+esc(t.foot)+"</div></div>";
               }
