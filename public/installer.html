@@ -1007,7 +1007,8 @@
     const url = '/qr-print.html?mac=' + encodeURIComponent(mac)
       + (acct ? '&account=' + encodeURIComponent(acct) : '')
       + (addr ? '&addr=' + encodeURIComponent(addr) : '')
-      + (m.qrShowBuilding ? '&building=1' : '');   // building QRs only if the manager enabled it
+      + (m.qrShowBuilding ? '&building=1' : '')     // building QRs only if the manager enabled it
+      + '&lang=' + (currentLang === 'en' ? 'en' : 'he');   // open in the account's language
     window.open(url, '_blank');
   }
 

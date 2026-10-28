@@ -2636,6 +2636,7 @@
         ).toLowerCase();
 
         const dlang = (details.installer.defaultLang === 'en' ? 'en' : 'he');
+        (window._installerLang = window._installerLang || {})[installer.phoneNumber] = dlang;
 
         row.innerHTML = `
           <td>
@@ -4174,6 +4175,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
       const macs = (window._installerMacs && window._installerMacs[phone]) || [];
       const macObj = macs.find(m => normMac(m.mac) === normMac(mac)) || { mac };
       const vbAccount = (macObj.voipbellAccount || '').trim();
+      const lang = (window._installerLang && window._installerLang[phone] === 'en') ? 'en' : 'he';  // open print in the account's language
 
       // Open the print window synchronously (avoids popup blocking), fill it when ready.
       const w = window.open('', '_blank');
@@ -4414,7 +4416,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
               document.querySelector(".prt").textContent=t.print;
             }
             function setLang(l){render(l);}
-            render("he");
+            render("${lang}");
           <\/script>
         </body></html>`;
       if (w) { w.document.open(); w.document.write(html); w.document.close(); w.focus(); }

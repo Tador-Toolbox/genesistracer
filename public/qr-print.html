@@ -105,6 +105,7 @@
       const MAC = (qsp.get('mac') || '').replace(/[:\s-]/g, '').toUpperCase();
       const ACCOUNT = (qsp.get('account') || '').trim();
       const ADDR = (qsp.get('addr') || '').trim();
+      const LANG = (qsp.get('lang') === 'en') ? 'en' : 'he';   // account default language
       showBuilding = (qsp.get('building') === '1');   // manager-enabled per panel
       const BLD_BASE = 'https://genesistracer.onrender.com';
       const LOGO = location.origin + '/tador-logo-white.png';
@@ -244,7 +245,7 @@
           ]
         }
       };
-      render('he');
+      render(LANG);
     }
     boot();
   </script>
