@@ -985,14 +985,30 @@
             <button class="desc-save-btn" onclick="event.stopPropagation();saveDescription('${m.mac}')">${t.saveDescription}</button>
           </div>
         </div>
-        <button class="mac-edit-btn" onclick="event.stopPropagation();toggleDescEdit('${m.mac}')">
-          <span class="material-symbols-outlined">edit</span>
-        </button>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="mac-edit-btn" onclick="event.stopPropagation();openPrintQr('${m.mac}')" title="הדפס QR">
+            <span class="material-symbols-outlined">qr_code_2</span>
+          </button>
+          <button class="mac-edit-btn" onclick="event.stopPropagation();toggleDescEdit('${m.mac}')">
+            <span class="material-symbols-outlined">edit</span>
+          </button>
+        </div>
       </div>
     `).join('');
   }
 
   function filterMacList(val) { renderMacList(val); }
+
+  // Print the QR codes for a panel (barcodes + VoIPBell guide + resident form) via the shared page.
+  function openPrintQr(mac) {
+    const m = (installerData?.macAddresses || []).find(x => x.mac === mac) || {};
+    const acct = (m.voipbellAccount || '').trim();
+    const addr = (m.address || descFor(m) || '').trim();
+    const url = '/qr-print.html?mac=' + encodeURIComponent(mac)
+      + (acct ? '&account=' + encodeURIComponent(acct) : '')
+      + (addr ? '&addr=' + encodeURIComponent(addr) : '');
+    window.open(url, '_blank');
+  }
 
   function selectMac(mac) {
     selectedMac = mac;
