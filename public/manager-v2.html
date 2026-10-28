@@ -1034,6 +1034,25 @@
         </div>
       </div>
 
+      <!-- Resident lists already uploaded to the panel (approved) -->
+      <div class="card" data-screen="residents">
+        <h2 style="margin:0 0 6px;">✅ רשימות שהועלו לפנל</h2>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">רשימות שאושרו והועלו לפנל. כאן רק לצפייה והיסטוריה — אין צורך להעלות שוב.</p>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr style="background:var(--bg-card);">
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">פנל (MAC)</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">מתקין</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">דיירים</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">דירות (רישיונות)</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">הועלה</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">פעולות</th>
+            </tr></thead>
+            <tbody id="residentsUploadedBody"><tr><td colspan="6" style="text-align:center;padding:16px;color:var(--text-dim);">—</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Resident swaps (עדכון דייר גרסא 2 · beta) -->
       <div class="card" data-screen="residents">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
@@ -3965,31 +3984,55 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
 
     async function v2LoadResidents() {
       const body = document.getElementById('residentsBody');
+      const upBody = document.getElementById('residentsUploadedBody');
       if (!body) return;
+      const btn = (label, onclick, bg, color) => `<button onclick="${onclick}" style="padding:4px 10px;margin:2px;background:${bg};color:${color};border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">${label}</button>`;
+      // First 4 shared cells: panel(MAC+account), installer, residents, apartments.
+      const baseCells = (s) => {
+        const mac = v2SecEsc(s.mac || ''); const acct = v2AccountForMac(s.mac);
+        const cnt = (s.residents || []).length;
+        const apt = (s.apartmentsCount != null) ? s.apartmentsCount : new Set((s.residents || []).map(r => String((r && r.apartment) || '').trim()).filter(Boolean)).size;
+        return `<td style="padding:8px;"><b>${mac}</b>${acct ? `<div style="font-size:11px;color:var(--text-dim);">📞 ${v2SecEsc(acct)}</div>` : ''}</td>
+            <td style="padding:8px;text-align:center;">${v2SecEsc(s.phoneNumber || '')}</td>
+            <td style="padding:8px;text-align:center;font-weight:700;">${cnt}</td>
+            <td style="padding:8px;text-align:center;font-weight:700;color:var(--accent);">${apt}</td>`;
+      };
       try {
         const data = await fetch('/api/manager/resident-submissions').then(r => r.json());
         const subs = (data.submissions || []).filter(s => (s.residents || []).length || s.status === 'pending');
         window.__residents = {}; subs.forEach(s => { window.__residents[s.mac] = s; });
         const stMap = { draft: ['טיוטה', '#64717e'], pending: ['ממתין לאישור', '#9a6b00'], approved: ['אושר', '#2e7d32'], rejected: ['נדחה', '#c62828'] };
-        body.innerHTML = subs.length ? subs.map(s => {
-          const st = stMap[s.status] || stMap.draft;
-          const mac = v2SecEsc(s.mac || '');
-          const acct = v2AccountForMac(s.mac);
-          const cnt = (s.residents || []).length;
-          const apt = (s.apartmentsCount != null) ? s.apartmentsCount : new Set((s.residents || []).map(r => String((r && r.apartment) || '').trim()).filter(Boolean)).size;
-          return `<tr>
-            <td style="padding:8px;"><b>${mac}</b>${acct ? `<div style="font-size:11px;color:var(--text-dim);">📞 ${v2SecEsc(acct)}</div>` : ''}</td>
-            <td style="padding:8px;text-align:center;">${v2SecEsc(s.phoneNumber || '')}</td>
-            <td style="padding:8px;text-align:center;font-weight:700;">${cnt}</td>
-            <td style="padding:8px;text-align:center;font-weight:700;color:var(--accent);">${apt}</td>
+        const pend = subs.filter(s => s.status !== 'approved');
+        const up = subs.filter(s => s.status === 'approved');
+
+        // Pending/awaiting-approval table (with approve/reject).
+        body.innerHTML = pend.length ? pend.map(s => {
+          const st = stMap[s.status] || stMap.draft; const mac = v2SecEsc(s.mac || '');
+          return `<tr>${baseCells(s)}
             <td style="padding:8px;text-align:center;"><span style="color:${st[1]};font-weight:700;">${st[0]}</span></td>
             <td style="padding:8px;text-align:center;white-space:nowrap;">
-              <button onclick="v2ViewResidents('${mac}')" style="padding:4px 10px;margin:2px;background:#eef1f4;color:#111;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">👁 צפה</button>
-              <button onclick="v2ResidentLink('${mac}')" style="padding:4px 10px;margin:2px;background:#0ea5e9;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">🔗 קישור לוועד</button>
-              <button onclick="v2ResidentStatus('${mac}','approved')" style="padding:4px 10px;margin:2px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">✓ אשר</button>
-              <button onclick="v2ResidentStatus('${mac}','rejected')" style="padding:4px 10px;margin:2px;background:#ef4444;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">✕ דחה</button>
+              ${btn('👁 צפה', `v2ViewResidents('${mac}')`, '#eef1f4', '#111')}
+              ${btn('🖨️ QR', `v2PrintAllQr('${v2SecEsc(s.phoneNumber || '')}','${mac}')`, '#0ea5e9', '#fff')}
+              ${btn('🔗 קישור לוועד', `v2ResidentLink('${mac}')`, '#64748b', '#fff')}
+              ${btn('✓ אשר', `v2ResidentStatus('${mac}','approved')`, '#16a34a', '#fff')}
+              ${btn('✕ דחה', `v2ResidentStatus('${mac}','rejected')`, '#ef4444', '#fff')}
             </td></tr>`;
-        }).join('') : '<tr><td colspan="6" style="text-align:center;padding:18px;color:var(--text-dim);">אין רשימות דיירים עדיין</td></tr>';
+        }).join('') : '<tr><td colspan="6" style="text-align:center;padding:18px;color:var(--text-dim);">אין רשימות ממתינות</td></tr>';
+
+        // Uploaded-to-panel table (view / QR / link only — no re-upload).
+        if (upBody) {
+          upBody.innerHTML = up.length ? up.map(s => {
+            const mac = v2SecEsc(s.mac || '');
+            let dt = ''; try { dt = new Date(s.approvedAt || s.updatedAt).toLocaleDateString('he-IL'); } catch (e) {}
+            return `<tr>${baseCells(s)}
+              <td style="padding:8px;text-align:center;color:var(--text-dim);">${dt || '—'}</td>
+              <td style="padding:8px;text-align:center;white-space:nowrap;">
+                ${btn('👁 צפה', `v2ViewResidents('${mac}')`, '#eef1f4', '#111')}
+                ${btn('🖨️ QR', `v2PrintAllQr('${v2SecEsc(s.phoneNumber || '')}','${mac}')`, '#0ea5e9', '#fff')}
+                ${btn('🔗 קישור לוועד', `v2ResidentLink('${mac}')`, '#64748b', '#fff')}
+              </td></tr>`;
+          }).join('') : '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--text-dim);">אין רשימות שהועלו עדיין</td></tr>';
+        }
       } catch (e) {
         body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:18px;color:#ef4444;">שגיאה בטעינה</td></tr>';
       }
