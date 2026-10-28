@@ -1112,7 +1112,21 @@
     }).join('');
     return `<div style="padding:14px 0;border-bottom:1px solid var(--gray-200);"><div style="font-size:13px;font-weight:800;color:#15803d;margin-bottom:10px;">${head}</div>${rows}</div>`;
   }
-  // Combined unread badge for the header "הודעות מהמנהל" button: announcements + swaps.
+  // Per-installer "seen swaps" (localStorage) so the badge clears once the messages are opened.
+  function swapsSeenKey() { return 'mgrSwapsSeen_' + (installerData?.phoneNumber || ''); }
+  function getSeenSwaps() { try { return JSON.parse(localStorage.getItem(swapsSeenKey()) || '[]'); } catch (e) { return []; } }
+  function markSwapsSeen() {
+    try {
+      const ids = (window._instSwaps || []).map(s => s._id);
+      localStorage.setItem(swapsSeenKey(), JSON.stringify(ids));
+    } catch (e) {}
+  }
+  function unreadSwapsCount() {
+    const seen = getSeenSwaps();
+    return (window._instSwaps || []).filter(s => !seen.includes(s._id)).length;
+  }
+
+  // Combined unread badge for the header "הודעות מהמנהל" button: unread announcements + unseen swaps.
   async function refreshMgrBadge() {
     const badge = document.getElementById('mgrMsgBadge');
     if (!badge || !installerData?.phoneNumber) return;
@@ -1122,7 +1136,7 @@
       const data = await fetch('/api/installer/announcements?phoneNumber=' + encodeURIComponent(installerData.phoneNumber) + '&accountType=' + accountType).then(r => r.json());
       unread += Number(data.unread || 0);
     } catch (e) {}
-    unread += (window._instSwaps || []).length;
+    unread += unreadSwapsCount();
     if (unread > 0) { badge.textContent = unread; badge.style.display = 'block'; }
     else { badge.style.display = 'none'; }
   }
@@ -2190,6 +2204,7 @@
     const list = document.getElementById('announcementsList');
     list.innerHTML = '<div class="chat-empty">טוען...</div>';
     const swapsHtml = swapMsgsHtml();   // approved resident updates at the top
+    markSwapsSeen();                    // opening the messages clears the swap part of the badge
     try {
       const accountType = installerData?.accountType || 'installer';
       const res = await fetch('/api/installer/announcements?phoneNumber=' + encodeURIComponent(installerData.phoneNumber) + '&accountType=' + accountType);
