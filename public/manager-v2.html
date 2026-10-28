@@ -3952,6 +3952,17 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
     }
 
     // ===== Residents submissions (residenter) =====
+    // Find a panel's VoIPBell account by MAC (from the loaded installers' macs).
+    function v2AccountForMac(mac) {
+      const n = normMac(mac || '');
+      const all = window._installerMacs || {};
+      for (const ph in all) {
+        const m = (all[ph] || []).find(x => normMac(x.mac) === n);
+        if (m && m.voipbellAccount) return m.voipbellAccount;
+      }
+      return '';
+    }
+
     async function v2LoadResidents() {
       const body = document.getElementById('residentsBody');
       if (!body) return;
@@ -3963,10 +3974,11 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         body.innerHTML = subs.length ? subs.map(s => {
           const st = stMap[s.status] || stMap.draft;
           const mac = v2SecEsc(s.mac || '');
+          const acct = v2AccountForMac(s.mac);
           const cnt = (s.residents || []).length;
           const apt = (s.apartmentsCount != null) ? s.apartmentsCount : new Set((s.residents || []).map(r => String((r && r.apartment) || '').trim()).filter(Boolean)).size;
           return `<tr>
-            <td style="padding:8px;"><b>${mac}</b></td>
+            <td style="padding:8px;"><b>${mac}</b>${acct ? `<div style="font-size:11px;color:var(--text-dim);">📞 ${v2SecEsc(acct)}</div>` : ''}</td>
             <td style="padding:8px;text-align:center;">${v2SecEsc(s.phoneNumber || '')}</td>
             <td style="padding:8px;text-align:center;font-weight:700;">${cnt}</td>
             <td style="padding:8px;text-align:center;font-weight:700;color:var(--accent);">${apt}</td>
@@ -4015,7 +4027,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           const nOut = (s.leaving || []).length;
           const summary = `📅 ${dt} · <span style="color:#16a34a;">נכנסו ${nIn}</span> · <span style="color:#ef4444;">עזבו ${nOut}</span>`;
           return `<tr>
-            <td style="padding:8px;"><b>${v2SecEsc(s.panelLabel || s.mac)}</b><div style="font-size:11px;color:var(--text-dim);">${v2SecEsc(s.mac)}</div></td>
+            <td style="padding:8px;"><b>${v2SecEsc(s.panelLabel || s.mac)}</b><div style="font-size:11px;color:var(--text-dim);">${v2SecEsc(s.mac)}${(function(){var a=v2AccountForMac(s.mac);return a?(' · 📞 '+v2SecEsc(a)):'';})()}</div></td>
             <td style="padding:8px;text-align:center;font-weight:800;">${v2SecEsc(s.apartment)}</td>
             <td style="padding:8px;"><span style="color:#ef4444;">${leaving}</span> &larr; <span style="color:#16a34a;font-weight:700;">${entering}</span><div style="font-size:11px;color:var(--text-dim);margin-top:4px;">${summary}</div></td>
             <td style="padding:8px;text-align:center;"><span style="color:${st[1]};font-weight:700;">${st[0]}</span></td>
