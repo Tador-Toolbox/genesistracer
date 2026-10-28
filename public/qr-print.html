@@ -57,7 +57,7 @@
     <div class="seg"><button id="lhe" onclick="setLang('he')">עברית</button><button id="len" onclick="setLang('en')">English</button></div>
     <button class="prt" onclick="window.print()">🖨️</button>
   </div>
-  <div id="root"><div class="page"><p style="text-align:center;color:#666;padding:40px;">מכין QR…</p></div></div>
+  <div id="root"><div class="page"><p style="text-align:center;color:#666;padding:40px;">מכין את המערכת…</p></div></div>
   <script>
     var DATA = null, T = null, showBuilding = false, CUR = "he";
             function qr(d,s){return "https://api.qrserver.com/v1/create-qr-code/?size="+s+"x"+s+"&margin=8&data="+encodeURIComponent(d);}
@@ -106,6 +106,8 @@
       const ACCOUNT = (qsp.get('account') || '').trim();
       const ADDR = (qsp.get('addr') || '').trim();
       const LANG = (qsp.get('lang') === 'en') ? 'en' : 'he';   // account default language
+      document.getElementById('doc').dir = (LANG === 'en') ? 'ltr' : 'rtl';
+      document.getElementById('root').innerHTML = '<div class="page"><p style="text-align:center;color:#666;padding:40px;">' + (LANG === 'en' ? 'Preparing the system…' : 'מכין את המערכת…') + '</p></div>';
       showBuilding = (qsp.get('building') === '1');   // manager-enabled per panel
       const BLD_BASE = 'https://genesistracer.onrender.com';
       const LOGO = location.origin + '/tador-logo-white.png';
@@ -159,7 +161,7 @@
         } catch (e) {}
       }
       if (!items.length && !formRows.length) {
-        document.getElementById('root').innerHTML = '<div class="page"><p style="text-align:center;color:#666;padding:40px;">אין QR להדפסה לפנל זה</p></div>';
+        document.getElementById('root').innerHTML = '<div class="page"><p style="text-align:center;color:#666;padding:40px;">' + (LANG === 'en' ? 'No QR codes to print for this panel' : 'אין QR להדפסה לפנל זה') + '</p></div>';
         return;
       }
       const showGuide = !!ACCOUNT;
