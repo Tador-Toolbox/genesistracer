@@ -22,7 +22,18 @@
   th{background:#f4f6f8;color:#333;font-weight:800}
   td.fn{text-align:start;font-weight:600}
   td.fnum{font-weight:800;color:#e8001c}
-  .foot{text-align:center;color:#888;font-size:11px;margin-top:10px}
+  .sect{border:1px solid #e3e3e3;border-radius:10px;padding:10px 14px;margin-top:12px}
+  .sect h3{margin:0 0 8px;font-size:14px}
+  .sect h3::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#e8001c;margin-inline-end:7px;vertical-align:middle}
+  .mrow{display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
+  .mq{text-align:center}
+  .mq img{width:110px;height:110px;border:1px solid #eee;border-radius:8px;padding:5px}
+  .mq b{display:block;font-size:13px;margin-top:4px}
+  .mq small{color:#666;font-size:11px}
+  .vbbox{text-align:center;margin-top:4px}
+  .vbbox img{width:230px;height:230px;border:1px solid #eee;border-radius:8px;padding:6px}
+  .vbbox p{font-size:12px;color:#555;margin:8px auto 0;max-width:440px}
+  .foot{text-align:center;color:#888;font-size:11px;margin-top:12px}
   .msg{text-align:center;color:#666;padding:30px}
   @media print{.bar{display:none} body{background:#fff} .page{padding:12px 14px}}
 </style>
@@ -36,23 +47,45 @@
   const id = new URLSearchParams(location.search).get('id') || '';
   const LOGO = '/tador-logo-white.png';
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function qr(d,s){ return 'https://api.qrserver.com/v1/create-qr-code/?size='+s+'x'+s+'&margin=8&data='+encodeURIComponent(d); }
   async function load(){
     const page = document.getElementById('page');
     if (!id){ page.innerHTML = '<div class="msg">חסר מזהה טופס</div>'; return; }
     try{
       const d = await fetch('/api/swap-form?id=' + encodeURIComponent(id)).then(r=>r.json());
       if (!d.success){ page.innerHTML = '<div class="msg">הטופס לא נמצא</div>'; return; }
+
+      // Building VoIPBell scan QR (payload fetched live from the account, if any)
+      let vbPayload = '';
+      if (d.voipbellAccount){
+        try{ const q = await fetch('/api/manager/voipbell-qr?account=' + encodeURIComponent(d.voipbellAccount)).then(r=>r.json()); if (q && q.success) vbPayload = q.payload; }catch(e){}
+      }
+
       const rows = (d.residents||[]).map(r=>{
         const name = r.name || ((r.firstName||'') + ' ' + (r.lastName||'')).trim();
         return '<tr><td class="fn">'+esc(name)+'</td><td>'+esc(r.apartment||d.apartment||'')+'</td><td class="fnum">'+esc(r.sip||'')+'</td></tr>';
       }).join('');
+
+      const dl = [['🤖 אנדרואיד','Google Play','https://play.google.com/store/apps/details?id=net.voipbell'],
+                  ['🍎 iPhone','App Store','https://apps.apple.com/us/app/voip-bell/id1350362244']];
+      const vid = [['🤖 אנדרואיד','סרטון התקנה','https://youtube.com/shorts/CIxXZXuutuQ'],
+                   ['🍎 iPhone','סרטון התקנה','https://youtube.com/shorts/KBY2g6LDmvM']];
+      const mini = arr => arr.map(x=>'<div class="mq"><img src="'+qr(x[2],220)+'"><b>'+esc(x[0])+'</b><small>'+esc(x[1])+'</small></div>').join('');
+
+      const vbHtml = vbPayload
+        ? '<div class="sect"><h3>VoIPBell — ברקוד הבניין</h3><div class="vbbox"><img src="'+qr(vbPayload,300)+'"><p>לאחר הזנת מספר הדייר ומספר הטלפון — בחרו SCAN וסרקו את ברקוד ה‑VoIPBell.</p></div></div>'
+        : '';
+
       page.innerHTML =
         '<div class="ghd"><img src="'+LOGO+'" alt="Tador"><h1>הגדרת דיירים חדשים — VoIPBell</h1>'
         + '<p>הדיירים החדשים שנוספו' + (d.panelLabel?(' · '+esc(d.panelLabel)):'') + (d.apartment?(' · דירה '+esc(d.apartment)):'') + '</p></div>'
-        + '<div class="sub">מצאו את שמכם והזינו את "מספר דייר" בשדה Apartment number באפליקציה.</div>'
-        + '<table><thead><tr><th>שם דייר</th><th>מספר דירה</th><th>מספר דייר</th></tr></thead><tbody>'
+        + '<div class="sub">מצאו את שמכם והזינו את "מספר דייר" בשדה Apartment number באפליקציה (אינו מספר הדירה בפועל).</div>'
+        + '<table><thead><tr><th>שם דייר</th><th>מספר דירה</th><th>מספר דייר / דירה</th></tr></thead><tbody>'
         + (rows || '<tr><td colspan="3" style="color:#888;">אין דיירים חדשים</td></tr>')
         + '</tbody></table>'
+        + '<div class="sect"><h3>הורדת האפליקציה</h3><div class="mrow">'+mini(dl)+'</div></div>'
+        + '<div class="sect"><h3>סרטון הדרכה · דקה וחצי</h3><div class="mrow">'+mini(vid)+'</div></div>'
+        + vbHtml
         + '<div class="foot">Tador Technologies · לתמיכה פנו למתקין</div>';
     }catch(e){ page.innerHTML = '<div class="msg">שגיאה בטעינה</div>'; }
   }

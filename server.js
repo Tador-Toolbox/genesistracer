@@ -1259,9 +1259,17 @@ app.get('/api/swap-form', async (req, res) => {
         apartment: swap.apartment, sip: e.sip || ''
       }));
     }
+    // Resolve this panel's VoIPBell account (for the building scan QR on the form).
+    let voipbellAccount = '';
+    try {
+      const database = await require('./db').connectDB();
+      const inst = await database.collection('installers').findOne({ 'macAddresses.mac': swap.mac });
+      const m = inst && (inst.macAddresses || []).find(x => x.mac === swap.mac);
+      if (m && m.voipbellAccount) voipbellAccount = String(m.voipbellAccount).trim();
+    } catch (e) {}
     res.json({
       success: true, apartment: swap.apartment, panelLabel: swap.panelLabel || '',
-      status: swap.status, residents
+      status: swap.status, residents, voipbellAccount
     });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
