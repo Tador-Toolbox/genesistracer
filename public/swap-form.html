@@ -79,12 +79,12 @@
       page.innerHTML =
         '<div class="ghd"><img src="'+LOGO+'" alt="Tador"><h1>הגדרת דיירים חדשים — VoIPBell</h1>'
         + '<p>הדיירים החדשים שנוספו' + (d.panelLabel?(' · '+esc(d.panelLabel)):'') + (d.apartment?(' · דירה '+esc(d.apartment)):'') + '</p></div>'
+        + '<div class="sect"><h3>הורדת האפליקציה</h3><div class="mrow">'+mini(dl)+'</div></div>'
+        + '<div class="sect"><h3>סרטון הדרכה · דקה וחצי</h3><div class="mrow">'+mini(vid)+'</div></div>'
         + '<div class="sub">מצאו את שמכם והזינו את "מספר דייר" בשדה Apartment number באפליקציה (אינו מספר הדירה בפועל).</div>'
         + '<table><thead><tr><th>שם דייר</th><th>מספר דירה</th><th>מספר דייר / דירה</th></tr></thead><tbody>'
         + (rows || '<tr><td colspan="3" style="color:#888;">אין דיירים חדשים</td></tr>')
         + '</tbody></table>'
-        + '<div class="sect"><h3>הורדת האפליקציה</h3><div class="mrow">'+mini(dl)+'</div></div>'
-        + '<div class="sect"><h3>סרטון הדרכה · דקה וחצי</h3><div class="mrow">'+mini(vid)+'</div></div>'
         + vbHtml
         + '<div class="foot">Tador Technologies · לתמיכה פנו למתקין</div>';
     }catch(e){ page.innerHTML = '<div class="msg">שגיאה בטעינה</div>'; }
