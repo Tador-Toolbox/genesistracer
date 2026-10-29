@@ -72,6 +72,9 @@
                    ['🍎 iPhone','סרטון התקנה','https://youtube.com/shorts/KBY2g6LDmvM']];
       const mini = arr => arr.map(x=>'<div class="mq"><img src="'+qr(x[2],220)+'"><b>'+esc(x[0])+'</b><small>'+esc(x[1])+'</small></div>').join('');
 
+      const leftArr = (d.leaving||[]).map(l => (l.name||'') + (l.sip?(' ('+l.sip+')'):'')).filter(x=>x.trim());
+      const leftHtml = leftArr.length ? '<div class="sub" style="color:#c62828;margin-top:6px;">דיירים שעזבו: '+esc(leftArr.join(', '))+'</div>' : '';
+
       const vbHtml = vbPayload
         ? '<div class="sect"><h3>VoIPBell — ברקוד הבניין</h3><div class="vbbox"><img src="'+qr(vbPayload,300)+'"><p>לאחר הזנת מספר הדייר ומספר הטלפון — בחרו SCAN וסרקו את ברקוד ה‑VoIPBell.</p></div></div>'
         : '';
@@ -81,6 +84,7 @@
         + '<p>הדיירים החדשים שנוספו' + (d.panelLabel?(' · '+esc(d.panelLabel)):'') + (d.apartment?(' · דירה '+esc(d.apartment)):'') + '</p></div>'
         + '<div class="sect"><h3>הורדת האפליקציה</h3><div class="mrow">'+mini(dl)+'</div></div>'
         + '<div class="sect"><h3>סרטון הדרכה · דקה וחצי</h3><div class="mrow">'+mini(vid)+'</div></div>'
+        + leftHtml
         + '<div class="sub">מצאו את שמכם והזינו את "מספר דייר" בשדה Apartment number באפליקציה (אינו מספר הדירה בפועל).</div>'
         + '<table><thead><tr><th>שם דייר</th><th>מספר דירה</th><th>מספר דייר / דירה</th></tr></thead><tbody>'
         + (rows || '<tr><td colspan="3" style="color:#888;">אין דיירים חדשים</td></tr>')

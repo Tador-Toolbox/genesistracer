@@ -1269,7 +1269,8 @@ app.get('/api/swap-form', async (req, res) => {
     } catch (e) {}
     res.json({
       success: true, apartment: swap.apartment, panelLabel: swap.panelLabel || '',
-      status: swap.status, residents, voipbellAccount
+      status: swap.status, residents, voipbellAccount,
+      leaving: (swap.leaving || []).map(l => ({ name: l.name || '', sip: l.sip || '' }))
     });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
