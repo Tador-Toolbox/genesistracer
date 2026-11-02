@@ -1075,7 +1075,12 @@
 
   // Open the residents list page (residenter) for the selected panel.
   function openResidenter() {
-    if (!selectedMac) return alert('בחר כתובת MAC תחילה');
+    if (!selectedMac) return alert(currentLang === 'he' ? 'בחר כתובת MAC תחילה' : 'Select a panel first');
+    const entered = prompt(currentLang === 'he' ? 'הזן קוד גישה:' : 'Enter access code:');
+    if (entered == null) return;
+    if (String(entered).trim() !== RESIDENT_BLOCK_CODE) {
+      return alert(currentLang === 'he' ? 'קוד שגוי' : 'Wrong code');
+    }
     const macObj = (installerData?.macAddresses || []).find(m => m.mac === selectedMac) || {};
     try {
       localStorage.setItem('residenterCtx', JSON.stringify({

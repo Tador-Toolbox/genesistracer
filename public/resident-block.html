@@ -89,8 +89,13 @@
     <!-- Currently blocked -->
     <div class="card">
       <h3 data-i18n="blocked_title">דיירים חסומים</h3>
-      <div class="sub" data-i18n="blocked_sub">דיירים שחסומים כעת. לחצו "בטל חסימה" כדי להחזיר אותם לפנל.</div>
+      <div class="sub" data-i18n="blocked_sub">סמנו את הדיירים שברצונכם להחזיר, ולחצו "בטל חסימה נבחרים".</div>
       <div id="blockedList"></div>
+      <div class="selinfo" id="ublSelInfo" style="display:none"></div>
+      <div class="actions" id="ublActions" style="display:none">
+        <button class="b b-block" id="unblockBtn" onclick="restoreSelected()" data-i18n="b_unblock_sel">↩️ בטל חסימה נבחרים</button>
+      </div>
+      <div class="msg" id="ublMsg"></div>
     </div>
   </div>
 </div>
@@ -103,8 +108,12 @@
       panel_lbl:'פנל:',
       warn:'⚠️ חסימה זו מסירה את הדייר מרשימת הדיירים בלבד. אם לדייר יש זיהוי פנים או קוד אישי בפנל — הם עדיין יעבדו.',
       block_title:'בחרו דיירים לחסימה', block_sub:'סמנו את הדיירים שברצונכם לחסום זמנית. ניתן לבחור מכמה דירות.',
-      blocked_title:'דיירים חסומים', blocked_sub:'דיירים שחסומים כעת. לחצו "בטל חסימה" כדי להחזיר אותם לפנל.',
-      b_block:'🚫 חסום נבחרים', b_unblock:'↩️ בטל חסימה',
+      blocked_title:'דיירים חסומים', blocked_sub:'סמנו את הדיירים שברצונכם להחזיר, ולחצו "בטל חסימה נבחרים".',
+      b_block:'🚫 חסום נבחרים', b_unblock_sel:'↩️ בטל חסימה נבחרים',
+      usel_none:'לא נבחרו דיירים להחזרה.', usel_some:n=>'נבחרו '+n+' דיירים להחזרה',
+      need_usel:'בחרו לפחות דייר אחד להחזרה.',
+      confirm_unblock_n:n=>'להחזיר '+n+' דיירים לפנל?',
+      restored_ok:n=>'✓ '+n+' דיירים הוחזרו לפנל', restored_some:(ok,fail)=>'✓ הוחזרו '+ok+', נכשלו '+fail,
       loading:'טוען את רשימת הדיירים מהפנל…',
       load_err:'לא ניתן לקרוא מהפנל — ודאו שהפנל מחובר לאינטרנט ורשום לשרת, ונסו שוב.',
       load_empty:'אין דיירים בפנל זה.',
@@ -124,8 +133,12 @@
       panel_lbl:'Panel:',
       warn:'⚠️ This block only removes the resident from the contact list. If the resident has face recognition or a personal code on the panel — those still work.',
       block_title:'Select residents to block', block_sub:'Tick the residents you want to block temporarily. You can pick from several apartments.',
-      blocked_title:'Blocked residents', blocked_sub:'Residents blocked right now. Press "Unblock" to restore them to the panel.',
-      b_block:'🚫 Block selected', b_unblock:'↩️ Unblock',
+      blocked_title:'Blocked residents', blocked_sub:'Tick the residents you want back, then press "Unblock selected".',
+      b_block:'🚫 Block selected', b_unblock_sel:'↩️ Unblock selected',
+      usel_none:'No residents selected to restore.', usel_some:n=>n+' residents selected to restore',
+      need_usel:'Select at least one resident to restore.',
+      confirm_unblock_n:n=>'Restore '+n+' residents to the panel?',
+      restored_ok:n=>'✓ '+n+' residents restored', restored_some:(ok,fail)=>'✓ Restored '+ok+', failed '+fail,
       loading:'Loading the resident list from the panel…',
       load_err:'Could not read from the panel — make sure it is connected to the internet and registered to the server, then try again.',
       load_empty:'No residents on this panel.',
@@ -167,6 +180,7 @@
     document.getElementById('lhe').className = (LANG==='he'?'on':'');
     document.getElementById('len').className = (LANG==='en'?'on':'');
     renderLive(); updateSel();
+    renderBlocked(); updateUblSel();
   }
   function setLang(l){ applyLang(l); }
 
@@ -231,19 +245,69 @@
     finally{ btns.forEach(b=>b.disabled=false); }
   }
 
-  async function doUnblock(id, name){
+  let blockedRows = [];       // current blocked list from the server
+  let unblockSel = [];        // ids selected to restore
+  function isUblSel(id){ return unblockSel.map(String).includes(String(id)); }
+  function toggleUbl(cb){
+    const id = cb.getAttribute('data-id');
+    if (cb.checked){ if(!isUblSel(id)) unblockSel.push(id); }
+    else { unblockSel = unblockSel.filter(x=>String(x)!==String(id)); }
+    renderBlocked(); updateUblSel();
+  }
+  function updateUblSel(){
+    const el = document.getElementById('ublSelInfo'); if (!el) return;
+    const d = tr(), n = unblockSel.length;
+    el.textContent = n ? d.usel_some(n) : d.usel_none;
+  }
+  function ublMsg(t, ok){ const m=document.getElementById('ublMsg'); if(m){ m.textContent=t; m.className='msg '+(ok?'ok':'err'); } }
+
+  function renderBlocked(){
+    const host = document.getElementById('blockedList'); if (!host) return;
     const d = tr();
-    if (!confirm(d.confirm_unblock(name || d.noname))) return;
-    try{
-      const res = await fetch('/api/installer/resident-block/unblock', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ phoneNumber: PHONE, mac: MAC, id })
-      });
-      const r = await res.json();
-      if (!r.success){ alert(r.error || d.unblock_err); return; }
-      await load();
-      await loadBlocked();
-    }catch(e){ alert(d.net_err(e.message)); }
+    const actions = document.getElementById('ublActions');
+    const selInfo = document.getElementById('ublSelInfo');
+    if (!blockedRows.length){
+      host.innerHTML = `<div class="empty-note">${esc(d.none_blocked)}</div>`;
+      if (actions) actions.style.display = 'none';
+      if (selInfo) selInfo.style.display = 'none';
+      return;
+    }
+    if (actions) actions.style.display = '';
+    if (selInfo) selInfo.style.display = '';
+    host.innerHTML = blockedRows.map(b=>{
+      const nm = String(b.name||'').trim();
+      const sel = isUblSel(b.id);
+      const nameHtml = nm ? `<span class="bname">${esc(nm)}</span>` : `<span class="bname empty">${esc(d.noname)}</span>`;
+      const meta = `${d.apt_word} ${esc(b.apartment||'—')} · ${d.sip_word} ${esc(b.sip||'—')}`;
+      return `<label class="brow${sel?' sel':''}">
+        <input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" data-id="${esc(b.id)}" ${sel?'checked':''} onchange="toggleUbl(this)">
+        ${nameHtml}<span class="bmeta">${meta}</span></label>`;
+    }).join('');
+  }
+
+  async function restoreSelected(){
+    const d = tr();
+    if (!unblockSel.length){ ublMsg(d.need_usel, false); return; }
+    if (!confirm(d.confirm_unblock_n(unblockSel.length))) return;
+    const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);
+    ublMsg(d.unblocking, true);
+    let ok = 0, fail = 0;
+    const ids = unblockSel.slice();
+    for (const id of ids){
+      try{
+        const res = await fetch('/api/installer/resident-block/unblock', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ phoneNumber: PHONE, mac: MAC, id })
+        });
+        const r = await res.json();
+        if (r.success) ok++; else fail++;
+      }catch(e){ fail++; }
+    }
+    unblockSel = [];
+    ublMsg(fail ? d.restored_some(ok, fail) : d.restored_ok(ok), !fail);
+    btns.forEach(b=>b.disabled=false);
+    await load();          // live list now includes the restored residents
+    await loadBlocked();
   }
 
   async function loadBlocked(){
@@ -251,16 +315,12 @@
     const d = tr();
     try{
       const r = await fetch('/api/installer/resident-block/list?mac='+encodeURIComponent(MAC)+(PHONE?('&phone='+encodeURIComponent(PHONE)):'')).then(x=>x.json());
-      const blocks = (r.success && r.blocks) ? r.blocks : [];
-      if (!blocks.length){ host.innerHTML = `<div class="empty-note">${esc(d.none_blocked)}</div>`; return; }
-      host.innerHTML = blocks.map(b=>{
-        const nm = String(b.name||'').trim();
-        const nameHtml = nm ? `<span class="bname">${esc(nm)}</span>` : `<span class="bname empty">${esc(d.noname)}</span>`;
-        const meta = `${d.apt_word} ${esc(b.apartment||'—')} · ${d.sip_word} ${esc(b.sip||'—')}`;
-        return `<div class="brow">${nameHtml}<span class="bmeta">${meta}</span>
-          <button class="b b-unblock" onclick="doUnblock('${esc(b.id)}', ${JSON.stringify(nm).replace(/"/g,'&quot;')})">${d.b_unblock}</button></div>`;
-      }).join('');
-    }catch(e){ host.innerHTML = `<div class="empty-note">${esc(d.load_err)}</div>`; }
+      blockedRows = (r.success && r.blocks) ? r.blocks : [];
+      // drop selections that are no longer blocked
+      const ids = new Set(blockedRows.map(b=>String(b.id)));
+      unblockSel = unblockSel.filter(x=>ids.has(String(x)));
+      renderBlocked(); updateUblSel();
+    }catch(e){ blockedRows = []; host.innerHTML = `<div class="empty-note">${esc(d.load_err)}</div>`; }
   }
 
   async function load(){
