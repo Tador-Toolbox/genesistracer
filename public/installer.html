@@ -713,7 +713,7 @@
         </button>
 
         <!-- Residents list (residenter) -->
-        <button class="action-card" onclick="openResidenter()">
+        <button class="action-card" data-module="residentsList" onclick="openResidenter()">
           <span class="material-symbols-outlined">groups</span>
           <span class="action-card-label" data-i18n="residentsListBtn">רשימת דיירים</span>
         </button>
@@ -732,27 +732,27 @@
         </button>
 
         <!-- ═══ Group 2: Residents & faces ═══ -->
-        <div class="action-section-header" data-i18n="secResidents">דיירים ופנים</div>
+        <div class="action-section-header" id="secResidentsHeader" data-section="residents" data-i18n="secResidents">דיירים ופנים</div>
         <!-- Face Management -->
-        <button class="action-card" id="faceManagementBtn" onclick="window.open('https://genesistracer.onrender.com/committee.html','_blank')">
+        <button class="action-card" data-module="faceManagement" data-section="residents" id="faceManagementBtn" onclick="window.open('https://genesistracer.onrender.com/committee.html','_blank')">
           <span class="material-symbols-outlined">face</span>
           <span class="action-card-label" data-i18n="faceBtn">ניהול זיהוי פנים</span>
         </button>
 
         <!-- Resident Update — swap a resident, send for manager approval -->
-        <button class="action-card" onclick="openSwapV2()">
+        <button class="action-card" data-module="residentUpdate" data-section="residents" onclick="openSwapV2()">
           <span class="material-symbols-outlined">published_with_changes</span>
           <span class="action-card-label" data-i18n="swapV2Btn">עדכון דייר</span>
         </button>
 
         <!-- Block User -->
-        <button class="action-card" onclick="openBlockUser()">
+        <button class="action-card" data-module="blockUser" data-section="residents" onclick="openBlockUser()">
           <span class="material-symbols-outlined">block</span>
           <span class="action-card-label" data-i18n="blockUserBtn">חסום משתמש</span>
         </button>
 
         <!-- Temporary resident block (code-gated) -->
-        <button class="action-card" onclick="openResidentBlock()">
+        <button class="action-card" data-module="residentBlock" data-section="residents" onclick="openResidentBlock()">
           <span class="material-symbols-outlined">person_off</span>
           <span class="action-card-label" data-i18n="blockListBtn">חסימה זמנית מרשימת הדיירים</span>
         </button>
@@ -786,7 +786,7 @@
         </button>
 
         <!-- Portfolio - full width -->
-        <button class="action-card" onclick="openPortfolio()" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;gap:14px;padding:16px 18px;">
+        <button class="action-card" data-module="portfolio" onclick="openPortfolio()" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;gap:14px;padding:16px 18px;">
           <span class="material-symbols-outlined" style="font-size:28px;">photo_library</span>
           <div style="text-align:right;">
             <div class="action-card-label" style="font-size:13px;" data-i18n="portfolioBtn">תיק עבודות</div>
@@ -1060,6 +1060,7 @@
     if (data.success) {
       installerData = data.data;
       if (installerData.defaultLang) setLanguage(installerData.defaultLang);
+      applyModules();
       selectedMac = installerData.macAddresses.length > 0 ? installerData.macAddresses[0].mac : null;
       document.getElementById('loginScreen').style.display  = 'none';
       document.getElementById('installerPanel').style.display = 'block';
@@ -1120,6 +1121,24 @@
       }));
     } catch (e) {}
     window.open('/resident-block.html', '_blank');
+  }
+
+  // Per-installer module permissions (manager הרשאות page). Default-ON: a card is
+  // shown unless the manager explicitly turned its module OFF (modules[id] === false).
+  function applyModules() {
+    const mods = (installerData && installerData.modules) || {};
+    document.querySelectorAll('.action-card[data-module]').forEach(btn => {
+      const id = btn.getAttribute('data-module');
+      btn.style.display = (mods[id] === false) ? 'none' : '';
+    });
+    // Hide a section header when every card in its section is hidden.
+    document.querySelectorAll('.action-section-header[data-section]').forEach(h => {
+      const sec = h.getAttribute('data-section');
+      const cards = document.querySelectorAll('.action-card[data-section="' + sec + '"]');
+      let anyVisible = false;
+      cards.forEach(c => { if (c.style.display !== 'none') anyVisible = true; });
+      h.style.display = (cards.length && !anyVisible) ? 'none' : '';
+    });
   }
 
   // Approved resident-update (swap) notifications from the manager, for this installer.
@@ -1204,6 +1223,7 @@
       try {
         installerData = JSON.parse(stored);
         if (installerData.defaultLang) setLanguage(installerData.defaultLang);
+        applyModules();
         selectedMac = installerData.macAddresses.length > 0 ? installerData.macAddresses[0].mac : null;
         document.getElementById('loginScreen').style.display  = 'none';
         document.getElementById('installerPanel').style.display = 'block';

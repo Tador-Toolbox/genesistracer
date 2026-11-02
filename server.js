@@ -1454,6 +1454,21 @@ app.post('/api/manager/installer-lang', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// Manager: toggle a per-installer module permission (הרשאות page). Default-on: a module
+// is enabled unless explicitly set false. Hide-only for now (client hides the card).
+app.post('/api/manager/installer-module', async (req, res) => {
+  const { phoneNumber, module, enabled, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  if (!phoneNumber || !module) return res.status(400).json({ success: false, error: 'phoneNumber and module required' });
+  try {
+    const value = await db.setInstallerModule(phoneNumber, module, !!enabled);
+    res.json({ success: true, module, enabled: value });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // Committee (public, code-protected): load the resident list by code
 app.get('/api/residents/by-code', async (req, res) => {
   try {

@@ -521,6 +521,7 @@
       <div class="v2-brand">TADOR<small>פאנל מנהל · גרסה חדשה</small></div>
       <button class="v2-nav" data-go="home"><span class="ic">🏠</span>בית</button>
       <button class="v2-nav" data-go="installers"><span class="ic">👥</span>מתקינים</button>
+      <button class="v2-nav" data-go="permissions"><span class="ic">🛡️</span>הרשאות</button>
       <button class="v2-nav" onclick="openMessagesPage()"><span class="ic">💬</span>הודעות<span class="bdg" id="v2MsgBadge"></span></button>
       <button class="v2-nav" data-go="announce"><span class="ic">📢</span>הודעות תפוצה</button>
       <button class="v2-nav" data-go="content"><span class="ic">📚</span>תוכן למתקינים</button>
@@ -1074,6 +1075,19 @@
         </div>
       </div>
 
+      <!-- Permissions: per-account module toggles (hide-only) -->
+      <div class="card" data-screen="permissions">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
+          <h2 style="margin:0;">🛡️ הרשאות</h2>
+          <button onclick="v2LoadPermissions()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">רענן</button>
+        </div>
+        <p style="margin:0 0 14px;font-size:13px;color:var(--text-dim,#888);">בחרו אילו מודולים יופיעו לכל חשבון. ירוק = מוצג · אפור = מוסתר. ברירת מחדל: הכל מוצג.</p>
+        <h3 style="margin:10px 0 6px;font-size:15px;">👥 מתקינים</h3>
+        <div id="permInstallers">טוען…</div>
+        <h3 style="margin:18px 0 6px;font-size:15px;">🏢 ועדים</h3>
+        <div id="permCommittees">טוען…</div>
+      </div>
+
       <!-- Extras: notes.html + voipbell-accounts.html embedded -->
       <div class="card" data-screen="extras">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
@@ -1452,6 +1466,71 @@
       if (!confirm(`Delete installer ${phoneNumber}?`)) return;
       await fetch(`/api/manager/installers/${phoneNumber}`, { method: 'DELETE' });
       loadData();
+    }
+
+    // ===== Permissions page: per-account module toggles (hide-only, default-ON) =====
+    const PERM_MODULES = [
+      { id: 'portfolio',      label: 'תיק עבודות' },
+      { id: 'faceManagement', label: 'ניהול זיהוי פנים' },
+      { id: 'residentUpdate', label: 'עדכון דייר' },
+      { id: 'residentBlock',  label: 'חסימה זמנית' },
+      { id: 'blockUser',      label: 'חסום משתמש' },
+      { id: 'residentsList',  label: 'רשימת דיירים' },
+    ];
+    function v2PermEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+    function permChip(phone, m, on) {
+      return `<button onclick="toggleInstallerModule('${v2PermEsc(phone)}','${m.id}',this)" data-module="${m.id}" data-on="${on ? '1' : '0'}"
+        style="font-size:12px;font-weight:700;padding:4px 11px;border-radius:16px;border:none;cursor:pointer;margin:0 0 6px 6px;
+          background:${on ? '#dcfce7' : '#eceff3'};color:${on ? '#16a34a' : '#9aa4af'};">${on ? '●' : '○'} ${v2PermEsc(m.label)}</button>`;
+    }
+    function permRow(acc) {
+      const mods = acc.modules || {};
+      const chips = PERM_MODULES.map(m => permChip(acc.phoneNumber, m, mods[m.id] !== false)).join('');
+      const name = acc.installerName ? (v2PermEsc(acc.installerName) + ' · ' + v2PermEsc(acc.phoneNumber)) : v2PermEsc(acc.phoneNumber);
+      return `<div style="border:1px solid var(--border,#e6eaef);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px;">${name}</div>
+        <div style="display:flex;flex-wrap:wrap;">${chips}</div></div>`;
+    }
+    async function v2LoadPermissions() {
+      const instHost = document.getElementById('permInstallers');
+      const comHost = document.getElementById('permCommittees');
+      if (!instHost || !comHost) return;
+      instHost.textContent = 'טוען…'; comHost.textContent = 'טוען…';
+      try {
+        const list = (await fetch('/api/manager/installers').then(r => r.json())).installers || [];
+        const details = await Promise.all(list.map(a =>
+          fetch(`/api/manager/installers/${encodeURIComponent(a.phoneNumber)}`).then(r => r.json()).then(d => ({
+            phoneNumber: a.phoneNumber,
+            installerName: a.installerName || (d.installer && d.installer.installerName) || '',
+            accountType: a.accountType || (d.installer && d.installer.accountType) || 'installer',
+            modules: (d.installer && d.installer.modules) || {}
+          })).catch(() => ({ phoneNumber: a.phoneNumber, installerName: a.installerName || '', accountType: a.accountType || 'installer', modules: {} }))
+        ));
+        const installers = details.filter(a => a.accountType !== 'committee');
+        const committees = details.filter(a => a.accountType === 'committee');
+        instHost.innerHTML = installers.length ? installers.map(permRow).join('') : '<div style="font-size:13px;color:#888;">אין מתקינים.</div>';
+        comHost.innerHTML = committees.length ? committees.map(permRow).join('') : '<div style="font-size:13px;color:#888;">אין ועדים.</div>';
+      } catch (e) {
+        instHost.textContent = 'שגיאה בטעינה'; comHost.textContent = 'שגיאה בטעינה';
+      }
+    }
+    async function toggleInstallerModule(phoneNumber, module, btn) {
+      if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+      const next = btn.getAttribute('data-on') !== '1';   // flip current state
+      btn.disabled = true;
+      try {
+        const d = await fetch('/api/manager/installer-module', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber, module, enabled: next, username: window.__mgr.username, password: window.__mgr.password })
+        }).then(r => r.json());
+        if (!d.success) { alert('❌ ' + (d.error || 'שגיאה')); return; }
+        btn.setAttribute('data-on', next ? '1' : '0');
+        btn.style.background = next ? '#dcfce7' : '#eceff3';
+        btn.style.color = next ? '#16a34a' : '#9aa4af';
+        const label = (PERM_MODULES.find(m => m.id === module) || {}).label || module;
+        btn.innerHTML = (next ? '●' : '○') + ' ' + v2PermEsc(label);
+      } catch (e) { alert('❌ ' + e.message); }
+      finally { btn.disabled = false; }
     }
 
     // Set an installer account's default portal language ('he' | 'en').
@@ -3776,7 +3855,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
 
   <script>
     // ================= V2: screens =================
-    const V2_SCREENS = ['home', 'installers', 'announce', 'content', 'files', 'activity', 'security', 'backups', 'residents', 'extras'];
+    const V2_SCREENS = ['home', 'installers', 'permissions', 'announce', 'content', 'files', 'activity', 'security', 'backups', 'residents', 'extras'];
     function v2Show(screen) {
       if (!V2_SCREENS.includes(screen)) screen = 'home';
       document.querySelectorAll('[data-screen]').forEach(el =>
@@ -3787,7 +3866,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
     }
     document.addEventListener('click', e => {
       const go = e.target.closest('[data-go]');
-      if (go) { e.preventDefault(); v2Show(go.dataset.go); if (go.dataset.go === 'security') v2LoadSecurity(); if (go.dataset.go === 'backups') v2LoadBackups(); if (go.dataset.go === 'residents') v2LoadResidents(); }
+      if (go) { e.preventDefault(); v2Show(go.dataset.go); if (go.dataset.go === 'security') v2LoadSecurity(); if (go.dataset.go === 'backups') v2LoadBackups(); if (go.dataset.go === 'residents') v2LoadResidents(); if (go.dataset.go === 'permissions') v2LoadPermissions(); }
     });
     document.body.classList.add('v2-body');
     v2Show((location.hash || '#home').slice(1));

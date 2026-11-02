@@ -285,6 +285,21 @@ async function setInstallerDefaultLang(phoneNumber, lang) {
   return value;
 }
 
+// Per-account module permissions (manager "הרשאות" page). installers.modules is a
+// map {moduleId: boolean}. A MISSING key means ENABLED (default-on) — so existing
+// accounts keep every feature; only an explicit false hides a module.
+const INSTALLER_MODULE_IDS = ['portfolio', 'faceManagement', 'residentUpdate', 'residentBlock', 'blockUser', 'residentsList'];
+async function setInstallerModule(phoneNumber, moduleId, enabled) {
+  await connectDB();
+  if (!INSTALLER_MODULE_IDS.includes(moduleId)) throw new Error('Unknown module');
+  const r = await db.collection('installers').updateOne(
+    { phoneNumber },
+    { $set: { ['modules.' + moduleId]: !!enabled } }
+  );
+  if (!r.matchedCount) throw new Error('Installer not found');
+  return !!enabled;
+}
+
 async function removeMacFromInstaller(phoneNumber, macAddress) {
   await connectDB();
   const current = await db.collection("installers").findOne({ phoneNumber });
@@ -321,6 +336,7 @@ async function loginInstaller(phoneNumber, password, isManagerAccess = false) {
       phoneNumber: installer.phoneNumber,
       macAddresses: installer.macAddresses || [],
       defaultLang: (installer.defaultLang === 'en' ? 'en' : 'he'),
+      modules: installer.modules || {},
     },
   };
 }
@@ -379,6 +395,7 @@ async function getInstallerDetails(phoneNumber) {
     lastLogin: installer.lastLogin,
     managerNote: installer.managerNote || '',
     defaultLang: (installer.defaultLang === 'en' ? 'en' : 'he'),
+    modules: installer.modules || {},
   };
 }
 
@@ -1074,6 +1091,7 @@ module.exports = {
   getMacHistory,
   loginInstaller,
   setInstallerDefaultLang,
+  setInstallerModule,
   loginManager,
   getInstallers,
   getInstallerDetails,
