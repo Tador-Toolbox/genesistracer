@@ -1013,8 +1013,14 @@ async function applySwapToPanel(cleanMac, swap) {
   const entering = Array.isArray(swap.entering) ? swap.entering : [];
 
   // SIP base = highest sip_number across the whole panel; incoming get base+1, base+2, ...
+  // Also count SIPs held by currently-blocked residents (חסימה זמנית): they're off the panel
+  // but their number stays reserved so a new contact never reuses it while they're blocked.
   let base = 1000;
   contacts.forEach(c => { const n = parseInt(c.sip_number, 10); if (!isNaN(n) && n > base) base = n; });
+  try {
+    const blockedSips = await db.listActiveBlockedSips(cleanMac);
+    blockedSips.forEach(s => { const n = parseInt(s, 10); if (!isNaN(n) && n > base) base = n; });
+  } catch (e) {}
 
   // Resolve each departing contact's panel id (stored contactId first, else match by sip_number).
   const leavingIds = leaving.map(l => {
@@ -1223,6 +1229,131 @@ app.get('/api/installer/swaps', async (req, res) => {
         approvedAt: s.approvedAt, assignments: (s.applyReport && s.applyReport.assignments) || []
       }))
     });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ==================== TEMPORARY RESIDENT BLOCK ("חסימה זמנית מרשימת הדיירים") ====================
+// Removes selected residents from the panel contact list WITHOUT deleting their data: a full
+// snapshot is stored here, their SIP stays reserved, and בטל חסימה recreates them exactly.
+// Scope: contact/dialing list only — it does NOT touch face recognition or personal PIN codes.
+
+// Installer: list the residents currently blocked on a panel.
+app.get('/api/installer/resident-block/list', async (req, res) => {
+  try {
+    const cleanMac = prCleanMac(req.query.mac);
+    const phoneNumber = (req.query.phone || '').trim();
+    if (!cleanMac) return res.status(400).json({ success: false, error: 'mac required' });
+    if (phoneNumber && !(await prInstallerOwnsMac(phoneNumber, cleanMac))) return res.status(403).json({ success: false, error: 'not your panel' });
+    const rows = await db.listResidentBlocks(cleanMac, 'blocked');
+    res.json({
+      success: true, blocks: (rows || []).map(b => ({
+        id: String(b._id), name: b.name || '', sip: b.sip || '', apartment: b.apartment || '', blockedAt: b.blockedAt
+      }))
+    });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Installer: block (remove+snapshot) the selected contacts.  body {phoneNumber, mac, panelLabel, ids:[contactId,...]}
+app.post('/api/installer/resident-block/block', async (req, res) => {
+  try {
+    const phoneNumber = (req.body.phoneNumber || '').trim();
+    const cleanMac = prCleanMac(req.body.mac);
+    const ids = (Array.isArray(req.body.ids) ? req.body.ids : []).map(x => String(x)).filter(Boolean);
+    if (!phoneNumber || !cleanMac) return res.status(400).json({ success: false, error: 'phoneNumber and mac required' });
+    if (!(await prInstallerOwnsMac(phoneNumber, cleanMac))) return res.status(403).json({ success: false, error: 'not your panel' });
+    if (!ids.length) return res.status(400).json({ success: false, error: 'לא נבחרו דיירים' });
+
+    const panelAddress = await resolvePanelAddress(cleanMac);
+    if (!panelAddress) return res.status(502).json({ success: false, error: 'הפנל אינו מחובר או לא נמצא' });
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes && loginRes.data && loginRes.data.token;
+    if (!token) return res.status(502).json({ success: false, error: 'כניסה לפנל נכשלה' });
+
+    const contacts = await getAllPanelContacts(host, port, token);
+    const byId = {}; contacts.forEach(c => { byId[String(c.id)] = c; });
+    const chosen = ids.map(id => byId[id]).filter(Boolean);
+    if (!chosen.length) return res.status(404).json({ success: false, error: 'הדיירים שנבחרו לא נמצאו בפנל' });
+
+    // Delete from the panel first; only persist the block records if the panel delete succeeded.
+    const del = await panelBatchDeleteCurl(host, port, chosen.map(c => c.id));
+    if (!del.ok) return res.status(502).json({ success: false, error: 'מחיקת הדיירים מהפנל נכשלה', raw: del.raw });
+
+    const blocked = [];
+    for (const c of chosen) {
+      try {
+        const rec = await db.saveResidentBlock({
+          mac: cleanMac, phoneNumber, panelLabel: req.body.panelLabel,
+          name: c.name || '', sip: c.sip_number, apartment: c.call_number, contact: c, blockedBy: phoneNumber
+        });
+        blocked.push({ id: String(rec._id), name: rec.name, sip: rec.sip, apartment: rec.apartment });
+      } catch (e) {}
+    }
+    try {
+      await db.addResidentHistory(cleanMac, {
+        event: 'block', by: phoneNumber, panelLabel: req.body.panelLabel || '',
+        residents: blocked.map(b => (b.name || '(ללא שם)') + (b.sip ? ' (' + b.sip + ')' : '')), count: blocked.length
+      });
+    } catch (e) {}
+    try { await logActivity({ phoneNumber, action: 'resident_block', mac: cleanMac, details: { count: blocked.length }, success: true }); } catch (e) {}
+    res.json({ success: true, blocked, count: blocked.length });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Installer: unblock (restore) one blocked resident.  body {phoneNumber, mac, id}
+app.post('/api/installer/resident-block/unblock', async (req, res) => {
+  try {
+    const phoneNumber = (req.body.phoneNumber || '').trim();
+    const cleanMac = prCleanMac(req.body.mac);
+    const id = String(req.body.id || '');
+    if (!phoneNumber || !cleanMac || !id) return res.status(400).json({ success: false, error: 'phoneNumber, mac and id required' });
+    if (!(await prInstallerOwnsMac(phoneNumber, cleanMac))) return res.status(403).json({ success: false, error: 'not your panel' });
+    const blk = await db.getResidentBlock(id);
+    if (!blk || String(blk.mac) !== cleanMac) return res.status(404).json({ success: false, error: 'חסימה לא נמצאה' });
+    if (blk.status !== 'blocked') return res.json({ success: true, alreadyRestored: true });
+
+    const panelAddress = await resolvePanelAddress(cleanMac);
+    if (!panelAddress) return res.status(502).json({ success: false, error: 'הפנל אינו מחובר או לא נמצא' });
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes && loginRes.data && loginRes.data.token;
+    if (!token) return res.status(502).json({ success: false, error: 'כניסה לפנל נכשלה' });
+
+    // Check the resident's original SIP is still free; if it was taken meanwhile, assign the next free one.
+    const contacts = await getAllPanelContacts(host, port, token);
+    const usedSips = new Set(contacts.map(c => String(c.sip_number)));
+    const snap = blk.contact || {};
+    let sip = String(blk.sip || snap.sip_number || '').trim();
+    let reassigned = false;
+    if (!sip || usedSips.has(sip)) {
+      let base = 1000;
+      contacts.forEach(c => { const n = parseInt(c.sip_number, 10); if (!isNaN(n) && n > base) base = n; });
+      try { (await db.listActiveBlockedSips(cleanMac)).forEach(s => { const n = parseInt(s, 10); if (!isNaN(n) && n > base) base = n; }); } catch (e) {}
+      sip = String(base + 1);
+      reassigned = true;
+    }
+    const contact = {
+      name: snap.name || blk.name || '',
+      sip_account_id: snap.sip_account_id != null ? snap.sip_account_id : 2,
+      call_number: snap.call_number != null ? snap.call_number : (blk.apartment || ''),
+      sip_number: sip,
+      contact_group_id: snap.contact_group_id != null ? snap.contact_group_id : 1,
+      top: 'false', allow_unlock: 'true'
+    };
+    const out = await panelCreateContactCurl(host, port, contact);
+    if (!out.ok) return res.status(502).json({ success: false, error: 'שחזור הדייר בפנל נכשל', raw: out.raw });
+
+    await db.setResidentBlockStatus(id, 'restored', { restoredSip: sip, reassigned, restoredBy: phoneNumber });
+    try {
+      await db.addResidentHistory(cleanMac, {
+        event: 'unblock', by: phoneNumber, panelLabel: blk.panelLabel || '',
+        residents: [(contact.name || '(ללא שם)') + ' (' + sip + ')'], reassigned, count: 1
+      });
+    } catch (e) {}
+    try { await logActivity({ phoneNumber, action: 'resident_unblock', mac: cleanMac, details: { sip, reassigned }, success: true }); } catch (e) {}
+    res.json({ success: true, sip, reassigned });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 

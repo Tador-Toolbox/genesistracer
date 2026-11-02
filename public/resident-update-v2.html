@@ -63,7 +63,7 @@
 <div class="wrap">
   <header>
     <div>
-      <div class="t"><span data-i18n="h_title">עדכון דייר</span><span class="beta">v2 · BETA</span></div>
+      <div class="t"><span data-i18n="h_title">עדכון דייר</span></div>
       <div class="s" data-i18n="h_sub">החלפת דייר בדירה — שליחה לאישור המנהל</div>
     </div>
     <div class="hright">
@@ -174,7 +174,7 @@
     const d = tr();
     document.documentElement.lang = LANG;
     document.documentElement.dir  = (LANG==='en') ? 'ltr' : 'rtl';
-    document.title = d.h_title + ' v2 — Tador';
+    document.title = d.h_title + ' — Tador';
     try { localStorage.setItem('swapLang', LANG); } catch(e){}
     document.querySelectorAll('[data-i18n]').forEach(el=>{ const k=el.getAttribute('data-i18n'); if (d[k]!=null) el.textContent=d[k]; });
     document.getElementById('lhe').className = (LANG==='he'?'on':'');

@@ -745,10 +745,16 @@
           <span class="action-card-label" data-i18n="faceBtn">ניהול זיהוי פנים</span>
         </button>
 
-        <!-- Resident Update v2 (beta) — swap a resident, send for manager approval -->
+        <!-- Resident Update — swap a resident, send for manager approval -->
         <button class="action-card" onclick="openSwapV2()">
           <span class="material-symbols-outlined">published_with_changes</span>
-          <span class="action-card-label" data-i18n="swapV2Btn">עדכון דייר גרסא 2</span>
+          <span class="action-card-label" data-i18n="swapV2Btn">עדכון דייר</span>
+        </button>
+
+        <!-- Temporary resident block (code-gated) -->
+        <button class="action-card" onclick="openResidentBlock()">
+          <span class="material-symbols-outlined">person_off</span>
+          <span class="action-card-label" data-i18n="blockListBtn">חסימה זמנית מרשימת הדיירים</span>
         </button>
 
         <!-- Manager communication (support + manager messages) moved to the header buttons. -->
@@ -876,7 +882,7 @@
       emergencyBtn:"Emergency Door Open", tempCodeBtn:"Issue Temporary Code", permCodeBtn:"Change Permanent Code",
       blockUserBtn:"Block User", historyBtn:"History", faceBtn:"Face Recognition", residentUpdateBtn:"Resident Update",
       messagesBtn:"Messages", serviceBtn:"Service Request", tutorialsBtn:"Tutorials", docsBtn:"Installation Guides",
-      swapV2Btn:"Resident Update v2",
+      swapV2Btn:"Resident Update", blockListBtn:"Temporary Resident Block",
       sampleResidentsBtn:"Sample Residents List", portfolioBtn:"Portfolio", portfolioSub:"Photos from my installations",
       mailTitle:"Mailing List", mailSub:"Updates on new products and exclusive deals.", mailPh:"Email address...", mailBtn:"Subscribe",
       shabbatOff:"Shabbat Mode", shabbatOn:"Cancel Shabbat Mode",
@@ -898,7 +904,7 @@
       emergencyBtn:"פתיחת דלת חירום", tempCodeBtn:"הנפקת קוד זמני", permCodeBtn:"החלפת קוד קבוע",
       blockUserBtn:"חסום משתמש", historyBtn:"היסטוריה", faceBtn:"ניהול זיהוי פנים", residentUpdateBtn:"עדכון דייר",
       messagesBtn:"הודעות", serviceBtn:"פניית שירות", tutorialsBtn:"סרטוני הדרכה", docsBtn:"הוראות התקנה",
-      swapV2Btn:"עדכון דייר גרסא 2",
+      swapV2Btn:"עדכון דייר", blockListBtn:"חסימה זמנית מרשימת הדיירים",
       sampleResidentsBtn:"רשימת דיירים לדוגמא", portfolioBtn:"תיק עבודות", portfolioSub:"תמונות מהתקנות שלי",
       mailTitle:"רשימת תפוצה", mailSub:"עדכונים על מוצרים חדשים ומבצעים בלעדיים.", mailPh:"כתובת אימייל...", mailBtn:"הצטרפות",
       shabbatOff:"מצב שבת", shabbatOn:"בטל מצב שבת",
@@ -1090,6 +1096,25 @@
       }));
     } catch (e) {}
     window.open('/resident-update-v2.html', '_blank');
+  }
+
+  // Temporary resident block — code-gated (temporary gate while the feature is being tested).
+  const RESIDENT_BLOCK_CODE = '7175';
+  function openResidentBlock() {
+    if (!selectedMac) return alert(currentLang === 'he' ? 'בחר כתובת MAC תחילה' : 'Select a panel first');
+    const entered = prompt(currentLang === 'he' ? 'הזן קוד גישה:' : 'Enter access code:');
+    if (entered == null) return;
+    if (String(entered).trim() !== RESIDENT_BLOCK_CODE) {
+      return alert(currentLang === 'he' ? 'קוד שגוי' : 'Wrong code');
+    }
+    const macObj = (installerData?.macAddresses || []).find(m => m.mac === selectedMac) || {};
+    try {
+      localStorage.setItem('blockCtx', JSON.stringify({
+        mac: selectedMac, phone: installerData.phoneNumber, addr: (macObj.address || ''),
+        label: (macObj.descriptionInstaller || macObj.description || ''), lang: currentLang
+      }));
+    } catch (e) {}
+    window.open('/resident-block.html', '_blank');
   }
 
   // Approved resident-update (swap) notifications from the manager, for this installer.

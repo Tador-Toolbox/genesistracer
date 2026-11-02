@@ -990,6 +990,63 @@ async function listResidentSwapsByPhone(phoneNumber, status) {
   return db.collection('resident_swaps').find(q).sort({ approvedAt: -1, createdAt: -1 }).limit(100).toArray();
 }
 
+// ── Temporary resident block ("חסימה זמנית מרשימת הדיירים") ──
+// collection resident_blocks: one doc per blocked contact.
+//   { mac, phoneNumber, panelLabel, name, sip, apartment,
+//     contact:{...full panel contact snapshot used to restore},
+//     status('blocked'|'restored'), blockedBy, blockedAt, restoredAt, restoreReport }
+async function saveResidentBlock(doc) {
+  await connectDB();
+  const now = new Date();
+  const rec = {
+    mac: doc.mac,
+    phoneNumber: doc.phoneNumber || '',
+    panelLabel: doc.panelLabel || '',
+    name: String(doc.name || '').slice(0, 120),
+    sip: String(doc.sip == null ? '' : doc.sip).trim(),
+    apartment: String(doc.apartment == null ? '' : doc.apartment).trim(),
+    contact: (doc.contact && typeof doc.contact === 'object') ? doc.contact : {},
+    status: 'blocked',
+    blockedBy: doc.blockedBy || '',
+    blockedAt: now,
+    updatedAt: now,
+  };
+  const r = await db.collection('resident_blocks').insertOne(rec);
+  rec._id = r.insertedId;
+  return rec;
+}
+async function listResidentBlocks(mac, status) {
+  await connectDB();
+  const q = { mac: String(mac || '').trim().toUpperCase() };
+  if (status) q.status = status;
+  return db.collection('resident_blocks').find(q).sort({ blockedAt: -1 }).limit(500).toArray();
+}
+async function getResidentBlock(id) {
+  await connectDB();
+  const { ObjectId } = require('mongodb');
+  let _id; try { _id = new ObjectId(String(id)); } catch (e) { return null; }
+  return db.collection('resident_blocks').findOne({ _id });
+}
+async function setResidentBlockStatus(id, status, extra) {
+  await connectDB();
+  const { ObjectId } = require('mongodb');
+  let _id; try { _id = new ObjectId(String(id)); } catch (e) { throw new Error('bad id'); }
+  const set = { status, updatedAt: new Date() };
+  if (status === 'restored') set.restoredAt = new Date();
+  if (extra && typeof extra === 'object') Object.assign(set, extra);
+  await db.collection('resident_blocks').updateOne({ _id }, { $set: set });
+  return db.collection('resident_blocks').findOne({ _id });
+}
+// SIP numbers currently held by blocked residents on this panel — so new contacts
+// never reuse a blocked number while it's away (keeps its slot reserved).
+async function listActiveBlockedSips(mac) {
+  await connectDB();
+  const rows = await db.collection('resident_blocks')
+    .find({ mac: String(mac || '').trim().toUpperCase(), status: 'blocked' })
+    .project({ sip: 1 }).toArray();
+  return rows.map(r => String(r.sip == null ? '' : r.sip).trim()).filter(Boolean);
+}
+
 module.exports = {
   connectDB,
   getPanelResidents,
@@ -1001,6 +1058,11 @@ module.exports = {
   setResidentSwapStatus,
   listResidentSwapsByBuilding,
   listResidentSwapsByPhone,
+  saveResidentBlock,
+  listResidentBlocks,
+  getResidentBlock,
+  setResidentBlockStatus,
+  listActiveBlockedSips,
   setPanelResidentsStatus,
   setResidentListCode,
   getPanelResidentsByCode,
