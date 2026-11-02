@@ -1043,7 +1043,7 @@ async function applySwapToPanel(cleanMac, swap) {
       const out = await panelCreateContactCurl(host, port, contact);
       if (out.ok) rep.created++; else rep.failed++;
     }
-    rep.assignments.push({ name, apartment: apt, sip });
+    rep.assignments.push({ name, apartment: apt, sip, phone: String(e.phone || '').trim() });
   }
 
   // Surplus departing (more leaving than entering) -> delete them.
@@ -1157,6 +1157,7 @@ app.post('/api/installer/resident-swap/save', async (req, res) => {
     const entering = (Array.isArray(req.body.entering) ? req.body.entering : []).map(e => ({
       firstName: String((e && e.firstName) || '').trim().slice(0, 60),
       lastName: String((e && e.lastName) || '').trim().slice(0, 60),
+      phone: String((e && e.phone) || '').trim().slice(0, 30),              // resident phone — stored + printed only, NOT written to the panel
       sip: String((e && e.sip) != null ? e.sip : '').trim().slice(0, 10)   // preview SIP computed at submit
     })).filter(e => e.firstName || e.lastName);
     if (!entering.length) return res.status(400).json({ success: false, error: 'אין דיירים נכנסים' });
@@ -1387,7 +1388,7 @@ app.get('/api/swap-form', async (req, res) => {
     if (!residents) {
       residents = (swap.entering || []).map(e => ({
         name: ((e.firstName || '') + ' ' + (e.lastName || '')).trim(),
-        apartment: swap.apartment, sip: e.sip || ''
+        apartment: swap.apartment, sip: e.sip || '', phone: e.phone || ''
       }));
     }
     // Resolve this panel's VoIPBell account (for the building scan QR on the form).

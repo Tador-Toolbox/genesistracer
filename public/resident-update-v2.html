@@ -96,6 +96,7 @@
         <thead><tr>
           <th data-i18n="th_first">שם פרטי</th>
           <th data-i18n="th_last">שם משפחה</th>
+          <th data-i18n="th_phone">טלפון</th>
           <th data-i18n="th_apt">דירה</th>
           <th class="del"></th>
         </tr></thead>
@@ -120,7 +121,7 @@
       dir:'rtl', h_title:'עדכון דייר', h_sub:'החלפת דייר בדירה — שליחה לאישור המנהל', panel_lbl:'פנל:',
       s1_title:'מי עוזב?', s1_sub:'בחרו את הדייר/ים שעוזבים — מאותה דירה בלבד.',
       s2_title:'מי נכנס?', s2_sub:'הזינו את הדייר/ים הנכנסים. הדירה מתמלאת אוטומטית (אותה דירה). עד 5 דיירים.',
-      th_first:'שם פרטי', th_last:'שם משפחה', th_apt:'דירה', ph_first:'שם פרטי', ph_last:'שם משפחה',
+      th_first:'שם פרטי', th_last:'שם משפחה', th_phone:'טלפון', th_apt:'דירה', ph_first:'שם פרטי', ph_last:'שם משפחה', ph_phone:'מספר טלפון',
       b_add:'➕ הוסף דייר נכנס', b_send:'📤 שלח לאישור',
       foot_note:'לאחר השליחה, המנהל מאשר והשינוי מתבצע בפנל: שם הדייר העוזב מוחלף בנכנס עם מספר דייר (SIP) חדש. השארת רישיון ישן אינה ניתנת לביטול.',
       loading:'טוען את רשימת הדיירים מהפנל…',
@@ -138,7 +139,7 @@
       dir:'ltr', h_title:'Resident Update', h_sub:'Swap a resident in an apartment — send for manager approval', panel_lbl:'Panel:',
       s1_title:'Who is leaving?', s1_sub:'Select the departing resident(s) — from the same apartment only.',
       s2_title:'Who is moving in?', s2_sub:'Enter the incoming resident(s). The apartment fills in automatically (same apartment). Up to 5.',
-      th_first:'First name', th_last:'Last name', th_apt:'Apt', ph_first:'First name', ph_last:'Last name',
+      th_first:'First name', th_last:'Last name', th_phone:'Phone', th_apt:'Apt', ph_first:'First name', ph_last:'Last name', ph_phone:'Phone number',
       b_add:'➕ Add incoming resident', b_send:'📤 Send for approval',
       foot_note:'After you send, the manager approves and the change is applied on the panel: the departing resident name is replaced by the incoming one with a new resident number (SIP). An old license cannot be revoked.',
       loading:'Loading the resident list from the panel…',
@@ -181,6 +182,7 @@
     document.getElementById('len').className = (LANG==='en'?'on':'');
     document.querySelectorAll('#enterRows .f-first').forEach(i=>i.placeholder=d.ph_first);
     document.querySelectorAll('#enterRows .f-last').forEach(i=>i.placeholder=d.ph_last);
+    document.querySelectorAll('#enterRows .f-phone').forEach(i=>i.placeholder=d.ph_phone);
     document.querySelectorAll('#enterRows .xbtn').forEach(b=>b.title=d.del_title);
     renderLeave();   // re-render list text in the chosen language
     updateSel();
@@ -235,6 +237,7 @@
     return `<tr>
       <td><input class="f-first" placeholder="${esc(d.ph_first)}"></td>
       <td><input class="f-last"  placeholder="${esc(d.ph_last)}"></td>
+      <td><input class="f-phone" placeholder="${esc(d.ph_phone)}" inputmode="tel"></td>
       <td class="apt"><input class="f-apt" value="${esc(selApt||'')}" readonly></td>
       <td class="del"><button class="xbtn" title="${esc(d.del_title)}" onclick="this.closest('tr').remove()">✕</button></td>
     </tr>`;
@@ -256,7 +259,8 @@
     document.querySelectorAll('#enterRows tr').forEach(tr=>{
       const f = tr.querySelector('.f-first').value.trim();
       const l = tr.querySelector('.f-last').value.trim();
-      if (f || l) entering.push({ firstName:f, lastName:l });
+      const p = tr.querySelector('.f-phone').value.trim();
+      if (f || l) entering.push({ firstName:f, lastName:l, phone:p });
     });
     if (!entering.length){ msg(d.need_enter, false); return; }
     // Preview resident numbers (SIP): highest on the panel + 1, +2, ... (manager re-checks on approval).

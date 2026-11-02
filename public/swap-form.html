@@ -63,7 +63,7 @@
 
       const rows = (d.residents||[]).map(r=>{
         const name = r.name || ((r.firstName||'') + ' ' + (r.lastName||'')).trim();
-        return '<tr><td class="fn">'+esc(name)+'</td><td>'+esc(r.apartment||d.apartment||'')+'</td><td class="fnum">'+esc(r.sip||'')+'</td></tr>';
+        return '<tr><td class="fn">'+esc(name)+'</td><td>'+esc(r.apartment||d.apartment||'')+'</td><td>'+esc(r.phone||'')+'</td><td class="fnum">'+esc(r.sip||'')+'</td></tr>';
       }).join('');
 
       const dl = [['🤖 אנדרואיד','Google Play','https://play.google.com/store/apps/details?id=net.voipbell'],
@@ -86,8 +86,8 @@
         + '<div class="sect"><h3>סרטון הדרכה · דקה וחצי</h3><div class="mrow">'+mini(vid)+'</div></div>'
         + leftHtml
         + '<div class="sub">מצאו את שמכם והזינו את "מספר דייר" בשדה Apartment number באפליקציה (אינו מספר הדירה בפועל).</div>'
-        + '<table><thead><tr><th>שם דייר</th><th>מספר דירה</th><th>מספר דייר / דירה</th></tr></thead><tbody>'
-        + (rows || '<tr><td colspan="3" style="color:#888;">אין דיירים חדשים</td></tr>')
+        + '<table><thead><tr><th>שם דייר</th><th>מספר דירה</th><th>מספר טלפון</th><th>מספר דייר / דירה</th></tr></thead><tbody>'
+        + (rows || '<tr><td colspan="4" style="color:#888;">אין דיירים חדשים</td></tr>')
         + '</tbody></table>'
         + vbHtml
         + '<div class="foot">Tador Technologies · לתמיכה פנו למתקין</div>';
