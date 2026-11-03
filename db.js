@@ -288,7 +288,11 @@ async function setInstallerDefaultLang(phoneNumber, lang) {
 // Per-account module permissions (manager "הרשאות" page). installers.modules is a
 // map {moduleId: boolean}. A MISSING key means ENABLED (default-on) — so existing
 // accounts keep every feature; only an explicit false hides a module.
-const INSTALLER_MODULE_IDS = ['portfolio', 'faceManagement', 'residentUpdate', 'residentBlock', 'blockUser', 'residentsList', 'createCommittee'];
+const INSTALLER_MODULE_IDS = [
+  'emergency', 'tempCode', 'permCode', 'shabbat', 'reboot', 'history', 'residentsList',
+  'faceManagement', 'residentUpdate', 'blockUser', 'residentBlock', 'createCommittee',
+  'tutorials', 'docs', 'catalog', 'portfolio'
+];
 async function setInstallerModule(phoneNumber, moduleId, enabled) {
   await connectDB();
   if (!INSTALLER_MODULE_IDS.includes(moduleId)) throw new Error('Unknown module');
@@ -296,6 +300,15 @@ async function setInstallerModule(phoneNumber, moduleId, enabled) {
     { phoneNumber },
     { $set: { ['modules.' + moduleId]: !!enabled } }
   );
+  if (!r.matchedCount) throw new Error('Installer not found');
+  return !!enabled;
+}
+// Bulk: set EVERY module for one installer account to the same state (show-all / hide-all).
+async function setAllInstallerModules(phoneNumber, enabled) {
+  await connectDB();
+  const modules = {};
+  INSTALLER_MODULE_IDS.forEach(id => { modules[id] = !!enabled; });
+  const r = await db.collection('installers').updateOne({ phoneNumber }, { $set: { modules } });
   if (!r.matchedCount) throw new Error('Installer not found');
   return !!enabled;
 }
@@ -541,6 +554,19 @@ async function setGlobalModule(accountType, moduleId, enabled) {
   await db.collection('settings').updateOne(
     { key: 'globalModules' },
     { $set: { ['value.' + accountType + '.' + moduleId]: !!enabled } },
+    { upsert: true }
+  );
+  return !!enabled;
+}
+// Bulk: set EVERY module in a global account-type set to the same state.
+async function setAllGlobalModules(accountType, enabled) {
+  await connectDB();
+  if (!['installer', 'committee'].includes(accountType)) throw new Error('bad accountType');
+  const set = {};
+  INSTALLER_MODULE_IDS.forEach(id => { set[id] = !!enabled; });
+  await db.collection('settings').updateOne(
+    { key: 'globalModules' },
+    { $set: { ['value.' + accountType]: set } },
     { upsert: true }
   );
   return !!enabled;
@@ -1181,8 +1207,10 @@ module.exports = {
   loginInstaller,
   setInstallerDefaultLang,
   setInstallerModule,
+  setAllInstallerModules,
   getGlobalModules,
   setGlobalModule,
+  setAllGlobalModules,
   listCommitteesByCreator,
   createCommitteeAccount,
   loginManager,

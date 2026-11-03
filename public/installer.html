@@ -369,6 +369,7 @@
     .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .action-section-header { grid-column: 1 / -1; font-size: 12px; font-weight: 800; letter-spacing: 0.5px; color: var(--gray-500); margin: 10px 2px 0; }
     .action-section-header:first-child { margin-top: 0; }
+    .module-off { display: none !important; }   /* hidden by manager permissions */
     .action-card {
       border: 1px solid var(--gray-200);
       border-radius: 8px;
@@ -685,9 +686,9 @@
       <div class="action-grid">
 
         <!-- ═══ Group 1: Panel actions ═══ -->
-        <div class="action-section-header" data-i18n="secPanel">פעולות פנל</div>
+        <div class="action-section-header" data-section="panel" data-i18n="secPanel">פעולות פנל</div>
         <!-- Emergency Door Open -->
-        <button class="action-card" id="relayBtn" onclick="toggleRelay()">
+        <button class="action-card" data-module="emergency" data-section="panel" id="relayBtn" onclick="toggleRelay()">
           <span id="relayBadge" class="action-badge badge-loading">...</span>
           <span class="material-symbols-outlined">door_open</span>
           <span class="action-card-label" data-i18n="emergencyBtn">פתיחת דלת חירום</span>
@@ -695,38 +696,38 @@
         </button>
 
         <!-- Temporary Code -->
-        <button class="action-card" id="tempCodeBtn" onclick="openTempCode()">
+        <button class="action-card" data-module="tempCode" data-section="panel" id="tempCodeBtn" onclick="openTempCode()">
           <span class="material-symbols-outlined">password</span>
           <span class="action-card-label" data-i18n="tempCodeBtn">הנפקת קוד זמני</span>
         </button>
 
         <!-- Permanent Codes -->
-        <button class="action-card" onclick="openPermCodes()">
+        <button class="action-card" data-module="permCode" data-section="panel" onclick="openPermCodes()">
           <span class="material-symbols-outlined">vpn_key</span>
           <span class="action-card-label" data-i18n="permCodeBtn">החלפת קוד קבוע</span>
         </button>
 
         <!-- Shabbat Mode (fill light off / auto) -->
-        <button class="action-card" id="shabbatCard" onclick="toggleShabbatMode()">
+        <button class="action-card" data-module="shabbat" data-section="panel" id="shabbatCard" onclick="toggleShabbatMode()">
           <span class="material-symbols-outlined">clear_night</span>
           <span class="action-card-label" id="shabbatLabel">הפעלת מצב שבת</span>
         </button>
 
         <!-- Residents list (residenter) -->
-        <button class="action-card" data-module="residentsList" onclick="openResidenter()">
+        <button class="action-card" data-module="residentsList" data-section="panel" onclick="openResidenter()">
           <span class="material-symbols-outlined">groups</span>
           <span class="action-card-label" data-i18n="residentsListBtn">רשימת דיירים</span>
         </button>
 
         <!-- Reboot -->
-        <button class="action-card" id="rebootBtn" onclick="rebootDevice()">
+        <button class="action-card" data-module="reboot" data-section="panel" id="rebootBtn" onclick="rebootDevice()">
           <span class="material-symbols-outlined">restart_alt</span>
           <span class="action-card-label" data-i18n="rebootBtn">אתחול מכשיר</span>
           <div id="rebootResult" class="status-msg"></div>
         </button>
 
         <!-- Panel History -->
-        <button class="action-card" onclick="openPanelHistory()">
+        <button class="action-card" data-module="history" data-section="panel" onclick="openPanelHistory()">
           <span class="material-symbols-outlined">history</span>
           <span class="action-card-label" data-i18n="historyBtn">היסטוריה</span>
         </button>
@@ -772,21 +773,21 @@
         <!-- Manager communication (support + manager messages) moved to the header buttons. -->
 
         <!-- ═══ Group 4: Info & resources ═══ -->
-        <div class="action-section-header" data-i18n="secInfo">מידע ומשאבים</div>
+        <div class="action-section-header" data-section="info" data-i18n="secInfo">מידע ומשאבים</div>
         <!-- Tutorials -->
-        <button class="action-card" onclick="openTutorials()">
+        <button class="action-card" data-module="tutorials" data-section="info" onclick="openTutorials()">
           <span class="material-symbols-outlined">play_circle</span>
           <span class="action-card-label" data-i18n="tutorialsBtn">סרטוני הדרכה</span>
         </button>
 
         <!-- Install Docs -->
-        <button class="action-card" onclick="openInstallDocs()">
+        <button class="action-card" data-module="docs" data-section="info" onclick="openInstallDocs()">
           <span class="material-symbols-outlined">description</span>
           <span class="action-card-label" data-i18n="docsBtn">הוראות התקנה</span>
         </button>
 
         <!-- Catalog -->
-        <button class="action-card" id="catalogSection" onclick="openCatalog()">
+        <button class="action-card" data-module="catalog" data-section="info" id="catalogSection" onclick="openCatalog()">
           <span class="material-symbols-outlined">download</span>
           <span class="action-card-label" data-i18n="catalogBtn">קטלוג מוצרים</span>
         </button>
@@ -798,7 +799,7 @@
         </button>
 
         <!-- Portfolio - full width -->
-        <button class="action-card" data-module="portfolio" onclick="openPortfolio()" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;gap:14px;padding:16px 18px;">
+        <button class="action-card" data-module="portfolio" data-section="info" onclick="openPortfolio()" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;gap:14px;padding:16px 18px;">
           <span class="material-symbols-outlined" style="font-size:28px;">photo_library</span>
           <div style="text-align:right;">
             <div class="action-card-label" style="font-size:13px;" data-i18n="portfolioBtn">תיק עבודות</div>
@@ -1247,18 +1248,20 @@
   function applyModules() {
     const mods = (installerData && installerData.modules) || {};
     const gmods = (installerData && installerData.globalModules) || {};   // account-type-wide
-    document.querySelectorAll('.action-card[data-module]').forEach(btn => {
+    // Hidden if the global default OR this account's own setting turns it off.
+    // Uses a CSS class so it never overrides a card that hides itself (inline display:none).
+    document.querySelectorAll('[data-module]').forEach(btn => {
       const id = btn.getAttribute('data-module');
-      // Hidden if the global default OR this account's own setting turns it off.
-      btn.style.display = (mods[id] === false || gmods[id] === false) ? 'none' : '';
+      btn.classList.toggle('module-off', (mods[id] === false || gmods[id] === false));
     });
-    // Hide a section header when every card in its section is hidden.
+    // Hide a section header when every card in its section is hidden
+    // (by a module or by its own inline display:none).
     document.querySelectorAll('.action-section-header[data-section]').forEach(h => {
       const sec = h.getAttribute('data-section');
       const cards = document.querySelectorAll('.action-card[data-section="' + sec + '"]');
       let anyVisible = false;
-      cards.forEach(c => { if (c.style.display !== 'none') anyVisible = true; });
-      h.style.display = (cards.length && !anyVisible) ? 'none' : '';
+      cards.forEach(c => { if (!c.classList.contains('module-off') && c.style.display !== 'none') anyVisible = true; });
+      h.classList.toggle('module-off', cards.length > 0 && !anyVisible);
     });
   }
 

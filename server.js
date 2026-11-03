@@ -1469,6 +1469,16 @@ app.post('/api/manager/installer-module', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// Bulk: set ALL modules for one installer account (show-all / hide-all).
+app.post('/api/manager/installer-modules-all', async (req, res) => {
+  const { phoneNumber, enabled, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) return res.status(401).json({ success: false, error: 'Unauthorized' });
+  if (!phoneNumber) return res.status(400).json({ success: false, error: 'phoneNumber required' });
+  try { const value = await db.setAllInstallerModules(phoneNumber, !!enabled); res.json({ success: true, enabled: value }); }
+  catch (e) { res.status(400).json({ success: false, error: e.message }); }
+});
+
 // Global (account-type-wide) module permissions. Read is open (no secrets); set is admin.
 app.get('/api/manager/global-modules', async (req, res) => {
   try { res.json({ success: true, globalModules: await db.getGlobalModules() }); }
@@ -1485,6 +1495,15 @@ app.post('/api/manager/global-module', async (req, res) => {
     const value = await db.setGlobalModule(accountType, module, !!enabled);
     res.json({ success: true, accountType, module, enabled: value });
   } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+});
+// Bulk: set ALL modules in a global account-type set.
+app.post('/api/manager/global-modules-all', async (req, res) => {
+  const { accountType, enabled, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) return res.status(401).json({ success: false, error: 'Unauthorized' });
+  if (!accountType) return res.status(400).json({ success: false, error: 'accountType required' });
+  try { const value = await db.setAllGlobalModules(accountType, !!enabled); res.json({ success: true, accountType, enabled: value }); }
+  catch (e) { res.status(400).json({ success: false, error: e.message }); }
 });
 
 // Installer: the committee (ועד) accounts this installer created.

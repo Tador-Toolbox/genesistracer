@@ -1484,14 +1484,24 @@
 
     // ===== Permissions page: per-account module toggles (hide-only, default-ON) =====
     const PERM_MODULES = [
-      { id: 'portfolio',      label: 'תיק עבודות' },
+      { id: 'emergency',      label: 'פתיחת דלת חירום' },
+      { id: 'tempCode',       label: 'הנפקת קוד זמני' },
+      { id: 'permCode',       label: 'החלפת קוד קבוע' },
+      { id: 'shabbat',        label: 'מצב שבת' },
+      { id: 'reboot',         label: 'אתחול מכשיר' },
+      { id: 'history',        label: 'היסטוריה' },
+      { id: 'residentsList',  label: 'רשימת דיירים' },
       { id: 'faceManagement', label: 'ניהול זיהוי פנים' },
       { id: 'residentUpdate', label: 'עדכון דייר' },
-      { id: 'residentBlock',  label: 'חסימה זמנית' },
       { id: 'blockUser',      label: 'חסום משתמש' },
-      { id: 'residentsList',  label: 'רשימת דיירים' },
+      { id: 'residentBlock',  label: 'חסימה זמנית' },
       { id: 'createCommittee', label: 'פתיחת חשבון ועד' },
+      { id: 'tutorials',      label: 'סרטוני הדרכה' },
+      { id: 'docs',           label: 'הוראות התקנה' },
+      { id: 'catalog',        label: 'קטלוג מוצרים' },
+      { id: 'portfolio',      label: 'תיק עבודות' },
     ];
+    const BULK_BTN = 'font-size:11px;font-weight:700;padding:3px 9px;border-radius:14px;border:1px solid #cfd6de;cursor:pointer;background:#fff;color:#334;margin:0 0 6px 6px;';
     function v2PermEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
     function permChip(phone, m, on) {
       return `<button onclick="toggleInstallerModule('${v2PermEsc(phone)}','${m.id}',this)" data-module="${m.id}" data-on="${on ? '1' : '0'}"
@@ -1502,9 +1512,27 @@
       const mods = acc.modules || {};
       const chips = PERM_MODULES.map(m => permChip(acc.phoneNumber, m, mods[m.id] !== false)).join('');
       const name = acc.installerName ? (v2PermEsc(acc.installerName) + ' · ' + v2PermEsc(acc.phoneNumber)) : v2PermEsc(acc.phoneNumber);
-      return `<div style="border:1px solid var(--border,#e6eaef);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
-        <div style="font-weight:700;font-size:13px;margin-bottom:6px;">${name}</div>
-        <div style="display:flex;flex-wrap:wrap;">${chips}</div></div>`;
+      const bulk = `<button onclick="bulkInstallerModules('${v2PermEsc(acc.phoneNumber)}',true,this)" style="${BULK_BTN}">הצג הכל</button>` +
+                   `<button onclick="bulkInstallerModules('${v2PermEsc(acc.phoneNumber)}',false,this)" style="${BULK_BTN}">הסתר הכל</button>`;
+      return `<div data-acct="${v2PermEsc(acc.phoneNumber)}" style="border:1px solid var(--border,#e6eaef);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:6px;">
+          <span style="font-weight:700;font-size:13px;">${name}</span><span>${bulk}</span></div>
+        <div class="perm-chips" style="display:flex;flex-wrap:wrap;">${chips}</div></div>`;
+    }
+    // Bulk show/hide every module for one installer account, then re-render its chips.
+    async function bulkInstallerModules(phoneNumber, enabled, btn) {
+      if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+      btn.disabled = true;
+      try {
+        const d = await fetch('/api/manager/installer-modules-all', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber, enabled, username: window.__mgr.username, password: window.__mgr.password })
+        }).then(r => r.json());
+        if (!d.success) { alert('❌ ' + (d.error || 'שגיאה')); return; }
+        const wrap = btn.closest('[data-acct]'); const chipsBox = wrap && wrap.querySelector('.perm-chips');
+        if (chipsBox) chipsBox.innerHTML = PERM_MODULES.map(m => permChip(phoneNumber, m, enabled)).join('');
+      } catch (e) { alert('❌ ' + e.message); }
+      finally { btn.disabled = false; }
     }
     // Global (account-type-wide) permission chips.
     function globalChip(type, m, on) {
@@ -1514,7 +1542,23 @@
     }
     function renderGlobalRow(hostId, type, set) {
       const host = document.getElementById(hostId); if (!host) return;
-      host.innerHTML = '<div style="display:flex;flex-wrap:wrap;">' + PERM_MODULES.map(m => globalChip(type, m, set[m.id] !== false)).join('') + '</div>';
+      const bulk = `<button onclick="bulkGlobalModules('${type}',true,this)" style="${BULK_BTN}">הצג הכל</button>` +
+                   `<button onclick="bulkGlobalModules('${type}',false,this)" style="${BULK_BTN}">הסתר הכל</button>`;
+      host.innerHTML = '<div class="perm-chips" style="display:flex;flex-wrap:wrap;align-items:center;">' +
+        PERM_MODULES.map(m => globalChip(type, m, set[m.id] !== false)).join('') + bulk + '</div>';
+    }
+    async function bulkGlobalModules(accountType, enabled, btn) {
+      if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+      btn.disabled = true;
+      try {
+        const d = await fetch('/api/manager/global-modules-all', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountType, enabled, username: window.__mgr.username, password: window.__mgr.password })
+        }).then(r => r.json());
+        if (!d.success) { alert('❌ ' + (d.error || 'שגיאה')); return; }
+        renderGlobalRow(accountType === 'committee' ? 'permGlobalCommittee' : 'permGlobalInstaller', accountType, PERM_MODULES.reduce((o, m) => (o[m.id] = enabled, o), {}));
+      } catch (e) { alert('❌ ' + e.message); }
+      finally { btn.disabled = false; }
     }
     async function toggleGlobalModule(accountType, module, btn) {
       if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
