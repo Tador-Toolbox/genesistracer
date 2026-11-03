@@ -1237,14 +1237,20 @@
     window._myCommittees = accounts;
     const rows = accounts.length ? accounts.map((a, idx) => {
       const when = a.createdAt ? new Date(a.createdAt).toLocaleDateString(he ? 'he-IL' : 'en-GB') : '';
-      const sub = (a.panels || []).map(p => esc([p.address, p.mac].filter(Boolean).join(' '))).join(' · ');
+      const panels = (a.panels || []);
+      const panelChips = panels.length
+        ? panels.map(p => '<div style="display:flex;align-items:baseline;gap:7px;background:#f4f6f8;border-radius:8px;padding:6px 9px;margin-top:5px;">' +
+            '<span style="font-size:12.5px;font-weight:600;">' + esc(p.address || (he ? '(ללא כתובת)' : '(no address)')) + '</span>' +
+            '<span style="font-size:11px;color:#8891a0;font-family:ui-monospace,monospace;">' + esc(p.mac || '') + '</span></div>').join('')
+        : '<div style="font-size:12px;color:#99a;margin-top:5px;">' + (he ? 'אין פנלים משויכים' : 'No panels assigned') + '</div>';
       return '<div style="border:1px solid #e6eaef;border-radius:10px;padding:10px 12px;margin-bottom:8px;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
           '<span style="font-weight:700;font-size:14px;">📱 ' + esc(a.phoneNumber) + '</span>' +
           '<button onclick="assignPanelPicker(' + idx + ')" style="font-size:12px;font-weight:700;border:1px solid #cfd6de;background:#fff;border-radius:999px;padding:4px 10px;cursor:pointer;">➕ ' + (he ? 'שייך פנל' : 'Add panel') + '</button>' +
         '</div>' +
-        (sub ? '<div style="font-size:12px;color:#667;margin-top:4px;">' + sub + '</div>' : '') +
-        '<div style="font-size:13px;margin-top:4px;">' + (he ? 'סיסמה:' : 'Password:') + ' <b style="font-family:monospace;background:#fef9c3;padding:1px 6px;border-radius:4px;">' + esc(a.password) + '</b>' +
+        '<div style="font-size:11px;font-weight:700;color:#8891a0;margin-top:7px;">' + (he ? 'פנלים משויכים' : 'Assigned panels') + ' (' + panels.length + ')</div>' +
+        panelChips +
+        '<div style="font-size:13px;margin-top:7px;">' + (he ? 'סיסמה:' : 'Password:') + ' <b style="font-family:monospace;background:#fef9c3;padding:1px 6px;border-radius:4px;">' + esc(a.password) + '</b>' +
           (when ? ' <span style="font-size:11px;color:#99a;">· ' + esc(when) + '</span>' : '') + '</div>' +
       '</div>';
     }).join('') : '<div style="font-size:13px;color:#667;padding:8px 2px;">' + (he ? 'עדיין לא יצרת חשבונות ועד.' : 'You have not created any committee accounts yet.') + '</div>';
