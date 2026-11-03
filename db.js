@@ -288,7 +288,7 @@ async function setInstallerDefaultLang(phoneNumber, lang) {
 // Per-account module permissions (manager "הרשאות" page). installers.modules is a
 // map {moduleId: boolean}. A MISSING key means ENABLED (default-on) — so existing
 // accounts keep every feature; only an explicit false hides a module.
-const INSTALLER_MODULE_IDS = ['portfolio', 'faceManagement', 'residentUpdate', 'residentBlock', 'blockUser', 'residentsList'];
+const INSTALLER_MODULE_IDS = ['portfolio', 'faceManagement', 'residentUpdate', 'residentBlock', 'blockUser', 'residentsList', 'createCommittee'];
 async function setInstallerModule(phoneNumber, moduleId, enabled) {
   await connectDB();
   if (!INSTALLER_MODULE_IDS.includes(moduleId)) throw new Error('Unknown module');

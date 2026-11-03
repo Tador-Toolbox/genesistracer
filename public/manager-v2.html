@@ -1476,6 +1476,7 @@
       { id: 'residentBlock',  label: 'חסימה זמנית' },
       { id: 'blockUser',      label: 'חסום משתמש' },
       { id: 'residentsList',  label: 'רשימת דיירים' },
+      { id: 'createCommittee', label: 'פתיחת חשבון ועד' },
     ];
     function v2PermEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
     function permChip(phone, m, on) {
@@ -2038,6 +2039,7 @@
         <h3 style="font-size:18px;font-weight:900;margin:0 0 4px;color:#111;">${bldEsc(b.address)}</h3>
         <p style="font-size:13px;color:#666;margin:0 0 4px;">קוד בניין: <b>${bldEsc(b.buildingCode)}</b> · סיסמת ועד: <b style="font-family:monospace;background:#fef9c3;padding:1px 6px;border-radius:4px;">${bldEsc(b.password)}</b>
           <button onclick="copyBldText('${bldEsc(b.password)}', this)" title="העתק סיסמה" style="border:none;background:none;cursor:pointer;font-size:13px;">📋</button></p>
+        ${b.createdByInstaller ? `<p style="font-size:12px;color:#2563eb;margin:0 0 8px;">👷 נוצר ע"י הטכנאי: <b>${bldEsc(b.createdByName || b.createdByInstaller)}</b>${b.createdByName ? ' · ' + bldEsc(b.createdByInstaller) : ''}</p>` : ''}
         ${entrances ? `<p style="font-size:12px;color:#888;margin:0 0 16px;">כניסות: ${bldEsc(entrances)}</p>` : '<div style="height:12px;"></div>'}
         <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
           ${col('🏠 הרשמת דיירים', 'ללובי — הדיירים סורקים ונרשמים', regUrl, 'qr-residents-' + b.buildingCode)}

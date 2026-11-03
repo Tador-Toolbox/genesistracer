@@ -757,6 +757,12 @@
           <span class="action-card-label" data-i18n="blockListBtn">חסימה זמנית מרשימת הדיירים</span>
         </button>
 
+        <!-- Create committee (ועד) account for this panel -->
+        <button class="action-card" data-module="createCommittee" data-section="residents" onclick="openCreateCommittee()">
+          <span class="material-symbols-outlined">groups_3</span>
+          <span class="action-card-label" data-i18n="createCommitteeBtn">פתיחת חשבון ועד</span>
+        </button>
+
         <!-- Manager communication (support + manager messages) moved to the header buttons. -->
 
         <!-- ═══ Group 4: Info & resources ═══ -->
@@ -882,7 +888,7 @@
       emergencyBtn:"Emergency Door Open", tempCodeBtn:"Issue Temporary Code", permCodeBtn:"Change Permanent Code",
       blockUserBtn:"Block User", historyBtn:"History", faceBtn:"Face Recognition", residentUpdateBtn:"Resident Update",
       messagesBtn:"Messages", serviceBtn:"Service Request", tutorialsBtn:"Tutorials", docsBtn:"Installation Guides",
-      swapV2Btn:"Resident Update", blockListBtn:"Temporary Resident Block",
+      swapV2Btn:"Resident Update", blockListBtn:"Temporary Resident Block", createCommitteeBtn:"Create Committee Account",
       sampleResidentsBtn:"Sample Residents List", portfolioBtn:"Portfolio", portfolioSub:"Photos from my installations",
       mailTitle:"Mailing List", mailSub:"Updates on new products and exclusive deals.", mailPh:"Email address...", mailBtn:"Subscribe",
       shabbatOff:"Shabbat Mode", shabbatOn:"Cancel Shabbat Mode",
@@ -904,7 +910,7 @@
       emergencyBtn:"פתיחת דלת חירום", tempCodeBtn:"הנפקת קוד זמני", permCodeBtn:"החלפת קוד קבוע",
       blockUserBtn:"חסום משתמש", historyBtn:"היסטוריה", faceBtn:"ניהול זיהוי פנים", residentUpdateBtn:"עדכון דייר",
       messagesBtn:"הודעות", serviceBtn:"פניית שירות", tutorialsBtn:"סרטוני הדרכה", docsBtn:"הוראות התקנה",
-      swapV2Btn:"עדכון דייר", blockListBtn:"חסימה זמנית מרשימת הדיירים",
+      swapV2Btn:"עדכון דייר", blockListBtn:"חסימה זמנית מרשימת הדיירים", createCommitteeBtn:"פתיחת חשבון ועד",
       sampleResidentsBtn:"רשימת דיירים לדוגמא", portfolioBtn:"תיק עבודות", portfolioSub:"תמונות מהתקנות שלי",
       mailTitle:"רשימת תפוצה", mailSub:"עדכונים על מוצרים חדשים ומבצעים בלעדיים.", mailPh:"כתובת אימייל...", mailBtn:"הצטרפות",
       shabbatOff:"מצב שבת", shabbatOn:"בטל מצב שבת",
@@ -1121,6 +1127,47 @@
       }));
     } catch (e) {}
     window.open('/resident-block.html', '_blank');
+  }
+
+  // Create a committee (ועד) account (building) for the selected panel. The new
+  // account is stamped with this installer, so the manager sees it as related to him.
+  async function openCreateCommittee() {
+    const he = currentLang === 'he';
+    if (!selectedMac) return alert(he ? 'בחר כתובת MAC תחילה' : 'Select a panel first');
+    const macObj = (installerData?.macAddresses || []).find(m => m.mac === selectedMac) || {};
+    if (!confirm(he ? 'לפתוח חשבון ועד לפנל זה?' : 'Create a committee account for this panel?')) return;
+    try {
+      const r = await fetch('/api/installer/create-committee', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: installerData.phoneNumber, mac: selectedMac, address: (macObj.address || '') })
+      }).then(x => x.json());
+      if (!r.success) { alert('❌ ' + (r.error || (he ? 'שגיאה' : 'Error'))); return; }
+      showCommitteeResult(r.building, !!r.existed);
+    } catch (e) { alert('❌ ' + e.message); }
+  }
+  function showCommitteeResult(b, existed) {
+    const he = currentLang === 'he';
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const link = location.origin + '/committee.html?code=' + encodeURIComponent(b.buildingCode);
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+    ov.onclick = e => { if (e.target === ov) ov.remove(); };
+    ov.innerHTML =
+      '<div dir="' + (he ? 'rtl' : 'ltr') + '" style="background:#fff;border-radius:16px;max-width:420px;width:100%;padding:22px;font-family:inherit;">' +
+        '<div style="font-size:18px;font-weight:800;margin-bottom:4px;">' + (he ? '✅ חשבון ועד' : '✅ Committee account') + '</div>' +
+        '<div style="font-size:13px;color:#667;margin-bottom:14px;">' + (existed ? (he ? 'כבר קיים חשבון ועד לפנל זה — אלו הפרטים:' : 'A committee account already exists for this panel:') : (he ? 'נוצר חשבון ועד. מסרו לוועד הבית את הפרטים:' : 'Committee account created. Give these to the building committee:')) + '</div>' +
+        '<div style="font-size:14px;margin-bottom:8px;">' + (he ? 'קוד בניין:' : 'Building code:') + ' <b>' + esc(b.buildingCode) + '</b></div>' +
+        '<div style="font-size:14px;margin-bottom:12px;">' + (he ? 'סיסמה:' : 'Password:') + ' <b style="font-family:monospace;background:#fef9c3;padding:1px 6px;border-radius:4px;">' + esc(b.password) + '</b></div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+          '<button id="ccCopy" style="flex:1;padding:10px;background:#111;color:#fff;border:none;border-radius:9px;font:inherit;font-weight:700;cursor:pointer;">' + (he ? '📋 העתק פרטים' : '📋 Copy details') + '</button>' +
+          '<a href="' + esc(link) + '" target="_blank" style="flex:1;text-align:center;padding:10px;background:#0ea5e9;color:#fff;border-radius:9px;font-weight:700;text-decoration:none;">' + (he ? '👥 פתח כניסת ועד' : '👥 Open committee') + '</a>' +
+        '</div>' +
+        '<button id="ccClose" style="width:100%;margin-top:10px;padding:9px;background:#eceff3;color:#111;border:none;border-radius:9px;font:inherit;font-weight:700;cursor:pointer;">' + (he ? 'סגור' : 'Close') + '</button>' +
+      '</div>';
+    document.body.appendChild(ov);
+    const copyTxt = (he ? 'קוד בניין: ' : 'Building code: ') + b.buildingCode + '\n' + (he ? 'סיסמה: ' : 'Password: ') + b.password + '\n' + link;
+    ov.querySelector('#ccCopy').onclick = function () { navigator.clipboard.writeText(copyTxt); this.textContent = he ? '✓ הועתק' : '✓ Copied'; };
+    ov.querySelector('#ccClose').onclick = () => ov.remove();
   }
 
   // Per-installer module permissions (manager הרשאות page). Default-ON: a card is

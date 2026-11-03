@@ -4094,8 +4094,51 @@ function buildingAccess(b) {
     panels: b.panels || [{ mac: b.mac, label: 'כניסה ראשית' }],
     registrationMode: b.registrationMode || (b.openRegistration ? 'committee' : 'whitelist'),
     openRegistration: !!b.openRegistration,
+    createdByInstaller: b.createdByInstaller || '',
+    createdByName: b.createdByName || '',
+    createdVia: b.createdVia || '',
   };
 }
+
+// Installer: create a committee account (building) for one of his own panels.
+// Stamps the creating installer so the manager sees the relationship. If a building
+// already exists for the MAC, returns it (does not overwrite existing attribution).
+app.post('/api/installer/create-committee', async (req, res) => {
+  try {
+    const phoneNumber = (req.body.phoneNumber || '').trim();
+    const cleanMac = prCleanMac(req.body.mac);
+    if (!phoneNumber || !cleanMac) return res.status(400).json({ success: false, error: 'phoneNumber and mac required' });
+    if (!(await prInstallerOwnsMac(phoneNumber, cleanMac))) return res.status(403).json({ success: false, error: 'not your panel' });
+    const col = (await require('./db').connectDB()).collection('buildings');
+
+    const existing = await findBuildingByMac(col, cleanMac);
+    if (existing) return res.json({ success: true, existed: true, building: buildingAccess(existing) });
+
+    // Creating installer's display name (for attribution shown to the manager).
+    let createdByName = '';
+    try { const d = await db.getInstallerDetails(phoneNumber); createdByName = (d && d.installerName) || ''; } catch (e) {}
+
+    let address = String(req.body.address || '').trim();
+    if (!address) address = cleanMac;   // building needs an address; fall back to the MAC
+
+    let buildingCode;
+    do { buildingCode = generateBuildingCode(); } while (await col.findOne({ buildingCode }));
+    const doc = {
+      mac: cleanMac,
+      address,
+      buildingCode,
+      password: generateBuildingPassword(),
+      panels: [{ mac: cleanMac, label: 'כניסה ראשית' }],
+      createdByInstaller: phoneNumber,
+      createdByName,
+      createdVia: 'installer',
+      createdAt: new Date(),
+    };
+    await col.insertOne(doc);
+    try { await logActivity({ phoneNumber, action: 'committee_account_create', mac: cleanMac, details: { buildingCode }, success: true }); } catch (e) {}
+    res.json({ success: true, created: true, building: buildingAccess(doc) });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
 
 app.get('/api/manager/building-by-mac/:mac', async (req, res) => {
   try {
