@@ -1134,38 +1134,40 @@
   async function openCreateCommittee() {
     const he = currentLang === 'he';
     if (!selectedMac) return alert(he ? 'בחר כתובת MAC תחילה' : 'Select a panel first');
-    const macObj = (installerData?.macAddresses || []).find(m => m.mac === selectedMac) || {};
-    if (!confirm(he ? 'לפתוח חשבון ועד לפנל זה?' : 'Create a committee account for this panel?')) return;
+    const phone = prompt(he ? 'מספר הטלפון של חשבון הועד (הכניסה תהיה עם מספר זה):' : 'Committee account phone (login will be with this number):');
+    if (phone == null) return;
+    const committeePhone = String(phone).trim();
+    if (!committeePhone) { alert(he ? 'חובה להזין מספר טלפון' : 'Phone is required'); return; }
     try {
       const r = await fetch('/api/installer/create-committee', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: installerData.phoneNumber, mac: selectedMac, address: (macObj.address || '') })
+        body: JSON.stringify({ phoneNumber: installerData.phoneNumber, mac: selectedMac, committeePhone })
       }).then(x => x.json());
       if (!r.success) { alert('❌ ' + (r.error || (he ? 'שגיאה' : 'Error'))); return; }
-      showCommitteeResult(r.building, !!r.existed);
+      showCommitteeResult(r.account);
     } catch (e) { alert('❌ ' + e.message); }
   }
-  function showCommitteeResult(b, existed) {
+  function showCommitteeResult(a) {
     const he = currentLang === 'he';
     const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const link = location.origin + '/committee.html?code=' + encodeURIComponent(b.buildingCode);
     const ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
     ov.onclick = e => { if (e.target === ov) ov.remove(); };
     ov.innerHTML =
       '<div dir="' + (he ? 'rtl' : 'ltr') + '" style="background:#fff;border-radius:16px;max-width:420px;width:100%;padding:22px;font-family:inherit;">' +
-        '<div style="font-size:18px;font-weight:800;margin-bottom:4px;">' + (he ? '✅ חשבון ועד' : '✅ Committee account') + '</div>' +
-        '<div style="font-size:13px;color:#667;margin-bottom:14px;">' + (existed ? (he ? 'כבר קיים חשבון ועד לפנל זה — אלו הפרטים:' : 'A committee account already exists for this panel:') : (he ? 'נוצר חשבון ועד. מסרו לוועד הבית את הפרטים:' : 'Committee account created. Give these to the building committee:')) + '</div>' +
-        '<div style="font-size:14px;margin-bottom:8px;">' + (he ? 'קוד בניין:' : 'Building code:') + ' <b>' + esc(b.buildingCode) + '</b></div>' +
-        '<div style="font-size:14px;margin-bottom:12px;">' + (he ? 'סיסמה:' : 'Password:') + ' <b style="font-family:monospace;background:#fef9c3;padding:1px 6px;border-radius:4px;">' + esc(b.password) + '</b></div>' +
+        '<div style="font-size:18px;font-weight:800;margin-bottom:4px;">' + (he ? '✅ חשבון ועד נוצר' : '✅ Committee account created') + '</div>' +
+        '<div style="font-size:13px;color:#667;margin-bottom:14px;">' + (he ? 'מסרו לוועד הבית את פרטי ההתחברות:' : 'Give the building committee these login details:') + '</div>' +
+        (a.address ? '<div style="font-size:13px;color:#667;margin-bottom:6px;">' + (he ? 'כתובת:' : 'Address:') + ' ' + esc(a.address) + ' · ' + esc(a.mac) + '</div>' : '') +
+        '<div style="font-size:14px;margin-bottom:8px;">' + (he ? 'טלפון (שם משתמש):' : 'Phone (username):') + ' <b>' + esc(a.phoneNumber) + '</b></div>' +
+        '<div style="font-size:14px;margin-bottom:12px;">' + (he ? 'סיסמה:' : 'Password:') + ' <b style="font-family:monospace;background:#fef9c3;padding:1px 6px;border-radius:4px;">' + esc(a.password) + '</b></div>' +
+        '<div style="font-size:12px;color:#667;margin-bottom:14px;">' + (he ? 'הכניסה: ' : 'Login at: ') + esc(location.origin) + ' ' + (he ? 'עם הטלפון והסיסמה.' : 'with the phone and password.') + '</div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
           '<button id="ccCopy" style="flex:1;padding:10px;background:#111;color:#fff;border:none;border-radius:9px;font:inherit;font-weight:700;cursor:pointer;">' + (he ? '📋 העתק פרטים' : '📋 Copy details') + '</button>' +
-          '<a href="' + esc(link) + '" target="_blank" style="flex:1;text-align:center;padding:10px;background:#0ea5e9;color:#fff;border-radius:9px;font-weight:700;text-decoration:none;">' + (he ? '👥 פתח כניסת ועד' : '👥 Open committee') + '</a>' +
+          '<button id="ccClose" style="flex:1;padding:10px;background:#eceff3;color:#111;border:none;border-radius:9px;font:inherit;font-weight:700;cursor:pointer;">' + (he ? 'סגור' : 'Close') + '</button>' +
         '</div>' +
-        '<button id="ccClose" style="width:100%;margin-top:10px;padding:9px;background:#eceff3;color:#111;border:none;border-radius:9px;font:inherit;font-weight:700;cursor:pointer;">' + (he ? 'סגור' : 'Close') + '</button>' +
       '</div>';
     document.body.appendChild(ov);
-    const copyTxt = (he ? 'קוד בניין: ' : 'Building code: ') + b.buildingCode + '\n' + (he ? 'סיסמה: ' : 'Password: ') + b.password + '\n' + link;
+    const copyTxt = (he ? 'חשבון ועד\nטלפון: ' : 'Committee account\nPhone: ') + a.phoneNumber + (he ? '\nסיסמה: ' : '\nPassword: ') + a.password + '\n' + location.origin;
     ov.querySelector('#ccCopy').onclick = function () { navigator.clipboard.writeText(copyTxt); this.textContent = he ? '✓ הועתק' : '✓ Copied'; };
     ov.querySelector('#ccClose').onclick = () => ov.remove();
   }

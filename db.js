@@ -396,6 +396,9 @@ async function getInstallerDetails(phoneNumber) {
     managerNote: installer.managerNote || '',
     defaultLang: (installer.defaultLang === 'en' ? 'en' : 'he'),
     modules: installer.modules || {},
+    createdByInstaller: installer.createdByInstaller || '',
+    createdByName: installer.createdByName || '',
+    createdVia: installer.createdVia || '',
   };
 }
 
@@ -516,6 +519,51 @@ async function updateAccountType(phoneNumber, accountType) {
     { phoneNumber },
     { $set: { accountType } }
   );
+}
+
+// Installer-created committee (ועד) management account. Same shape as an installer
+// account (installers collection) but accountType 'committee', carrying ONE panel
+// (mac + address + panelType), and stamped with the creating installer so the
+// manager sees it as belonging under that installer. Login = the given phone.
+async function createCommitteeAccount(phoneNumber, macData, opts = {}) {
+  await connectDB();
+  phoneNumber = String(phoneNumber || '').trim();
+  if (!phoneNumber) throw new Error('phoneNumber required');
+  const existing = await db.collection('installers').findOne({ phoneNumber });
+  if (existing) throw new Error('מספר הטלפון כבר קיים במערכת');
+
+  const password = Math.random().toString(36).slice(-8);
+  const md = (typeof macData === 'string') ? { mac: macData } : (macData || {});
+  const macDoc = {
+    mac: md.mac,
+    address: md.address || '',
+    notes: md.notes || '',
+    purchaseDate: md.purchaseDate || '',
+    startDate: md.startDate || '',
+    technicianName: md.technicianName || '',
+    technicianPhone: md.technicianPhone || '',
+    supplierName: md.supplierName || '',
+    committeeName: md.committeeName || '',
+    committeePhone: md.committeePhone || '',
+    description: md.description || '',
+    licensesPurchased: md.licensesPurchased || '',
+    voipbellAccount: md.voipbellAccount || '',
+    panelType: md.panelType || '',
+  };
+  await db.collection('installers').insertOne({
+    phoneNumber,
+    password: hashPassword(password),
+    plainPassword: password,
+    macAddresses: [macDoc],
+    panelType: opts.panelType || md.panelType || 'genesis7',
+    accountType: 'committee',
+    createdByInstaller: opts.createdByInstaller || '',
+    createdByName: opts.createdByName || '',
+    createdVia: 'installer',
+    createdAt: new Date(),
+    lastLogin: null,
+  });
+  return { phoneNumber, password };
 }
 
 
@@ -1092,6 +1140,7 @@ module.exports = {
   loginInstaller,
   setInstallerDefaultLang,
   setInstallerModule,
+  createCommitteeAccount,
   loginManager,
   getInstallers,
   getInstallerDetails,

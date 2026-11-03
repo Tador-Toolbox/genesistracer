@@ -2045,7 +2045,6 @@
         <h3 style="font-size:18px;font-weight:900;margin:0 0 4px;color:#111;">${bldEsc(b.address)}</h3>
         <p style="font-size:13px;color:#666;margin:0 0 4px;">קוד בניין: <b>${bldEsc(b.buildingCode)}</b> · סיסמת ועד: <b style="font-family:monospace;background:#fef9c3;padding:1px 6px;border-radius:4px;">${bldEsc(b.password)}</b>
           <button onclick="copyBldText('${bldEsc(b.password)}', this)" title="העתק סיסמה" style="border:none;background:none;cursor:pointer;font-size:13px;">📋</button></p>
-        ${b.createdByInstaller ? `<p style="font-size:12px;color:#2563eb;margin:0 0 8px;">👷 נוצר ע"י הטכנאי: <b>${bldEsc(b.createdByName || b.createdByInstaller)}</b>${b.createdByName ? ' · ' + bldEsc(b.createdByInstaller) : ''}</p>` : ''}
         ${entrances ? `<p style="font-size:12px;color:#888;margin:0 0 16px;">כניסות: ${bldEsc(entrances)}</p>` : '<div style="height:12px;"></div>'}
         <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
           ${col('🏠 הרשמת דיירים', 'ללובי — הדיירים סורקים ונרשמים', regUrl, 'qr-residents-' + b.buildingCode)}
@@ -2773,6 +2772,7 @@
               <button onclick="setInstallerLang('${installer.phoneNumber}','en',this)" data-lang="en"
                 style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:14px;border:none;cursor:pointer;background:${dlang==='en'?'#e8001c':'#eceff3'};color:${dlang==='en'?'#fff':'#64717e'};">EN</button>
             </div>
+            ${details.installer.createdByInstaller ? `<div style="margin-top:5px;font-size:11px;color:#2563eb;">👷 נוצר ע"י מתקין: <b>${details.installer.createdByName || details.installer.createdByInstaller}</b>${details.installer.createdByName ? ' · ' + details.installer.createdByInstaller : ''}</div>` : ''}
           </td>
           <td>
             <div class="password-display">
