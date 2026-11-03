@@ -707,12 +707,6 @@
           <span class="action-card-label" data-i18n="permCodeBtn">החלפת קוד קבוע</span>
         </button>
 
-        <!-- Shabbat Mode (fill light off / auto) -->
-        <button class="action-card" data-module="shabbat" data-section="panel" id="shabbatCard" onclick="toggleShabbatMode()">
-          <span class="material-symbols-outlined">clear_night</span>
-          <span class="action-card-label" id="shabbatLabel">הפעלת מצב שבת</span>
-        </button>
-
         <!-- Residents list (residenter) -->
         <button class="action-card" data-module="residentsList" data-section="panel" onclick="openResidenter()">
           <span class="material-symbols-outlined">groups</span>
@@ -758,19 +752,28 @@
           <span class="action-card-label" data-i18n="blockListBtn">חסימה זמנית מרשימת הדיירים</span>
         </button>
 
+        <!-- Manager communication (support + manager messages) moved to the header buttons. -->
+
+        <!-- ═══ Group 3: Management ═══ -->
+        <div class="action-section-header" data-section="management" data-i18n="secManagement">ניהול</div>
+
         <!-- Create committee (ועד) account for this panel -->
-        <button class="action-card" data-module="createCommittee" data-section="residents" onclick="openCreateCommittee()">
+        <button class="action-card" data-module="createCommittee" data-section="management" onclick="openCreateCommittee()">
           <span class="material-symbols-outlined">groups_3</span>
           <span class="action-card-label" data-i18n="createCommitteeBtn">פתיחת חשבון ועד</span>
         </button>
 
         <!-- Committee accounts this installer created -->
-        <button class="action-card" data-module="createCommittee" data-section="residents" onclick="openMyCommittees()">
+        <button class="action-card" data-module="createCommittee" data-section="management" onclick="openMyCommittees()">
           <span class="material-symbols-outlined">badge</span>
           <span class="action-card-label" data-i18n="myCommitteesBtn">חשבונות ועד שיצרתי</span>
         </button>
 
-        <!-- Manager communication (support + manager messages) moved to the header buttons. -->
+        <!-- Shabbat Mode (fill light off / auto) -->
+        <button class="action-card" data-module="shabbat" data-section="management" id="shabbatCard" onclick="toggleShabbatMode()">
+          <span class="material-symbols-outlined">clear_night</span>
+          <span class="action-card-label" id="shabbatLabel">הפעלת מצב שבת</span>
+        </button>
 
         <!-- ═══ Group 4: Info & resources ═══ -->
         <div class="action-section-header" data-section="info" data-i18n="secInfo">מידע ומשאבים</div>
@@ -891,7 +894,7 @@
       lookupBtn:"Remote Access", logoutBtn:"Logout", rebootBtn:"Reboot",
       supportBtn:"Support", mgrMsgBtn:"Manager messages", catalogBtn:"Catalog", residentsListBtn:"Residents List",
       searchPh:"Search device by name or MAC...",
-      secPanel:"Panel Actions", secResidents:"Residents & Faces", secComm:"Manager Communication", secInfo:"Info & Resources",
+      secPanel:"Panel Actions", secResidents:"Residents & Faces", secManagement:"Management", secComm:"Manager Communication", secInfo:"Info & Resources",
       emergencyBtn:"Emergency Door Open", tempCodeBtn:"Issue Temporary Code", permCodeBtn:"Change Permanent Code",
       blockUserBtn:"Block User", historyBtn:"History", faceBtn:"Face Recognition", residentUpdateBtn:"Resident Update",
       messagesBtn:"Messages", serviceBtn:"Service Request", tutorialsBtn:"Tutorials", docsBtn:"Installation Guides",
@@ -913,7 +916,7 @@
       lookupBtn:"התחברות מרחוק", logoutBtn:"התנתק", rebootBtn:"אתחול מכשיר",
       supportBtn:"תמיכה", mgrMsgBtn:"הודעות מהמנהל", catalogBtn:"קטלוג מוצרים", residentsListBtn:"רשימת דיירים",
       searchPh:"חפש מכשיר לפי שם או כתובת MAC...",
-      secPanel:"פעולות פנל", secResidents:"דיירים ופנים", secComm:"תקשורת עם המנהל", secInfo:"מידע ומשאבים",
+      secPanel:"פעולות פנל", secResidents:"דיירים ופנים", secManagement:"ניהול", secComm:"תקשורת עם המנהל", secInfo:"מידע ומשאבים",
       emergencyBtn:"פתיחת דלת חירום", tempCodeBtn:"הנפקת קוד זמני", permCodeBtn:"החלפת קוד קבוע",
       blockUserBtn:"חסום משתמש", historyBtn:"היסטוריה", faceBtn:"ניהול זיהוי פנים", residentUpdateBtn:"עדכון דייר",
       messagesBtn:"הודעות", serviceBtn:"פניית שירות", tutorialsBtn:"סרטוני הדרכה", docsBtn:"הוראות התקנה",
