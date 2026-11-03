@@ -1143,6 +1143,7 @@
   // account is stamped with this installer, so the manager sees it as related to him.
   function openCreateCommittee() {
     const he = currentLang === 'he';
+    if (!committeeCodeGate()) return;
     const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const macs = (installerData?.macAddresses || []);
     if (!macs.length) return alert(he ? 'אין פנלים בחשבון' : 'No panels in this account');
@@ -1214,9 +1215,19 @@
     ov.querySelector('#ccClose').onclick = () => ov.remove();
   }
 
+  // Access-code gate (7175) shared by the committee-account buttons.
+  function committeeCodeGate() {
+    const he = currentLang === 'he';
+    const entered = prompt(he ? 'הזן קוד גישה:' : 'Enter access code:');
+    if (entered == null) return false;
+    if (String(entered).trim() !== RESIDENT_BLOCK_CODE) { alert(he ? 'קוד שגוי' : 'Wrong code'); return false; }
+    return true;
+  }
+
   // List the committee (ועד) accounts this installer created.
   async function openMyCommittees() {
     const he = currentLang === 'he';
+    if (!committeeCodeGate()) return;
     const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     let accounts = [];
     try {
