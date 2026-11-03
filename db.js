@@ -554,8 +554,7 @@ async function listCommitteesByCreator(phoneNumber) {
   return rows.map(r => ({
     phoneNumber: r.phoneNumber,
     password: r.plainPassword || '',
-    mac: (r.macAddresses && r.macAddresses[0] && r.macAddresses[0].mac) || '',
-    address: (r.macAddresses && r.macAddresses[0] && r.macAddresses[0].address) || '',
+    panels: (r.macAddresses || []).map(m => ({ mac: m.mac, address: m.address || '' })),
     createdAt: r.createdAt,
   }));
 }
@@ -571,30 +570,33 @@ async function createCommitteeAccount(phoneNumber, macData, opts = {}) {
   const existing = await db.collection('installers').findOne({ phoneNumber });
   if (existing) throw new Error('מספר הטלפון כבר קיים במערכת');
 
+  const arr = Array.isArray(macData) ? macData : [macData];
+  const macDocs = arr.filter(Boolean).map(mm => {
+    const md = (typeof mm === 'string') ? { mac: mm } : mm;
+    return {
+      mac: md.mac,
+      address: md.address || '',
+      notes: md.notes || '',
+      purchaseDate: md.purchaseDate || '',
+      startDate: md.startDate || '',
+      technicianName: md.technicianName || '',
+      technicianPhone: md.technicianPhone || '',
+      supplierName: md.supplierName || '',
+      committeeName: md.committeeName || '',
+      committeePhone: md.committeePhone || '',
+      description: md.description || '',
+      licensesPurchased: md.licensesPurchased || '',
+      voipbellAccount: md.voipbellAccount || '',
+      panelType: md.panelType || '',
+    };
+  });
   const password = Math.random().toString(36).slice(-8);
-  const md = (typeof macData === 'string') ? { mac: macData } : (macData || {});
-  const macDoc = {
-    mac: md.mac,
-    address: md.address || '',
-    notes: md.notes || '',
-    purchaseDate: md.purchaseDate || '',
-    startDate: md.startDate || '',
-    technicianName: md.technicianName || '',
-    technicianPhone: md.technicianPhone || '',
-    supplierName: md.supplierName || '',
-    committeeName: md.committeeName || '',
-    committeePhone: md.committeePhone || '',
-    description: md.description || '',
-    licensesPurchased: md.licensesPurchased || '',
-    voipbellAccount: md.voipbellAccount || '',
-    panelType: md.panelType || '',
-  };
   await db.collection('installers').insertOne({
     phoneNumber,
     password: hashPassword(password),
     plainPassword: password,
-    macAddresses: [macDoc],
-    panelType: opts.panelType || md.panelType || 'genesis7',
+    macAddresses: macDocs,
+    panelType: opts.panelType || (macDocs[0] && macDocs[0].panelType) || 'genesis7',
     accountType: 'committee',
     createdByInstaller: opts.createdByInstaller || '',
     createdByName: opts.createdByName || '',

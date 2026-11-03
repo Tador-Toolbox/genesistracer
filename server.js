@@ -4133,34 +4133,40 @@ app.post('/api/installer/create-committee', async (req, res) => {
   try {
     const phoneNumber = (req.body.phoneNumber || '').trim();          // creating installer
     const committeePhone = String(req.body.committeePhone || '').trim(); // the ועד login phone
-    const cleanMac = prCleanMac(req.body.mac);
-    if (!phoneNumber || !cleanMac) return res.status(400).json({ success: false, error: 'phoneNumber and mac required' });
+    // Accept one or many panels: macs[] (preferred) or a single mac (back-compat).
+    let macsIn = Array.isArray(req.body.macs) ? req.body.macs : (req.body.mac ? [req.body.mac] : []);
+    const cleanMacs = [...new Set(macsIn.map(prCleanMac).filter(Boolean))];
+    if (!phoneNumber || !cleanMacs.length) return res.status(400).json({ success: false, error: 'phoneNumber and at least one panel required' });
     if (!committeePhone) return res.status(400).json({ success: false, error: 'חובה להזין מספר טלפון לחשבון הועד' });
-    if (!(await prInstallerOwnsMac(phoneNumber, cleanMac))) return res.status(403).json({ success: false, error: 'not your panel' });
+    for (const cm of cleanMacs) {
+      if (!(await prInstallerOwnsMac(phoneNumber, cm))) return res.status(403).json({ success: false, error: 'not your panel' });
+    }
 
-    // Pull the creating installer's panel subdoc (address, panelType, voipbell, …) to copy onto the new account.
+    // Pull each chosen panel subdoc (address, panelType, voipbell, …) to copy onto the new account.
     const database = await require('./db').connectDB();
     const inst = await database.collection('installers').findOne({ phoneNumber });
-    const macEntry = inst && (inst.macAddresses || []).find(m => prCleanMac(m.mac) === cleanMac);
-    const macData = {
-      mac: (macEntry && macEntry.mac) || cleanMac,
-      address: (macEntry && macEntry.address) || '',
-      panelType: (macEntry && macEntry.panelType) || (inst && inst.panelType) || 'genesis7',
-      voipbellAccount: (macEntry && macEntry.voipbellAccount) || '',
-    };
+    const macData = cleanMacs.map(cm => {
+      const e = inst && (inst.macAddresses || []).find(m => prCleanMac(m.mac) === cm);
+      return {
+        mac: (e && e.mac) || cm,
+        address: (e && e.address) || '',
+        panelType: (e && e.panelType) || (inst && inst.panelType) || 'genesis7',
+        voipbellAccount: (e && e.voipbellAccount) || '',
+      };
+    });
     const createdByName = (inst && inst.installerName) || '';
 
     let out;
     try {
       out = await db.createCommitteeAccount(committeePhone, macData, {
-        createdByInstaller: phoneNumber, createdByName, panelType: macData.panelType
+        createdByInstaller: phoneNumber, createdByName, panelType: macData[0] && macData[0].panelType
       });
     } catch (e) {
       // Duplicate phone or other validation → 409 with the message
       return res.status(409).json({ success: false, error: e.message });
     }
-    try { await logActivity({ phoneNumber, action: 'committee_account_create', mac: cleanMac, details: { committeePhone }, success: true }); } catch (e) {}
-    res.json({ success: true, created: true, account: { phoneNumber: out.phoneNumber, password: out.password, mac: macData.mac, address: macData.address } });
+    try { await logActivity({ phoneNumber, action: 'committee_account_create', mac: cleanMacs.join(','), details: { committeePhone, panels: cleanMacs.length }, success: true }); } catch (e) {}
+    res.json({ success: true, created: true, account: { phoneNumber: out.phoneNumber, password: out.password, panels: macData.map(m => ({ mac: m.mac, address: m.address })) } });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 

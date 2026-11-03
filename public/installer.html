@@ -1137,21 +1137,53 @@
 
   // Create a committee (ועד) account (building) for the selected panel. The new
   // account is stamped with this installer, so the manager sees it as related to him.
-  async function openCreateCommittee() {
+  function openCreateCommittee() {
     const he = currentLang === 'he';
-    if (!selectedMac) return alert(he ? 'בחר כתובת MAC תחילה' : 'Select a panel first');
-    const phone = prompt(he ? 'מספר הטלפון של חשבון הועד (הכניסה תהיה עם מספר זה):' : 'Committee account phone (login will be with this number):');
-    if (phone == null) return;
-    const committeePhone = String(phone).trim();
-    if (!committeePhone) { alert(he ? 'חובה להזין מספר טלפון' : 'Phone is required'); return; }
-    try {
-      const r = await fetch('/api/installer/create-committee', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: installerData.phoneNumber, mac: selectedMac, committeePhone })
-      }).then(x => x.json());
-      if (!r.success) { alert('❌ ' + (r.error || (he ? 'שגיאה' : 'Error'))); return; }
-      showCommitteeResult(r.account);
-    } catch (e) { alert('❌ ' + e.message); }
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const macs = (installerData?.macAddresses || []);
+    if (!macs.length) return alert(he ? 'אין פנלים בחשבון' : 'No panels in this account');
+    const panelRows = macs.map(m => {
+      const label = [m.descriptionInstaller || m.description || '', m.address || '', m.mac].filter(Boolean).map(esc).join(' · ');
+      const checked = (m.mac === selectedMac) ? 'checked' : '';
+      return '<label style="display:flex;align-items:center;gap:9px;padding:9px 10px;border-top:1px solid #eef1f4;cursor:pointer;">' +
+        '<input type="checkbox" class="ccPanel" value="' + esc(m.mac) + '" ' + checked + ' style="width:17px;height:17px;accent-color:#e8001c;">' +
+        '<span style="font-size:13px;">' + label + '</span></label>';
+    }).join('');
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+    ov.onclick = e => { if (e.target === ov) ov.remove(); };
+    ov.innerHTML =
+      '<div dir="' + (he ? 'rtl' : 'ltr') + '" style="background:#fff;border-radius:16px;max-width:460px;width:100%;max-height:85vh;overflow:auto;padding:22px;font-family:inherit;">' +
+        '<div style="font-size:18px;font-weight:800;margin-bottom:4px;">' + (he ? '👥 פתיחת חשבון ועד' : '👥 Create committee account') + '</div>' +
+        '<div style="font-size:13px;color:#667;margin-bottom:12px;">' + (he ? 'בחרו את הפנלים לשייך לוועד והזינו מספר טלפון להתחברות.' : 'Choose the panels to assign and enter a login phone.') + '</div>' +
+        '<input id="ccPhone" inputmode="tel" placeholder="' + (he ? 'מספר טלפון לחשבון הועד' : 'Committee account phone') + '" style="width:100%;padding:11px 12px;border:1.5px solid #e6eaef;border-radius:9px;font:inherit;font-size:14px;margin-bottom:12px;">' +
+        '<div style="font-size:12px;font-weight:700;color:#667;margin-bottom:4px;">' + (he ? 'פנלים לשיוך:' : 'Panels to assign:') + '</div>' +
+        '<div style="border:1px solid #e6eaef;border-radius:10px;overflow:hidden;margin-bottom:14px;">' + panelRows + '</div>' +
+        '<div id="ccErr" style="color:#e8001c;font-size:12px;min-height:16px;margin-bottom:6px;"></div>' +
+        '<div style="display:flex;gap:8px;">' +
+          '<button id="ccGo" style="flex:1;padding:11px;background:#e8001c;color:#fff;border:none;border-radius:9px;font:inherit;font-weight:700;cursor:pointer;">' + (he ? '✅ צור חשבון' : '✅ Create') + '</button>' +
+          '<button id="ccCancel" style="flex:1;padding:11px;background:#eceff3;color:#111;border:none;border-radius:9px;font:inherit;font-weight:700;cursor:pointer;">' + (he ? 'ביטול' : 'Cancel') + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#ccCancel').onclick = () => ov.remove();
+    ov.querySelector('#ccGo').onclick = async function () {
+      const committeePhone = ov.querySelector('#ccPhone').value.trim();
+      const chosen = Array.from(ov.querySelectorAll('.ccPanel:checked')).map(c => c.value);
+      const errEl = ov.querySelector('#ccErr');
+      if (!committeePhone) { errEl.textContent = he ? 'חובה להזין מספר טלפון' : 'Phone is required'; return; }
+      if (!chosen.length) { errEl.textContent = he ? 'בחרו לפחות פנל אחד' : 'Select at least one panel'; return; }
+      this.disabled = true; errEl.textContent = '';
+      try {
+        const r = await fetch('/api/installer/create-committee', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber: installerData.phoneNumber, macs: chosen, committeePhone })
+        }).then(x => x.json());
+        if (!r.success) { errEl.textContent = '❌ ' + (r.error || (he ? 'שגיאה' : 'Error')); this.disabled = false; return; }
+        ov.remove();
+        showCommitteeResult(r.account);
+      } catch (e) { errEl.textContent = '❌ ' + e.message; this.disabled = false; }
+    };
   }
   function showCommitteeResult(a) {
     const he = currentLang === 'he';
@@ -1163,7 +1195,7 @@
       '<div dir="' + (he ? 'rtl' : 'ltr') + '" style="background:#fff;border-radius:16px;max-width:420px;width:100%;padding:22px;font-family:inherit;">' +
         '<div style="font-size:18px;font-weight:800;margin-bottom:4px;">' + (he ? '✅ חשבון ועד נוצר' : '✅ Committee account created') + '</div>' +
         '<div style="font-size:13px;color:#667;margin-bottom:14px;">' + (he ? 'מסרו לוועד הבית את פרטי ההתחברות:' : 'Give the building committee these login details:') + '</div>' +
-        (a.address ? '<div style="font-size:13px;color:#667;margin-bottom:6px;">' + (he ? 'כתובת:' : 'Address:') + ' ' + esc(a.address) + ' · ' + esc(a.mac) + '</div>' : '') +
+        (Array.isArray(a.panels) && a.panels.length ? '<div style="font-size:13px;color:#667;margin-bottom:6px;">' + (he ? 'פנלים:' : 'Panels:') + ' ' + a.panels.map(p => esc([p.address, p.mac].filter(Boolean).join(' '))).join(' · ') + '</div>' : '') +
         '<div style="font-size:14px;margin-bottom:8px;">' + (he ? 'טלפון (שם משתמש):' : 'Phone (username):') + ' <b>' + esc(a.phoneNumber) + '</b></div>' +
         '<div style="font-size:14px;margin-bottom:12px;">' + (he ? 'סיסמה:' : 'Password:') + ' <b style="font-family:monospace;background:#fef9c3;padding:1px 6px;border-radius:4px;">' + esc(a.password) + '</b></div>' +
         '<div style="font-size:12px;color:#667;margin-bottom:14px;">' + (he ? 'הכניסה: ' : 'Login at: ') + esc(location.origin) + ' ' + (he ? 'עם הטלפון והסיסמה.' : 'with the phone and password.') + '</div>' +
@@ -1189,7 +1221,7 @@
     } catch (e) {}
     const rows = accounts.length ? accounts.map(a => {
       const when = a.createdAt ? new Date(a.createdAt).toLocaleDateString(he ? 'he-IL' : 'en-GB') : '';
-      const sub = [a.address, a.mac].filter(Boolean).map(esc).join(' · ');
+      const sub = (a.panels || []).map(p => esc([p.address, p.mac].filter(Boolean).join(' '))).join(' · ');
       return '<div style="border:1px solid #e6eaef;border-radius:10px;padding:10px 12px;margin-bottom:8px;">' +
         '<div style="font-weight:700;font-size:14px;">📱 ' + esc(a.phoneNumber) + '</div>' +
         (sub ? '<div style="font-size:12px;color:#667;margin-top:2px;">' + sub + '</div>' : '') +
