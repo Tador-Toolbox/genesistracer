@@ -1506,6 +1506,34 @@ app.post('/api/manager/global-modules-all', async (req, res) => {
   catch (e) { res.status(400).json({ success: false, error: e.message }); }
 });
 
+// Installer: attach another panel to a committee account he created.
+// body {phoneNumber(installer), committeePhone, mac}
+app.post('/api/installer/committee-add-panel', async (req, res) => {
+  try {
+    const phoneNumber = (req.body.phoneNumber || '').trim();
+    const committeePhone = String(req.body.committeePhone || '').trim();
+    const cleanMac = prCleanMac(req.body.mac);
+    if (!phoneNumber || !committeePhone || !cleanMac) return res.status(400).json({ success: false, error: 'phoneNumber, committeePhone and mac required' });
+    if (!(await prInstallerOwnsMac(phoneNumber, cleanMac))) return res.status(403).json({ success: false, error: 'not your panel' });
+
+    // Copy the installer's panel subdoc (address, panelType, voipbell) onto the committee account.
+    const database = await require('./db').connectDB();
+    const inst = await database.collection('installers').findOne({ phoneNumber });
+    const e = inst && (inst.macAddresses || []).find(m => prCleanMac(m.mac) === cleanMac);
+    const macData = {
+      mac: (e && e.mac) || cleanMac,
+      address: (e && e.address) || '',
+      panelType: (e && e.panelType) || (inst && inst.panelType) || 'genesis7',
+      voipbellAccount: (e && e.voipbellAccount) || '',
+    };
+    let out;
+    try { out = await db.addPanelToCommitteeAccount(committeePhone, macData, phoneNumber); }
+    catch (e2) { return res.status(400).json({ success: false, error: e2.message }); }
+    try { await logActivity({ phoneNumber, action: 'committee_add_panel', mac: cleanMac, details: { committeePhone }, success: true }); } catch (e3) {}
+    res.json({ success: true, added: out.added, already: out.already });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 // Installer: the committee (ועד) accounts this installer created.
 app.get('/api/installer/my-committees', async (req, res) => {
   try {

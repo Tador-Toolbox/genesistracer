@@ -1223,12 +1223,16 @@
       const r = await fetch('/api/installer/my-committees?phone=' + encodeURIComponent(installerData.phoneNumber)).then(x => x.json());
       if (r.success) accounts = r.accounts || [];
     } catch (e) {}
-    const rows = accounts.length ? accounts.map(a => {
+    window._myCommittees = accounts;
+    const rows = accounts.length ? accounts.map((a, idx) => {
       const when = a.createdAt ? new Date(a.createdAt).toLocaleDateString(he ? 'he-IL' : 'en-GB') : '';
       const sub = (a.panels || []).map(p => esc([p.address, p.mac].filter(Boolean).join(' '))).join(' · ');
       return '<div style="border:1px solid #e6eaef;border-radius:10px;padding:10px 12px;margin-bottom:8px;">' +
-        '<div style="font-weight:700;font-size:14px;">📱 ' + esc(a.phoneNumber) + '</div>' +
-        (sub ? '<div style="font-size:12px;color:#667;margin-top:2px;">' + sub + '</div>' : '') +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+          '<span style="font-weight:700;font-size:14px;">📱 ' + esc(a.phoneNumber) + '</span>' +
+          '<button onclick="assignPanelPicker(' + idx + ')" style="font-size:12px;font-weight:700;border:1px solid #cfd6de;background:#fff;border-radius:999px;padding:4px 10px;cursor:pointer;">➕ ' + (he ? 'שייך פנל' : 'Add panel') + '</button>' +
+        '</div>' +
+        (sub ? '<div style="font-size:12px;color:#667;margin-top:4px;">' + sub + '</div>' : '') +
         '<div style="font-size:13px;margin-top:4px;">' + (he ? 'סיסמה:' : 'Password:') + ' <b style="font-family:monospace;background:#fef9c3;padding:1px 6px;border-radius:4px;">' + esc(a.password) + '</b>' +
           (when ? ' <span style="font-size:11px;color:#99a;">· ' + esc(when) + '</span>' : '') + '</div>' +
       '</div>';
@@ -1244,6 +1248,50 @@
       '</div>';
     document.body.appendChild(ov);
     ov.querySelector('#mcClose').onclick = () => ov.remove();
+  }
+
+  // Pick one of the installer's panels (not already on the account) to attach to a committee.
+  function assignPanelPicker(idx) {
+    const he = currentLang === 'he';
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const acct = (window._myCommittees || [])[idx]; if (!acct) return;
+    const norm = m => String(m || '').replace(/[:\s-]/g, '').toUpperCase();
+    const existing = new Set((acct.panels || []).map(p => norm(p.mac)));
+    const avail = (installerData?.macAddresses || []).filter(m => !existing.has(norm(m.mac)));
+    if (!avail.length) { alert(he ? 'כל הפנלים שלך כבר משויכים לחשבון זה' : 'All your panels are already on this account'); return; }
+    const rows = avail.map(m => {
+      const label = [m.descriptionInstaller || m.description || '', m.address || '', m.mac].filter(Boolean).map(esc).join(' · ');
+      return '<button class="apRow" data-mac="' + esc(m.mac) + '" style="display:block;width:100%;text-align:start;border:1px solid #e6eaef;background:#fff;border-radius:10px;padding:11px 12px;margin-bottom:8px;font:inherit;font-size:13px;cursor:pointer;">' + label + '</button>';
+    }).join('');
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px;';
+    ov.onclick = e => { if (e.target === ov) ov.remove(); };
+    ov.innerHTML =
+      '<div dir="' + (he ? 'rtl' : 'ltr') + '" style="background:#fff;border-radius:16px;max-width:420px;width:100%;max-height:80vh;overflow:auto;padding:22px;font-family:inherit;">' +
+        '<div style="font-size:17px;font-weight:800;margin-bottom:2px;">' + (he ? '➕ שיוך פנל לוועד' : '➕ Add panel to committee') + '</div>' +
+        '<div style="font-size:12px;color:#667;margin-bottom:12px;">' + esc(acct.phoneNumber) + ' · ' + (he ? 'בחרו פנל להוספה:' : 'choose a panel to add:') + '</div>' +
+        '<div id="apErr" style="color:#e8001c;font-size:12px;min-height:16px;margin-bottom:4px;"></div>' +
+        rows +
+        '<button id="apClose" style="width:100%;margin-top:6px;padding:9px;background:#eceff3;color:#111;border:none;border-radius:9px;font:inherit;font-weight:700;cursor:pointer;">' + (he ? 'סגור' : 'Close') + '</button>' +
+      '</div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#apClose').onclick = () => ov.remove();
+    ov.querySelectorAll('.apRow').forEach(b => b.onclick = async function () {
+      const mac = this.getAttribute('data-mac');
+      const errEl = ov.querySelector('#apErr');
+      ov.querySelectorAll('.apRow').forEach(x => x.disabled = true);
+      try {
+        const r = await fetch('/api/installer/committee-add-panel', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber: installerData.phoneNumber, committeePhone: acct.phoneNumber, mac })
+        }).then(x => x.json());
+        if (!r.success) { errEl.textContent = '❌ ' + (r.error || (he ? 'שגיאה' : 'Error')); ov.querySelectorAll('.apRow').forEach(x => x.disabled = false); return; }
+        ov.remove();
+        // refresh the committees list to show the newly attached panel
+        const open = document.querySelector('#mcClose'); if (open) open.closest('div[dir]').parentElement.remove();
+        openMyCommittees();
+      } catch (e) { errEl.textContent = '❌ ' + e.message; ov.querySelectorAll('.apRow').forEach(x => x.disabled = false); }
+    });
   }
 
   // Per-installer module permissions (manager הרשאות page). Default-ON: a card is

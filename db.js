@@ -633,6 +633,28 @@ async function createCommitteeAccount(phoneNumber, macData, opts = {}) {
   return { phoneNumber, password };
 }
 
+// Attach another panel to an existing committee account (installer adds a panel the
+// ועד installed later). Only adds if the account is a committee and the MAC isn't on it.
+async function addPanelToCommitteeAccount(committeePhone, macData, createdByInstaller) {
+  await connectDB();
+  committeePhone = String(committeePhone || '').trim();
+  const acct = await db.collection('installers').findOne({ phoneNumber: committeePhone });
+  if (!acct) throw new Error('חשבון הועד לא נמצא');
+  if ((acct.accountType || 'installer') !== 'committee') throw new Error('זהו אינו חשבון ועד');
+  if (createdByInstaller && acct.createdByInstaller !== createdByInstaller) throw new Error('החשבון לא נוצר על ידך');
+  const md = (typeof macData === 'string') ? { mac: macData } : (macData || {});
+  const clean = String(md.mac || '').replace(/[:\s-]/g, '').toUpperCase();
+  const exists = (acct.macAddresses || []).some(m => String(m.mac || '').replace(/[:\s-]/g, '').toUpperCase() === clean);
+  if (exists) return { added: false, already: true };
+  const macDoc = {
+    mac: md.mac, address: md.address || '', notes: '', purchaseDate: '', startDate: '',
+    technicianName: '', technicianPhone: '', supplierName: '', committeeName: '', committeePhone: '',
+    description: '', licensesPurchased: '', voipbellAccount: md.voipbellAccount || '', panelType: md.panelType || '',
+  };
+  await db.collection('installers').updateOne({ phoneNumber: committeePhone }, { $push: { macAddresses: macDoc } });
+  return { added: true };
+}
+
 
 async function getCatalogUrl() {
   await connectDB();
@@ -1213,6 +1235,7 @@ module.exports = {
   setAllGlobalModules,
   listCommitteesByCreator,
   createCommitteeAccount,
+  addPanelToCommitteeAccount,
   loginManager,
   getInstallers,
   getInstallerDetails,
