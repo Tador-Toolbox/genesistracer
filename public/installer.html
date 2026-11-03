@@ -707,12 +707,6 @@
           <span class="action-card-label" data-i18n="permCodeBtn">החלפת קוד קבוע</span>
         </button>
 
-        <!-- Residents list (residenter) -->
-        <button class="action-card" data-module="residentsList" data-section="panel" onclick="openResidenter()">
-          <span class="material-symbols-outlined">groups</span>
-          <span class="action-card-label" data-i18n="residentsListBtn">רשימת דיירים</span>
-        </button>
-
         <!-- Reboot -->
         <button class="action-card" data-module="reboot" data-section="panel" id="rebootBtn" onclick="rebootDevice()">
           <span class="material-symbols-outlined">restart_alt</span>
@@ -756,6 +750,12 @@
 
         <!-- ═══ Group 3: Management ═══ -->
         <div class="action-section-header" data-section="management" data-i18n="secManagement">ניהול</div>
+
+        <!-- Residents list (residenter) -->
+        <button class="action-card" data-module="residentsList" data-section="management" onclick="openResidenter()">
+          <span class="material-symbols-outlined">groups</span>
+          <span class="action-card-label" data-i18n="residentsListBtn">רשימת דיירים</span>
+        </button>
 
         <!-- Create committee (ועד) account for this panel -->
         <button class="action-card" data-module="createCommittee" data-section="management" onclick="openCreateCommittee()">
