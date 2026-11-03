@@ -1469,6 +1469,34 @@ app.post('/api/manager/installer-module', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// Global (account-type-wide) module permissions. Read is open (no secrets); set is admin.
+app.get('/api/manager/global-modules', async (req, res) => {
+  try { res.json({ success: true, globalModules: await db.getGlobalModules() }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.post('/api/manager/global-module', async (req, res) => {
+  const { accountType, module, enabled, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  if (!accountType || !module) return res.status(400).json({ success: false, error: 'accountType and module required' });
+  try {
+    const value = await db.setGlobalModule(accountType, module, !!enabled);
+    res.json({ success: true, accountType, module, enabled: value });
+  } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+});
+
+// Installer: the committee (ועד) accounts this installer created.
+app.get('/api/installer/my-committees', async (req, res) => {
+  try {
+    const phone = String(req.query.phone || '').trim();
+    if (!phone) return res.status(400).json({ success: false, error: 'phone required' });
+    const accounts = await db.listCommitteesByCreator(phone);
+    res.json({ success: true, accounts });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // Committee (public, code-protected): load the resident list by code
 app.get('/api/residents/by-code', async (req, res) => {
   try {

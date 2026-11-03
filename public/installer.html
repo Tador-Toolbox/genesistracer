@@ -763,6 +763,12 @@
           <span class="action-card-label" data-i18n="createCommitteeBtn">פתיחת חשבון ועד</span>
         </button>
 
+        <!-- Committee accounts this installer created -->
+        <button class="action-card" data-module="createCommittee" data-section="residents" onclick="openMyCommittees()">
+          <span class="material-symbols-outlined">badge</span>
+          <span class="action-card-label" data-i18n="myCommitteesBtn">חשבונות ועד שיצרתי</span>
+        </button>
+
         <!-- Manager communication (support + manager messages) moved to the header buttons. -->
 
         <!-- ═══ Group 4: Info & resources ═══ -->
@@ -888,7 +894,7 @@
       emergencyBtn:"Emergency Door Open", tempCodeBtn:"Issue Temporary Code", permCodeBtn:"Change Permanent Code",
       blockUserBtn:"Block User", historyBtn:"History", faceBtn:"Face Recognition", residentUpdateBtn:"Resident Update",
       messagesBtn:"Messages", serviceBtn:"Service Request", tutorialsBtn:"Tutorials", docsBtn:"Installation Guides",
-      swapV2Btn:"Resident Update", blockListBtn:"Temporary Resident Block", createCommitteeBtn:"Create Committee Account",
+      swapV2Btn:"Resident Update", blockListBtn:"Temporary Resident Block", createCommitteeBtn:"Create Committee Account", myCommitteesBtn:"Committee Accounts I Created",
       sampleResidentsBtn:"Sample Residents List", portfolioBtn:"Portfolio", portfolioSub:"Photos from my installations",
       mailTitle:"Mailing List", mailSub:"Updates on new products and exclusive deals.", mailPh:"Email address...", mailBtn:"Subscribe",
       shabbatOff:"Shabbat Mode", shabbatOn:"Cancel Shabbat Mode",
@@ -910,7 +916,7 @@
       emergencyBtn:"פתיחת דלת חירום", tempCodeBtn:"הנפקת קוד זמני", permCodeBtn:"החלפת קוד קבוע",
       blockUserBtn:"חסום משתמש", historyBtn:"היסטוריה", faceBtn:"ניהול זיהוי פנים", residentUpdateBtn:"עדכון דייר",
       messagesBtn:"הודעות", serviceBtn:"פניית שירות", tutorialsBtn:"סרטוני הדרכה", docsBtn:"הוראות התקנה",
-      swapV2Btn:"עדכון דייר", blockListBtn:"חסימה זמנית מרשימת הדיירים", createCommitteeBtn:"פתיחת חשבון ועד",
+      swapV2Btn:"עדכון דייר", blockListBtn:"חסימה זמנית מרשימת הדיירים", createCommitteeBtn:"פתיחת חשבון ועד", myCommitteesBtn:"חשבונות ועד שיצרתי",
       sampleResidentsBtn:"רשימת דיירים לדוגמא", portfolioBtn:"תיק עבודות", portfolioSub:"תמונות מהתקנות שלי",
       mailTitle:"רשימת תפוצה", mailSub:"עדכונים על מוצרים חדשים ומבצעים בלעדיים.", mailPh:"כתובת אימייל...", mailBtn:"הצטרפות",
       shabbatOff:"מצב שבת", shabbatOn:"בטל מצב שבת",
@@ -1172,13 +1178,47 @@
     ov.querySelector('#ccClose').onclick = () => ov.remove();
   }
 
+  // List the committee (ועד) accounts this installer created.
+  async function openMyCommittees() {
+    const he = currentLang === 'he';
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    let accounts = [];
+    try {
+      const r = await fetch('/api/installer/my-committees?phone=' + encodeURIComponent(installerData.phoneNumber)).then(x => x.json());
+      if (r.success) accounts = r.accounts || [];
+    } catch (e) {}
+    const rows = accounts.length ? accounts.map(a => {
+      const when = a.createdAt ? new Date(a.createdAt).toLocaleDateString(he ? 'he-IL' : 'en-GB') : '';
+      const sub = [a.address, a.mac].filter(Boolean).map(esc).join(' · ');
+      return '<div style="border:1px solid #e6eaef;border-radius:10px;padding:10px 12px;margin-bottom:8px;">' +
+        '<div style="font-weight:700;font-size:14px;">📱 ' + esc(a.phoneNumber) + '</div>' +
+        (sub ? '<div style="font-size:12px;color:#667;margin-top:2px;">' + sub + '</div>' : '') +
+        '<div style="font-size:13px;margin-top:4px;">' + (he ? 'סיסמה:' : 'Password:') + ' <b style="font-family:monospace;background:#fef9c3;padding:1px 6px;border-radius:4px;">' + esc(a.password) + '</b>' +
+          (when ? ' <span style="font-size:11px;color:#99a;">· ' + esc(when) + '</span>' : '') + '</div>' +
+      '</div>';
+    }).join('') : '<div style="font-size:13px;color:#667;padding:8px 2px;">' + (he ? 'עדיין לא יצרת חשבונות ועד.' : 'You have not created any committee accounts yet.') + '</div>';
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+    ov.onclick = e => { if (e.target === ov) ov.remove(); };
+    ov.innerHTML =
+      '<div dir="' + (he ? 'rtl' : 'ltr') + '" style="background:#fff;border-radius:16px;max-width:440px;width:100%;max-height:80vh;overflow:auto;padding:22px;font-family:inherit;">' +
+        '<div style="font-size:18px;font-weight:800;margin-bottom:12px;">' + (he ? '👥 חשבונות ועד שיצרתי' : '👥 Committee accounts I created') + '</div>' +
+        rows +
+        '<button id="mcClose" style="width:100%;margin-top:10px;padding:9px;background:#eceff3;color:#111;border:none;border-radius:9px;font:inherit;font-weight:700;cursor:pointer;">' + (he ? 'סגור' : 'Close') + '</button>' +
+      '</div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#mcClose').onclick = () => ov.remove();
+  }
+
   // Per-installer module permissions (manager הרשאות page). Default-ON: a card is
   // shown unless the manager explicitly turned its module OFF (modules[id] === false).
   function applyModules() {
     const mods = (installerData && installerData.modules) || {};
+    const gmods = (installerData && installerData.globalModules) || {};   // account-type-wide
     document.querySelectorAll('.action-card[data-module]').forEach(btn => {
       const id = btn.getAttribute('data-module');
-      btn.style.display = (mods[id] === false) ? 'none' : '';
+      // Hidden if the global default OR this account's own setting turns it off.
+      btn.style.display = (mods[id] === false || gmods[id] === false) ? 'none' : '';
     });
     // Hide a section header when every card in its section is hidden.
     document.querySelectorAll('.action-section-header[data-section]').forEach(h => {

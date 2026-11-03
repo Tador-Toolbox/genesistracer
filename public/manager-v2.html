@@ -1087,10 +1087,18 @@
           <h2 style="margin:0;">🛡️ הרשאות</h2>
           <button onclick="v2LoadPermissions()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">רענן</button>
         </div>
-        <p style="margin:0 0 14px;font-size:13px;color:var(--text-dim,#888);">בחרו אילו מודולים יופיעו לכל חשבון. ירוק = מוצג · אפור = מוסתר. ברירת מחדל: הכל מוצג.</p>
-        <h3 style="margin:10px 0 6px;font-size:15px;">👥 מתקינים</h3>
+        <p style="margin:0 0 14px;font-size:13px;color:var(--text-dim,#888);">ירוק = מוצג · אפור = מוסתר. ברירת מחדל: הכל מוצג. הרשאה כללית שמכובה מסתירה את המודול לכל החשבונות מאותו סוג (גם אם בחשבון עצמו הוא דלוק).</p>
+
+        <div style="border:1px solid var(--border,#e6eaef);border-radius:12px;padding:12px 14px;margin-bottom:16px;background:var(--bg,#f8fafc);">
+          <h3 style="margin:0 0 8px;font-size:15px;">🌐 הרשאות כלליות — לכל המתקינים</h3>
+          <div id="permGlobalInstaller">טוען…</div>
+          <h3 style="margin:14px 0 8px;font-size:15px;">🌐 הרשאות כלליות — לכל הוועדים</h3>
+          <div id="permGlobalCommittee">טוען…</div>
+        </div>
+
+        <h3 style="margin:10px 0 6px;font-size:15px;">👥 מתקינים (לפי חשבון)</h3>
         <div id="permInstallers">טוען…</div>
-        <h3 style="margin:18px 0 6px;font-size:15px;">🏢 ועדים</h3>
+        <h3 style="margin:18px 0 6px;font-size:15px;">🏢 ועדים (לפי חשבון)</h3>
         <div id="permCommittees">טוען…</div>
       </div>
 
@@ -1498,12 +1506,46 @@
         <div style="font-weight:700;font-size:13px;margin-bottom:6px;">${name}</div>
         <div style="display:flex;flex-wrap:wrap;">${chips}</div></div>`;
     }
+    // Global (account-type-wide) permission chips.
+    function globalChip(type, m, on) {
+      return `<button onclick="toggleGlobalModule('${type}','${m.id}',this)" data-module="${m.id}" data-on="${on ? '1' : '0'}"
+        style="font-size:12px;font-weight:700;padding:4px 11px;border-radius:16px;border:none;cursor:pointer;margin:0 0 6px 6px;
+          background:${on ? '#dcfce7' : '#eceff3'};color:${on ? '#16a34a' : '#9aa4af'};">${on ? '●' : '○'} ${v2PermEsc(m.label)}</button>`;
+    }
+    function renderGlobalRow(hostId, type, set) {
+      const host = document.getElementById(hostId); if (!host) return;
+      host.innerHTML = '<div style="display:flex;flex-wrap:wrap;">' + PERM_MODULES.map(m => globalChip(type, m, set[m.id] !== false)).join('') + '</div>';
+    }
+    async function toggleGlobalModule(accountType, module, btn) {
+      if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+      const next = btn.getAttribute('data-on') !== '1';
+      btn.disabled = true;
+      try {
+        const d = await fetch('/api/manager/global-module', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountType, module, enabled: next, username: window.__mgr.username, password: window.__mgr.password })
+        }).then(r => r.json());
+        if (!d.success) { alert('❌ ' + (d.error || 'שגיאה')); return; }
+        btn.setAttribute('data-on', next ? '1' : '0');
+        btn.style.background = next ? '#dcfce7' : '#eceff3';
+        btn.style.color = next ? '#16a34a' : '#9aa4af';
+        const label = (PERM_MODULES.find(m => m.id === module) || {}).label || module;
+        btn.innerHTML = (next ? '●' : '○') + ' ' + v2PermEsc(label);
+      } catch (e) { alert('❌ ' + e.message); }
+      finally { btn.disabled = false; }
+    }
     async function v2LoadPermissions() {
       const instHost = document.getElementById('permInstallers');
       const comHost = document.getElementById('permCommittees');
       if (!instHost || !comHost) return;
       instHost.textContent = 'טוען…'; comHost.textContent = 'טוען…';
       try {
+        // Global rows first
+        try {
+          const g = (await fetch('/api/manager/global-modules').then(r => r.json())).globalModules || { installer: {}, committee: {} };
+          renderGlobalRow('permGlobalInstaller', 'installer', g.installer || {});
+          renderGlobalRow('permGlobalCommittee', 'committee', g.committee || {});
+        } catch (e) {}
         const list = (await fetch('/api/manager/installers').then(r => r.json())).installers || [];
         const details = await Promise.all(list.map(a =>
           fetch(`/api/manager/installers/${encodeURIComponent(a.phoneNumber)}`).then(r => r.json()).then(d => ({

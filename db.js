@@ -336,7 +336,9 @@ async function loginInstaller(phoneNumber, password, isManagerAccess = false) {
       phoneNumber: installer.phoneNumber,
       macAddresses: installer.macAddresses || [],
       defaultLang: (installer.defaultLang === 'en' ? 'en' : 'he'),
+      accountType: installer.accountType || 'installer',
       modules: installer.modules || {},
+      globalModules: ((await getGlobalModules())[(installer.accountType === 'committee') ? 'committee' : 'installer']) || {},
     },
   };
 }
@@ -519,6 +521,43 @@ async function updateAccountType(phoneNumber, accountType) {
     { phoneNumber },
     { $set: { accountType } }
   );
+}
+
+// ── Global (account-type-wide) module permissions ──
+// settings {key:'globalModules', value:{installer:{moduleId:bool}, committee:{...}}}
+// Default-ON like per-account: a module is allowed unless explicitly set false.
+// Effective visibility on the portal = globalModules[type][id] !== false AND the
+// account's own modules[id] !== false.
+async function getGlobalModules() {
+  await connectDB();
+  const doc = await db.collection('settings').findOne({ key: 'globalModules' });
+  const v = (doc && doc.value) || {};
+  return { installer: v.installer || {}, committee: v.committee || {} };
+}
+async function setGlobalModule(accountType, moduleId, enabled) {
+  await connectDB();
+  if (!['installer', 'committee'].includes(accountType)) throw new Error('bad accountType');
+  if (!INSTALLER_MODULE_IDS.includes(moduleId)) throw new Error('Unknown module');
+  await db.collection('settings').updateOne(
+    { key: 'globalModules' },
+    { $set: { ['value.' + accountType + '.' + moduleId]: !!enabled } },
+    { upsert: true }
+  );
+  return !!enabled;
+}
+// All committee accounts a given installer created (for his "accounts I created" view).
+async function listCommitteesByCreator(phoneNumber) {
+  await connectDB();
+  const rows = await db.collection('installers')
+    .find({ createdByInstaller: String(phoneNumber || '').trim(), accountType: 'committee' })
+    .sort({ createdAt: -1 }).toArray();
+  return rows.map(r => ({
+    phoneNumber: r.phoneNumber,
+    password: r.plainPassword || '',
+    mac: (r.macAddresses && r.macAddresses[0] && r.macAddresses[0].mac) || '',
+    address: (r.macAddresses && r.macAddresses[0] && r.macAddresses[0].address) || '',
+    createdAt: r.createdAt,
+  }));
 }
 
 // Installer-created committee (ועד) management account. Same shape as an installer
@@ -1140,6 +1179,9 @@ module.exports = {
   loginInstaller,
   setInstallerDefaultLang,
   setInstallerModule,
+  getGlobalModules,
+  setGlobalModule,
+  listCommitteesByCreator,
   createCommitteeAccount,
   loginManager,
   getInstallers,
