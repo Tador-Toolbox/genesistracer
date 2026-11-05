@@ -1064,7 +1064,10 @@
       <div class="card" data-screen="residents">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
           <h2 style="margin:0;">🔁 עדכוני דייר</h2>
-          <button onclick="v2LoadSwaps()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">רענן</button>
+          <div style="display:flex;gap:6px;">
+            <button onclick="v2OpenSwapStats()" style="padding:6px 12px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">📊 חישוב דיירים</button>
+            <button onclick="v2LoadSwaps()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">רענן</button>
+          </div>
         </div>
         <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">בקשות החלפת דייר מהמתקינים/ועד. אישור יבצע את השינוי בפנל: שם הדייר העוזב מוחלף בנכנס עם מספר דייר (SIP) חדש, ועודף דיירים עוזבים נמחק.</p>
         <div style="overflow-x:auto;">
@@ -4261,6 +4264,67 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
       } catch (e) {
         tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:#ef4444;">שגיאה בטעינה</td></tr>';
       }
+    }
+
+    // ===== Resident movement stats (חישוב דיירים) — approved עדכון דייר swaps only, all panels =====
+    function v2OpenSwapStats() {
+      let ov = document.getElementById('swapStatsOverlay');
+      if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'swapStatsOverlay';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;';
+        ov.innerHTML = `<div dir="rtl" style="background-color:#ffffff;color:#111111;border-radius:12px;max-width:720px;width:100%;max-height:90vh;overflow:auto;padding:20px;font-family:inherit;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3 style="margin:0;color:#111111;">📊 חישוב דיירים — נכנסו / עזבו</h3>
+            <button onclick="document.getElementById('swapStatsOverlay').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#111111;">✕</button>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px;font-size:13px;color:#111111;">
+            <label><input type="checkbox" id="ssAll" onchange="document.getElementById('ssFrom').disabled=this.checked;document.getElementById('ssTo').disabled=this.checked;"> הכל</label>
+            <label>מתאריך <input type="date" id="ssFrom" style="padding:4px;border:1px solid #ccc;border-radius:5px;"></label>
+            <label>עד תאריך <input type="date" id="ssTo" style="padding:4px;border:1px solid #ccc;border-radius:5px;"></label>
+            <button onclick="v2CalcSwapStats()" style="padding:6px 14px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:700;">חשב</button>
+          </div>
+          <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">מבוסס על עדכוני דייר שאושרו (לפי תאריך האישור).</div>
+          <div id="ssResult"></div>
+        </div>`;
+        document.body.appendChild(ov);
+        const now = new Date(), f = new Date(now.getFullYear(), now.getMonth(), 1);
+        const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        document.getElementById('ssFrom').value = iso(f);
+        document.getElementById('ssTo').value = iso(now);
+      }
+      ov.style.display = 'flex';
+    }
+    async function v2CalcSwapStats() {
+      const out = document.getElementById('ssResult');
+      const all = document.getElementById('ssAll').checked;
+      const fv = document.getElementById('ssFrom').value, tv = document.getElementById('ssTo').value;
+      if (!all && (!fv || !tv)) { out.innerHTML = '<div style="color:#c62828;">יש לבחור תאריכים או "הכל"</div>'; return; }
+      const from = all ? null : new Date(fv + 'T00:00:00');
+      const to = all ? null : new Date(tv + 'T23:59:59.999');
+      out.innerHTML = '<div style="color:#6b7280;">מחשב…</div>';
+      try {
+        const d = await fetch('/api/manager/resident-swaps?status=approved').then(r => r.json());
+        const byMac = {};
+        (d.swaps || []).forEach(s => {
+          const at = new Date(s.approvedAt || s.createdAt);
+          if (from && (at < from || at > to)) return;
+          const mac = normMac(s.mac || '');
+          const asg = (s.applyReport && s.applyReport.assignments) || null;
+          const nIn = asg ? asg.length : (s.entering || []).length;
+          const nOut = (s.leaving || []).length;
+          const r = byMac[mac] || (byMac[mac] = { mac: s.mac, name: v2AccountForMac(s.mac) || s.panelLabel || '', inN: 0, outN: 0, swaps: 0 });
+          r.inN += nIn; r.outN += nOut; r.swaps++;
+        });
+        const rows = Object.values(byMac).sort((a, b) => (b.inN + b.outN) - (a.inN + a.outN));
+        if (!rows.length) { out.innerHTML = '<div style="color:#6b7280;">אין עדכוני דייר בטווח שנבחר</div>'; return; }
+        const tIn = rows.reduce((a, r) => a + r.inN, 0), tOut = rows.reduce((a, r) => a + r.outN, 0), tSw = rows.reduce((a, r) => a + r.swaps, 0);
+        const td = 'padding:7px;border-bottom:1px solid #e5e7eb;color:#111111;';
+        out.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr style="background:#f3f4f6;"><th style="${td}text-align:right;">MAC</th><th style="${td}text-align:right;">שם פנל</th><th style="${td}text-align:center;">עדכונים</th><th style="${td}text-align:center;color:#16a34a;">נכנסו</th><th style="${td}text-align:center;color:#ef4444;">עזבו</th></tr></thead>
+          <tbody>${rows.map(r => `<tr><td style="${td}font-family:monospace;">${v2SecEsc(r.mac)}</td><td style="${td}">${v2SecEsc(r.name) || '—'}</td><td style="${td}text-align:center;">${r.swaps}</td><td style="${td}text-align:center;color:#16a34a;font-weight:700;">${r.inN}</td><td style="${td}text-align:center;color:#ef4444;font-weight:700;">${r.outN}</td></tr>`).join('')}
+          <tr style="background:#f3f4f6;font-weight:800;"><td style="${td}" colspan="2">סה"כ (${rows.length} פנלים)</td><td style="${td}text-align:center;">${tSw}</td><td style="${td}text-align:center;color:#16a34a;">${tIn}</td><td style="${td}text-align:center;color:#ef4444;">${tOut}</td></tr></tbody></table>`;
+      } catch (e) { out.innerHTML = '<div style="color:#c62828;">שגיאה בטעינה</div>'; }
     }
     async function v2SwapStatus(id, status) {
       if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
