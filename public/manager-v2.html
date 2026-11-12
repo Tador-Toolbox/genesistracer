@@ -1493,7 +1493,9 @@
           const d = await fetch('/api/manager/committee-owner', { method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ committeePhone, ownerPhone, username: window.__mgr.username, password: window.__mgr.password }) }).then(r => r.json());
           if (!d.success) { alert('❌ ' + (d.error || 'שגיאה')); return; }
-          ov.remove(); loadData();
+          ov.remove();
+          if (d.filled) alert('📋 פרטי הפנל נמשכו מהמתקין (' + d.filled + ' פנלים)');
+          loadData();
         } catch (e) { alert('❌ שגיאת תקשורת'); }
       };
     }
@@ -1523,7 +1525,7 @@
             ${t.thPassword}: <strong style="font-size: 16px;">${data.password}</strong>
             <button class="copy-btn small" data-copy="${data.password}">${t.copy}</button>
             <br><small>(${t.savePassword})</small>
-            ${data.owner && data.owner.ownerInstaller ? `<br>👷 שויך למתקין: <b>${data.owner.ownerName || data.owner.ownerInstaller}</b>` : ''}
+            ${data.owner && data.owner.ownerInstaller ? `<br>👷 שויך למתקין: <b>${data.owner.ownerName || data.owner.ownerInstaller}</b>${data.owner.filled ? ` · 📋 פרטי הפנל נמשכו מהמתקין (${data.owner.filled})` : ''}` : ''}
             ${data.owner && data.owner.error ? `<br><span style="color:#b45309;">⚠ השיוך למתקין נכשל: ${data.owner.error}</span>` : ''}
           </div>
         `;

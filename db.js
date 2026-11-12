@@ -613,7 +613,36 @@ async function setCommitteeOwner(committeePhone, ownerPhone) {
   const ownerName = owner.installerName || '';
   await db.collection('installers').updateOne({ phoneNumber: committeePhone },
     { $set: { ownerInstaller: ownerPhone, ownerName, ownerAssignedAt: new Date() } });
-  return { ownerInstaller: ownerPhone, ownerName };
+  const filled = await fillCommitteePanelsFromOwner(acct, owner);
+  return { ownerInstaller: ownerPhone, ownerName, filled };
+}
+
+// Copy panel details (address, city, VoipBell account, model, dates, license info...) from the
+// owner installer's matching MAC onto the committee's panel — ONLY into fields that are empty,
+// so nothing the manager typed is overwritten. Returns how many panels got data.
+async function fillCommitteePanelsFromOwner(acct, owner) {
+  const norm = m => String(m || '').replace(/[:\s-]/g, '').toUpperCase();
+  const ownerMacs = {};
+  (owner.macAddresses || []).forEach(m => { ownerMacs[norm(m.mac)] = m; });
+  let filled = 0;
+  const macs = (acct.macAddresses || []).map(m => {
+    const src = ownerMacs[norm(m.mac)];
+    if (!src) return m;
+    const out = { ...m };
+    let changed = false;
+    for (const k of Object.keys(src)) {
+      if (k === 'mac') continue;
+      const cur = out[k];
+      const empty = cur === undefined || cur === null || cur === '';
+      if (empty && src[k] !== undefined && src[k] !== null && src[k] !== '') { out[k] = src[k]; changed = true; }
+    }
+    if (changed) filled++;
+    return out;
+  });
+  if (filled) {
+    await db.collection('installers').updateOne({ phoneNumber: acct.phoneNumber }, { $set: { macAddresses: macs } });
+  }
+  return filled;
 }
 
 // Installer-created committee (ועד) management account. Same shape as an installer
