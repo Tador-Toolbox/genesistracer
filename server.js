@@ -463,7 +463,7 @@ app.post('/api/manager/login', loginLimiter, async (req, res) => {
 // Create installer account
 app.post('/api/manager/installers', async (req, res) => {
   try {
-    const { phoneNumber, macAddresses, panelType, accountType } = req.body;
+    const { phoneNumber, macAddresses, panelType, accountType, ownerInstaller } = req.body;
     if (!phoneNumber) {
       return res.status(400).json({ success: false, error: 'Phone number required' });
     }
@@ -471,7 +471,11 @@ app.post('/api/manager/installers', async (req, res) => {
     if (accountType && accountType !== 'installer') {
       await db.updateAccountType(phoneNumber, accountType);
     }
-    res.json({ success: true, phoneNumber, password });
+    let owner = null;
+    if (accountType === 'committee' && ownerInstaller) {
+      try { owner = await db.setCommitteeOwner(phoneNumber, ownerInstaller); } catch (e) { owner = { error: e.message }; }
+    }
+    res.json({ success: true, phoneNumber, password, owner });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -1452,6 +1456,20 @@ app.post('/api/manager/installer-lang', async (req, res) => {
     const value = await db.setInstallerDefaultLang(phoneNumber, lang);
     res.json({ success: true, defaultLang: value });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Manager: set/change/clear the technician (installer) a committee (ועד) account belongs to.
+app.post('/api/manager/committee-owner', async (req, res) => {
+  const { committeePhone, ownerPhone, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  if (!committeePhone) return res.status(400).json({ success: false, error: 'committeePhone required' });
+  try {
+    const out = await db.setCommitteeOwner(committeePhone, ownerPhone);
+    res.json({ success: true, ...out });
+  } catch (e) { res.status(400).json({ success: false, error: e.message }); }
 });
 
 // Manager: toggle a per-installer module permission (הרשאות page). Default-on: a module

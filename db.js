@@ -414,6 +414,8 @@ async function getInstallerDetails(phoneNumber) {
     createdByInstaller: installer.createdByInstaller || '',
     createdByName: installer.createdByName || '',
     createdVia: installer.createdVia || '',
+    ownerInstaller: installer.ownerInstaller || '',
+    ownerName: installer.ownerName || '',
   };
 }
 
@@ -572,17 +574,46 @@ async function setAllGlobalModules(accountType, enabled) {
   return !!enabled;
 }
 // All committee accounts a given installer created (for his "accounts I created" view).
+// Effective owner technician = ownerInstaller (manager-assigned) if set, else createdByInstaller.
 async function listCommitteesByCreator(phoneNumber) {
   await connectDB();
+  const phone = String(phoneNumber || '').trim();
   const rows = await db.collection('installers')
-    .find({ createdByInstaller: String(phoneNumber || '').trim(), accountType: 'committee' })
+    .find({ accountType: 'committee', $or: [
+      { ownerInstaller: phone },
+      { createdByInstaller: phone, ownerInstaller: { $in: [null, ''] } },
+    ] })
     .sort({ createdAt: -1 }).toArray();
   return rows.map(r => ({
     phoneNumber: r.phoneNumber,
     password: r.plainPassword || '',
     panels: (r.macAddresses || []).map(m => ({ mac: m.mac, address: m.address || '' })),
     createdAt: r.createdAt,
+    // Only committees the installer opened himself can get panels from him; manager-assigned ones are manager-only.
+    canAddPanel: r.createdByInstaller === phone && (!r.ownerInstaller || r.ownerInstaller === phone),
+    assignedByManager: !!r.ownerInstaller && r.createdByInstaller !== phone,
   }));
+}
+
+// Manager: set (or clear with empty ownerPhone) the technician a committee account belongs to.
+async function setCommitteeOwner(committeePhone, ownerPhone) {
+  await connectDB();
+  committeePhone = String(committeePhone || '').trim();
+  ownerPhone = String(ownerPhone || '').trim();
+  const acct = await db.collection('installers').findOne({ phoneNumber: committeePhone });
+  if (!acct) throw new Error('חשבון הועד לא נמצא');
+  if ((acct.accountType || 'installer') !== 'committee') throw new Error('זהו אינו חשבון ועד');
+  if (!ownerPhone) {
+    await db.collection('installers').updateOne({ phoneNumber: committeePhone }, { $unset: { ownerInstaller: '', ownerName: '', ownerAssignedAt: '' } });
+    return { ownerInstaller: '', ownerName: '' };
+  }
+  const owner = await db.collection('installers').findOne({ phoneNumber: ownerPhone });
+  if (!owner) throw new Error('המתקין לא נמצא');
+  if ((owner.accountType || 'installer') === 'committee') throw new Error('לא ניתן לשייך לחשבון ועד');
+  const ownerName = owner.installerName || '';
+  await db.collection('installers').updateOne({ phoneNumber: committeePhone },
+    { $set: { ownerInstaller: ownerPhone, ownerName, ownerAssignedAt: new Date() } });
+  return { ownerInstaller: ownerPhone, ownerName };
 }
 
 // Installer-created committee (ועד) management account. Same shape as an installer
@@ -642,6 +673,7 @@ async function addPanelToCommitteeAccount(committeePhone, macData, createdByInst
   if (!acct) throw new Error('חשבון הועד לא נמצא');
   if ((acct.accountType || 'installer') !== 'committee') throw new Error('זהו אינו חשבון ועד');
   if (createdByInstaller && acct.createdByInstaller !== createdByInstaller) throw new Error('החשבון לא נוצר על ידך');
+  if (createdByInstaller && acct.ownerInstaller && acct.ownerInstaller !== createdByInstaller) throw new Error('החשבון שויך למתקין אחר');
   const md = (typeof macData === 'string') ? { mac: macData } : (macData || {});
   const clean = String(md.mac || '').replace(/[:\s-]/g, '').toUpperCase();
   const exists = (acct.macAddresses || []).some(m => String(m.mac || '').replace(/[:\s-]/g, '').toUpperCase() === clean);
@@ -1234,6 +1266,7 @@ module.exports = {
   setGlobalModule,
   setAllGlobalModules,
   listCommitteesByCreator,
+  setCommitteeOwner,
   createCommitteeAccount,
   addPanelToCommitteeAccount,
   loginManager,

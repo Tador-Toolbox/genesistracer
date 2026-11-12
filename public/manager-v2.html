@@ -639,7 +639,7 @@
         <h2 data-i18n="createInstaller">➕ Create Installer Account</h2>
         <div class="form-row" style="flex-wrap:wrap;gap:8px;">
           <input type="text" id="newPhone" data-i18n-placeholder="phoneNumber" placeholder="Phone Number (e.g., +972501234567)" />
-          <input type="text" id="newMacs" data-i18n-placeholder="macAddresses" placeholder="MAC Addresses (comma separated, optional)" />
+          <input type="text" id="newMacs" oninput="checkOwnerMacs()" data-i18n-placeholder="macAddresses" placeholder="MAC Addresses (comma separated, optional)" />
           <div style="display:flex;gap:6px;align-items:center;">
             <button id="typeInstallerBtn" onclick="setNewAccountType('installer')"
               style="padding:8px 14px;border-radius:20px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#dcfce7;color:#16a34a;">
@@ -651,8 +651,12 @@
             </button>
             <input type="hidden" id="newAccountType" value="installer" />
           </div>
+          <select id="newOwnerInstaller" onchange="checkOwnerMacs()" style="display:none;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);">
+            <option value="">👷 שייך למתקין (אופציונלי)</option>
+          </select>
           <button onclick="createInstaller()" data-i18n="createBtn">Create</button>
         </div>
+        <div id="ownerMacWarn" style="display:none;margin-top:6px;font-size:12px;font-weight:600;color:#b45309;"></div>
         <div id="createResult"></div>
         <div id="globalMessage"></div>
       </div>
@@ -1432,6 +1436,66 @@
         commBtn.style.background = '#e0e7ff'; commBtn.style.color = '#4338ca';
         instBtn.style.background = 'var(--surface2)'; instBtn.style.color = 'var(--text-dim)';
       }
+      const sel = document.getElementById('newOwnerInstaller');
+      if (sel) {
+        sel.style.display = (type === 'committee') ? '' : 'none';
+        if (type === 'committee') fillOwnerSelect(sel); else sel.value = '';
+      }
+      checkOwnerMacs();
+    }
+
+    // Installer accounts (not committees) for the "שייך למתקין" pickers.
+    function ownerCandidates() {
+      return (window._allAccounts || []).filter(a => a.accountType !== 'committee')
+        .sort((a, b) => String(a.installerName || a.phoneNumber).localeCompare(String(b.installerName || b.phoneNumber), 'he'));
+    }
+    function fillOwnerSelect(sel, current) {
+      const keep = current !== undefined ? current : sel.value;
+      const first = sel.options[0] ? sel.options[0].outerHTML : '<option value="">—</option>';
+      sel.innerHTML = first + ownerCandidates().map(a =>
+        `<option value="${a.phoneNumber}">${(a.installerName ? a.installerName + ' · ' : '') + a.phoneNumber}</option>`).join('');
+      sel.value = keep || '';
+    }
+    // Warn (don't block) when a MAC typed for the new committee isn't on the chosen installer's panels.
+    function checkOwnerMacs() {
+      const w = document.getElementById('ownerMacWarn'); if (!w) return;
+      const type = document.getElementById('newAccountType').value;
+      const owner = (document.getElementById('newOwnerInstaller') || {}).value;
+      const macs = (document.getElementById('newMacs').value || '').split(',').map(m => normMac(m)).filter(Boolean);
+      if (type !== 'committee' || !owner || !macs.length) { w.style.display = 'none'; return; }
+      const ownerMacs = ((window._installerMacs || {})[owner] || []).map(m => normMac(m.mac));
+      const missing = macs.filter(m => !ownerMacs.includes(m));
+      if (!missing.length) { w.style.display = 'none'; return; }
+      w.textContent = '⚠ ה-MAC ' + missing.join(', ') + ' לא משויך למתקין שנבחר — אפשר להמשיך, רק לוודא שזה נכון.';
+      w.style.display = '';
+    }
+
+    // Manager: change / clear the technician a committee belongs to (small picker modal).
+    function changeCommitteeOwner(committeePhone, current) {
+      const ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;';
+      ov.innerHTML = `<div dir="rtl" style="background-color:#ffffff;color:#111111;border-radius:12px;max-width:380px;width:100%;padding:20px;font-family:inherit;">
+        <h3 style="margin:0 0 6px;color:#111111;">👷 שיוך ועד למתקין</h3>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:12px;">חשבון ועד: <b>${committeePhone}</b></div>
+        <select id="coSel" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:8px;font-family:inherit;font-size:13px;color:#111111;background:#fff;"><option value="">— ללא מתקין —</option></select>
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <button id="coSave" style="flex:1;padding:8px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-family:inherit;font-weight:700;cursor:pointer;">שמור</button>
+          <button id="coCancel" style="flex:1;padding:8px;background:#eceff3;color:#111111;border:none;border-radius:8px;font-family:inherit;font-weight:700;cursor:pointer;">ביטול</button>
+        </div></div>`;
+      document.body.appendChild(ov);
+      fillOwnerSelect(ov.querySelector('#coSel'), current);
+      ov.querySelector('#coCancel').onclick = () => ov.remove();
+      ov.onclick = e => { if (e.target === ov) ov.remove(); };
+      ov.querySelector('#coSave').onclick = async () => {
+        if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+        const ownerPhone = ov.querySelector('#coSel').value;
+        try {
+          const d = await fetch('/api/manager/committee-owner', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ committeePhone, ownerPhone, username: window.__mgr.username, password: window.__mgr.password }) }).then(r => r.json());
+          if (!d.success) { alert('❌ ' + (d.error || 'שגיאה')); return; }
+          ov.remove(); loadData();
+        } catch (e) { alert('❌ שגיאת תקשורת'); }
+      };
     }
 
     async function createInstaller() {
@@ -1440,10 +1504,11 @@
       const macAddresses = macs ? macs.split(',').map(m => m.trim().replace(/[:\s-]/g, '').toUpperCase()) : [];
 
       const accountType = document.getElementById('newAccountType').value;
+      const ownerInstaller = accountType === 'committee' ? ((document.getElementById('newOwnerInstaller') || {}).value || '') : '';
       const res = await fetch('/api/manager/installers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, macAddresses, accountType })
+        body: JSON.stringify({ phoneNumber, macAddresses, accountType, ownerInstaller })
       });
 
       const data = await res.json();
@@ -1458,12 +1523,15 @@
             ${t.thPassword}: <strong style="font-size: 16px;">${data.password}</strong>
             <button class="copy-btn small" data-copy="${data.password}">${t.copy}</button>
             <br><small>(${t.savePassword})</small>
+            ${data.owner && data.owner.ownerInstaller ? `<br>👷 שויך למתקין: <b>${data.owner.ownerName || data.owner.ownerInstaller}</b>` : ''}
+            ${data.owner && data.owner.error ? `<br><span style="color:#b45309;">⚠ השיוך למתקין נכשל: ${data.owner.error}</span>` : ''}
           </div>
         `;
         document.getElementById('newPhone').value = '';
         document.getElementById('newMacs').value = '';
         document.getElementById('newAccountType').value = 'installer';
         setNewAccountType('installer');
+        document.getElementById('ownerMacWarn').style.display = 'none';
         loadData();
       } else {
         resultDiv.innerHTML = `<div class="error-msg">${data.error || 'Error'}</div>`;
@@ -2806,6 +2874,7 @@
       const installersData = await installersRes.json();
       await loadBuildingMacs();
       window._installerMacs = {};
+      window._allAccounts = installersData.installers || [];
 
       const tbody = document.getElementById('installersBody');
       const frag = document.createDocumentFragment();
@@ -2861,7 +2930,16 @@
               <button onclick="setInstallerLang('${installer.phoneNumber}','en',this)" data-lang="en"
                 style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:14px;border:none;cursor:pointer;background:${dlang==='en'?'#e8001c':'#eceff3'};color:${dlang==='en'?'#fff':'#64717e'};">EN</button>
             </div>
-            ${details.installer.createdByInstaller ? `<div style="margin-top:5px;font-size:11px;color:#2563eb;">👷 נוצר ע"י מתקין: <b>${details.installer.createdByName || details.installer.createdByInstaller}</b>${details.installer.createdByName ? ' · ' + details.installer.createdByInstaller : ''}</div>` : ''}
+            ${(installer.accountType === 'committee') ? (function(){
+              const d = details.installer;
+              const op = d.ownerInstaller || d.createdByInstaller || '';
+              const on = d.ownerInstaller ? d.ownerName : d.createdByName;
+              const who = op ? `<b>${on || op}</b>${on ? ' · ' + op : ''}` : '<span style="color:var(--text-dim);">לא משויך</span>';
+              const created = (d.createdByInstaller && d.ownerInstaller && d.ownerInstaller !== d.createdByInstaller)
+                ? `<div style="font-size:10px;color:var(--text-dim);">נפתח ע"י: ${d.createdByName || d.createdByInstaller}</div>` : '';
+              return `<div style="margin-top:5px;font-size:11px;color:#2563eb;">👷 מתקין: ${who}
+                <button onclick="changeCommitteeOwner('${installer.phoneNumber}','${op}')" style="margin-inline-start:4px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;border:1px solid #c7d2fe;background:#eef2ff;color:#4338ca;cursor:pointer;">✏️ שנה</button></div>${created}`;
+            })() : ''}
           </td>
           <td>
             <div class="password-display">
