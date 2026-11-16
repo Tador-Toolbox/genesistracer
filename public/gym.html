@@ -650,10 +650,10 @@ function fillPlanForm(p) {
     ${doors.length > 1 ? `<fieldset style="border:none;margin:0;padding:0"><legend class="small" style="padding:0;margin-bottom:4px">דלתות שהמסלול פותח (ריק = כולן)</legend><div style="display:flex;flex-wrap:wrap;gap:6px">${doors.map(d => `<label class="check"><input type="checkbox" class="plDoor" value="${esc(d.mac)}" ${v.doors.includes(d.mac) ? 'checked' : ''}>${esc(d.label)}</label>`).join('')}</div></fieldset>` : ''}
     <p class="small" style="margin:0">השעות והימים נכתבים לאמצעי הכניסה בפנל. למשל, מנוי "בוקר בלבד" שמגיע ב-18:00 לא ייכנס.</p>
     <div class="err" id="plErr" role="alert"></div>
-    <div style="display:flex;gap:8px;justify-content:space-between">${p ? `<button class="btn danger" id="plDel">מחיקה</button>` : '<span></span>'}<span style="display:flex;gap:8px">${p ? '<button class="btn" id="plCancel">ביטול</button>' : ''}<button class="btn primary" id="plSave">שמירת מסלול</button></span></div>`;
+    <div style="display:flex;gap:8px;justify-content:space-between">${p ? `<button class="btn danger" id="plDel">מחיקה</button>` : '<span></span>'}<span style="display:flex;gap:8px">${p ? '<button class="btn" id="plCancel">ביטול</button>' : ''}<button class="btn primary" id="plSave">${p ? 'עדכון מסלול' : 'יצירת מסלול חדש'}</button></span></div>`;
   $('#plSave').addEventListener('click', async () => {
     const body = { name: $('#plName').value, days: [...document.querySelectorAll('.plDay:checked')].map(x => +x.value), start: $('#plStart').value, end: $('#plEnd').value, durationType: $('#plType').value, durationValue: $('#plVal').value, price: $('#plPrice').value, doors: [...document.querySelectorAll('.plDoor:checked')].map(x => x.value) };
-    try { await api('/api/gym/plans' + (p ? '/' + p.id : ''), { method: p ? 'PUT' : 'POST', body }); toast('המסלול נשמר'); route(); }
+    try { await api('/api/gym/plans' + (p ? '/' + p.id : ''), { method: p ? 'PUT' : 'POST', body }); toast(p ? 'המסלול עודכן' : 'המסלול נוצר'); route(); }
     catch (e) { $('#plErr').textContent = e.message; }
   });
   $('#plCancel') && $('#plCancel').addEventListener('click', () => fillPlanForm(null));
