@@ -20,7 +20,7 @@ const TZ = 'Asia/Jerusalem';
 module.exports = function registerGym(app, deps) {
   const {
     db, resolvePanelAddress, panelHttpPost, panelHttpGetWithHeaders,
-    getAllPanelFaces, deleteFaceFromPanel, relayPostViaCurl, exec, axios, upload, cloudinary, loginLimiter, logActivity,
+    getAllPanelFaces, deleteFaceFromPanel, relayPostViaCurl, panelHttpPostWithHeaders, exec, axios, upload, cloudinary, loginLimiter, logActivity,
     openInNexhome,
   } = deps;
 
@@ -901,6 +901,115 @@ module.exports = function registerGym(app, deps) {
       if (!closed) return res.status(502).json({ success: false, error: 'הדלת נפתחה אבל לא חזרה למצב רגיל. בדקו את הדלת מפורטל המתקינים.' });
       res.json({ success: true, seconds: OPEN_SECONDS });
     } catch (e) { dbg(gymId, 'door_open_error', { mac, error: e.message }); res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  // ==================== GUEST / TRIAL PASS ====================
+  // A 4-digit code on the panel, valid on one date between chosen hours, optionally for
+  // one entry only (valid_count 1). Same access-record body as the installer temp code.
+  async function guestStatus(d, g) {
+    if (g.status === 'cancelled') return 'cancelled';
+    const used = await d.collection('gym_entries').countDocuments({ gymId: g.gymId, name: g.label, result: { $ne: 'denied' } });
+    if (g.oneTime && used) return 'used';
+    if (jerusalemMs(g.date, ...g.end.split(':').map(Number), 59) < Date.now()) return 'expired';
+    return used ? 'active_used' : 'active';
+  }
+  app.get('/api/gym/guests', gymAuth, async (req, res) => {
+    try {
+      const d = await database();
+      const since = todayStr(-30);
+      const rows = await d.collection('gym_guests').find({ gymId: req.gym._id, date: { $gte: since } }).sort({ createdAt: -1 }).limit(200).toArray();
+      const out = [];
+      for (const g of rows) out.push({ id: String(g._id), name: g.name, phone: g.phone, date: g.date, start: g.start, end: g.end, oneTime: g.oneTime, pin: g.pin, status: await guestStatus(d, g), createdAt: g.createdAt, createdBy: g.createdBy });
+      res.json({ success: true, guests: out });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  app.post('/api/gym/guests', gymAuth, async (req, res) => {
+    const gymId = req.gym._id;
+    try {
+      const name = String(req.body.name || '').trim().slice(0, 30);
+      const phone = cleanPhone(req.body.phone);
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(req.body.date || '') ? req.body.date : todayStr();
+      const hm = (v) => (/^\d{2}:\d{2}$/.test(String(v || '')) ? v : null);
+      const start = hm(req.body.start) || '00:00', end = hm(req.body.end) || '23:59';
+      const oneTime = req.body.oneTime !== false;
+      if (!name) return res.status(400).json({ success: false, error: 'חסר שם האורח' });
+      if (phone && !/^05\d{8}$/.test(phone)) return res.status(400).json({ success: false, error: 'מספר טלפון לא תקין: נייד בן 10 ספרות שמתחיל ב-05' });
+      if (date < todayStr()) return res.status(400).json({ success: false, error: 'התאריך כבר עבר' });
+      if (start >= end) return res.status(400).json({ success: false, error: 'שעת הסיום חייבת להיות אחרי שעת ההתחלה' });
+      if (jerusalemMs(date, ...end.split(':').map(Number), 59) < Date.now()) return res.status(400).json({ success: false, error: 'שעת הסיום כבר עברה' });
+      const doors = (req.gym.panels || []).map(p => p.mac);
+      if (!doors.length) return res.status(400).json({ success: false, error: 'לא הוגדרו דלתות' });
+      const label = `אורח ${name} ${date.slice(8, 10)}/${date.slice(5, 7)}`;
+
+      // Connect to every door first and collect the codes already in use, so the PIN is free on all of them.
+      const conns = {}; const results = []; const usedPins = new Set();
+      for (const mac of doors) {
+        try {
+          conns[mac] = await panelConn(mac);
+          const list = await panelHttpGetWithHeaders(conns[mac].host, conns[mac].port, '/api/v1/access?page_num=1&page_size=500&type=&label=', { Authorization: 'Bearer ' + conns[mac].token });
+          (list?.data?.list || []).forEach(a => { if (a.type === 'password') usedPins.add(String(a.content)); });
+        } catch (e) { results.push({ mac, error: e.message }); }
+      }
+      if (!Object.keys(conns).length) return res.status(502).json({ success: false, error: results[0]?.error || 'הפנל לא מחובר', results });
+      let pin = null;
+      for (let i = 0; i < 50 && !pin; i++) { const c = String(crypto.randomInt(1000, 10000)); if (!usedPins.has(c)) pin = c; }
+      if (!pin) return res.status(500).json({ success: false, error: 'לא נמצא קוד פנוי' });
+
+      const body = {
+        label, password: pin,
+        effective_date: jerusalemMs(date, 0, 0, 0),
+        expired_date: jerusalemMs(date, 23, 59, 59),
+        valid_weekdays: [0, 1, 2, 3, 4, 5, 6],
+        valid_count: oneTime ? 1 : -1,
+        valid_periods: JSON.stringify([{ begin: `${start}:00`, end: `${end}:59` }]),
+        valid_door: '1',
+      };
+      const panels = {};
+      for (const [mac, conn] of Object.entries(conns)) {
+        const r = { mac };
+        try {
+          const cr = await panelHttpPostWithHeaders(conn.host, conn.port, '/api/v1/access', body, { Authorization: 'Bearer ' + conn.token });
+          dbg(gymId, 'guest_create', { mac, response: cr });
+          if (cr?.status !== 'OK') throw new Error(cr?.error?.code === 409012 ? 'הקוד כבר קיים בפנל, נסו שוב' : (cr?.error?.message || 'הפנל דחה את הקוד'));
+          const list = await panelHttpGetWithHeaders(conn.host, conn.port, '/api/v1/access?page_num=1&page_size=500&type=&label=', { Authorization: 'Bearer ' + conn.token });
+          const rec = (list?.data?.list || []).filter(a => a.type === 'password' && String(a.content) === pin).pop();
+          panels[mac] = { id: rec ? rec.id : null };
+          r.ok = true;
+        } catch (e) { r.error = e.message; }
+        results.push(r);
+      }
+      if (!Object.keys(panels).length) return res.status(502).json({ success: false, error: results.find(r => r.error)?.error || 'הקוד לא נוצר', results });
+      const d = await database();
+      const ins = await d.collection('gym_guests').insertOne({ gymId, name, phone, date, start, end, oneTime, pin, label, panels, status: 'active', createdAt: new Date(), createdBy: req.gymUser });
+      logAction(gymId, null, 'guest_create', req.gymUser, { name, date, start, end, oneTime });
+      res.json({ success: true, id: String(ins.insertedId), pin, label, date, start, end, oneTime, gymName: req.gym.name, results });
+    } catch (e) { dbg(gymId, 'guest_error', { error: e.message }); res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  app.delete('/api/gym/guests/:id', gymAuth, async (req, res) => {
+    try {
+      const id = oid(req.params.id); if (!id) return res.status(400).json({ success: false, error: 'bad_id' });
+      const d = await database();
+      const g = await d.collection('gym_guests').findOne({ _id: id, gymId: req.gym._id });
+      if (!g) return res.status(404).json({ success: false, error: 'not_found' });
+      const results = [];
+      for (const [mac, info] of Object.entries(g.panels || {})) {
+        const r = { mac };
+        try {
+          if (info.id == null) throw new Error('מזהה הקוד בפנל לא ידוע');
+          const conn = await panelConn(mac);
+          await deleteFaceFromPanel(conn.host, conn.port, conn.token, info.id); // batchdelete works for codes too
+          r.ok = true;
+        } catch (e) { r.error = e.message; }
+        results.push(r);
+      }
+      const failed = results.filter(r => !r.ok);
+      if (failed.length) return res.status(502).json({ success: false, error: failed[0].error, results });
+      await d.collection('gym_guests').updateOne({ _id: id }, { $set: { status: 'cancelled', cancelledAt: new Date() } });
+      logAction(req.gym._id, null, 'guest_cancel', req.gymUser, { name: g.name });
+      res.json({ success: true });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
   app.get('/api/gym/actions', gymAuth, async (req, res) => {

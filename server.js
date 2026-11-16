@@ -3623,7 +3623,7 @@ const nexhomeProvision = require('./nexhome-provision')(app, {
 // Genesis Gym portal (public/gym.html) — isolated module, own collections + /api/gym/* routes.
 require('./gym')(app, {
   db, resolvePanelAddress, panelHttpPost, panelHttpGetWithHeaders, getAllPanelFaces,
-  deleteFaceFromPanel, relayPostViaCurl, exec, axios, upload, cloudinary, loginLimiter, logActivity,
+  deleteFaceFromPanel, relayPostViaCurl, panelHttpPostWithHeaders, exec, axios, upload, cloudinary, loginLimiter, logActivity,
   openInNexhome: nexhomeProvision.openInNexhome,
 });
 
