@@ -264,11 +264,12 @@ async function viewDashboard() {
     : `<div class="empty">עדיין אין כניסות. לחצו "עדכון מהפנל" כדי למשוך את יומן הכניסות.</div>`;
   const exp = j.expiring.length ? `<div class="tw"><table><thead><tr><th>שם</th><th>טלפון</th><th>פג ב</th><th><span class="hidden">פעולה</span></th></tr></thead><tbody>${j.expiring.map(m => `<tr><td class="name"><a href="#member/${m.id}">${esc(m.firstName)} ${esc(m.lastName)}</a></td><td style="white-space:nowrap">${telLink(m.phone)}</td><td>${fmtDate(m.endDate).slice(0, 5)}</td><td><button class="btn" data-renew="${m.id}">חידוש</button></td></tr>`).join('')}</tbody></table></div>`
     : `<div class="empty">אין מנויים שפגים השבוע.</div>`;
-  const doors = (j.panels || []).length ? j.panels.map(p => `<div class="list-row"><div><div class="name">${esc(p.label)}</div><div class="small" data-door="${esc(p.mac)}">לא נבדק</div></div></div>`).join('') : '<div class="small">לא הוגדרו דלתות. פנו לתדור.</div>';
+  const doors = (j.panels || []).length ? j.panels.map(p => `<div class="list-row"><div><div class="name">${esc(p.label)}</div><div class="small" data-door="${esc(p.mac)}">לא נבדק</div></div><button class="btn dark" data-open="${esc(p.mac)}" data-label="${esc(p.label)}">פתיחת דלת</button></div>`).join('') : '<div class="small">לא הוגדרו דלתות. פנו לתדור.</div>';
   after(() => {
     document.querySelectorAll('[data-renew]').forEach(b => b.addEventListener('click', () => renewFlow(b.dataset.renew)));
     $('#syncBtn') && $('#syncBtn').addEventListener('click', () => syncEntries($('#syncBtn')));
     $('#doorCheck') && $('#doorCheck').addEventListener('click', checkDoors);
+    document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => openDoor(b.dataset.open, b.dataset.label)));
   });
   const today = new Date().toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
   return header('לוח בקרה', `${esc(today)}${j.lastSync ? ` · יומן עודכן ${fmtDT(j.lastSync)}` : ''}`,
@@ -286,6 +287,12 @@ async function viewDashboard() {
         <section class="card"><div class="sec-head"><h2>דלתות</h2><button class="btn" id="doorCheck">בדיקת חיבור</button></div>${doors}</section>
       </div>
     </div>`;
+}
+async function openDoor(mac, label) {
+  try {
+    const r = await withBusy(`פותח את ${label}`, () => api(`/api/gym/doors/${encodeURIComponent(mac)}/open`, { method: 'POST' }), ['מתחבר לפנל…', 'הדלת פתוחה…', 'סוגר בחזרה…']);
+    toast(`${label} נפתחה ל-${r.seconds} שניות ונסגרה`);
+  } catch (e) { toast(e.message); }
 }
 async function checkDoors() {
   const b = $('#doorCheck'); b.disabled = true; b.textContent = 'בודק…';
@@ -338,7 +345,7 @@ async function newMemberFlow() {
   if (!plans.length) { toast('צרו קודם מסלול במסך מסלולים'); location.hash = '#plans'; return; }
   openModal(`<h2>מנוי חדש</h2>
     <div class="two"><label class="f">שם פרטי<input class="in" id="nmF" required></label><label class="f">שם משפחה<input class="in" id="nmL"></label></div>
-    <label class="f">טלפון<input class="in" id="nmP" type="tel" inputmode="tel" placeholder="05X-XXXXXXX"></label>
+    <label class="f">טלפון נייד<input class="in" id="nmP" type="tel" inputmode="tel" maxlength="12" placeholder="05X-XXXXXXX"></label>
     <div class="two"><label class="f">מסלול<select class="in" id="nmPlan">${plans.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label class="f">תאריך התחלה<input class="in" id="nmS" type="date" value="${todayISO()}"></label></div>
     <label class="f">לכמה חודשים המנוי תקף<select class="in" id="nmMonths">${monthOptions(1)}</select></label>
     <p class="small" style="margin:0" id="nmEndHint"></p>
@@ -352,6 +359,8 @@ async function newMemberFlow() {
     $('#nmS', bg).addEventListener('change', hint);
     syncPlan();
     $('#nmSave', bg).addEventListener('click', async () => {
+      const ph = $('#nmP', bg).value.replace(/\D/g, '');
+      if (!/^05\d{8}$/.test(ph)) { $('#nmErr', bg).textContent = 'מספר טלפון לא תקין: נייד בן 10 ספרות שמתחיל ב-05'; $('#nmP', bg).focus(); return; }
       const b = $('#nmSave', bg); b.disabled = true;
       try {
         const body = { firstName: $('#nmF', bg).value, lastName: $('#nmL', bg).value, phone: $('#nmP', bg).value, planId: $('#nmPlan', bg).value, startDate: $('#nmS', bg).value, months: $('#nmMonths', bg).value };
@@ -378,7 +387,7 @@ function monthsEndISO(start, months) {
 }
 
 // ---------- MEMBER CARD ----------
-const ACTION = { link_face: 'שויכו פנים מהפנל', panel_sync: 'עדכון פנל', member_create: 'נוצר', member_update: 'עודכן', member_renew: 'חודש', member_freeze: 'הוקפא', member_unfreeze: 'הופשר', member_photo: 'הועלתה תמונה', push_face: 'נשלח לפנל', member_delete: 'נמחק' };
+const ACTION = { door_open: 'פתיחת דלת', link_face: 'שויכו פנים מהפנל', panel_sync: 'עדכון פנל', member_create: 'נוצר', member_update: 'עודכן', member_renew: 'חודש', member_freeze: 'הוקפא', member_unfreeze: 'הופשר', member_photo: 'הועלתה תמונה', push_face: 'נשלח לפנל', member_delete: 'נמחק' };
 async function viewMember(id) {
   const j = await api('/api/gym/members/' + encodeURIComponent(id));
   const m = j.member, p = j.plan;
@@ -486,6 +495,8 @@ async function editFlow(m) {
     <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="edOk">שמירה</button></div>`,
   (bg, close) => $('#edOk', bg).addEventListener('click', async () => {
     try {
+      const ph = $('#edP', bg).value.replace(/\D/g, '');
+      if (ph !== m.phone && !/^05\d{8}$/.test(ph)) { $('#edErr', bg).textContent = 'מספר טלפון לא תקין: נייד בן 10 ספרות שמתחיל ב-05'; return; }
       const body = { firstName: $('#edF', bg).value, lastName: $('#edL', bg).value, phone: $('#edP', bg).value, planId: $('#edPlan', bg).value, endDate: $('#edE', bg).value, card: $('#edC', bg).value, pin: $('#edPin', bg).value };
       const r = await withBusy('שומר', () => api('/api/gym/members/' + m.id, { method: 'PUT', body }), PANEL_STEPS);
       close(); toast(panelMsg(r.panel, 'נשמר')); route();
@@ -686,7 +697,7 @@ async function viewSettings() {
       ${doors.map(d => `<div class="list-row"><div><div class="name">${esc(d.label)}</div><div class="small" dir="ltr" style="text-align:right">${esc(d.mac)}</div></div><div class="small" data-door="${esc(d.mac)}">לא נבדק</div></div>`).join('') || '<div class="small">לא הוגדרו דלתות.</div>'}
       <p class="small" style="margin:12px 0 0">הוספת דלת או שינוי סיסמה נעשים דרך תדור.</p></section>
       <section class="card" style="flex:2 1 420px;min-width:0"><h2 style="margin-bottom:8px">פעולות צוות אחרונות</h2>
-      ${j.actions.length ? `<div class="tw"><table><thead><tr><th>מועד</th><th>פעולה</th><th>מי</th></tr></thead><tbody>${j.actions.slice(0, 30).map(a => `<tr><td>${fmtDT(a.at)}</td><td>${a.memberId ? `<a href="#member/${a.memberId}">${esc(ACTION[a.action] || a.action)}</a>` : esc(a.action)}</td><td>${esc(a.by || '')}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">אין פעולות.</div>'}</section></div>`;
+      ${j.actions.length ? `<div class="tw"><table><thead><tr><th>מועד</th><th>פעולה</th><th>מי</th></tr></thead><tbody>${j.actions.slice(0, 30).map(a => `<tr><td>${fmtDT(a.at)}</td><td>${a.memberId ? `<a href="#member/${a.memberId}">${esc(ACTION[a.action] || a.action)}</a>` : esc(ACTION[a.action] || a.action)}</td><td>${esc(a.by || '')}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">אין פעולות.</div>'}</section></div>`;
 }
 
 // ---------- boot ----------

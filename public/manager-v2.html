@@ -1700,11 +1700,11 @@
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3);font-weight:600">${gymEsc(g.name)}${g.disabled ? ' <span style="font-size:12px;color:#b00020">(מושבת)</span>' : ''}</td>
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)" dir="ltr">${gymEsc(g.loginPhone)}</td>
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)" dir="ltr">${gymEsc(g.plainPassword)}</td>
-            <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)">${g.panels.map(p => `${gymEsc(p.label)} <span dir="ltr" style="font-size:12px;color:var(--text-dim,#888)">${gymEsc(p.mac)}</span>`).join('<br>') || '-'}</td>
+            <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)">${g.panels.map(p => `${gymEsc(p.label)} <span dir="ltr" style="font-size:12px;color:var(--text-dim,#888)">${gymEsc(p.mac)}</span>${p.nexhome ? ' <span style="font-size:12px;color:#0B5C3B;font-weight:600">☁️ NexHome ✓</span>' : ''}`).join('<br>') || '-'}</td>
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)">${g.members}</td>
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)">${g.lastLogin ? new Date(g.lastLogin).toLocaleString('he-IL') : '-'}</td>
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3);white-space:nowrap">
-              <button onclick="v2GymNexhome(${i})" style="padding:5px 10px;border:1px solid var(--border,#d0d5dd);background:transparent;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:inherit">☁️ NexHome</button>
+              ${g.panels.length && g.panels.some(p => !p.nexhome) ? `<button onclick="v2GymNexhome(${i}, this)" style="padding:5px 10px;border:1px solid var(--border,#d0d5dd);background:transparent;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:inherit">☁️ NexHome</button>` : ''}
               <button onclick="v2GymAddDoor(${i})" style="padding:5px 10px;border:1px solid var(--border,#d0d5dd);background:transparent;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:inherit">➕ דלת</button>
               <button onclick="v2GymReset(${i})" style="padding:5px 10px;border:1px solid var(--border,#d0d5dd);background:transparent;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:inherit">סיסמה חדשה</button>
               <button onclick="v2GymToggle(${i})" style="padding:5px 10px;border:1px solid var(--border,#d0d5dd);background:transparent;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:inherit">${g.disabled ? 'הפעל' : 'השבת'}</button>
@@ -1726,7 +1726,7 @@
         const j = await gymPost('/api/manager/gyms/create', body);
         let html = `✅ נוצר. כניסה ב-<b dir="ltr">${location.origin}/gym.html</b> · טלפון <b dir="ltr">${gymEsc(j.loginPhone)}</b> · סיסמה <b dir="ltr">${gymEsc(j.password)}</b>`;
         out.innerHTML = html + (doNexhome ? '<br>⏳ פותח ב-NexHome…' : '');
-        if (doNexhome) html += '<br>' + await v2NexhomeOpen(body.name, body.address, mac);
+        if (doNexhome) html += '<br>' + await v2GymNexhomeRun(j.id, body.address);
         out.innerHTML = html;
         ['gymNewName', 'gymNewAddr', 'gymNewPhone', 'gymNewMac'].forEach(id => document.getElementById(id).value = '');
         v2LoadGyms();
@@ -1742,16 +1742,28 @@
         return `<div style="margin-top:6px">${head}<div style="font-size:12px;color:var(--text-dim,#888);margin-top:4px">${steps}</div></div>`;
       } catch (e) { return '❌ NexHome: ' + gymEsc(e.message); }
     }
-    async function v2GymNexhome(i) {
+    // One-time NexHome for a gym: the server skips doors already marked done.
+    async function v2GymNexhomeRun(id, address) {
+      try {
+        const j = await gymPost('/api/manager/gyms/nexhome', { id, address });
+        return (j.results || []).map(r => {
+          if (r.skipped) return `☁️ ${gymEsc(r.mac)}: כבר ב-NexHome (${gymEsc(r.project || '')})`;
+          const steps = (r.steps || []).map(s => `${s.ok ? '✓' : '✗'} ${gymEsc(s.step)}: ${gymEsc(s.detail || '')}`).join('<br>');
+          const head = r.ok ? (r.already ? `☁️ ${gymEsc(r.mac)}: כבר משויך לפרויקט ${gymEsc(r.project || '')}` : `☁️ ${gymEsc(r.mac)}: נפתח פרויקט "${gymEsc(r.project)}" והפנל נוסף`) : `❌ ${gymEsc(r.mac)}: ${gymEsc(r.error || 'שגיאה')}`;
+          return `<div style="margin-top:6px">${head}<div style="font-size:12px;color:var(--text-dim,#888);margin-top:4px">${steps}</div></div>`;
+        }).join('');
+      } catch (e) { return '❌ NexHome: ' + gymEsc(e.message); }
+    }
+    async function v2GymNexhome(i, btn) {
       const g = window._gyms[i];
       if (!g.panels.length) return alert('אין דלתות לחדר הכושר');
       const address = g.address || prompt('כתובת לפרויקט NexHome:', '') || '';
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ פותח…'; }
       const out = document.getElementById('gymNewResult');
       out.innerHTML = `⏳ פותח ב-NexHome את ${gymEsc(g.name)}…`;
-      let html = '';
-      for (const p of g.panels) html += await v2NexhomeOpen(g.name, address, p.mac);
-      out.innerHTML = html;
+      out.innerHTML = await v2GymNexhomeRun(g.id, address);
       out.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      v2LoadGyms();
     }
     async function v2GymAddDoor(i) {
       const g = window._gyms[i];

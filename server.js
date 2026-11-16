@@ -3608,14 +3608,8 @@ const anyFileUpload = multer({
   limits: { fileSize: 25 * 1024 * 1024 }, // 25MB max
 });
 
-// Genesis Gym portal (public/gym.html) — isolated module, own collections + /api/gym/* routes.
-require('./gym')(app, {
-  db, resolvePanelAddress, panelHttpPost, panelHttpGetWithHeaders, getAllPanelFaces,
-  deleteFaceFromPanel, exec, axios, upload, cloudinary, loginLimiter, logActivity,
-});
-
 // Open a NexHome project + add a panel, online (ported from ResidentEnroll). Uses account[0] (ort_tadorcom).
-require('./nexhome-provision')(app, {
+const nexhomeProvision = require('./nexhome-provision')(app, {
   axios, searchMac, logActivity,
   getProvisionAccount: async () => {
     const a = NEXHOME_ACCOUNTS[0];
@@ -3624,6 +3618,13 @@ require('./nexhome-provision')(app, {
     }
     return a;
   },
+});
+
+// Genesis Gym portal (public/gym.html) — isolated module, own collections + /api/gym/* routes.
+require('./gym')(app, {
+  db, resolvePanelAddress, panelHttpPost, panelHttpGetWithHeaders, getAllPanelFaces,
+  deleteFaceFromPanel, relayPostViaCurl, exec, axios, upload, cloudinary, loginLimiter, logActivity,
+  openInNexhome: nexhomeProvision.openInNexhome,
 });
 
 // Upload image (installer)

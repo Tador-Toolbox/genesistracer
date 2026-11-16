@@ -20,7 +20,8 @@ const TZ = 'Asia/Jerusalem';
 module.exports = function registerGym(app, deps) {
   const {
     db, resolvePanelAddress, panelHttpPost, panelHttpGetWithHeaders,
-    getAllPanelFaces, deleteFaceFromPanel, exec, axios, upload, cloudinary, loginLimiter, logActivity,
+    getAllPanelFaces, deleteFaceFromPanel, relayPostViaCurl, exec, axios, upload, cloudinary, loginLimiter, logActivity,
+    openInNexhome,
   } = deps;
 
   // ---------- in-memory debug log (read-only route: /api/gym/debug) ----------
@@ -309,7 +310,7 @@ module.exports = function registerGym(app, deps) {
       const d = await database();
       const m = sanitizeMember(req.body);
       if (!m.firstName) return res.status(400).json({ success: false, error: 'חסר שם פרטי' });
-      if (m.phone.length < 9) return res.status(400).json({ success: false, error: 'מספר טלפון לא תקין' });
+      if (!/^05\d{8}$/.test(m.phone)) return res.status(400).json({ success: false, error: 'מספר טלפון לא תקין: נייד בן 10 ספרות שמתחיל ב-05' });
       const plan = await planFor(d, req.gym._id, req.body.planId);
       if (!plan) return res.status(400).json({ success: false, error: 'יש לבחור מסלול' });
       const dup = await d.collection('gym_members').findOne({ gymId: req.gym._id, phone: m.phone });
@@ -539,6 +540,7 @@ module.exports = function registerGym(app, deps) {
       const d = await database();
       const u = sanitizeMember({ ...m, ...req.body });
       if (!u.firstName) return res.status(400).json({ success: false, error: 'חסר שם פרטי' });
+      if (u.phone !== m.phone && !/^05\d{8}$/.test(u.phone)) return res.status(400).json({ success: false, error: 'מספר טלפון לא תקין: נייד בן 10 ספרות שמתחיל ב-05' });
       const set = { ...u, updatedAt: new Date() };
       if (req.body.planId && String(req.body.planId) !== String(m.planId)) {
         const plan = await planFor(d, req.gym._id, req.body.planId);
@@ -754,7 +756,7 @@ module.exports = function registerGym(app, deps) {
     if (s === undefined || s === null || s === '') return 'unknown';
     const v = String(s).toLowerCase();
     if (['1', 'true', 'ok', 'success', 'succeed', 'pass'].includes(v)) return 'granted';
-    if (['0', 'false', 'fail', 'failed', 'denied', 'refuse'].includes(v)) return 'denied';
+    if (['0', 'false', 'fail', 'failed', 'failure', 'denied', 'refuse'].includes(v)) return 'denied';
     return 'unknown';
   }
 
@@ -782,8 +784,10 @@ module.exports = function registerGym(app, deps) {
           for (const rec of list) {
             const t = Number(rec.unlock_time || rec.time || rec.create_time || 0);
             if (!t) continue;
-            const name = String(rec.label || rec.name || rec.user_name || rec.access_label || '').trim();
-            const key = `${p.mac}|${t}|${rec.access_content || rec.id || name}`;
+            // Panel unlock record fields (same as the installer panel-history route): access_label, access_type
+            // (face | card | password), access_content, relay, unlock_time (ms), status (success | failure).
+            const name = String(rec.access_label || rec.label || rec.name || '').trim();
+            const key = `${p.mac}|${rec.id != null ? 'id' + rec.id : t + '|' + (rec.access_content || name)}`;
             const doc = {
               gymId, key, mac: p.mac, door: p.label || p.mac, time: new Date(t), name,
               memberId: byName[name] || null, method: methodOf(rec.access_type || rec.type), result: resultOf(rec), raw: rec,
@@ -865,6 +869,40 @@ module.exports = function registerGym(app, deps) {
     res.json({ success: true, doors: out });
   });
 
+  // Open the door: relay1 to "always on" for a few seconds, then back to "normal".
+  // Uses the same relay config calls as the installer emergency button (GET with Bearer,
+  // POST via curl without Authorization through the NexHome tunnel).
+  const OPEN_SECONDS = 5;
+  app.post('/api/gym/doors/:mac/open', gymAuth, async (req, res) => {
+    const gymId = req.gym._id;
+    const mac = cleanMac(req.params.mac);
+    if (!(req.gym.panels || []).some(p => p.mac === mac)) return res.status(404).json({ success: false, error: 'דלת לא קיימת' });
+    try {
+      const conn = await panelConn(mac);
+      const cfg = await panelHttpGetWithHeaders(conn.host, conn.port, '/api/v1/configurations/relayfunction/relay1', { Authorization: 'Bearer ' + conn.token });
+      const list = cfg?.data?.relay_list || [];
+      const count = cfg?.data?.relay_count;
+      const relay1 = list.find(r => r.relay_id === 'relay1');
+      dbg(gymId, 'door_cfg', { mac, mode: relay1?.relay_mode, count });
+      if (!relay1) return res.status(502).json({ success: false, error: 'לא הצלחנו לקרוא את הגדרות הדלת מהפנל' });
+      if (relay1.relay_mode === 'alwayson') return res.status(409).json({ success: false, error: 'הדלת כבר במצב פתוח קבוע (מצב חירום). סגרו אותה מפורטל המתקינים.' });
+      const body = (mode) => ({ relay_count: count, relay_list: list.map(r => (r.relay_id === 'relay1' ? { ...r, relay_mode: mode } : r)), relay_changed_pub: 'disable' });
+      const okStatus = (r) => !r?.status || r.status === 'OK';
+      const open = await relayPostViaCurl(conn.host, conn.port, '/api/v1/configurations/relayfunction', body('alwayson'), {});
+      if (!okStatus(open)) return res.status(502).json({ success: false, error: 'הפנל דחה את הפתיחה' });
+      await new Promise(r => setTimeout(r, OPEN_SECONDS * 1000));
+      let closed = false;
+      for (let i = 0; i < 3 && !closed; i++) {
+        try { closed = okStatus(await relayPostViaCurl(conn.host, conn.port, '/api/v1/configurations/relayfunction', body('normal'), {})); }
+        catch (e) { dbg(gymId, 'door_close_retry', { mac, i, error: e.message }); }
+        if (!closed) await new Promise(r => setTimeout(r, 1500));
+      }
+      logAction(gymId, null, 'door_open', req.gymUser, { mac, closedBack: closed });
+      if (!closed) return res.status(502).json({ success: false, error: 'הדלת נפתחה אבל לא חזרה למצב רגיל. בדקו את הדלת מפורטל המתקינים.' });
+      res.json({ success: true, seconds: OPEN_SECONDS });
+    } catch (e) { dbg(gymId, 'door_open_error', { mac, error: e.message }); res.status(500).json({ success: false, error: e.message }); }
+  });
+
   app.get('/api/gym/actions', gymAuth, async (req, res) => {
     const d = await database();
     const rows = await d.collection('gym_actions').find({ gymId: req.gym._id }).sort({ at: -1 }).limit(100).toArray();
@@ -919,14 +957,43 @@ module.exports = function registerGym(app, deps) {
       if (req.body.name !== undefined) set.name = String(req.body.name).trim().slice(0, 80);
       if (req.body.disabled !== undefined) set.disabled = !!req.body.disabled;
       if (Array.isArray(req.body.panels)) {
+        const cur = await d.collection('gyms').findOne({ _id: id });
+        const flag = Object.fromEntries(((cur && cur.panels) || []).map(p => [p.mac, p.nexhome]));
         set.panels = req.body.panels.map(p => ({ mac: cleanMac(p.mac), label: String(p.label || '').trim().slice(0, 40) || 'כניסה' }))
-          .filter(p => /^[0-9A-F]{12}$/.test(p.mac));
+          .filter(p => /^[0-9A-F]{12}$/.test(p.mac))
+          .map(p => (flag[p.mac] ? { ...p, nexhome: flag[p.mac] } : p));
       }
       let password;
       if (req.body.resetPassword) { password = genPassword(); set.password = bcrypt.hashSync(password, 10); set.plainPassword = password; }
       await d.collection('gyms').updateOne({ _id: id }, { $set: set });
       if (req.body.resetPassword || set.disabled) await d.collection('gym_sessions').deleteMany({ gymId: id });
       res.json({ success: true, password });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  // Open every door of a gym in NexHome once. A door that succeeded (or was already in a
+  // project) is marked panels[].nexhome and is never sent again.
+  app.post('/api/manager/gyms/nexhome', async (req, res) => {
+    try {
+      if (!isAdmin(req.body)) return res.status(401).json({ success: false, error: 'unauthorized' });
+      const id = oid(req.body.id); if (!id) return res.status(400).json({ success: false, error: 'bad_id' });
+      const d = await database();
+      const gym = await d.collection('gyms').findOne({ _id: id });
+      if (!gym) return res.status(404).json({ success: false, error: 'gym_not_found' });
+      const address = String(req.body.address || gym.address || '').trim();
+      if (address && !gym.address) await d.collection('gyms').updateOne({ _id: id }, { $set: { address } });
+      const results = [];
+      for (const p of (gym.panels || [])) {
+        if (p.nexhome) { results.push({ mac: p.mac, skipped: true, project: p.nexhome.project }); continue; }
+        const out = await openInNexhome({ name: gym.name, address, mac: p.mac });
+        results.push({ mac: p.mac, ...out });
+        if (out.ok) {
+          const cur = await d.collection('gyms').findOne({ _id: id });
+          const panels = (cur.panels || []).map(x => (x.mac === p.mac ? { ...x, nexhome: { project: out.project || gym.name, already: !!out.already, at: new Date() } } : x));
+          await d.collection('gyms').updateOne({ _id: id }, { $set: { panels } });
+        }
+      }
+      res.json({ success: results.every(r => r.ok || r.skipped), results });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
