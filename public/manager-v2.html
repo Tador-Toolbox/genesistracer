@@ -522,6 +522,7 @@
       <button class="v2-nav" data-go="home"><span class="ic">🏠</span>בית</button>
       <button class="v2-nav" data-go="installers"><span class="ic">👥</span>מתקינים</button>
       <button class="v2-nav" data-go="permissions"><span class="ic">🛡️</span>הרשאות</button>
+      <button class="v2-nav" data-go="gyms"><span class="ic">🏋️</span>חדרי כושר</button>
       <button class="v2-nav" onclick="openMessagesPage()"><span class="ic">💬</span>הודעות<span class="bdg" id="v2MsgBadge"></span></button>
       <button class="v2-nav" data-go="announce"><span class="ic">📢</span>הודעות תפוצה</button>
       <button class="v2-nav" data-go="content"><span class="ic">📚</span>תוכן למתקינים</button>
@@ -1109,6 +1110,30 @@
         <div id="permCommittees">טוען…</div>
       </div>
 
+      <!-- Gyms: Genesis Gym portal accounts (/gym.html) -->
+      <div class="card" data-screen="gyms">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
+          <h2 style="margin:0;">🏋️ חדרי כושר</h2>
+          <div style="display:flex;gap:8px;">
+            <a href="/gym.html" target="_blank" rel="noopener" style="padding:6px 12px;border:1px solid var(--border,#e6eaef);border-radius:6px;font-size:13px;font-weight:600;color:inherit;text-decoration:none;">פתח את פורטל חדרי הכושר ↗</a>
+            <button onclick="v2LoadGyms()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">רענן</button>
+          </div>
+        </div>
+        <p style="margin:0 0 14px;font-size:13px;color:var(--text-dim,#888);">כל חדר כושר מקבל כניסה משלו ב-/gym.html עם טלפון וסיסמה. הדלתות הן כתובות ה-MAC של הפנלים.</p>
+        <div style="border:1px solid var(--border,#e6eaef);border-radius:12px;padding:12px 14px;margin-bottom:16px;background:var(--bg,#f8fafc);">
+          <h3 style="margin:0 0 10px;font-size:15px;">➕ חשבון חדר כושר חדש</h3>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">שם חדר הכושר<input id="gymNewName" style="padding:8px 10px;border:1px solid var(--border,#d0d5dd);border-radius:6px;font-family:inherit;min-width:200px;"></label>
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">טלפון לכניסה<input id="gymNewPhone" type="tel" style="padding:8px 10px;border:1px solid var(--border,#d0d5dd);border-radius:6px;font-family:inherit;min-width:150px;"></label>
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">MAC של הדלת<input id="gymNewMac" dir="ltr" placeholder="2875D8C16B0E" style="padding:8px 10px;border:1px solid var(--border,#d0d5dd);border-radius:6px;font-family:inherit;min-width:150px;"></label>
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">שם הדלת<input id="gymNewDoor" value="כניסה ראשית" style="padding:8px 10px;border:1px solid var(--border,#d0d5dd);border-radius:6px;font-family:inherit;min-width:130px;"></label>
+            <button onclick="v2CreateGym()" style="padding:9px 16px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600;">צור חשבון</button>
+          </div>
+          <div id="gymNewResult" style="margin-top:10px;font-size:14px;"></div>
+        </div>
+        <div id="gymsList">טוען…</div>
+      </div>
+
       <!-- Extras: notes.html + voipbell-accounts.html embedded -->
       <div class="card" data-screen="extras">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
@@ -1651,6 +1676,70 @@
       } catch (e) { alert('❌ ' + e.message); }
       finally { btn.disabled = false; }
     }
+    // ===== Gyms (Genesis Gym portal accounts) =====
+    function gymEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+    async function gymPost(path, body) {
+      const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(window.__mgr || {}), ...body }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.success === false) throw new Error(j.error || 'שגיאה');
+      return j;
+    }
+    async function v2LoadGyms() {
+      const host = document.getElementById('gymsList');
+      if (!host) return;
+      host.textContent = 'טוען…';
+      try {
+        const j = await gymPost('/api/manager/gyms/list', {});
+        if (!j.gyms.length) { host.innerHTML = '<div style="color:var(--text-dim,#888);font-size:14px;">עדיין אין חדרי כושר.</div>'; return; }
+        window._gyms = j.gyms;
+        host.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px;text-align:right">
+          <thead><tr style="color:var(--text-dim,#888);font-size:13px"><th style="padding:8px;border-bottom:1px solid var(--border,#e6eaef)">שם</th><th style="padding:8px;border-bottom:1px solid var(--border,#e6eaef)">טלפון לכניסה</th><th style="padding:8px;border-bottom:1px solid var(--border,#e6eaef)">סיסמה</th><th style="padding:8px;border-bottom:1px solid var(--border,#e6eaef)">דלתות</th><th style="padding:8px;border-bottom:1px solid var(--border,#e6eaef)">מנויים</th><th style="padding:8px;border-bottom:1px solid var(--border,#e6eaef)">כניסה אחרונה</th><th style="padding:8px;border-bottom:1px solid var(--border,#e6eaef)"></th></tr></thead>
+          <tbody>${j.gyms.map((g, i) => `<tr style="${g.disabled ? 'opacity:.55' : ''}">
+            <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3);font-weight:600">${gymEsc(g.name)}${g.disabled ? ' <span style="font-size:12px;color:#b00020">(מושבת)</span>' : ''}</td>
+            <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)" dir="ltr">${gymEsc(g.loginPhone)}</td>
+            <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)" dir="ltr">${gymEsc(g.plainPassword)}</td>
+            <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)">${g.panels.map(p => `${gymEsc(p.label)} <span dir="ltr" style="font-size:12px;color:var(--text-dim,#888)">${gymEsc(p.mac)}</span>`).join('<br>') || '-'}</td>
+            <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)">${g.members}</td>
+            <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)">${g.lastLogin ? new Date(g.lastLogin).toLocaleString('he-IL') : '-'}</td>
+            <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3);white-space:nowrap">
+              <button onclick="v2GymAddDoor(${i})" style="padding:5px 10px;border:1px solid var(--border,#d0d5dd);background:transparent;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:inherit">➕ דלת</button>
+              <button onclick="v2GymReset(${i})" style="padding:5px 10px;border:1px solid var(--border,#d0d5dd);background:transparent;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:inherit">סיסמה חדשה</button>
+              <button onclick="v2GymToggle(${i})" style="padding:5px 10px;border:1px solid var(--border,#d0d5dd);background:transparent;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:inherit">${g.disabled ? 'הפעל' : 'השבת'}</button>
+            </td></tr>`).join('')}</tbody></table></div>`;
+      } catch (e) { host.textContent = 'שגיאה: ' + e.message; }
+    }
+    async function v2CreateGym() {
+      const out = document.getElementById('gymNewResult');
+      const mac = document.getElementById('gymNewMac').value.trim();
+      const body = {
+        name: document.getElementById('gymNewName').value,
+        loginPhone: document.getElementById('gymNewPhone').value,
+        panels: mac ? [{ mac, label: document.getElementById('gymNewDoor').value }] : [],
+      };
+      out.textContent = 'יוצר…';
+      try {
+        const j = await gymPost('/api/manager/gyms/create', body);
+        out.innerHTML = `✅ נוצר. כניסה ב-<b dir="ltr">${location.origin}/gym.html</b> · טלפון <b dir="ltr">${gymEsc(j.loginPhone)}</b> · סיסמה <b dir="ltr">${gymEsc(j.password)}</b>`;
+        ['gymNewName', 'gymNewPhone', 'gymNewMac'].forEach(id => document.getElementById(id).value = '');
+        v2LoadGyms();
+      } catch (e) { out.textContent = '❌ ' + e.message; }
+    }
+    async function v2GymAddDoor(i) {
+      const g = window._gyms[i];
+      const mac = prompt('MAC של הדלת החדשה (12 תווים):'); if (!mac) return;
+      const label = prompt('שם הדלת (למשל: בריכה):', 'כניסה נוספת') || 'כניסה נוספת';
+      try { await gymPost('/api/manager/gyms/update', { id: g.id, panels: [...g.panels, { mac, label }] }); v2LoadGyms(); } catch (e) { alert(e.message); }
+    }
+    async function v2GymReset(i) {
+      const g = window._gyms[i];
+      if (!confirm(`ליצור סיסמה חדשה ל-${g.name}? המשתמשים המחוברים ינותקו.`)) return;
+      try { const j = await gymPost('/api/manager/gyms/update', { id: g.id, resetPassword: true }); alert('הסיסמה החדשה: ' + j.password); v2LoadGyms(); } catch (e) { alert(e.message); }
+    }
+    async function v2GymToggle(i) {
+      const g = window._gyms[i];
+      try { await gymPost('/api/manager/gyms/update', { id: g.id, disabled: !g.disabled }); v2LoadGyms(); } catch (e) { alert(e.message); }
+    }
+
     async function v2LoadPermissions() {
       const instHost = document.getElementById('permInstallers');
       const comHost = document.getElementById('permCommittees');
@@ -4041,7 +4130,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
 
   <script>
     // ================= V2: screens =================
-    const V2_SCREENS = ['home', 'installers', 'permissions', 'announce', 'content', 'files', 'activity', 'security', 'backups', 'residents', 'extras'];
+    const V2_SCREENS = ['home', 'installers', 'permissions', 'gyms', 'announce', 'content', 'files', 'activity', 'security', 'backups', 'residents', 'extras'];
     function v2Show(screen) {
       if (!V2_SCREENS.includes(screen)) screen = 'home';
       document.querySelectorAll('[data-screen]').forEach(el =>
@@ -4052,7 +4141,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
     }
     document.addEventListener('click', e => {
       const go = e.target.closest('[data-go]');
-      if (go) { e.preventDefault(); v2Show(go.dataset.go); if (go.dataset.go === 'security') v2LoadSecurity(); if (go.dataset.go === 'backups') v2LoadBackups(); if (go.dataset.go === 'residents') v2LoadResidents(); if (go.dataset.go === 'permissions') v2LoadPermissions(); }
+      if (go) { e.preventDefault(); v2Show(go.dataset.go); if (go.dataset.go === 'security') v2LoadSecurity(); if (go.dataset.go === 'backups') v2LoadBackups(); if (go.dataset.go === 'residents') v2LoadResidents(); if (go.dataset.go === 'permissions') v2LoadPermissions(); if (go.dataset.go === 'gyms') v2LoadGyms(); }
     });
     document.body.classList.add('v2-body');
     v2Show((location.hash || '#home').slice(1));

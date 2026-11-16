@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genesis Gym · ניהול חדר כושר</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--accent:#E8001C;--ink:#16181D;--ink2:#3A404B;--muted:#5B6270;--line:#E3E5E9;--line2:#EEF0F3;--bg:#F4F5F7;--field:#C9CDD4}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Heebo',sans-serif;color:var(--ink);background:var(--bg);font-size:15px;line-height:1.6}
+a{color:var(--ink);text-decoration:none}a:hover{color:var(--accent)}
+button,input,select,textarea{font:inherit}
+.hidden{display:none!important}
+/* layout */
+.shell{display:flex;min-height:100vh}
+.side{flex:0 0 232px;background:#fff;border-inline-end:1px solid var(--line);padding:24px 16px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 20px}
+.brand .mark{width:32px;height:32px;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center}
+.brand strong{display:block;font-size:16px;line-height:1.25}.brand span{font-size:13px;color:var(--muted)}
+.nav{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:8px;color:var(--ink2);border:none;background:none;cursor:pointer;text-align:right;width:100%;font-size:15px}
+.nav[aria-current="page"]{background:var(--bg);font-weight:600;color:var(--ink)}
+.nav:hover{background:var(--bg)}
+.side .foot{margin-top:auto}
+main{flex:1;min-width:0;padding:28px 32px;display:flex;flex-direction:column;gap:24px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px}
+header.top .t{flex:1 1 240px}
+h1{margin:0;font-size:26px;font-weight:700;line-height:1.3}
+h2{margin:0;font-size:18px;font-weight:600}
+.sub{margin:0;color:var(--muted);font-size:14px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px}
+.grid-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.tile .k{color:var(--muted);font-size:14px}.tile .v{font-size:34px;font-weight:700;line-height:1.2}.tile .s{font-size:13px;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.sec-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+/* controls */
+.btn{font-weight:600;height:44px;padding:0 18px;border-radius:8px;cursor:pointer;border:1px solid var(--field);background:#fff;color:var(--ink);font-size:14px;white-space:nowrap}
+.btn.primary{border:none;background:var(--accent);color:#fff;font-size:15px}
+.btn.dark{border:none;background:var(--ink);color:#fff}
+.btn.danger{border-color:#F0B8BF;color:#8F0A1A}
+.btn:disabled{opacity:.55;cursor:default}
+.btn:focus-visible,.nav:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.chip:focus-visible{outline:3px solid #1F6FEB;outline-offset:2px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.in{height:44px;padding:0 12px;border:1px solid var(--field);border-radius:8px;background:#fff;color:var(--ink);font-size:15px}
+textarea.in{height:auto;padding:10px 12px;resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:14px;font-weight:600;height:44px;padding:0 16px;border-radius:999px;cursor:pointer;border:1px solid var(--field);background:#fff;color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.check{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border:1px solid var(--field);border-radius:8px;font-size:14px;color:var(--ink);cursor:pointer}
+/* tables */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;text-align:right}
+th{padding:10px 8px;font-weight:500;color:var(--muted);font-size:13px;border-bottom:1px solid var(--line)}
+td{padding:12px 8px;border-bottom:1px solid var(--line2)}
+tr:last-child td{border-bottom:none}
+tr.click{cursor:pointer}tr.click:hover td{background:#FAFBFC}
+td .name{font-weight:500}
+.badge{border-radius:6px;padding:2px 10px;font-size:13px;font-weight:600;white-space:nowrap;display:inline-block}
+.b-active,.b-granted{background:#E3F4EC;color:#0B5C3B}.b-expiring{background:#FFF1D6;color:#7A4D00}
+.b-frozen{background:#E8EEF8;color:#1F3F75}.b-expired,.b-denied{background:#FDE8EA;color:#8F0A1A}.b-unknown{background:#EEF0F3;color:#3A404B}
+.cred{font-size:13px;margin-inline-end:10px}.cred.on{color:#0B5C3B;font-weight:600}.cred.off{color:#6B717C;text-decoration:line-through}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;font-size:14px;color:var(--muted)}
+.empty{padding:28px 8px;text-align:center;color:var(--muted)}
+.note{background:#FFF1D6;color:#5C3A00;border:1px solid #F2D29B;border-radius:12px;padding:14px 18px;font-weight:500}
+.note.info{background:#E8EEF8;color:#1F3F75;border-color:#C5D3EE}
+.note.ok{background:#E3F4EC;color:#0B5C3B;border-color:#B7E1CB}
+.err{color:#8F0A1A;font-size:14px;font-weight:500;min-height:1.2em}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}
+.kv .k{font-size:13px;color:var(--muted)}.kv .v{font-weight:600}
+.photo{flex:0 0 112px;height:112px;border-radius:12px;background:#E9EBEF;border:1px dashed #A9AFB9;color:var(--muted);font-size:13px;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden}
+.photo img{width:100%;height:100%;object-fit:cover}
+.list-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px;border-bottom:1px solid var(--line2)}
+.list-row:last-child{border-bottom:none}
+.small{font-size:13px;color:var(--muted)}
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(17,19,24,.55);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal{background:#fff;border-radius:14px;padding:24px;width:min(560px,100%);max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:14px;color:var(--ink)}
+.modal .acts{display:flex;gap:8px;justify-content:flex-end}
+.two{display:flex;gap:12px}.two>*{flex:1}
+/* login */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.login{width:min(400px,100%);display:flex;flex-direction:column;gap:16px}
+#toasts{position:fixed;bottom:24px;inset-inline-end:24px;display:flex;flex-direction:column;gap:8px;z-index:200;max-width:min(440px,calc(100vw - 48px))}
+.toast{background:var(--ink);color:#fff;padding:12px 18px;border-radius:10px;font-weight:500;box-shadow:0 6px 20px rgba(17,19,24,.18)}
+@media (max-width:860px){.shell{flex-direction:column}.side{position:static;height:auto;flex:none;flex-direction:row;flex-wrap:wrap;padding:12px}.brand{padding:0 8px}.side .foot{margin-top:0}main{padding:20px 16px}.nav{width:auto}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginView" class="login-wrap hidden">
+  <form class="login card" id="loginForm" novalidate>
+    <div class="brand" style="padding:0"><span class="mark">G</span><div><strong>Genesis Gym</strong><span>ניהול כניסות לחדר כושר</span></div></div>
+    <h1 style="font-size:22px">כניסה למערכת</h1>
+    <label class="f">מספר טלפון<input class="in" id="lgPhone" type="tel" inputmode="tel" autocomplete="username" required></label>
+    <label class="f">סיסמה<input class="in" id="lgPass" type="password" autocomplete="current-password" required></label>
+    <div class="err" id="lgErr" role="alert"></div>
+    <button class="btn primary" type="submit" id="lgBtn">כניסה</button>
+  </form>
+</div>
+
+<!-- APP -->
+<div id="appView" class="shell hidden">
+  <nav class="side" aria-label="ניווט ראשי">
+    <div class="brand"><span class="mark">G</span><div><strong>Genesis Gym</strong><span id="gymName"></span></div></div>
+    <button class="nav" data-go="dashboard"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>לוח בקרה</button>
+    <button class="nav" data-go="members"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6"/><path d="M17 4a4 4 0 0 1 0 8"/><path d="M22 21c0-3-1.5-5-4-5.6"/></svg>מנויים</button>
+    <button class="nav" data-go="plans"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>מסלולים</button>
+    <button class="nav" data-go="log"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>יומן כניסות</button>
+    <button class="nav" data-go="stats"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M6 16v-5M11 16V6M16 16v-8M21 16v-3"/></svg>סטטיסטיקה</button>
+    <button class="nav" data-go="settings"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>הגדרות</button>
+    <div class="foot"><button class="nav" id="logoutBtn">יציאה</button></div>
+  </nav>
+  <main id="main" aria-live="polite"></main>
+</div>
+
+<div id="modalHost"></div>
+
+<script>
+'use strict';
+// ---------- basics ----------
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let TOKEN = null; try { TOKEN = localStorage.getItem('gymToken'); } catch (e) {}
+let GYM = null;
+const STATUS = { active: 'פעיל', expiring: 'פג בקרוב', frozen: 'מוקפא', expired: 'לא בתוקף' };
+const METHOD = { face: 'פנים', card: 'כרטיס', pin: 'קוד', remote: 'פתיחה מרחוק', other: 'אחר' };
+const RESULT = { granted: 'נכנס', denied: 'נדחה', unknown: 'לא ידוע' };
+const DAYS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+
+async function api(path, opts = {}) {
+  const o = { method: opts.method || 'GET', headers: { 'x-gym-token': TOKEN || '' } };
+  if (opts.body instanceof FormData) o.body = opts.body;
+  else if (opts.body !== undefined) { o.headers['Content-Type'] = 'application/json'; o.body = JSON.stringify(opts.body); }
+  const r = await fetch(path, o);
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  if (r.status === 401 && path !== '/api/gym/login') { logoutLocal(); throw new Error('נדרשת התחברות מחדש'); }
+  if (!r.ok || j.success === false) { const e = new Error(j.error || 'שגיאה בשרת'); e.data = j; e.status = r.status; throw e; }
+  return j;
+}
+function toast(msg) {
+  let host = document.getElementById('toasts');
+  if (!host) { host = document.createElement('div'); host.id = 'toasts'; host.setAttribute('aria-live', 'polite'); document.body.appendChild(host); }
+  const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
+  host.appendChild(t); setTimeout(() => t.remove(), 4000);
+}
+const fmtDate = (s) => { if (!s) return '-'; const [y, m, d] = String(s).slice(0, 10).split('-'); return `${d}/${m}/${y}`; };
+const fmtTime = (iso) => iso ? new Date(iso).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '-';
+const fmtDT = (iso) => iso ? new Date(iso).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-';
+const fmtPhone = (p) => { p = String(p || ''); return p.length === 10 ? `${p.slice(0, 3)}-${p.slice(3)}` : p; };
+const todayISO = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(new Date());
+const daysTo = (s) => { if (!s) return null; return Math.round((new Date(s + 'T00:00:00') - new Date(todayISO() + 'T00:00:00')) / 86400000); };
+function statusBadge(m) {
+  let t = STATUS[m.status] || m.status;
+  if (m.status === 'expiring') { const n = daysTo(m.endDate); t = n === 0 ? 'פג היום' : `פג בעוד ${n} ימים`; }
+  if (m.status === 'frozen' && m.frozenUntil) t = `מוקפא עד ${fmtDate(m.frozenUntil).slice(0, 5)}`;
+  return `<span class="badge b-${m.status}">${esc(t)}</span>`;
+}
+const resultBadge = (r) => `<span class="badge b-${esc(r)}">${esc(RESULT[r] || r)}</span>`;
+function creds(m) {
+  const c = (on, l) => `<span class="cred ${on ? 'on' : 'off'}">${l}</span>`;
+  return c(m.faceOnPanel, 'פנים') + c(!!m.card, 'כרטיס') + c(!!m.pin, 'קוד');
+}
+const telLink = (p) => p ? `<a href="tel:${esc(p)}" dir="ltr" style="text-decoration:underline">${esc(fmtPhone(p))}</a>` : '-';
+function header(title, sub, right = '') {
+  return `<header class="top"><div class="t"><h1>${esc(title)}</h1>${sub ? `<p class="sub">${sub}</p>` : ''}</div>${right}</header>`;
+}
+
+// ---------- modal ----------
+function openModal(html, onMount) {
+  const host = $('#modalHost');
+  const prev = document.activeElement;
+  host.innerHTML = `<div class="modal-bg"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`;
+  const bg = host.firstElementChild;
+  const close = () => { host.innerHTML = ''; document.removeEventListener('keydown', onKey); if (prev && prev.focus) prev.focus(); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  bg.addEventListener('click', (e) => { if (e.target === bg) close(); });
+  bg.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', close));
+  const first = bg.querySelector('input,select,textarea,button'); if (first) first.focus();
+  if (onMount) onMount(bg, close);
+  return close;
+}
+function confirmBox(text, okLabel = 'אישור', danger = false) {
+  return new Promise(resolve => {
+    openModal(`<h2>${esc(text)}</h2><div class="acts"><button class="btn" data-close>ביטול</button><button class="btn ${danger ? 'danger' : 'primary'}" id="cfOk">${esc(okLabel)}</button></div>`,
+      (bg, close) => { $('#cfOk', bg).addEventListener('click', () => { close(); resolve(true); }); bg.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => resolve(false))); });
+  });
+}
+
+// ---------- auth ----------
+function showLogin() { $('#appView').classList.add('hidden'); $('#loginView').classList.remove('hidden'); $('#lgPhone').focus(); }
+function logoutLocal() { TOKEN = null; GYM = null; try { localStorage.removeItem('gymToken'); } catch (e) {} showLogin(); }
+$('#loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('#lgBtn'); $('#lgErr').textContent = ''; btn.disabled = true; btn.textContent = 'מתחבר…';
+  try {
+    const j = await api('/api/gym/login', { method: 'POST', body: { phone: $('#lgPhone').value, password: $('#lgPass').value } });
+    TOKEN = j.token; try { localStorage.setItem('gymToken', TOKEN); } catch (e2) {}
+    GYM = j.gym; startApp();
+  } catch (err) { $('#lgErr').textContent = err.message; }
+  finally { btn.disabled = false; btn.textContent = 'כניסה'; }
+});
+$('#logoutBtn').addEventListener('click', async () => { try { await api('/api/gym/logout', { method: 'POST' }); } catch (e) {} logoutLocal(); });
+
+function startApp() {
+  $('#loginView').classList.add('hidden'); $('#appView').classList.remove('hidden');
+  $('#gymName').textContent = GYM ? GYM.name : '';
+  route();
+}
+
+// ---------- router ----------
+document.querySelectorAll('.nav[data-go]').forEach(b => b.addEventListener('click', () => { location.hash = '#' + b.dataset.go; }));
+window.addEventListener('hashchange', route);
+function setNav(key) { document.querySelectorAll('.nav[data-go]').forEach(b => b.dataset.go === key ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current')); }
+let routeRun = 0;
+async function route() {
+  if (!TOKEN) return showLogin();
+  const [key, arg] = (location.hash || '#dashboard').slice(1).split('/');
+  const run = ++routeRun;
+  const main = $('#main');
+  main.innerHTML = '<div class="empty">טוען…</div>';
+  setNav(key === 'member' ? 'members' : key);
+  const views = { dashboard: viewDashboard, members: viewMembers, member: viewMember, plans: viewPlans, log: viewLog, stats: viewStats, settings: viewSettings };
+  try { const html = await (views[key] || viewDashboard)(arg, run); if (run === routeRun && typeof html === 'string') main.innerHTML = html; }
+  catch (e) { if (run === routeRun) main.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; }
+  if (run === routeRun && afterRender) { const f = afterRender; afterRender = null; f(); }
+  main.focus && main.setAttribute('tabindex', '-1');
+}
+let afterRender = null;
+const after = (f) => { afterRender = f; };
+
+// ---------- DASHBOARD ----------
+async function viewDashboard() {
+  const j = await api('/api/gym/dashboard');
+  const c = j.counts;
+  const tile = (k, v, s) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+  const recent = j.recent.length ? `<div class="tw"><table style="min-width:520px"><thead><tr><th>שעה</th><th>מנוי</th><th>דלת</th><th>אמצעי</th><th>תוצאה</th></tr></thead><tbody>${j.recent.map(e => `<tr><td>${fmtDT(e.time)}</td><td class="name">${esc(e.name || 'לא מזוהה')}</td><td>${esc(e.door)}</td><td>${esc(METHOD[e.method] || e.method)}</td><td>${resultBadge(e.result)}</td></tr>`).join('')}</tbody></table></div>`
+    : `<div class="empty">עדיין אין כניסות. לחצו "עדכון מהפנל" כדי למשוך את יומן הכניסות.</div>`;
+  const exp = j.expiring.length ? `<div class="tw"><table><thead><tr><th>שם</th><th>טלפון</th><th>פג ב</th><th><span class="hidden">פעולה</span></th></tr></thead><tbody>${j.expiring.map(m => `<tr><td class="name"><a href="#member/${m.id}">${esc(m.firstName)} ${esc(m.lastName)}</a></td><td style="white-space:nowrap">${telLink(m.phone)}</td><td>${fmtDate(m.endDate).slice(0, 5)}</td><td><button class="btn" data-renew="${m.id}">חידוש</button></td></tr>`).join('')}</tbody></table></div>`
+    : `<div class="empty">אין מנויים שפגים השבוע.</div>`;
+  const doors = (j.panels || []).length ? j.panels.map(p => `<div class="list-row"><div><div class="name">${esc(p.label)}</div><div class="small" data-door="${esc(p.mac)}">לא נבדק</div></div></div>`).join('') : '<div class="small">לא הוגדרו דלתות. פנו לתדור.</div>';
+  after(() => {
+    document.querySelectorAll('[data-renew]').forEach(b => b.addEventListener('click', () => renewFlow(b.dataset.renew)));
+    $('#syncBtn') && $('#syncBtn').addEventListener('click', () => syncEntries($('#syncBtn')));
+    $('#doorCheck') && $('#doorCheck').addEventListener('click', checkDoors);
+  });
+  const today = new Date().toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+  return header('לוח בקרה', `${esc(today)}${j.lastSync ? ` · יומן עודכן ${fmtDT(j.lastSync)}` : ''}`,
+    `<button class="btn" id="syncBtn">עדכון מהפנל</button><a class="btn primary" href="#members" style="display:inline-flex;align-items:center" onclick="setTimeout(newMemberFlow,50)">מנוי חדש</a>`)
+    + `<section aria-label="סיכום" class="grid-tiles">
+      ${tile('כניסות היום', j.entriesToday, j.peakHour ? `שעת שיא: ${j.peakHour}` : 'אין נתונים עדיין')}
+      ${tile('מנויים פעילים', c.activeAll, `${c.joinedWeek} הצטרפו השבוע`)}
+      ${tile('פגי תוקף השבוע', c.expiring, c.expiring ? '<span style="color:#7A4D00">דורש טיפול</span>' : 'הכל תקין')}
+      ${tile('נדחו בכניסה היום', j.deniedToday, 'לפי מה שהפנל מדווח')}
+    </section>
+    <div class="row">
+      <section class="card" style="flex:2 1 520px;min-width:0"><div class="sec-head"><h2>כניסות אחרונות</h2><a href="#log" style="font-size:14px;text-decoration:underline">ליומן המלא</a></div>${recent}</section>
+      <div style="flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:20px">
+        <section class="card"><h2 style="margin-bottom:8px">פגי תוקף השבוע</h2>${exp}${c.expiring > j.expiring.length ? `<a href="#members" style="font-size:14px;text-decoration:underline">כל ${c.expiring} המנויים</a>` : ''}</section>
+        <section class="card"><div class="sec-head"><h2>דלתות</h2><button class="btn" id="doorCheck">בדיקת חיבור</button></div>${doors}</section>
+      </div>
+    </div>`;
+}
+async function checkDoors() {
+  const b = $('#doorCheck'); b.disabled = true; b.textContent = 'בודק…';
+  try {
+    const j = await api('/api/gym/doors/status');
+    j.doors.forEach(d => { const el = document.querySelector(`[data-door="${d.mac}"]`); if (el) { el.textContent = d.online ? 'הפנל מחובר' : 'הפנל לא מחובר'; el.style.color = d.online ? '#0B5C3B' : '#8F0A1A'; el.style.fontWeight = 600; } });
+  } catch (e) { toast(e.message); }
+  b.disabled = false; b.textContent = 'בדיקת חיבור';
+}
+async function syncEntries(btn) {
+  btn.disabled = true; const t = btn.textContent; btn.textContent = 'מעדכן…';
+  try {
+    const j = await api('/api/gym/entries/sync', { method: 'POST' });
+    const added = j.panels.reduce((a, p) => a + (p.added || 0), 0);
+    const bad = j.panels.filter(p => p.error);
+    toast(bad.length ? `נוספו ${added} כניסות. ${bad.map(p => `${p.label}: ${p.error}`).join(' · ')}` : `נוספו ${added} כניסות חדשות`);
+    route();
+  } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = t; }
+}
+
+// ---------- MEMBERS ----------
+const memState = { status: 'all', q: '', page: 1 };
+let PLANS_CACHE = null;
+async function getPlans(force) { if (!PLANS_CACHE || force) PLANS_CACHE = (await api('/api/gym/plans')).plans; return PLANS_CACHE; }
+async function viewMembers() {
+  const qs = new URLSearchParams({ status: memState.status, q: memState.q, page: memState.page });
+  const j = await api('/api/gym/members?' + qs);
+  const c = j.counts;
+  const chips = [['all', 'הכל', c.all], ['active', 'פעילים', c.active + c.expiring], ['expiring', 'פגים השבוע', c.expiring], ['frozen', 'מוקפאים', c.frozen], ['expired', 'לא בתוקף', c.expired]]
+    .map(([k, l, n]) => `<button class="chip" data-st="${k}" aria-pressed="${memState.status === k}">${l} (${n})</button>`).join('');
+  const rows = j.members.map(m => `<tr class="click" data-id="${m.id}"><td class="name"><a href="#member/${m.id}">${esc(m.firstName)} ${esc(m.lastName)}</a></td><td style="white-space:nowrap">${telLink(m.phone)}</td><td>${esc(m.planName)}</td><td>${fmtDate(m.endDate)}${m.entriesLeft !== null ? ` <span class="small">(${m.entriesLeft} כניסות)</span>` : ''}</td><td>${m.lastEntry ? fmtDT(m.lastEntry) : '-'}</td><td>${creds(m)}</td><td>${statusBadge(m)}</td></tr>`).join('');
+  const pages = Math.max(1, Math.ceil(j.total / j.pageSize));
+  after(() => {
+    document.querySelectorAll('[data-st]').forEach(b => b.addEventListener('click', () => { memState.status = b.dataset.st; memState.page = 1; route(); }));
+    const s = $('#memSearch'); let tm; s.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(() => { memState.q = s.value; memState.page = 1; route().then(() => { const n = $('#memSearch'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }); }, 350); });
+    document.querySelectorAll('tr.click').forEach(tr => tr.addEventListener('click', (e) => { if (!e.target.closest('a')) location.hash = '#member/' + tr.dataset.id; }));
+    $('#newMem').addEventListener('click', newMemberFlow);
+    $('#prevP') && $('#prevP').addEventListener('click', () => { memState.page--; route(); });
+    $('#nextP') && $('#nextP').addEventListener('click', () => { memState.page++; route(); });
+  });
+  return header('מנויים', `${c.all} מנויים`,
+    `<label class="f">חיפוש מנוי<input class="in" id="memSearch" type="search" placeholder="שם או טלפון" value="${esc(memState.q)}" style="width:260px;max-width:100%"></label><button class="btn primary" id="newMem">מנוי חדש</button>`)
+    + `<div class="chips" role="group" aria-label="סינון לפי סטטוס">${chips}</div>
+    <section class="card">${j.members.length ? `<div class="tw"><table style="min-width:860px"><thead><tr><th>שם</th><th>טלפון</th><th>מסלול</th><th>בתוקף עד</th><th>כניסה אחרונה</th><th>אמצעי כניסה</th><th>סטטוס</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      : `<div class="empty">${c.all ? 'אין מנויים שמתאימים לסינון.' : 'עדיין אין מנויים. צרו מסלול ואז הוסיפו מנוי ראשון.'}</div>`}
+    ${j.total > j.pageSize ? `<div class="pager"><span>עמוד ${j.page} מתוך ${pages}</span><span style="display:flex;gap:8px"><button class="btn" id="prevP" ${j.page <= 1 ? 'disabled' : ''}>הקודם</button><button class="btn" id="nextP" ${j.page >= pages ? 'disabled' : ''}>הבא</button></span></div>` : ''}</section>`;
+}
+async function newMemberFlow() {
+  const plans = await getPlans(true);
+  if (!plans.length) { toast('צרו קודם מסלול במסך מסלולים'); location.hash = '#plans'; return; }
+  openModal(`<h2>מנוי חדש</h2>
+    <div class="two"><label class="f">שם פרטי<input class="in" id="nmF" required></label><label class="f">שם משפחה<input class="in" id="nmL"></label></div>
+    <label class="f">טלפון<input class="in" id="nmP" type="tel" inputmode="tel" placeholder="05X-XXXXXXX"></label>
+    <div class="two"><label class="f">מסלול<select class="in" id="nmPlan">${plans.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label class="f">תאריך התחלה<input class="in" id="nmS" type="date" value="${todayISO()}"></label></div>
+    <p class="small" style="margin:0">תאריך הסיום מחושב לפי משך המסלול. תמונת פנים מוסיפים בכרטיס המנוי.</p>
+    <div class="err" id="nmErr" role="alert"></div>
+    <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="nmSave">שמירה</button></div>`,
+  (bg, close) => {
+    $('#nmSave', bg).addEventListener('click', async () => {
+      const b = $('#nmSave', bg); b.disabled = true;
+      try {
+        const j = await api('/api/gym/members', { method: 'POST', body: { firstName: $('#nmF', bg).value, lastName: $('#nmL', bg).value, phone: $('#nmP', bg).value, planId: $('#nmPlan', bg).value, startDate: $('#nmS', bg).value } });
+        close(); toast('המנוי נוסף'); location.hash = '#member/' + j.id;
+      } catch (e) { $('#nmErr', bg).textContent = e.message; b.disabled = false; }
+    });
+  });
+}
+
+// ---------- MEMBER CARD ----------
+const ACTION = { member_create: 'נוצר', member_update: 'עודכן', member_renew: 'חודש', member_freeze: 'הוקפא', member_unfreeze: 'הופשר', member_photo: 'הועלתה תמונה', push_face: 'נשלח לפנל', member_delete: 'נמחק' };
+async function viewMember(id) {
+  const j = await api('/api/gym/members/' + encodeURIComponent(id));
+  const m = j.member, p = j.plan;
+  const kv = (k, v) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`;
+  const hours = p ? `${p.start}-${p.end}` : '-';
+  const days = p ? (p.days.length === 7 ? 'א-ש' : p.days.map(d => DAYS[d]).join(', ')) : '-';
+  let notice = '';
+  if (m.status === 'expired') notice = `<div class="note" role="status" style="background:#FDE8EA;color:#8F0A1A;border-color:#F0B8BF">המנוי לא בתוקף מאז ${fmtDate(m.endDate)}.</div>`;
+  else if (m.status === 'expiring') notice = `<div class="note" role="status">המנוי פג ב-${fmtDate(m.endDate)}. אחרי תאריך זה הדלת לא תיפתח ל${esc(m.firstName)}.</div>`;
+  else if (m.status === 'frozen') notice = `<div class="note info" role="status">המנוי מוקפא${m.frozenUntil ? ` עד ${fmtDate(m.frozenUntil)}` : ''}. ימי ההקפאה יתווספו לתאריך הסיום בהפשרה.</div>`;
+  if (m.panelSync === 'needs_update') notice += `<div class="note info" role="status">השינוי נשמר במערכת. עדכון הפנל עצמו (הקפאה, חידוש, שעות) יופעל אחרי בדיקת הפנל.</div>`;
+  const faceState = m.faceOnPanel ? (m.panelSync === 'needs_update' ? 'בפנל · ממתין לעדכון' : 'פעיל בפנל') : (m.photoUrl ? 'יש תמונה · לא נשלחה לפנל' : 'אין תמונה');
+  const faceBtn = m.photoUrl && !m.faceOnPanel ? `<button class="btn dark" id="pushFace">שליחה לפנל</button>` : `<button class="btn" id="photoBtn">${m.photoUrl ? 'החלפת תמונה' : 'העלאת תמונה'}</button>`;
+  const hist = j.entries.length ? `<div class="tw"><table style="min-width:460px"><thead><tr><th>מועד</th><th>דלת</th><th>אמצעי</th><th>תוצאה</th></tr></thead><tbody>${j.entries.map(e => `<tr><td>${fmtDT(e.time)}</td><td>${esc(e.door)}</td><td>${esc(METHOD[e.method] || e.method)}</td><td>${resultBadge(e.result)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">אין כניסות רשומות.</div>';
+  const acts = j.actions.length ? j.actions.map(a => `<div class="small">${fmtDT(a.at)} · ${esc(ACTION[a.action] || a.action)} · ${esc(a.by || '')}</div>`).join('') : '<div class="small">אין פעולות.</div>';
+  after(() => {
+    $('#renewBtn').addEventListener('click', () => renewFlow(m.id));
+    $('#freezeBtn').addEventListener('click', () => m.frozen ? unfreeze(m.id) : freezeFlow(m.id));
+    $('#editBtn').addEventListener('click', () => editFlow(m));
+    $('#delBtn').addEventListener('click', () => deleteFlow(m));
+    $('#photoBtn') && $('#photoBtn').addEventListener('click', () => photoFlow(m));
+    $('#pushFace') && $('#pushFace').addEventListener('click', () => pushFaceFlow(m));
+    $('#saveNote').addEventListener('click', async () => { try { await api('/api/gym/members/' + m.id, { method: 'PUT', body: { notes: $('#noteTxt').value } }); toast('ההערה נשמרה'); } catch (e) { toast(e.message); } });
+  });
+  return header(`${m.firstName} ${m.lastName}`, `${esc(m.planName)} · ${statusBadge(m)}`,
+    `<button class="btn" id="editBtn">עריכה</button><button class="btn" id="freezeBtn">${m.frozen ? 'הפשרה' : 'הקפאה'}</button><button class="btn primary" id="renewBtn">חידוש מנוי</button>`)
+    + notice
+    + `<div class="row">
+      <div style="flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:20px">
+        <section class="card" style="display:flex;gap:18px;align-items:center">
+          <div class="photo">${m.photoUrl ? `<img src="${esc(m.photoUrl)}" alt="תמונת הפנים של ${esc(m.firstName)}">` : '[תמונת פנים]'}</div>
+          <div class="kv" style="flex:1">${kv('טלפון', telLink(m.phone))}${kv('מסלול', esc(m.planName || '-'))}${kv('התחלה', fmtDate(m.startDate))}${kv('בתוקף עד', fmtDate(m.endDate))}${kv('שעות מותרות', hours)}${kv('ימים', days)}${m.entriesLeft !== null ? kv('כניסות שנותרו', m.entriesLeft) : ''}</div>
+        </section>
+        <section class="card"><h2>אמצעי כניסה</h2>
+          <div class="list-row"><div><div class="name">זיהוי פנים</div><div class="small" style="${m.faceOnPanel ? 'color:#0B5C3B;font-weight:600' : ''}">${faceState}</div></div>${faceBtn}</div>
+          <div class="list-row"><div><div class="name">כרטיס</div><div class="small">${m.card ? esc(m.card) + ' · נשמר במערכת' : 'לא הוגדר'}</div></div><button class="btn" onclick="document.getElementById('editBtn').click()">עריכה</button></div>
+          <div class="list-row"><div><div class="name">קוד אישי</div><div class="small">${m.pin ? 'נשמר במערכת' : 'לא הוגדר'}</div></div><button class="btn" onclick="document.getElementById('editBtn').click()">עריכה</button></div>
+          <p class="small" style="margin:12px 0 0">כרטיס וקוד נשמרים במערכת. שליחתם לפנל תתווסף בשלב הבא.</p>
+        </section>
+        <section class="card"><h2 style="margin-bottom:8px">הערות</h2><label class="f">הערה לצוות<textarea class="in" id="noteTxt" rows="3">${esc(m.notes)}</textarea></label><div style="margin-top:8px;text-align:left"><button class="btn" id="saveNote">שמירת הערה</button></div></section>
+      </div>
+      <section class="card" style="flex:1.4 1 420px;min-width:0">
+        <div class="sec-head"><h2>היסטוריית כניסות</h2><span class="small">${j.entries30} כניסות ב-30 יום</span></div>${hist}
+        <h2 style="margin:20px 0 6px;font-size:16px">פעולות צוות</h2>${acts}
+        <div style="display:flex;justify-content:space-between;gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line2)"><span class="small" style="align-self:center">מחיקה מסירה את המנוי מהמערכת ואת הפנים מכל הפנלים</span><button class="btn danger" id="delBtn">מחיקת מנוי</button></div>
+      </section>
+    </div>`;
+}
+async function renewFlow(id) {
+  const plans = await getPlans(true);
+  openModal(`<h2>חידוש מנוי</h2><label class="f">מסלול<select class="in" id="rnPlan">${plans.map(p => `<option value="${p.id}">${esc(p.name)} · ${p.durationType === 'entries' ? p.durationValue + ' כניסות' : p.durationValue + ' יום'}</option>`).join('')}</select></label>
+    <p class="small" style="margin:0">החידוש מתחיל מיום אחרי סיום המנוי הנוכחי, או מהיום אם הוא כבר פג.</p><div class="err" id="rnErr" role="alert"></div>
+    <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="rnOk">חידוש</button></div>`,
+  async (bg, close) => {
+    try { const j = await api('/api/gym/members/' + id); $('#rnPlan', bg).value = j.member.planId; } catch (e) {}
+    $('#rnOk', bg).addEventListener('click', async () => {
+      try { const r = await api(`/api/gym/members/${id}/renew`, { method: 'POST', body: { planId: $('#rnPlan', bg).value } }); close(); toast(`חודש עד ${fmtDate(r.endDate)}`); route(); }
+      catch (e) { $('#rnErr', bg).textContent = e.message; }
+    });
+  });
+}
+function freezeFlow(id) {
+  openModal(`<h2>הקפאת מנוי</h2><label class="f">מוקפא עד (לא חובה)<input class="in" type="date" id="fzUntil" min="${todayISO()}"></label>
+    <p class="small" style="margin:0">בזמן ההקפאה הדלת לא נפתחת למנוי. ימי ההקפאה מתווספים לתאריך הסיום בהפשרה.</p><div class="err" id="fzErr" role="alert"></div>
+    <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="fzOk">הקפאה</button></div>`,
+  (bg, close) => $('#fzOk', bg).addEventListener('click', async () => {
+    try { await api(`/api/gym/members/${id}/freeze`, { method: 'POST', body: { until: $('#fzUntil', bg).value || null } }); close(); toast('המנוי הוקפא'); route(); }
+    catch (e) { $('#fzErr', bg).textContent = e.message; }
+  }));
+}
+async function unfreeze(id) {
+  if (!await confirmBox('להפשיר את המנוי?', 'הפשרה')) return;
+  try { const r = await api(`/api/gym/members/${id}/unfreeze`, { method: 'POST' }); toast(`הופשר. בתוקף עד ${fmtDate(r.endDate)}`); route(); } catch (e) { toast(e.message); }
+}
+async function editFlow(m) {
+  const plans = await getPlans(true);
+  openModal(`<h2>עריכת מנוי</h2>
+    <div class="two"><label class="f">שם פרטי<input class="in" id="edF" value="${esc(m.firstName)}"></label><label class="f">שם משפחה<input class="in" id="edL" value="${esc(m.lastName)}"></label></div>
+    <label class="f">טלפון<input class="in" id="edP" type="tel" value="${esc(m.phone)}"></label>
+    <div class="two"><label class="f">מסלול<select class="in" id="edPlan">${plans.map(p => `<option value="${p.id}" ${p.id === m.planId ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label><label class="f">בתוקף עד<input class="in" type="date" id="edE" value="${esc(m.endDate || '')}"></label></div>
+    <div class="two"><label class="f">מספר כרטיס<input class="in" id="edC" value="${esc(m.card)}" dir="ltr" placeholder="A6B4E94E"></label><label class="f">קוד אישי<input class="in" id="edPin" value="${esc(m.pin)}" inputmode="numeric" dir="ltr"></label></div>
+    <div class="err" id="edErr" role="alert"></div>
+    <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="edOk">שמירה</button></div>`,
+  (bg, close) => $('#edOk', bg).addEventListener('click', async () => {
+    try {
+      await api('/api/gym/members/' + m.id, { method: 'PUT', body: { firstName: $('#edF', bg).value, lastName: $('#edL', bg).value, phone: $('#edP', bg).value, planId: $('#edPlan', bg).value, endDate: $('#edE', bg).value, card: $('#edC', bg).value, pin: $('#edPin', bg).value } });
+      close(); toast('נשמר'); route();
+    } catch (e) { $('#edErr', bg).textContent = e.message; }
+  }));
+}
+function photoFlow(m) {
+  openModal(`<h2>תמונת פנים</h2><p class="small" style="margin:0">תמונה ברורה של הפנים, מבט ישר למצלמה, תאורה טובה.</p>
+    <label class="f">בחירת תמונה<input class="in" type="file" id="phFile" accept="image/*" style="padding-top:8px"></label>
+    <label class="check" style="align-self:flex-start"><input type="checkbox" id="phConsent" ${m.consent ? 'checked' : ''}>המנוי הסכים לשמירת תמונת הפנים לצורך כניסה</label>
+    <div class="err" id="phErr" role="alert"></div>
+    <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="phOk">העלאה</button></div>`,
+  (bg, close) => $('#phOk', bg).addEventListener('click', async () => {
+    const f = $('#phFile', bg).files[0];
+    if (!f) return ($('#phErr', bg).textContent = 'יש לבחור תמונה');
+    if (!$('#phConsent', bg).checked) return ($('#phErr', bg).textContent = 'נדרשת הסכמת המנוי');
+    const fd = new FormData(); fd.append('photo', f); fd.append('consent', 'true');
+    const b = $('#phOk', bg); b.disabled = true; b.textContent = 'מעלה…';
+    try { await api(`/api/gym/members/${m.id}/photo`, { method: 'POST', body: fd }); close(); toast('התמונה נשמרה'); route(); }
+    catch (e) { $('#phErr', bg).textContent = e.message; b.disabled = false; b.textContent = 'העלאה'; }
+  }));
+}
+async function pushFaceFlow(m) {
+  if (!await confirmBox(`לשלוח את הפנים של ${m.firstName} לפנל?`, 'שליחה')) return;
+  const b = $('#pushFace'); if (b) { b.disabled = true; b.textContent = 'שולח…'; }
+  try {
+    const j = await api(`/api/gym/members/${m.id}/push-face`, { method: 'POST' });
+    const bad = j.results.filter(r => !r.ok);
+    toast(bad.length ? `נשלח חלקית: ${bad.map(r => r.error).join(' · ')}` : 'הפנים נשלחו לפנל');
+  } catch (e) { toast(e.data && e.data.results ? e.data.results.map(r => r.error).filter(Boolean).join(' · ') || e.message : e.message); }
+  route();
+}
+async function deleteFlow(m) {
+  if (!await confirmBox(`למחוק את ${m.firstName} ${m.lastName}?`, 'מחיקה', true)) return;
+  try { await api('/api/gym/members/' + m.id, { method: 'DELETE' }); toast('המנוי נמחק'); location.hash = '#members'; }
+  catch (e) {
+    if (e.status === 409 && e.data && e.data.results) {
+      const why = e.data.results.filter(r => !r.ok).map(r => r.error).join(' · ');
+      if (await confirmBox(`לא הצלחנו להסיר את הפנים מהפנל (${why}). למחוק בכל זאת מהמערכת?`, 'מחיקה בכל זאת', true)) {
+        try { await api('/api/gym/members/' + m.id + '?force=1', { method: 'DELETE' }); toast('נמחק מהמערכת. יש להסיר את הפנים מהפנל ידנית'); location.hash = '#members'; } catch (e2) { toast(e2.message); }
+      }
+    } else toast(e.message);
+  }
+}
+
+// ---------- PLANS ----------
+async function viewPlans() {
+  const plans = await getPlans(true);
+  const doorName = (mac) => ((GYM && GYM.panels) || []).find(p => p.mac === mac)?.label || mac;
+  const rows = plans.map(p => `<tr><td class="name">${esc(p.name)}</td><td>${p.days.length === 7 ? 'א-ש' : p.days.map(d => DAYS[d]).join(',')}</td><td>${p.start}-${p.end}</td><td>${p.durationType === 'entries' ? p.durationValue + ' כניסות' : p.durationValue + ' יום'}</td><td>${p.doors.length ? p.doors.map(d => esc(doorName(d))).join(', ') : 'כל הדלתות'}</td><td>${p.members}</td><td><button class="btn" data-edit="${p.id}">עריכה</button></td></tr>`).join('');
+  after(() => {
+    document.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => fillPlanForm(plans.find(p => p.id === b.dataset.edit))));
+    fillPlanForm(null);
+  });
+  return header('מסלולים', `${plans.length} מסלולים`)
+    + `<div class="row"><section class="card" style="flex:2 1 560px;min-width:0">${plans.length ? `<div class="tw"><table style="min-width:640px"><thead><tr><th>מסלול</th><th>ימים</th><th>שעות</th><th>משך</th><th>דלתות</th><th>מנויים</th><th><span class="hidden">פעולה</span></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="empty">עדיין אין מסלולים. צרו את הראשון בטופס.</div>'}</section>
+    <section class="card" style="flex:1 1 340px;min-width:0;display:flex;flex-direction:column;gap:14px" id="planForm"></section></div>`;
+}
+function fillPlanForm(p) {
+  const f = $('#planForm'); if (!f) return;
+  const v = p || { name: '', days: [0, 1, 2, 3, 4, 5, 6], start: '06:00', end: '23:00', durationType: 'days', durationValue: 30, doors: [], price: '' };
+  const doors = (GYM && GYM.panels) || [];
+  f.innerHTML = `<h2>${p ? 'עריכת מסלול' : 'מסלול חדש'}</h2>
+    <label class="f">שם המסלול<input class="in" id="plName" value="${esc(v.name)}" placeholder="למשל: בוקר בלבד"></label>
+    <fieldset style="border:none;margin:0;padding:0"><legend class="small" style="padding:0;margin-bottom:4px">ימים מותרים</legend><div style="display:flex;flex-wrap:wrap;gap:6px">${DAYS.map((d, i) => `<label class="check"><input type="checkbox" class="plDay" value="${i}" ${v.days.includes(i) ? 'checked' : ''}>${d}</label>`).join('')}</div></fieldset>
+    <div class="two"><label class="f">משעה<input class="in" type="time" id="plStart" value="${v.start}"></label><label class="f">עד שעה<input class="in" type="time" id="plEnd" value="${v.end}"></label></div>
+    <div class="two"><label class="f">סוג משך<select class="in" id="plType"><option value="days" ${v.durationType === 'days' ? 'selected' : ''}>ימים</option><option value="entries" ${v.durationType === 'entries' ? 'selected' : ''}>מספר כניסות</option></select></label><label class="f">כמות<input class="in" type="number" min="1" id="plVal" value="${v.durationValue}"></label></div>
+    <label class="f">מחיר (לתיעוד)<input class="in" id="plPrice" value="${esc(v.price || '')}"></label>
+    ${doors.length > 1 ? `<fieldset style="border:none;margin:0;padding:0"><legend class="small" style="padding:0;margin-bottom:4px">דלתות שהמסלול פותח (ריק = כולן)</legend><div style="display:flex;flex-wrap:wrap;gap:6px">${doors.map(d => `<label class="check"><input type="checkbox" class="plDoor" value="${esc(d.mac)}" ${v.doors.includes(d.mac) ? 'checked' : ''}>${esc(d.label)}</label>`).join('')}</div></fieldset>` : ''}
+    <p class="small" style="margin:0">השעות והימים נכתבים לאמצעי הכניסה בפנל. למשל, מנוי "בוקר בלבד" שמגיע ב-18:00 לא ייכנס.</p>
+    <div class="err" id="plErr" role="alert"></div>
+    <div style="display:flex;gap:8px;justify-content:space-between">${p ? `<button class="btn danger" id="plDel">מחיקה</button>` : '<span></span>'}<span style="display:flex;gap:8px">${p ? '<button class="btn" id="plCancel">ביטול</button>' : ''}<button class="btn primary" id="plSave">שמירת מסלול</button></span></div>`;
+  $('#plSave').addEventListener('click', async () => {
+    const body = { name: $('#plName').value, days: [...document.querySelectorAll('.plDay:checked')].map(x => +x.value), start: $('#plStart').value, end: $('#plEnd').value, durationType: $('#plType').value, durationValue: $('#plVal').value, price: $('#plPrice').value, doors: [...document.querySelectorAll('.plDoor:checked')].map(x => x.value) };
+    try { await api('/api/gym/plans' + (p ? '/' + p.id : ''), { method: p ? 'PUT' : 'POST', body }); toast('המסלול נשמר'); route(); }
+    catch (e) { $('#plErr').textContent = e.message; }
+  });
+  $('#plCancel') && $('#plCancel').addEventListener('click', () => fillPlanForm(null));
+  $('#plDel') && $('#plDel').addEventListener('click', async () => {
+    if (!await confirmBox(`למחוק את המסלול "${p.name}"?`, 'מחיקה', true)) return;
+    try { await api('/api/gym/plans/' + p.id, { method: 'DELETE' }); toast('נמחק'); route(); } catch (e) { $('#plErr').textContent = e.message; }
+  });
+}
+
+// ---------- ENTRY LOG ----------
+const logState = { from: '', to: '', result: 'all', method: 'all', door: 'all', q: '', page: 1 };
+async function viewLog() {
+  if (!logState.from) { logState.from = todayISO(); logState.to = todayISO(); }
+  const j = await api('/api/gym/entries?' + new URLSearchParams(logState));
+  const doors = (GYM && GYM.panels) || [];
+  const sel = (id, cur, opts) => `<select class="in" id="${id}">${opts.map(([v, l]) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+  const tot = (k, v) => `<div class="card" style="padding:14px 18px"><div class="small">${k}</div><div style="font-size:26px;font-weight:700;line-height:1.25">${v}</div></div>`;
+  const rows = j.entries.map(e => `<tr><td>${fmtDT(e.time)}</td><td class="name">${e.memberId ? `<a href="#member/${e.memberId}">${esc(e.name)}</a>` : esc(e.name || 'לא מזוהה')}</td><td>${esc(e.planName || '-')}</td><td>${esc(e.door)}</td><td>${esc(METHOD[e.method] || e.method)}</td><td>${resultBadge(e.result)}</td></tr>`).join('');
+  const pages = Math.max(1, Math.ceil(j.total / j.pageSize));
+  after(() => {
+    const upd = () => { Object.assign(logState, { from: $('#lgFrom').value, to: $('#lgTo').value, result: $('#lgRes').value, method: $('#lgMet').value, door: $('#lgDoor').value, page: 1 }); route(); };
+    ['#lgFrom', '#lgTo', '#lgRes', '#lgMet', '#lgDoor'].forEach(s => $(s).addEventListener('change', upd));
+    let tm; $('#lgQ').addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(() => { logState.q = $('#lgQ').value; logState.page = 1; route(); }, 400); });
+    $('#lgSync').addEventListener('click', () => syncEntries($('#lgSync')));
+    $('#lgExport').addEventListener('click', exportLog);
+    $('#lgPrev') && $('#lgPrev').addEventListener('click', () => { logState.page--; route(); });
+    $('#lgNext') && $('#lgNext').addEventListener('click', () => { logState.page++; route(); });
+  });
+  return header('יומן כניסות', `כל פתיחה שהפנל רשם, לפי מנוי${j.lastSync ? ` · עודכן ${fmtDT(j.lastSync)}` : ''}`, `<button class="btn primary" id="lgSync">עדכון מהפנל</button>`)
+    + `<section aria-label="סינון" class="card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+      <label class="f">מתאריך<input class="in" type="date" id="lgFrom" value="${logState.from}"></label>
+      <label class="f">עד תאריך<input class="in" type="date" id="lgTo" value="${logState.to}"></label>
+      <label class="f">תוצאה${sel('lgRes', logState.result, [['all', 'הכל'], ['granted', 'נכנס'], ['denied', 'נדחה']])}</label>
+      <label class="f">אמצעי${sel('lgMet', logState.method, [['all', 'הכל'], ['face', 'פנים'], ['card', 'כרטיס'], ['pin', 'קוד'], ['remote', 'מרחוק']])}</label>
+      <label class="f">דלת${sel('lgDoor', logState.door, [['all', 'כל הדלתות'], ...doors.map(d => [d.mac, esc(d.label)])])}</label>
+      <label class="f" style="flex:1 1 200px">מנוי<input class="in" type="search" id="lgQ" placeholder="שם" value="${esc(logState.q)}"></label>
+      <button class="btn" id="lgExport">ייצוא לאקסל</button></section>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">${tot('רשומות', j.totals.attempts)}${tot('נכנסו', j.totals.granted)}${tot('נדחו', j.totals.denied)}${tot('שעת שיא', j.totals.peakHour || '-')}</div>
+    <section class="card">${j.entries.length ? `<div class="tw"><table style="min-width:760px"><thead><tr><th>מועד</th><th>מנוי</th><th>מסלול</th><th>דלת</th><th>אמצעי</th><th>תוצאה</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="empty">אין כניסות בטווח הזה. לחצו "עדכון מהפנל" כדי למשוך רשומות חדשות.</div>'}
+    ${j.total > j.pageSize ? `<div class="pager"><span>עמוד ${j.page} מתוך ${pages}</span><span style="display:flex;gap:8px"><button class="btn" id="lgPrev" ${j.page <= 1 ? 'disabled' : ''}>הקודם</button><button class="btn" id="lgNext" ${j.page >= pages ? 'disabled' : ''}>הבא</button></span></div>` : ''}</section>`;
+}
+async function exportLog() {
+  try {
+    const r = await fetch('/api/gym/entries/export?' + new URLSearchParams({ from: logState.from, to: logState.to }), { headers: { 'x-gym-token': TOKEN } });
+    if (!r.ok) throw new Error('הייצוא נכשל');
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement('a'); a.href = url; a.download = `entries-${logState.from}-${logState.to}.csv`; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch (e) { toast(e.message); }
+}
+
+// ---------- STATS (placeholder) ----------
+async function viewStats() {
+  return header('סטטיסטיקה', '') + '<section class="card"><div class="empty">המסך הזה ייבנה בהמשך: שעות עומס, תפוסה, כניסות לפי מנוי.</div></section>';
+}
+
+// ---------- SETTINGS ----------
+async function viewSettings() {
+  const j = await api('/api/gym/actions');
+  const doors = (GYM && GYM.panels) || [];
+  after(() => $('#stDoorCheck').addEventListener('click', async () => {
+    const b = $('#stDoorCheck'); b.disabled = true; b.textContent = 'בודק…';
+    try { const r = await api('/api/gym/doors/status'); r.doors.forEach(d => { const el = document.querySelector(`[data-door="${d.mac}"]`); if (el) { el.textContent = d.online ? 'הפנל מחובר' : 'הפנל לא מחובר'; el.style.color = d.online ? '#0B5C3B' : '#8F0A1A'; } }); } catch (e) { toast(e.message); }
+    b.disabled = false; b.textContent = 'בדיקת חיבור';
+  }));
+  return header('הגדרות', esc(GYM ? GYM.name : ''))
+    + `<div class="row"><section class="card" style="flex:1 1 320px"><div class="sec-head"><h2>דלתות</h2><button class="btn" id="stDoorCheck">בדיקת חיבור</button></div>
+      ${doors.map(d => `<div class="list-row"><div><div class="name">${esc(d.label)}</div><div class="small" dir="ltr" style="text-align:right">${esc(d.mac)}</div></div><div class="small" data-door="${esc(d.mac)}">לא נבדק</div></div>`).join('') || '<div class="small">לא הוגדרו דלתות.</div>'}
+      <p class="small" style="margin:12px 0 0">הוספת דלת או שינוי סיסמה נעשים דרך תדור.</p></section>
+      <section class="card" style="flex:2 1 420px;min-width:0"><h2 style="margin-bottom:8px">פעולות צוות אחרונות</h2>
+      ${j.actions.length ? `<div class="tw"><table><thead><tr><th>מועד</th><th>פעולה</th><th>מי</th></tr></thead><tbody>${j.actions.slice(0, 30).map(a => `<tr><td>${fmtDT(a.at)}</td><td>${a.memberId ? `<a href="#member/${a.memberId}">${esc(ACTION[a.action] || a.action)}</a>` : esc(a.action)}</td><td>${esc(a.by || '')}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">אין פעולות.</div>'}</section></div>`;
+}
+
+// ---------- boot ----------
+(async () => {
+  if (!TOKEN) return showLogin();
+  try { GYM = (await api('/api/gym/me')).gym; startApp(); } catch (e) { showLogin(); }
+})();
+</script>
+</body>
+</html>

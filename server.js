@@ -3608,6 +3608,12 @@ const anyFileUpload = multer({
   limits: { fileSize: 25 * 1024 * 1024 }, // 25MB max
 });
 
+// Genesis Gym portal (public/gym.html) — isolated module, own collections + /api/gym/* routes.
+require('./gym')(app, {
+  db, resolvePanelAddress, panelHttpPost, panelHttpGetWithHeaders, getAllPanelFaces,
+  deleteFaceFromPanel, exec, axios, upload, cloudinary, loginLimiter, logActivity,
+});
+
 // Upload image (installer)
 app.post('/api/installer/portfolio/upload', upload.single('image'), async (req, res) => {
   try {
