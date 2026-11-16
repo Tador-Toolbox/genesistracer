@@ -829,7 +829,7 @@ module.exports = function registerGym(app, deps) {
     const gyms = await d.collection('gyms').find({}).sort({ createdAt: -1 }).toArray();
     const counts = await d.collection('gym_members').aggregate([{ $group: { _id: '$gymId', n: { $sum: 1 } } }]).toArray();
     const cm = Object.fromEntries(counts.map(c => [String(c._id), c.n]));
-    res.json({ success: true, gyms: gyms.map(g => ({ id: String(g._id), name: g.name, loginPhone: g.loginPhone, plainPassword: g.plainPassword, panels: g.panels || [], disabled: !!g.disabled, members: cm[String(g._id)] || 0, createdAt: g.createdAt, lastLogin: g.lastLogin || null })) });
+    res.json({ success: true, gyms: gyms.map(g => ({ id: String(g._id), name: g.name, address: g.address || '', loginPhone: g.loginPhone, plainPassword: g.plainPassword, panels: g.panels || [], disabled: !!g.disabled, members: cm[String(g._id)] || 0, createdAt: g.createdAt, lastLogin: g.lastLogin || null })) });
   });
 
   app.post('/api/manager/gyms/create', async (req, res) => {
@@ -848,6 +848,7 @@ module.exports = function registerGym(app, deps) {
       const plain = genPassword();
       const r = await d.collection('gyms').insertOne({
         name, loginPhone, password: bcrypt.hashSync(plain, 10), plainPassword: plain,
+        address: String(req.body.address || '').trim().slice(0, 120),
         panels, disabled: false, createdAt: new Date(), createdBy: req.body.username,
       });
       logActivity({ phoneNumber: req.body.username, action: 'gym_create', mac: panels[0]?.mac || null, details: { name, loginPhone }, success: true });

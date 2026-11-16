@@ -3614,6 +3614,18 @@ require('./gym')(app, {
   deleteFaceFromPanel, exec, axios, upload, cloudinary, loginLimiter, logActivity,
 });
 
+// Open a NexHome project + add a panel, online (ported from ResidentEnroll). Uses account[0] (ort_tadorcom).
+require('./nexhome-provision')(app, {
+  axios, searchMac, logActivity,
+  getProvisionAccount: async () => {
+    const a = NEXHOME_ACCOUNTS[0];
+    if (!a.token || Date.now() >= a.expiresAt) {
+      if (!(await loginAccount(a))) throw new Error('NexHome login failed (' + a.username + ')');
+    }
+    return a;
+  },
+});
+
 // Upload image (installer)
 app.post('/api/installer/portfolio/upload', upload.single('image'), async (req, res) => {
   try {

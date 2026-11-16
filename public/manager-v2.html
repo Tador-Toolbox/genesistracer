@@ -1124,9 +1124,11 @@
           <h3 style="margin:0 0 10px;font-size:15px;">➕ חשבון חדר כושר חדש</h3>
           <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
             <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">שם חדר הכושר<input id="gymNewName" style="padding:8px 10px;border:1px solid var(--border,#d0d5dd);border-radius:6px;font-family:inherit;min-width:200px;"></label>
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">כתובת<input id="gymNewAddr" style="padding:8px 10px;border:1px solid var(--border,#d0d5dd);border-radius:6px;font-family:inherit;min-width:180px;"></label>
             <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">טלפון לכניסה<input id="gymNewPhone" type="tel" style="padding:8px 10px;border:1px solid var(--border,#d0d5dd);border-radius:6px;font-family:inherit;min-width:150px;"></label>
             <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">MAC של הדלת<input id="gymNewMac" dir="ltr" placeholder="2875D8C16B0E" style="padding:8px 10px;border:1px solid var(--border,#d0d5dd);border-radius:6px;font-family:inherit;min-width:150px;"></label>
             <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">שם הדלת<input id="gymNewDoor" value="כניסה ראשית" style="padding:8px 10px;border:1px solid var(--border,#d0d5dd);border-radius:6px;font-family:inherit;min-width:130px;"></label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding-bottom:8px;"><input type="checkbox" id="gymNewNexhome" checked>פתח גם ב-NexHome</label>
             <button onclick="v2CreateGym()" style="padding:9px 16px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600;">צור חשבון</button>
           </div>
           <div id="gymNewResult" style="margin-top:10px;font-size:14px;"></div>
@@ -1702,6 +1704,7 @@
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)">${g.members}</td>
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)">${g.lastLogin ? new Date(g.lastLogin).toLocaleString('he-IL') : '-'}</td>
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3);white-space:nowrap">
+              <button onclick="v2GymNexhome(${i})" style="padding:5px 10px;border:1px solid var(--border,#d0d5dd);background:transparent;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:inherit">☁️ NexHome</button>
               <button onclick="v2GymAddDoor(${i})" style="padding:5px 10px;border:1px solid var(--border,#d0d5dd);background:transparent;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:inherit">➕ דלת</button>
               <button onclick="v2GymReset(${i})" style="padding:5px 10px;border:1px solid var(--border,#d0d5dd);background:transparent;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:inherit">סיסמה חדשה</button>
               <button onclick="v2GymToggle(${i})" style="padding:5px 10px;border:1px solid var(--border,#d0d5dd);background:transparent;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:inherit">${g.disabled ? 'הפעל' : 'השבת'}</button>
@@ -1713,16 +1716,42 @@
       const mac = document.getElementById('gymNewMac').value.trim();
       const body = {
         name: document.getElementById('gymNewName').value,
+        address: document.getElementById('gymNewAddr').value,
         loginPhone: document.getElementById('gymNewPhone').value,
         panels: mac ? [{ mac, label: document.getElementById('gymNewDoor').value }] : [],
       };
+      const doNexhome = document.getElementById('gymNewNexhome').checked && mac;
       out.textContent = 'יוצר…';
       try {
         const j = await gymPost('/api/manager/gyms/create', body);
-        out.innerHTML = `✅ נוצר. כניסה ב-<b dir="ltr">${location.origin}/gym.html</b> · טלפון <b dir="ltr">${gymEsc(j.loginPhone)}</b> · סיסמה <b dir="ltr">${gymEsc(j.password)}</b>`;
-        ['gymNewName', 'gymNewPhone', 'gymNewMac'].forEach(id => document.getElementById(id).value = '');
+        let html = `✅ נוצר. כניסה ב-<b dir="ltr">${location.origin}/gym.html</b> · טלפון <b dir="ltr">${gymEsc(j.loginPhone)}</b> · סיסמה <b dir="ltr">${gymEsc(j.password)}</b>`;
+        out.innerHTML = html + (doNexhome ? '<br>⏳ פותח ב-NexHome…' : '');
+        if (doNexhome) html += '<br>' + await v2NexhomeOpen(body.name, body.address, mac);
+        out.innerHTML = html;
+        ['gymNewName', 'gymNewAddr', 'gymNewPhone', 'gymNewMac'].forEach(id => document.getElementById(id).value = '');
         v2LoadGyms();
       } catch (e) { out.textContent = '❌ ' + e.message; }
+    }
+    // Open NexHome project + add panel. Returns an HTML summary of each step.
+    async function v2NexhomeOpen(name, address, mac) {
+      try {
+        const r = await fetch('/api/manager/nexhome/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(window.__mgr || {}), name, address, mac }) });
+        const j = await r.json().catch(() => ({}));
+        const steps = (j.steps || []).map(s => `${s.ok ? '✓' : '✗'} ${gymEsc(s.step)}: ${gymEsc(s.detail || '')}`).join('<br>');
+        const head = j.success ? (j.already ? `☁️ NexHome: הפנל ${gymEsc(mac)} כבר משויך לפרויקט` : `☁️ NexHome: נפתח פרויקט "${gymEsc(j.project)}" והפנל נוסף`) : `❌ NexHome: ${gymEsc(j.error || 'שגיאה')}`;
+        return `<div style="margin-top:6px">${head}<div style="font-size:12px;color:var(--text-dim,#888);margin-top:4px">${steps}</div></div>`;
+      } catch (e) { return '❌ NexHome: ' + gymEsc(e.message); }
+    }
+    async function v2GymNexhome(i) {
+      const g = window._gyms[i];
+      if (!g.panels.length) return alert('אין דלתות לחדר הכושר');
+      const address = g.address || prompt('כתובת לפרויקט NexHome:', '') || '';
+      const out = document.getElementById('gymNewResult');
+      out.innerHTML = `⏳ פותח ב-NexHome את ${gymEsc(g.name)}…`;
+      let html = '';
+      for (const p of g.panels) html += await v2NexhomeOpen(g.name, address, p.mac);
+      out.innerHTML = html;
+      out.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     async function v2GymAddDoor(i) {
       const g = window._gyms[i];
