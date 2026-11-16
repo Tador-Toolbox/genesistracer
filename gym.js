@@ -209,7 +209,8 @@ module.exports = function registerGym(app, deps) {
         entriesToday: todayEntries.filter(e => e.result !== 'denied').length,
         deniedToday: todayEntries.filter(e => e.result === 'denied').length,
         peakHour: peak ? `${peak[0]}:00` : null,
-        expiring, recent: recent.map(publicEntry), lastSync,
+        expiring, recent: recent.map(publicEntry), lastSync, occupancy: await occupancy(gymId),
+        hasExitDoor: (req.gym.panels || []).some(p => p.direction === 'out'),
         panels: req.gym.panels || [],
       });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
@@ -346,6 +347,8 @@ module.exports = function registerGym(app, deps) {
         success: true, member: publicMember(m, pm),
         plan: plan ? { id: String(plan._id), name: plan.name, days: plan.days, start: plan.start, end: plan.end, durationType: plan.durationType, durationValue: plan.durationValue } : null,
         entries: entries.map(publicEntry), entries30: count30,
+        inside: ((await occupancy(req.gym._id)).people.find(p => p.memberId === String(m._id))) || null,
+        hasExitDoor: (req.gym.panels || []).some(p => p.direction === 'out'),
         actions: actions.map(a => ({ action: a.action, by: a.by, at: a.at, details: a.details })),
       });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
@@ -422,7 +425,9 @@ module.exports = function registerGym(app, deps) {
   }
   function doorsFor(gym, plan) {
     const gymMacs = (gym.panels || []).map(p => p.mac);
-    return (plan && plan.doors && plan.doors.length ? plan.doors : gymMacs).filter(mac => gymMacs.includes(mac));
+    const exits = (gym.panels || []).filter(p => p.direction === 'out').map(p => p.mac);
+    const chosen = (plan && plan.doors && plan.doors.length ? plan.doors : gymMacs).filter(mac => gymMacs.includes(mac));
+    return [...new Set([...chosen, ...exits])]; // exit doors always: a member must be able to leave
   }
   // Private copy (Cloudinary "authenticated" = no public URL), only while frozen.
   async function snapshotSave(gymId, buf) {
@@ -792,7 +797,7 @@ module.exports = function registerGym(app, deps) {
   function publicEntry(e) {
     return {
       id: String(e._id), time: e.time, name: e.name || '', memberId: e.memberId ? String(e.memberId) : null,
-      mac: e.mac, door: e.door || '', method: e.method || '', result: e.result || 'unknown', raw: undefined,
+      mac: e.mac, door: e.door || '', direction: e.direction || 'in', method: e.method || '', result: e.result || 'unknown', raw: undefined,
     };
   }
   function methodOf(t) {
@@ -814,52 +819,80 @@ module.exports = function registerGym(app, deps) {
 
   // Pull recent unlock records from every gym panel into gym_entries.
   // Field names are calibrated from the debug log (first record's keys are logged).
-  app.post('/api/gym/entries/sync', gymAuth, async (req, res) => {
-    const gymId = req.gym._id;
-    try {
-      const d = await database();
-      const members = await d.collection('gym_members').find({ gymId }).project({ firstName: 1, lastName: 1 }).toArray();
-      const byName = Object.fromEntries(members.map(m => [`${m.firstName} ${m.lastName}`.trim(), m._id]));
-      const out = [];
-      for (const p of (req.gym.panels || [])) {
-        const r = { mac: p.mac, label: p.label, added: 0 };
-        try {
-          const addr = await resolvePanelAddress(p.mac);
-          if (!addr) { r.error = 'הפנל לא מחובר'; out.push(r); continue; }
-          const [host, portStr] = addr.split(':'); const port = parseInt(portStr, 10) || 80;
-          const login = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
-          const token = login?.data?.token;
-          if (!token) { r.error = 'התחברות לפנל נכשלה'; out.push(r); continue; }
-          const page = await panelHttpGetWithHeaders(host, port, '/api/v1/records/unlock?page_num=1&page_size=100&type=&label=', { Authorization: 'Bearer ' + token });
-          const list = page?.data?.list || [];
-          dbg(gymId, 'entries_page', { mac: p.mac, count: list.length, total: page?.data?.total, firstKeys: list[0] ? Object.keys(list[0]) : [], first: list[0] || null });
-          for (const rec of list) {
-            const t = Number(rec.unlock_time || rec.time || rec.create_time || 0);
-            if (!t) continue;
-            // Panel unlock record fields (same as the installer panel-history route): access_label, access_type
-            // (face | card | password), access_content, relay, unlock_time (ms), status (success | failure).
-            const name = String(rec.access_label || rec.label || rec.name || '').trim();
-            const key = `${p.mac}|${rec.id != null ? 'id' + rec.id : t + '|' + (rec.access_content || name)}`;
-            const doc = {
-              gymId, key, mac: p.mac, door: p.label || p.mac, time: new Date(t), name,
-              memberId: byName[name] || null, method: methodOf(rec.access_type || rec.type), result: resultOf(rec), raw: rec,
-            };
-            const u = await d.collection('gym_entries').updateOne({ gymId, key }, { $setOnInsert: doc }, { upsert: true });
-            if (u.upsertedCount) {
-              r.added++;
-              if (doc.memberId && doc.result !== 'denied') {
-                await d.collection('gym_members').updateOne({ _id: doc.memberId, $or: [{ lastEntry: null }, { lastEntry: { $lt: doc.time } }, { lastEntry: { $exists: false } }] }, { $set: { lastEntry: doc.time } });
-              }
+  // Pull recent unlock records from every door of a gym into gym_entries.
+  // Each record gets the door's direction: 'in' (entry door, default) or 'out' (exit door).
+  async function syncGymEntries(gym) {
+    const gymId = gym._id;
+    const d = await database();
+    const members = await d.collection('gym_members').find({ gymId }).project({ firstName: 1, lastName: 1 }).toArray();
+    const byName = Object.fromEntries(members.map(m => [`${m.firstName} ${m.lastName}`.trim(), m._id]));
+    const out = [];
+    for (const p of (gym.panels || [])) {
+      const r = { mac: p.mac, label: p.label, added: 0 };
+      try {
+        const conn = await panelConn(p.mac);
+        const page = await panelHttpGetWithHeaders(conn.host, conn.port, '/api/v1/records/unlock?page_num=1&page_size=100&type=&label=', { Authorization: 'Bearer ' + conn.token });
+        const list = page?.data?.list || [];
+        dbg(gymId, 'entries_page', { mac: p.mac, count: list.length, total: page?.data?.total, first: list[0] || null });
+        for (const rec of list) {
+          const t = Number(rec.unlock_time || rec.time || rec.create_time || 0);
+          if (!t) continue;
+          // Panel unlock record fields (same as the installer panel-history route): access_label, access_type
+          // (face | card | password), access_content, relay, unlock_time (ms), status (success | failure).
+          const name = String(rec.access_label || rec.label || rec.name || '').trim();
+          const key = `${p.mac}|${rec.id != null ? 'id' + rec.id : t + '|' + (rec.access_content || name)}`;
+          const doc = {
+            gymId, key, mac: p.mac, door: p.label || p.mac, direction: p.direction === 'out' ? 'out' : 'in',
+            time: new Date(t), name, memberId: byName[name] || null,
+            method: methodOf(rec.access_type || rec.type), result: resultOf(rec), raw: rec,
+          };
+          const u = await d.collection('gym_entries').updateOne({ gymId, key }, { $setOnInsert: doc }, { upsert: true });
+          if (u.upsertedCount) {
+            r.added++;
+            if (doc.memberId && doc.result !== 'denied' && doc.direction === 'in') {
+              await d.collection('gym_members').updateOne({ _id: doc.memberId, $or: [{ lastEntry: null }, { lastEntry: { $lt: doc.time } }, { lastEntry: { $exists: false } }] }, { $set: { lastEntry: doc.time } });
             }
           }
-          r.ok = true;
-        } catch (e) { r.error = e.message; }
-        out.push(r);
-      }
-      await d.collection('gyms').updateOne({ _id: gymId }, { $set: { lastEntrySync: new Date() } });
-      res.json({ success: true, panels: out });
-    } catch (e) { dbg(gymId, 'entries_sync_error', { error: e.message }); res.status(500).json({ success: false, error: e.message }); }
+        }
+        r.ok = true;
+      } catch (e) { r.error = e.message; }
+      out.push(r);
+    }
+    await d.collection('gyms').updateOne({ _id: gymId }, { $set: { lastEntrySync: new Date() } });
+    return out;
+  }
+  app.post('/api/gym/entries/sync', gymAuth, async (req, res) => {
+    try { res.json({ success: true, panels: await syncGymEntries(req.gym) }); }
+    catch (e) { dbg(req.gym._id, 'entries_sync_error', { error: e.message }); res.status(500).json({ success: false, error: e.message }); }
   });
+
+  // Who is inside now: per person, the last allowed passage within INSIDE_HOURS.
+  // Last passage through an entry door → inside; through an exit door → outside.
+  // Someone who never scans out drops off after INSIDE_HOURS (door held open, tailgating out…).
+  const INSIDE_HOURS = 4;
+  async function occupancy(gymId) {
+    const d = await database();
+    const rows = await d.collection('gym_entries').find({ gymId, result: { $ne: 'denied' }, time: { $gte: new Date(Date.now() - INSIDE_HOURS * 3600000) }, name: { $ne: '' } }).sort({ time: 1 }).toArray();
+    const last = {};
+    rows.forEach(e => { last[e.memberId ? 'm' + e.memberId : 'n' + e.name] = e; });
+    const people = Object.values(last).filter(e => e.direction !== 'out')
+      .map(e => ({ name: e.name, memberId: e.memberId ? String(e.memberId) : null, since: e.time, door: e.door }))
+      .sort((a, b) => new Date(b.since) - new Date(a.since));
+    return { count: people.length, people, hours: INSIDE_HOURS };
+  }
+  app.get('/api/gym/occupancy', gymAuth, async (req, res) => {
+    try { res.json({ success: true, ...(await occupancy(req.gym._id)), hasExitDoor: (req.gym.panels || []).some(p => p.direction === 'out') }); }
+    catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  // Gyms with an exit door need fresh records for "who is inside": pull every 3 minutes.
+  setInterval(async () => {
+    try {
+      const d = await database();
+      const gyms = await d.collection('gyms').find({ disabled: { $ne: true }, 'panels.direction': 'out' }).toArray();
+      for (const g of gyms) { try { await syncGymEntries(g); } catch (e) { dbg(g._id, 'auto_sync_error', { error: e.message }); } }
+    } catch (e) { /* db not ready */ }
+  }, 3 * 60 * 1000).unref();
 
   app.get('/api/gym/entries', gymAuth, async (req, res) => {
     try {
@@ -1093,7 +1126,7 @@ module.exports = function registerGym(app, deps) {
       if (!name) return res.status(400).json({ success: false, error: 'חסר שם חדר הכושר' });
       if (loginPhone.length < 9) return res.status(400).json({ success: false, error: 'מספר טלפון לא תקין' });
       const panels = (Array.isArray(req.body.panels) ? req.body.panels : [])
-        .map(p => ({ mac: cleanMac(p.mac), label: String(p.label || '').trim().slice(0, 40) || 'כניסה ראשית' }))
+        .map(p => ({ mac: cleanMac(p.mac), label: String(p.label || '').trim().slice(0, 40) || 'כניסה ראשית', direction: p.direction === 'out' ? 'out' : 'in' }))
         .filter(p => /^[0-9A-F]{12}$/.test(p.mac));
       const d = await database();
       const exists = await d.collection('gyms').findOne({ loginPhone });
@@ -1120,14 +1153,22 @@ module.exports = function registerGym(app, deps) {
       if (Array.isArray(req.body.panels)) {
         const cur = await d.collection('gyms').findOne({ _id: id });
         const flag = Object.fromEntries(((cur && cur.panels) || []).map(p => [p.mac, p.nexhome]));
-        set.panels = req.body.panels.map(p => ({ mac: cleanMac(p.mac), label: String(p.label || '').trim().slice(0, 40) || 'כניסה' }))
+        set.panels = req.body.panels.map(p => ({ mac: cleanMac(p.mac), label: String(p.label || '').trim().slice(0, 40) || 'כניסה', direction: p.direction === 'out' ? 'out' : 'in' }))
           .filter(p => /^[0-9A-F]{12}$/.test(p.mac))
           .map(p => (flag[p.mac] ? { ...p, nexhome: flag[p.mac] } : p));
       }
       let password;
       if (req.body.resetPassword) { password = genPassword(); set.password = bcrypt.hashSync(password, 10); set.plainPassword = password; }
+      const before = await d.collection('gyms').findOne({ _id: id });
       await d.collection('gyms').updateOne({ _id: id }, { $set: set });
       if (req.body.resetPassword || set.disabled) await d.collection('gym_sessions').deleteMany({ gymId: id });
+      // A door that just became an exit door doesn't have the members' faces yet.
+      if (set.panels) {
+        const wasOut = new Set(((before && before.panels) || []).filter(p => p.direction === 'out').map(p => p.mac));
+        if (set.panels.some(p => p.direction === 'out' && !wasOut.has(p.mac))) {
+          await d.collection('gym_members').updateMany({ gymId: id, frozen: { $ne: true }, 'face.panels': { $exists: true } }, { $set: { panelSync: 'pending' } });
+        }
+      }
       res.json({ success: true, password });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });

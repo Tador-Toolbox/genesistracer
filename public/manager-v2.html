@@ -1700,7 +1700,7 @@
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3);font-weight:600">${gymEsc(g.name)}${g.disabled ? ' <span style="font-size:12px;color:#b00020">(מושבת)</span>' : ''}</td>
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)" dir="ltr">${gymEsc(g.loginPhone)}</td>
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)" dir="ltr">${gymEsc(g.plainPassword)}</td>
-            <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)">${g.panels.map(p => `${gymEsc(p.label)} <span dir="ltr" style="font-size:12px;color:var(--text-dim,#888)">${gymEsc(p.mac)}</span>${p.nexhome ? ' <span style="font-size:12px;color:#0B5C3B;font-weight:600">☁️ NexHome ✓</span>' : ''}`).join('<br>') || '-'}</td>
+            <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)">${g.panels.map(p => `${gymEsc(p.label)} <span dir="ltr" style="font-size:12px;color:var(--text-dim,#888)">${gymEsc(p.mac)}</span> <button onclick="v2GymDir(${i}, '${gymEsc(p.mac)}')" title="החלפת כיוון הדלת" style="padding:1px 8px;border:1px solid var(--border,#d0d5dd);background:transparent;border-radius:10px;cursor:pointer;font-family:inherit;font-size:11px;color:inherit">${p.direction === 'out' ? '⬅ יציאה' : '➡ כניסה'}</button>${p.nexhome ? ' <span style="font-size:12px;color:#0B5C3B;font-weight:600">☁️ NexHome ✓</span>' : ''}`).join('<br>') || '-'}</td>
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)">${g.members}</td>
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3)">${g.lastLogin ? new Date(g.lastLogin).toLocaleString('he-IL') : '-'}</td>
             <td style="padding:8px;border-bottom:1px solid var(--border,#eef0f3);white-space:nowrap">
@@ -1765,11 +1765,19 @@
       out.scrollIntoView({ behavior: 'smooth', block: 'center' });
       v2LoadGyms();
     }
+    async function v2GymDir(i, mac) {
+      const g = window._gyms[i];
+      const panels = g.panels.map(p => (p.mac === mac ? { ...p, direction: p.direction === 'out' ? 'in' : 'out' } : p));
+      const now = panels.find(p => p.mac === mac).direction;
+      if (!confirm(now === 'out' ? 'להגדיר את הדלת כדלת יציאה? כל מי שסורק בה ייחשב כמי שיצא. הפנים של המנויים יישלחו גם אליה.' : 'להחזיר את הדלת לדלת כניסה?')) return;
+      try { await gymPost('/api/manager/gyms/update', { id: g.id, panels }); v2LoadGyms(); } catch (e) { alert(e.message); }
+    }
     async function v2GymAddDoor(i) {
       const g = window._gyms[i];
       const mac = prompt('MAC של הדלת החדשה (12 תווים):'); if (!mac) return;
-      const label = prompt('שם הדלת (למשל: בריכה):', 'כניסה נוספת') || 'כניסה נוספת';
-      try { await gymPost('/api/manager/gyms/update', { id: g.id, panels: [...g.panels, { mac, label }] }); v2LoadGyms(); } catch (e) { alert(e.message); }
+      const label = prompt('שם הדלת (למשל: יציאה, בריכה):', 'כניסה נוספת') || 'כניסה נוספת';
+      const direction = confirm('האם זו דלת יציאה?\n(אישור = יציאה, ביטול = כניסה)') ? 'out' : 'in';
+      try { await gymPost('/api/manager/gyms/update', { id: g.id, panels: [...g.panels, { mac, label, direction }] }); v2LoadGyms(); } catch (e) { alert(e.message); }
     }
     async function v2GymReset(i) {
       const g = window._gyms[i];

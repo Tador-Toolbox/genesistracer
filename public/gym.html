@@ -182,7 +182,11 @@ function panelMsg(panel, okText) {
   const bad = panel.results.filter(r => !r.ok).map(r => r.error).filter(Boolean);
   return `${okText}. הפנל לא עודכן: ${bad[0] || panel.message}`;
 }
-const resultBadge = (r) => `<span class="badge b-${esc(r)}">${esc(RESULT[r] || r)}</span>`;
+// One column for the passage: נכנס / יצא (allowed, by door direction) or נדחה.
+const resultBadge = (r, dir) => {
+  if (r === 'granted') return dir === 'out' ? '<span class="badge b-frozen">יצא</span>' : '<span class="badge b-granted">נכנס</span>';
+  return `<span class="badge b-${esc(r)}">${esc(RESULT[r] || r)}</span>`;
+};
 function creds(m) {
   const c = (on, l) => `<span class="cred ${on ? 'on' : 'off'}">${l}</span>`;
   return c(m.faceOnPanel, 'פנים') + c(!!m.card, 'כרטיס') + c(!!m.pin, 'קוד');
@@ -261,7 +265,7 @@ async function viewDashboard() {
   const j = await api('/api/gym/dashboard');
   const c = j.counts;
   const tile = (k, v, s) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
-  const recent = j.recent.length ? `<div class="tw"><table style="min-width:520px"><thead><tr><th>שעה</th><th>מנוי</th><th>דלת</th><th>אמצעי</th><th>תוצאה</th></tr></thead><tbody>${j.recent.map(e => `<tr><td>${fmtDT(e.time)}</td><td class="name">${esc(e.name || 'לא מזוהה')}</td><td>${esc(e.door)}</td><td>${esc(METHOD[e.method] || e.method)}</td><td>${resultBadge(e.result)}</td></tr>`).join('')}</tbody></table></div>`
+  const recent = j.recent.length ? `<div class="tw"><table style="min-width:520px"><thead><tr><th>שעה</th><th>מנוי</th><th>דלת</th><th>אמצעי</th><th>תוצאה</th></tr></thead><tbody>${j.recent.map(e => `<tr><td>${fmtDT(e.time)}</td><td class="name">${esc(e.name || 'לא מזוהה')}</td><td>${esc(e.door)}</td><td>${esc(METHOD[e.method] || e.method)}</td><td>${resultBadge(e.result, e.direction)}</td></tr>`).join('')}</tbody></table></div>`
     : `<div class="empty">עדיין אין כניסות. לחצו "עדכון מהפנל" כדי למשוך את יומן הכניסות.</div>`;
   const exp = j.expiring.length ? `<div class="tw"><table><thead><tr><th>שם</th><th>טלפון</th><th>פג ב</th><th><span class="hidden">פעולה</span></th></tr></thead><tbody>${j.expiring.map(m => `<tr><td class="name"><a href="#member/${m.id}">${esc(m.firstName)} ${esc(m.lastName)}</a></td><td style="white-space:nowrap">${telLink(m.phone)}</td><td>${fmtDate(m.endDate).slice(0, 5)}</td><td><button class="btn" data-renew="${m.id}">חידוש</button></td></tr>`).join('')}</tbody></table></div>`
     : `<div class="empty">אין מנויים שפגים השבוע.</div>`;
@@ -274,17 +278,20 @@ async function viewDashboard() {
     document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => openDoor(b.dataset.open, b.dataset.label)));
   });
   const today = new Date().toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+  const occ = j.occupancy || { count: 0, people: [] };
+  const insideCard = j.hasExitDoor ? `<section class="card"><div class="sec-head"><h2>בפנים עכשיו (${occ.count})</h2><a href="#stats" style="font-size:14px;text-decoration:underline">לסטטיסטיקה</a></div>${occ.people.length ? occ.people.slice(0, 8).map(p => `<div class="list-row"><div class="name">${p.memberId ? `<a href="#member/${p.memberId}">${esc(p.name)}</a>` : esc(p.name)}</div><span class="small">מאז ${fmtTime(p.since)}</span></div>`).join('') : '<div class="small">אין אף אחד בפנים כרגע.</div>'}</section>` : '';
   return header('לוח בקרה', `${esc(today)}${j.lastSync ? ` · יומן עודכן ${fmtDT(j.lastSync)}` : ''}`,
     `<button class="btn" id="guestBtn">כניסת אורח</button><button class="btn" id="syncBtn">עדכון מהפנל</button><a class="btn primary" href="#members" style="display:inline-flex;align-items:center" onclick="setTimeout(newMemberFlow,50)">מנוי חדש</a>`)
     + `<section aria-label="סיכום" class="grid-tiles">
       ${tile('כניסות היום', j.entriesToday, j.peakHour ? `שעת שיא: ${j.peakHour}` : 'אין נתונים עדיין')}
       ${tile('מנויים פעילים', c.activeAll, `${c.joinedWeek} הצטרפו השבוע`)}
       ${tile('פגי תוקף השבוע', c.expiring, c.expiring ? '<span style="color:#7A4D00">דורש טיפול</span>' : 'הכל תקין')}
-      ${tile('נדחו בכניסה היום', j.deniedToday, 'לפי מה שהפנל מדווח')}
+      ${j.hasExitDoor ? tile('נמצאים עכשיו', occ.count, 'נכנסו ועדיין לא יצאו') : tile('נדחו בכניסה היום', j.deniedToday, 'לפי מה שהפנל מדווח')}
     </section>
     <div class="row">
       <section class="card" style="flex:2 1 520px;min-width:0"><div class="sec-head"><h2>כניסות אחרונות</h2><a href="#log" style="font-size:14px;text-decoration:underline">ליומן המלא</a></div>${recent}</section>
       <div style="flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:20px">
+        ${insideCard}
         <section class="card"><h2 style="margin-bottom:8px">פגי תוקף השבוע</h2>${exp}${c.expiring > j.expiring.length ? `<a href="#members" style="font-size:14px;text-decoration:underline">כל ${c.expiring} המנויים</a>` : ''}</section>
         <section class="card"><div class="sec-head"><h2>דלתות</h2><button class="btn" id="doorCheck">בדיקת חיבור</button></div>${doors}</section>
       </div>
@@ -404,7 +411,7 @@ async function viewMember(id) {
   const faceState = m.faceOnPanel ? 'פעיל בפנל' : (m.faceSaved ? 'הוסר מהפנל בזמן ההקפאה · יוחזר בהפשרה' : (m.enrollPending ? 'נשלח קישור למנוי · ממתין לתמונה' : 'אין תמונה בפנל'));
   const faceBtn = m.frozen && !m.faceOnPanel && !m.faceSaved ? `<button class="btn" id="linkFaceBtn">שיוך פנים מהפנל</button>`
     : m.frozen ? '' : `<span style="display:flex;gap:8px;flex-wrap:wrap">${m.faceOnPanel ? '' : '<button class="btn" id="linkFaceBtn">שיוך פנים מהפנל</button><button class="btn" id="enrollBtn">קישור לצילום</button>'}<button class="btn" id="photoBtn">${m.faceOnPanel ? 'החלפת תמונה' : 'העלאת תמונה'}</button></span>`;
-  const hist = j.entries.length ? `<div class="tw"><table style="min-width:460px"><thead><tr><th>מועד</th><th>דלת</th><th>אמצעי</th><th>תוצאה</th></tr></thead><tbody>${j.entries.map(e => `<tr><td>${fmtDT(e.time)}</td><td>${esc(e.door)}</td><td>${esc(METHOD[e.method] || e.method)}</td><td>${resultBadge(e.result)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">אין כניסות רשומות.</div>';
+  const hist = j.entries.length ? `<div class="tw"><table style="min-width:460px"><thead><tr><th>מועד</th><th>דלת</th><th>אמצעי</th><th>תוצאה</th></tr></thead><tbody>${j.entries.map(e => `<tr><td>${fmtDT(e.time)}</td><td>${esc(e.door)}</td><td>${esc(METHOD[e.method] || e.method)}</td><td>${resultBadge(e.result, e.direction)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">אין כניסות רשומות.</div>';
   const acts = j.actions.length ? j.actions.map(a => `<div class="small">${fmtDT(a.at)} · ${esc(ACTION[a.action] || a.action)} · ${esc(a.by || '')}</div>`).join('') : '<div class="small">אין פעולות.</div>';
   after(() => {
     $('#renewBtn').addEventListener('click', () => renewFlow(m.id));
@@ -430,7 +437,7 @@ async function viewMember(id) {
     });
     $('#saveNote').addEventListener('click', async () => { try { await api('/api/gym/members/' + m.id, { method: 'PUT', body: { notes: $('#noteTxt').value } }); toast('ההערה נשמרה'); } catch (e) { toast(e.message); } });
   });
-  return header(`${m.firstName} ${m.lastName}`, `${esc(m.planName)} · ${statusBadge(m)}`,
+  return header(`${m.firstName} ${m.lastName}`, `${esc(m.planName)} · ${statusBadge(m)}${j.hasExitDoor ? (j.inside ? ` · <span class="badge b-granted">בפנים מאז ${fmtTime(j.inside.since)}</span>` : ' · <span class="badge b-unknown">בחוץ</span>') : ''}`,
     `<button class="btn" id="editBtn">עריכה</button><button class="btn" id="freezeBtn">${m.frozen ? 'הפשרה' : 'הקפאה'}</button><button class="btn primary" id="renewBtn">חידוש מנוי</button>`)
     + notice
     + `<div class="row">
@@ -671,7 +678,7 @@ async function viewLog() {
   const doors = (GYM && GYM.panels) || [];
   const sel = (id, cur, opts) => `<select class="in" id="${id}">${opts.map(([v, l]) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   const tot = (k, v) => `<div class="card" style="padding:14px 18px"><div class="small">${k}</div><div style="font-size:26px;font-weight:700;line-height:1.25">${v}</div></div>`;
-  const rows = j.entries.map(e => `<tr><td>${fmtDT(e.time)}</td><td class="name">${e.memberId ? `<a href="#member/${e.memberId}">${esc(e.name)}</a>` : esc(e.name || 'לא מזוהה')}</td><td>${esc(e.planName || '-')}</td><td>${esc(e.door)}</td><td>${esc(METHOD[e.method] || e.method)}</td><td>${resultBadge(e.result)}</td></tr>`).join('');
+  const rows = j.entries.map(e => `<tr><td>${fmtDT(e.time)}</td><td class="name">${e.memberId ? `<a href="#member/${e.memberId}">${esc(e.name)}</a>` : esc(e.name || 'לא מזוהה')}</td><td>${esc(e.planName || '-')}</td><td>${esc(e.door)}</td><td>${esc(METHOD[e.method] || e.method)}</td><td>${resultBadge(e.result, e.direction)}</td></tr>`).join('');
   const pages = Math.max(1, Math.ceil(j.total / j.pageSize));
   after(() => {
     const upd = () => { Object.assign(logState, { from: $('#lgFrom').value, to: $('#lgTo').value, result: $('#lgRes').value, method: $('#lgMet').value, door: $('#lgDoor').value, page: 1 }); route(); };
@@ -686,12 +693,12 @@ async function viewLog() {
     + `<section aria-label="סינון" class="card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
       <label class="f">מתאריך<input class="in" type="date" id="lgFrom" value="${logState.from}"></label>
       <label class="f">עד תאריך<input class="in" type="date" id="lgTo" value="${logState.to}"></label>
-      <label class="f">תוצאה${sel('lgRes', logState.result, [['all', 'הכל'], ['granted', 'נכנס'], ['denied', 'נדחה']])}</label>
+      <label class="f">תוצאה${sel('lgRes', logState.result, [['all', 'הכל'], ['granted', 'אושר (נכנס/יצא)'], ['denied', 'נדחה']])}</label>
       <label class="f">אמצעי${sel('lgMet', logState.method, [['all', 'הכל'], ['face', 'פנים'], ['card', 'כרטיס'], ['pin', 'קוד'], ['remote', 'מרחוק']])}</label>
       <label class="f">דלת${sel('lgDoor', logState.door, [['all', 'כל הדלתות'], ...doors.map(d => [d.mac, esc(d.label)])])}</label>
       <label class="f" style="flex:1 1 200px">מנוי<input class="in" type="search" id="lgQ" placeholder="שם" value="${esc(logState.q)}"></label>
       <button class="btn" id="lgExport">ייצוא לאקסל</button></section>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">${tot('רשומות', j.totals.attempts)}${tot('נכנסו', j.totals.granted)}${tot('נדחו', j.totals.denied)}${tot('שעת שיא', j.totals.peakHour || '-')}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">${tot('רשומות', j.totals.attempts)}${tot('אושרו', j.totals.granted)}${tot('נדחו', j.totals.denied)}${tot('שעת שיא', j.totals.peakHour || '-')}</div>
     <section class="card">${j.entries.length ? `<div class="tw"><table style="min-width:760px"><thead><tr><th>מועד</th><th>מנוי</th><th>מסלול</th><th>דלת</th><th>אמצעי</th><th>תוצאה</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="empty">אין כניסות בטווח הזה. לחצו "עדכון מהפנל" כדי למשוך רשומות חדשות.</div>'}
     ${j.total > j.pageSize ? `<div class="pager"><span>עמוד ${j.page} מתוך ${pages}</span><span style="display:flex;gap:8px"><button class="btn" id="lgPrev" ${j.page <= 1 ? 'disabled' : ''}>הקודם</button><button class="btn" id="lgNext" ${j.page >= pages ? 'disabled' : ''}>הבא</button></span></div>` : ''}</section>`;
 }
@@ -768,7 +775,14 @@ function guestFlow() {
 
 // ---------- STATS (placeholder) ----------
 async function viewStats() {
-  return header('סטטיסטיקה', '') + '<section class="card"><div class="empty">המסך הזה ייבנה בהמשך: שעות עומס, תפוסה, כניסות לפי מנוי.</div></section>';
+  const j = await api('/api/gym/occupancy');
+  after(() => $('#stSync') && $('#stSync').addEventListener('click', () => syncEntries($('#stSync'))));
+  if (!j.hasExitDoor) return header('סטטיסטיקה', '') + '<section class="card"><div class="empty">כדי לראות מי נמצא בחדר הכושר צריך פנל גם ביציאה. בקשו מתדור להגדיר דלת יציאה.</div></section>';
+  const rows = j.people.map(p => `<tr><td class="name">${p.memberId ? `<a href="#member/${p.memberId}">${esc(p.name)}</a>` : esc(p.name)}</td><td>${fmtTime(p.since)}</td><td>${esc(p.door)}</td></tr>`).join('');
+  return header('סטטיסטיקה', `מתעדכן אוטומטית כל 3 דקות. מי שלא סרק ביציאה יורד מהרשימה אחרי ${j.hours} שעות.`, '<button class="btn" id="stSync">עדכון מהפנל</button>')
+    + `<div class="grid-tiles"><div class="card tile"><div class="k">נמצאים עכשיו</div><div class="v">${j.count}</div><div class="s">נכנסו ועדיין לא יצאו</div></div></div>
+    <section class="card"><h2 style="margin-bottom:8px">מי בפנים</h2>${j.people.length ? `<div class="tw"><table><thead><tr><th>שם</th><th>נכנס ב</th><th>דלת</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="empty">אין אף אחד בפנים כרגע.</div>'}</section>
+    <section class="card"><div class="empty">בהמשך: שעות עומס וכניסות לפי מנוי.</div></section>`;
 }
 
 // ---------- SETTINGS ----------
@@ -782,7 +796,7 @@ async function viewSettings() {
   }));
   return header('הגדרות', esc(GYM ? GYM.name : ''))
     + `<div class="row"><section class="card" style="flex:1 1 320px"><div class="sec-head"><h2>דלתות</h2><button class="btn" id="stDoorCheck">בדיקת חיבור</button></div>
-      ${doors.map(d => `<div class="list-row"><div><div class="name">${esc(d.label)}</div><div class="small" dir="ltr" style="text-align:right">${esc(d.mac)}</div></div><div class="small" data-door="${esc(d.mac)}">לא נבדק</div></div>`).join('') || '<div class="small">לא הוגדרו דלתות.</div>'}
+      ${doors.map(d => `<div class="list-row"><div><div class="name">${esc(d.label)}</div><div class="small"><span dir="ltr">${esc(d.mac)}</span> · ${d.direction === 'out' ? 'דלת יציאה' : 'דלת כניסה'}</div></div><div class="small" data-door="${esc(d.mac)}">לא נבדק</div></div>`).join('') || '<div class="small">לא הוגדרו דלתות.</div>'}
       <p class="small" style="margin:12px 0 0">הוספת דלת או שינוי סיסמה נעשים דרך תדור.</p></section>
       <section class="card" style="flex:2 1 420px;min-width:0"><h2 style="margin-bottom:8px">פעולות צוות אחרונות</h2>
       ${j.actions.length ? `<div class="tw"><table><thead><tr><th>מועד</th><th>פעולה</th><th>מי</th></tr></thead><tbody>${j.actions.slice(0, 30).map(a => `<tr><td>${fmtDT(a.at)}</td><td>${a.memberId ? `<a href="#member/${a.memberId}">${esc(ACTION[a.action] || a.action)}</a>` : esc(ACTION[a.action] || a.action)}</td><td>${esc(a.by || '')}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">אין פעולות.</div>'}</section></div>`;
