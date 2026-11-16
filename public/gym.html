@@ -389,7 +389,7 @@ function monthsEndISO(start, months) {
 }
 
 // ---------- MEMBER CARD ----------
-const ACTION = { guest_create: 'כניסת אורח', guest_cancel: 'ביטול אורח', door_open: 'פתיחת דלת', link_face: 'שויכו פנים מהפנל', panel_sync: 'עדכון פנל', member_create: 'נוצר', member_update: 'עודכן', member_renew: 'חודש', member_freeze: 'הוקפא', member_unfreeze: 'הופשר', member_photo: 'הועלתה תמונה', push_face: 'נשלח לפנל', member_delete: 'נמחק' };
+const ACTION = { enroll_link: 'נשלח קישור לצילום', self_enroll: 'המנוי צילם את עצמו', guest_create: 'כניסת אורח', guest_cancel: 'ביטול אורח', door_open: 'פתיחת דלת', link_face: 'שויכו פנים מהפנל', panel_sync: 'עדכון פנל', member_create: 'נוצר', member_update: 'עודכן', member_renew: 'חודש', member_freeze: 'הוקפא', member_unfreeze: 'הופשר', member_photo: 'הועלתה תמונה', push_face: 'נשלח לפנל', member_delete: 'נמחק' };
 async function viewMember(id) {
   const j = await api('/api/gym/members/' + encodeURIComponent(id));
   const m = j.member, p = j.plan;
@@ -401,9 +401,9 @@ async function viewMember(id) {
   else if (m.status === 'expiring') notice = `<div class="note" role="status">המנוי פג ב-${fmtDate(m.endDate)}. אחרי תאריך זה הדלת לא תיפתח ל${esc(m.firstName)}.</div>`;
   else if (m.status === 'frozen') notice = `<div class="note info" role="status">המנוי מוקפא${m.frozenUntil ? ` עד ${fmtDate(m.frozenUntil)}` : ''}. ימי ההקפאה יתווספו לתאריך הסיום בהפשרה.</div>`;
   if (m.panelSync === 'pending' || m.panelSync === 'needs_update') notice += `<div class="note" role="status" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><span>השינוי נשמר, אבל הפנל עדיין לא עודכן (כנראה לא היה מחובר).</span><button class="btn" id="syncPanel">עדכון הפנל עכשיו</button></div>`;
-  const faceState = m.faceOnPanel ? 'פעיל בפנל' : (m.faceSaved ? 'הוסר מהפנל בזמן ההקפאה · יוחזר בהפשרה' : 'אין תמונה בפנל');
+  const faceState = m.faceOnPanel ? 'פעיל בפנל' : (m.faceSaved ? 'הוסר מהפנל בזמן ההקפאה · יוחזר בהפשרה' : (m.enrollPending ? 'נשלח קישור למנוי · ממתין לתמונה' : 'אין תמונה בפנל'));
   const faceBtn = m.frozen && !m.faceOnPanel && !m.faceSaved ? `<button class="btn" id="linkFaceBtn">שיוך פנים מהפנל</button>`
-    : m.frozen ? '' : `<span style="display:flex;gap:8px;flex-wrap:wrap">${m.faceOnPanel ? '' : '<button class="btn" id="linkFaceBtn">שיוך פנים מהפנל</button>'}<button class="btn" id="photoBtn">${m.faceOnPanel ? 'החלפת תמונה' : 'העלאת תמונה'}</button></span>`;
+    : m.frozen ? '' : `<span style="display:flex;gap:8px;flex-wrap:wrap">${m.faceOnPanel ? '' : '<button class="btn" id="linkFaceBtn">שיוך פנים מהפנל</button><button class="btn" id="enrollBtn">קישור לצילום</button>'}<button class="btn" id="photoBtn">${m.faceOnPanel ? 'החלפת תמונה' : 'העלאת תמונה'}</button></span>`;
   const hist = j.entries.length ? `<div class="tw"><table style="min-width:460px"><thead><tr><th>מועד</th><th>דלת</th><th>אמצעי</th><th>תוצאה</th></tr></thead><tbody>${j.entries.map(e => `<tr><td>${fmtDT(e.time)}</td><td>${esc(e.door)}</td><td>${esc(METHOD[e.method] || e.method)}</td><td>${resultBadge(e.result)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">אין כניסות רשומות.</div>';
   const acts = j.actions.length ? j.actions.map(a => `<div class="small">${fmtDT(a.at)} · ${esc(ACTION[a.action] || a.action)} · ${esc(a.by || '')}</div>`).join('') : '<div class="small">אין פעולות.</div>';
   after(() => {
@@ -413,6 +413,7 @@ async function viewMember(id) {
     $('#delBtn').addEventListener('click', () => deleteFlow(m));
     $('#photoBtn') && $('#photoBtn').addEventListener('click', () => photoFlow(m));
     $('#linkFaceBtn') && $('#linkFaceBtn').addEventListener('click', () => linkFaceFlow(m));
+    $('#enrollBtn') && $('#enrollBtn').addEventListener('click', () => enrollLinkFlow(m));
     $('#syncPanel') && $('#syncPanel').addEventListener('click', async () => {
       const b = $('#syncPanel'); b.disabled = true; b.textContent = 'מעדכן…';
       try { await withBusy('מעדכן את הפנל', () => api(`/api/gym/members/${m.id}/panel-sync`, { method: 'POST' }), PANEL_STEPS); toast('הפנל עודכן'); } catch (e) { toast(e.message); }
@@ -513,6 +514,11 @@ function photoFlow(m, opts = {}) {
       <label class="btn" style="position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">
         <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v4h16v-4"/></svg>
         העלאת תמונה<input type="file" id="phFile" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0"></label>
+      <button class="btn" type="button" id="phLink" style="display:inline-flex;align-items:center;justify-content:center;gap:8px">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+        קישור למנוי לצילום עצמי</button>
+    </div>
+    <div class="two">
       <button class="btn" type="button" disabled title="יופעל בהמשך עם מכשיר הצילום" style="display:inline-flex;align-items:center;justify-content:center;gap:8px">
         <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
         צילום ממכשיר (בקרוב)</button>
@@ -537,6 +543,7 @@ function photoFlow(m, opts = {}) {
     modal.addEventListener('dragleave', (e) => { if (!modal.contains(e.relatedTarget)) hi(false); });
     modal.addEventListener('drop', (e) => { e.preventDefault(); hi(false); pick(e.dataTransfer.files && e.dataTransfer.files[0]); });
     $('#phSkip', bg).addEventListener('click', () => { close(); goCard(); });
+    $('#phLink', bg).addEventListener('click', () => { close(); enrollLinkFlow(m, goCard); });
     $('#phOk', bg).addEventListener('click', async () => {
       const f = picked;
       if (!f) return ($('#phErr', bg).textContent = 'יש לבחור תמונה');
@@ -585,6 +592,24 @@ async function linkFaceFlow(m) {
       }));
     } catch (e) { $('#lfList', bg).innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
   });
+}
+// One-time link: the member opens it on the phone, takes a selfie, and it goes to the panel.
+async function enrollLinkFlow(m, after) {
+  try {
+    const r = await withBusy('יוצר קישור', () => api(`/api/gym/members/${m.id}/enroll-link`, { method: 'POST' }));
+    const msg = `שלום ${r.firstName}, כדי להיכנס ל${r.gymName} בזיהוי פנים, צלמו תמונה בקישור הזה: ${r.url} (הקישור תקף ${r.hours} שעות)`;
+    const p = String(r.phone || '');
+    const wa = `https://wa.me/${/^05\d{8}$/.test(p) ? '972' + p.slice(1) : ''}?text=${encodeURIComponent(msg)}`;
+    openModal(`<h2>קישור לצילום עצמי ל${esc(r.firstName)}</h2>
+      <p class="small" style="margin:0">המנוי פותח את הקישור בטלפון, מצלם סלפי ומאשר. התמונה נשלחת ישירות לדלת. הקישור לשימוש אחד ותקף ${r.hours} שעות.</p>
+      <input class="in" readonly dir="ltr" value="${esc(r.url)}" id="elUrl" aria-label="הקישור">
+      <div class="acts"><button class="btn" id="elCopy">העתקת קישור</button><a class="btn primary" style="display:inline-flex;align-items:center" href="${esc(wa)}" target="_blank" rel="noopener">שליחה בווטסאפ</a></div>`,
+    (bg, close) => {
+      $('#elCopy', bg).addEventListener('click', async () => { try { await navigator.clipboard.writeText(r.url); toast('הקישור הועתק'); } catch (e) { $('#elUrl', bg).select(); } });
+      bg.addEventListener('click', (e) => { if (e.target === bg) { if (after) after(); else route(); } });
+    });
+    if (!after) route(); else after();
+  } catch (e) { toast(e.message); }
 }
 async function deleteFlow(m) {
   if (!await confirmBox(`למחוק את ${m.firstName} ${m.lastName}?`, 'מחיקה', true)) return;

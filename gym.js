@@ -96,6 +96,7 @@ module.exports = function registerGym(app, deps) {
       status: memberStatus(m), notes: m.notes || '', faceSaved: !!m.snapshot,
       consent: !!m.consent, card: m.card || '', pin: m.pin || '',
       faceOnPanel: !!(m.face && m.face.panels && Object.keys(m.face.panels).length),
+      enrollPending: !!(m.enrollToken && m.enrollExpires && new Date(m.enrollExpires) > new Date()),
       panelSync: m.panelSync || 'none', lastEntry: m.lastEntry || null,
       createdAt: m.createdAt,
     };
@@ -734,6 +735,57 @@ module.exports = function registerGym(app, deps) {
       res.setHeader('Cache-Control', 'no-store');
       res.type('jpg').send(buf);
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  // ==================== MEMBER SELF-ENROLLMENT ====================
+  // The manager sends a one-time link (WhatsApp). The member opens /gym-enroll.html?t=TOKEN on the
+  // phone, takes a selfie and agrees; the photo goes straight to the panel (same as a manager upload).
+  const ENROLL_HOURS = 72;
+  app.post('/api/gym/members/:id/enroll-link', gymAuth, async (req, res) => {
+    try {
+      const m = await memberOf(req, res); if (!m) return;
+      if (m.frozen) return res.status(400).json({ success: false, error: 'המנוי מוקפא. הפשירו אותו קודם' });
+      if (memberStatus(m) === 'expired') return res.status(400).json({ success: false, error: 'המנוי לא בתוקף. חדשו אותו קודם' });
+      const token = crypto.randomBytes(16).toString('hex');
+      const d = await database();
+      await d.collection('gym_members').updateOne({ _id: m._id }, { $set: { enrollToken: token, enrollExpires: new Date(Date.now() + ENROLL_HOURS * 3600000) } });
+      logAction(req.gym._id, m._id, 'enroll_link', req.gymUser, {});
+      const base = (process.env.RENDER_EXTERNAL_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+      res.json({ success: true, url: `${base}/gym-enroll.html?t=${token}`, hours: ENROLL_HOURS, firstName: m.firstName, phone: m.phone, gymName: req.gym.name });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  async function enrollMember(token) {
+    if (!/^[0-9a-f]{32}$/.test(String(token || ''))) return null;
+    const d = await database();
+    const m = await d.collection('gym_members').findOne({ enrollToken: token, enrollExpires: { $gt: new Date() } });
+    if (!m) return null;
+    const gym = await d.collection('gyms').findOne({ _id: m.gymId });
+    if (!gym || gym.disabled) return null;
+    return { m, gym };
+  }
+  app.get('/api/gym/enroll/:token', async (req, res) => {
+    const x = await enrollMember(req.params.token);
+    if (!x) return res.status(404).json({ success: false, error: 'הקישור לא בתוקף או שכבר נוצל. בקשו קישור חדש מחדר הכושר.' });
+    res.json({ success: true, firstName: x.m.firstName, gymName: x.gym.name });
+  });
+  app.post('/api/gym/enroll/:token', loginLimiter, upload.single('photo'), async (req, res) => {
+    try {
+      const x = await enrollMember(req.params.token);
+      if (!x) return res.status(404).json({ success: false, error: 'הקישור לא בתוקף או שכבר נוצל. בקשו קישור חדש מחדר הכושר.' });
+      if (!req.file) return res.status(400).json({ success: false, error: 'לא צולמה תמונה' });
+      if (req.body.consent !== 'true') return res.status(400).json({ success: false, error: 'יש לאשר את השימוש בתמונה' });
+      const { m, gym } = x;
+      if (m.frozen || memberStatus(m) === 'expired') return res.status(400).json({ success: false, error: 'המנוי לא פעיל כרגע. פנו לחדר הכושר.' });
+      const d = await database();
+      await d.collection('gym_members').updateOne({ _id: m._id }, { $set: { consent: true, consentAt: new Date(), consentVia: 'self' } });
+      const panel = await syncMember(gym, await reloadMember(m._id), { newPhoto: req.file.buffer });
+      const anyOk = (panel.results || []).some(r => r.ok);
+      logAction(gym._id, m._id, 'self_enroll', 'member', { results: panel.results });
+      if (!anyOk) return res.status(502).json({ success: false, error: 'לא הצלחנו לשלוח את התמונה לדלת כרגע. נסו שוב בעוד כמה דקות.' });
+      await d.collection('gym_members').updateOne({ _id: m._id }, { $unset: { enrollToken: '', enrollExpires: '' } });
+      res.json({ success: true, firstName: m.firstName });
+    } catch (e) { dbg(null, 'self_enroll_error', { error: e.message }); res.status(500).json({ success: false, error: 'שגיאה. נסו שוב.' }); }
   });
 
   // ==================== ENTRY LOG ====================
