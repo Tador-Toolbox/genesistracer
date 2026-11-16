@@ -59,6 +59,17 @@ module.exports = function registerGym(app, deps) {
     const d = new Date(Date.now() + offsetDays * 86400000);
     return new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(d); // YYYY-MM-DD
   }
+  // Membership of N months from a start date: last valid day = start + N months - 1 day.
+  // Example: start 2026-11-16, 1 month → valid until 2026-12-15. Jan 31 + 1 month clamps to Feb 28.
+  function monthsEnd(startStr, months) {
+    const [y, m, d] = startStr.split('-').map(Number);
+    const lastDay = new Date(Date.UTC(y, m - 1 + months + 1, 0)).getUTCDate();
+    // Start day missing in the target month (e.g. Jan 31 → Feb): valid to that month's last day.
+    if (d > lastDay) return new Date(Date.UTC(y, m - 1 + months, lastDay)).toISOString().slice(0, 10);
+    const t = new Date(Date.UTC(y, m - 1 + months, d));
+    return addDays(t.toISOString().slice(0, 10), -1);
+  }
+  const parseMonths = (v) => { const n = parseInt(v, 10); return n >= 1 && n <= 12 ? n : null; };
   function addDays(dateStr, n) {
     const [y, m, d] = dateStr.split('-').map(Number);
     const t = new Date(Date.UTC(y, m - 1, d + n));
@@ -304,12 +315,14 @@ module.exports = function registerGym(app, deps) {
       const dup = await d.collection('gym_members').findOne({ gymId: req.gym._id, phone: m.phone });
       if (dup) return res.status(409).json({ success: false, error: 'כבר קיים מנוי עם מספר הטלפון הזה' });
       m.startDate = m.startDate || todayStr();
+      const months = parseMonths(req.body.months);
       if (plan.durationType === 'entries') {
         m.entriesLeft = plan.durationValue;
-        m.endDate = m.endDate || addDays(m.startDate, 365);
+        m.endDate = m.endDate || (months ? monthsEnd(m.startDate, months) : addDays(m.startDate, 365));
       } else {
-        m.endDate = m.endDate || addDays(m.startDate, plan.durationValue - 1);
+        m.endDate = m.endDate || (months ? monthsEnd(m.startDate, months) : addDays(m.startDate, plan.durationValue - 1));
       }
+      if (months) m.months = months;
       const doc = { ...m, planId: plan._id, gymId: req.gym._id, frozen: false, panelSync: 'none', createdAt: new Date(), createdBy: req.gymUser };
       const r = await d.collection('gym_members').insertOne(doc);
       logAction(req.gym._id, r.insertedId, 'member_create', req.gymUser, { name: `${m.firstName} ${m.lastName}` });
@@ -364,13 +377,15 @@ module.exports = function registerGym(app, deps) {
       const plan = await planFor(d, req.gym._id, req.body.planId || m.planId);
       if (!plan) return res.status(400).json({ success: false, error: 'מסלול לא קיים' });
       const set = { planId: plan._id, updatedAt: new Date() };
+      const months = parseMonths(req.body.months);
+      const base = m.endDate && m.endDate >= todayStr() ? addDays(m.endDate, 1) : todayStr();
       if (plan.durationType === 'entries') {
         set.entriesLeft = (m.entriesLeft > 0 ? m.entriesLeft : 0) + plan.durationValue;
-        set.endDate = addDays(todayStr(), 365);
+        set.endDate = months ? monthsEnd(base, months) : addDays(todayStr(), 365);
       } else {
-        const base = m.endDate && m.endDate >= todayStr() ? addDays(m.endDate, 1) : todayStr();
-        set.endDate = addDays(base, plan.durationValue - 1);
+        set.endDate = months ? monthsEnd(base, months) : addDays(base, plan.durationValue - 1);
       }
+      if (months) set.months = months;
       if (m.face && m.face.panels) set.panelSync = 'needs_update';
       await d.collection('gym_members').updateOne({ _id: m._id }, { $set: set });
       logAction(req.gym._id, m._id, 'member_renew', req.gymUser, { endDate: set.endDate, entriesLeft: set.entriesLeft });

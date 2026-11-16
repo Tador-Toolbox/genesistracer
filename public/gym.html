@@ -316,18 +316,41 @@ async function newMemberFlow() {
     <div class="two"><label class="f">שם פרטי<input class="in" id="nmF" required></label><label class="f">שם משפחה<input class="in" id="nmL"></label></div>
     <label class="f">טלפון<input class="in" id="nmP" type="tel" inputmode="tel" placeholder="05X-XXXXXXX"></label>
     <div class="two"><label class="f">מסלול<select class="in" id="nmPlan">${plans.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label class="f">תאריך התחלה<input class="in" id="nmS" type="date" value="${todayISO()}"></label></div>
-    <p class="small" style="margin:0">תאריך הסיום מחושב לפי משך המסלול. תמונת פנים מוסיפים בכרטיס המנוי.</p>
+    <label class="f">לכמה חודשים המנוי תקף<select class="in" id="nmMonths">${monthOptions(1)}</select></label>
+    <p class="small" style="margin:0" id="nmEndHint"></p>
     <div class="err" id="nmErr" role="alert"></div>
-    <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="nmSave">שמירה</button></div>`,
+    <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="nmSave">המשך</button></div>`,
   (bg, close) => {
+    const hint = () => { const s = $('#nmS', bg).value || todayISO(); $('#nmEndHint', bg).textContent = `המנוי יהיה בתוקף עד ${fmtDate(monthsEndISO(s, +$('#nmMonths', bg).value))}. זה התאריך שיישלח לפנל.`; };
+    const syncPlan = () => { const p = plans.find(x => x.id === $('#nmPlan', bg).value); $('#nmMonths', bg).value = String(defaultMonths(p)); hint(); };
+    $('#nmPlan', bg).addEventListener('change', syncPlan);
+    $('#nmMonths', bg).addEventListener('change', hint);
+    $('#nmS', bg).addEventListener('change', hint);
+    syncPlan();
     $('#nmSave', bg).addEventListener('click', async () => {
       const b = $('#nmSave', bg); b.disabled = true;
       try {
-        const j = await api('/api/gym/members', { method: 'POST', body: { firstName: $('#nmF', bg).value, lastName: $('#nmL', bg).value, phone: $('#nmP', bg).value, planId: $('#nmPlan', bg).value, startDate: $('#nmS', bg).value } });
-        close(); toast('המנוי נוסף'); location.hash = '#member/' + j.id;
+        const body = { firstName: $('#nmF', bg).value, lastName: $('#nmL', bg).value, phone: $('#nmP', bg).value, planId: $('#nmPlan', bg).value, startDate: $('#nmS', bg).value, months: $('#nmMonths', bg).value };
+        const j = await api('/api/gym/members', { method: 'POST', body });
+        close(); toast('המנוי נוסף');
+        // Step 2: photo upload, then the member card.
+        photoFlow({ id: j.id, firstName: body.firstName, consent: false }, { afterNew: true });
       } catch (e) { $('#nmErr', bg).textContent = e.message; b.disabled = false; }
     });
   });
+}
+const monthOptions = (sel) => Array.from({ length: 12 }, (_, i) => i + 1).map(n => `<option value="${n}" ${n === sel ? 'selected' : ''}>${n === 1 ? 'חודש אחד' : n + ' חודשים'}</option>`).join('');
+function defaultMonths(p) {
+  if (!p) return 1;
+  if (p.durationType === 'entries') return 12;
+  return Math.min(12, Math.max(1, Math.round(p.durationValue / 30)));
+}
+// Same rule as the server: start + N months - 1 day (clamped to month end).
+function monthsEndISO(start, months) {
+  const [y, m, d] = start.split('-').map(Number);
+  const lastDay = new Date(Date.UTC(y, m - 1 + months + 1, 0)).getUTCDate();
+  if (d > lastDay) return new Date(Date.UTC(y, m - 1 + months, lastDay)).toISOString().slice(0, 10);
+  return new Date(Date.UTC(y, m - 1 + months, d) - 86400000).toISOString().slice(0, 10);
 }
 
 // ---------- MEMBER CARD ----------
@@ -382,13 +405,14 @@ async function viewMember(id) {
 }
 async function renewFlow(id) {
   const plans = await getPlans(true);
-  openModal(`<h2>חידוש מנוי</h2><label class="f">מסלול<select class="in" id="rnPlan">${plans.map(p => `<option value="${p.id}">${esc(p.name)} · ${p.durationType === 'entries' ? p.durationValue + ' כניסות' : p.durationValue + ' יום'}</option>`).join('')}</select></label>
+  openModal(`<h2>חידוש מנוי</h2><label class="f">מסלול<select class="in" id="rnPlan">${plans.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label>
+    <label class="f">לכמה חודשים<select class="in" id="rnMonths">${monthOptions(1)}</select></label>
     <p class="small" style="margin:0">החידוש מתחיל מיום אחרי סיום המנוי הנוכחי, או מהיום אם הוא כבר פג.</p><div class="err" id="rnErr" role="alert"></div>
     <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="rnOk">חידוש</button></div>`,
   async (bg, close) => {
-    try { const j = await api('/api/gym/members/' + id); $('#rnPlan', bg).value = j.member.planId; } catch (e) {}
+    try { const j = await api('/api/gym/members/' + id); $('#rnPlan', bg).value = j.member.planId; $('#rnMonths', bg).value = String(defaultMonths(plans.find(p => p.id === j.member.planId))); } catch (e) {}
     $('#rnOk', bg).addEventListener('click', async () => {
-      try { const r = await api(`/api/gym/members/${id}/renew`, { method: 'POST', body: { planId: $('#rnPlan', bg).value } }); close(); toast(`חודש עד ${fmtDate(r.endDate)}`); route(); }
+      try { const r = await api(`/api/gym/members/${id}/renew`, { method: 'POST', body: { planId: $('#rnPlan', bg).value, months: $('#rnMonths', bg).value } }); close(); toast(`חודש עד ${fmtDate(r.endDate)}`); route(); }
       catch (e) { $('#rnErr', bg).textContent = e.message; }
     });
   });
@@ -422,21 +446,39 @@ async function editFlow(m) {
     } catch (e) { $('#edErr', bg).textContent = e.message; }
   }));
 }
-function photoFlow(m) {
-  openModal(`<h2>תמונת פנים</h2><p class="small" style="margin:0">תמונה ברורה של הפנים, מבט ישר למצלמה, תאורה טובה.</p>
-    <label class="f">בחירת תמונה<input class="in" type="file" id="phFile" accept="image/*" style="padding-top:8px"></label>
+function photoFlow(m, opts = {}) {
+  const goCard = () => { if (opts.afterNew) location.hash = '#member/' + m.id; else route(); };
+  openModal(`<h2>${opts.afterNew ? `תמונת פנים ל${esc(m.firstName)}` : 'תמונת פנים'}</h2>
+    <p class="small" style="margin:0">תמונה ברורה של הפנים, מבט ישר למצלמה, תאורה טובה.</p>
+    <div class="two">
+      <label class="btn" style="position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v4h16v-4"/></svg>
+        העלאת תמונה<input type="file" id="phFile" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0"></label>
+      <button class="btn" type="button" disabled title="יופעל בהמשך עם מכשיר הצילום" style="display:inline-flex;align-items:center;justify-content:center;gap:8px">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+        צילום ממכשיר (בקרוב)</button>
+    </div>
+    <div class="photo" id="phPrev" style="align-self:center;flex-basis:auto;width:140px;height:140px">לא נבחרה תמונה</div>
     <label class="check" style="align-self:flex-start"><input type="checkbox" id="phConsent" ${m.consent ? 'checked' : ''}>המנוי הסכים לשמירת תמונת הפנים לצורך כניסה</label>
     <div class="err" id="phErr" role="alert"></div>
-    <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="phOk">העלאה</button></div>`,
-  (bg, close) => $('#phOk', bg).addEventListener('click', async () => {
-    const f = $('#phFile', bg).files[0];
-    if (!f) return ($('#phErr', bg).textContent = 'יש לבחור תמונה');
-    if (!$('#phConsent', bg).checked) return ($('#phErr', bg).textContent = 'נדרשת הסכמת המנוי');
-    const fd = new FormData(); fd.append('photo', f); fd.append('consent', 'true');
-    const b = $('#phOk', bg); b.disabled = true; b.textContent = 'מעלה…';
-    try { await api(`/api/gym/members/${m.id}/photo`, { method: 'POST', body: fd }); close(); toast('התמונה נשמרה'); route(); }
-    catch (e) { $('#phErr', bg).textContent = e.message; b.disabled = false; b.textContent = 'העלאה'; }
-  }));
+    <div class="acts"><button class="btn" id="phSkip">${opts.afterNew ? 'אחר כך' : 'ביטול'}</button><button class="btn primary" id="phOk">שמירת תמונה</button></div>`,
+  (bg, close) => {
+    $('#phFile', bg).addEventListener('change', () => {
+      const f = $('#phFile', bg).files[0]; if (!f) return;
+      const img = document.createElement('img'); img.alt = 'תצוגה מקדימה'; img.src = URL.createObjectURL(f);
+      $('#phPrev', bg).innerHTML = ''; $('#phPrev', bg).appendChild(img);
+    });
+    $('#phSkip', bg).addEventListener('click', () => { close(); goCard(); });
+    $('#phOk', bg).addEventListener('click', async () => {
+      const f = $('#phFile', bg).files[0];
+      if (!f) return ($('#phErr', bg).textContent = 'יש לבחור תמונה');
+      if (!$('#phConsent', bg).checked) return ($('#phErr', bg).textContent = 'נדרשת הסכמת המנוי');
+      const fd = new FormData(); fd.append('photo', f); fd.append('consent', 'true');
+      const b = $('#phOk', bg); b.disabled = true; b.textContent = 'מעלה…';
+      try { await api(`/api/gym/members/${m.id}/photo`, { method: 'POST', body: fd }); close(); toast('התמונה נשמרה'); goCard(); }
+      catch (e) { $('#phErr', bg).textContent = e.message; b.disabled = false; b.textContent = 'שמירת תמונה'; }
+    });
+  });
 }
 async function pushFaceFlow(m) {
   if (!await confirmBox(`לשלוח את הפנים של ${m.firstName} לפנל?`, 'שליחה')) return;
