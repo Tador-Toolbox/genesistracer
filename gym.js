@@ -92,7 +92,7 @@ module.exports = function registerGym(app, deps) {
       planId: m.planId ? String(m.planId) : null, planName: plan ? plan.name : '',
       startDate: m.startDate, endDate: m.endDate, entriesLeft: m.entriesLeft ?? null,
       frozen: !!m.frozen, frozenUntil: m.frozenUntil || null,
-      status: memberStatus(m), photoUrl: m.photoUrl || null, notes: m.notes || '',
+      status: memberStatus(m), notes: m.notes || '', faceSaved: !!m.snapshot,
       consent: !!m.consent, card: m.card || '', pin: m.pin || '',
       faceOnPanel: !!(m.face && m.face.panels && Object.keys(m.face.panels).length),
       panelSync: m.panelSync || 'none', lastEntry: m.lastEntry || null,
@@ -349,6 +349,188 @@ module.exports = function registerGym(app, deps) {
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
+  // ==================== PANEL SYNC ====================
+  // Face photos live ON THE PANEL only. The server keeps a private copy only while a
+  // member is frozen (same idea as the installer "חסום משתמש" flow):
+  //   freeze   = save a private copy (from the panel) + delete the face from every panel
+  //   unfreeze = upload the copy back with fresh dates + delete the copy
+  //   renew / edit = re-upload the face with the new dates, then delete the old record
+  const fs = require('fs'); const os = require('os'); const path = require('path');
+  function curlJson(cmd) {
+    return new Promise((resolve) => {
+      exec(cmd, { maxBuffer: 2 * 1024 * 1024 }, (err, stdout) => {
+        if (err) return resolve({ _error: err.message });
+        try { resolve(JSON.parse(stdout)); } catch (e) { resolve({ _raw: String(stdout || '').slice(0, 300) }); }
+      });
+    });
+  }
+  async function panelConn(mac) {
+    const addr = await resolvePanelAddress(mac);
+    if (!addr) throw new Error('הפנל לא מחובר');
+    const [host, portStr] = addr.split(':'); const port = parseInt(portStr, 10) || 80;
+    const login = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = login?.data?.token;
+    if (!token) throw new Error('התחברות לפנל נכשלה');
+    return { host, port, token };
+  }
+  async function downloadFace(conn, id) {
+    const tmp = path.join(os.tmpdir(), `gymdl_${Date.now()}_${crypto.randomInt(1e6)}.jpg`);
+    try {
+      await new Promise((resolve) => exec(`curl -s --max-time 20 -H "Authorization: Bearer ${conn.token}" "http://${conn.host}:${conn.port}/api/v1/access/image/${id}.jpg?id=${id}" -o "${tmp}"`, { maxBuffer: 8 * 1024 * 1024 }, () => resolve()));
+      if (!fs.existsSync(tmp) || fs.statSync(tmp).size < 500) return null;
+      return fs.readFileSync(tmp);
+    } finally { fs.unlink(tmp, () => {}); }
+  }
+  async function uploadFace(conn, label, buf, access) {
+    const stamp = `${Date.now()}_${crypto.randomInt(1e6)}`;
+    const tmpImg = path.join(os.tmpdir(), `gymface_${stamp}.jpg`);
+    const tmpJson = path.join(os.tmpdir(), `gymaccess_${stamp}.json`);
+    try {
+      const before = new Set((await getAllPanelFaces(conn.host, conn.port, conn.token)).map(f => String(f.id)));
+      fs.writeFileSync(tmpImg, buf);
+      const up = await curlJson(`curl -s --max-time 20 -X POST -H "Authorization: Bearer ${conn.token}" -F "file=@${tmpImg};type=image/jpeg" "http://${conn.host}:${conn.port}/api/v1/access/image/jpg"`);
+      const serverFile = up?.data?.name || up?.data?.filename || up?.name || up?.data?.face_picture_name || (typeof up?.data === 'string' ? up.data : null);
+      if (!serverFile) return { ok: false, step: 'image', response: up };
+      const body = {
+        label, effective_date: access.effective, expired_date: access.expired,
+        valid_weekdays: access.weekdays, valid_count: access.count,
+        facePictureName: serverFile, content: serverFile,
+        valid_periods: JSON.stringify([{ begin: access.begin, end: access.end }]),
+        valid_door: '1',
+      };
+      fs.writeFileSync(tmpJson, JSON.stringify(body));
+      const rec = await curlJson(`curl -s --max-time 15 -X POST -H "Authorization: Bearer ${conn.token}" -H "Content-Type: application/json;charset=UTF-8" --data @${tmpJson} "http://${conn.host}:${conn.port}/api/v1/access"`);
+      const failed = rec?._error || rec?.error || (rec?.status && !['OK', 0, '0'].includes(rec.status));
+      if (failed) return { ok: false, step: 'record', response: rec, sent: body };
+      const after = await getAllPanelFaces(conn.host, conn.port, conn.token);
+      const created = after.filter(f => !before.has(String(f.id)) && (f.label || '').trim() === label);
+      return { ok: true, id: created.length ? created[created.length - 1].id : null, sent: body };
+    } finally { fs.unlink(tmpImg, () => {}); fs.unlink(tmpJson, () => {}); }
+  }
+  function accessFor(m, plan) {
+    return {
+      effective: jerusalemMs(m.startDate || todayStr(), 0, 0, 0),
+      expired: jerusalemMs(m.endDate, 23, 59, 59),
+      weekdays: plan.days,
+      begin: `${plan.start}:00`, end: `${plan.end}:59`,
+      count: plan.durationType === 'entries' ? Math.max(0, m.entriesLeft || 0) : -1,
+    };
+  }
+  function doorsFor(gym, plan) {
+    const gymMacs = (gym.panels || []).map(p => p.mac);
+    return (plan && plan.doors && plan.doors.length ? plan.doors : gymMacs).filter(mac => gymMacs.includes(mac));
+  }
+  // Private copy (Cloudinary "authenticated" = no public URL), only while frozen.
+  async function snapshotSave(gymId, buf) {
+    const r = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream({ folder: `tador/gym-frozen/${String(gymId)}`, resource_type: 'image', type: 'authenticated' },
+        (err, out) => (err ? reject(err) : resolve(out))).end(buf);
+    });
+    return { publicId: r.public_id, format: r.format || 'jpg' };
+  }
+  async function snapshotLoad(snap) {
+    const url = cloudinary.utils.private_download_url(snap.publicId, snap.format || 'jpg', { resource_type: 'image', type: 'authenticated', expires_at: Math.floor(Date.now() / 1000) + 300 });
+    const r = await axios.get(url, { responseType: 'arraybuffer', timeout: 20000 });
+    return Buffer.from(r.data);
+  }
+  async function snapshotDrop(snap) {
+    if (!snap) return;
+    try { await cloudinary.uploader.destroy(snap.publicId, { resource_type: 'image', type: 'authenticated', invalidate: true }); } catch (e) {}
+  }
+  // Best available face image: frozen copy → older public test photo → any panel record.
+  async function sourceImage(m) {
+    if (m.snapshot) { try { return await snapshotLoad(m.snapshot); } catch (e) { dbg(m.gymId, 'snapshot_load_error', { error: e.message }); } }
+    if (m.photoUrl) { try { return Buffer.from((await axios.get(m.photoUrl, { responseType: 'arraybuffer', timeout: 20000 })).data); } catch (e) {} }
+    for (const [mac, info] of Object.entries((m.face && m.face.panels) || {})) {
+      if (!info || info.id === null || info.id === undefined) continue;
+      try { const buf = await downloadFace(await panelConn(mac), info.id); if (buf) return buf; } catch (e) {}
+    }
+    return null;
+  }
+
+  // Bring the panel in line with the member: frozen → off the panel; otherwise → on the
+  // plan's doors with the member's current dates/hours. Returns { ok, results, message }.
+  async function syncMember(gym, m, opts = {}) {
+    const d = await database();
+    const label = `${m.firstName} ${m.lastName}`.trim();
+    const facePanels = { ...((m.face && m.face.panels) || {}) };
+    const results = [];
+    const set = {}; const unset = {};
+
+    if (m.frozen) {
+      if (!Object.keys(facePanels).length) return { ok: true, results, message: 'אין פנים בפנל' };
+      let snap = m.snapshot || null;
+      if (!snap) {
+        const buf = await sourceImage(m);
+        if (!buf) return { ok: false, results, message: 'לא הצלחנו להוריד את תמונת הפנים מהפנל, לכן היא לא נמחקה. נסו שוב כשהפנל מחובר.' };
+        snap = await snapshotSave(gym._id, buf);
+        set.snapshot = snap;
+      }
+      for (const [mac, info] of Object.entries(facePanels)) {
+        const r = { mac };
+        try {
+          const conn = await panelConn(mac);
+          if (info && info.id !== null && info.id !== undefined) await deleteFaceFromPanel(conn.host, conn.port, conn.token, info.id);
+          delete facePanels[mac]; r.ok = true;
+        } catch (e) { r.error = e.message; }
+        results.push(r);
+      }
+      set['face.panels'] = facePanels;
+      set.panelSync = Object.keys(facePanels).length ? 'pending' : 'frozen_saved';
+    } else {
+      if (!opts.newPhoto && !Object.keys(facePanels).length && !m.snapshot && !m.photoUrl) return { ok: true, results, message: 'אין תמונת פנים' };
+      if (memberStatus(m) === 'expired' && !opts.newPhoto) return { ok: true, results, message: 'המנוי לא בתוקף, הפנל חוסם לפי תאריך' };
+      const plan = await planFor(d, gym._id, m.planId);
+      if (!plan) return { ok: false, results, message: 'למנוי אין מסלול' };
+      const doors = doorsFor(gym, plan);
+      if (!doors.length) return { ok: false, results, message: 'לא הוגדרו דלתות לחדר הכושר' };
+      const buf = opts.newPhoto || await sourceImage(m);
+      if (!buf) return { ok: false, results, message: 'לא נמצאה תמונת פנים לשליחה' };
+      const access = accessFor(m, plan);
+      for (const mac of doors) {
+        const r = { mac };
+        try {
+          const conn = await panelConn(mac);
+          const old = facePanels[mac];
+          if (!old) {
+            const existing = await getAllPanelFaces(conn.host, conn.port, conn.token);
+            if (existing.some(f => (f.label || '').trim() === label)) throw new Error(`כבר קיימת בפנל פנים בשם "${label}" שלא נוצרה מהפורטל`);
+          }
+          const out = await uploadFace(conn, label, buf, access);
+          dbg(gym._id, 'upload_face', { member: String(m._id), mac, ok: out.ok, step: out.step, id: out.id, response: out.response });
+          if (!out.ok) throw new Error('הפנל דחה את התמונה');
+          if (old && old.id !== null && old.id !== undefined && String(old.id) !== String(out.id)) {
+            try { await deleteFaceFromPanel(conn.host, conn.port, conn.token, old.id); } catch (e) { dbg(gym._id, 'old_record_delete_error', { mac, id: old.id, error: e.message }); }
+          }
+          facePanels[mac] = { id: out.id, uploadedAt: new Date(), expired: access.expired };
+          r.ok = true;
+        } catch (e) { r.error = e.message; }
+        results.push(r);
+      }
+      // Doors the plan no longer opens: remove the face there.
+      for (const [mac, info] of Object.entries(facePanels)) {
+        if (doors.includes(mac)) continue;
+        const r = { mac, removed: true };
+        try { const conn = await panelConn(mac); if (info && info.id != null) await deleteFaceFromPanel(conn.host, conn.port, conn.token, info.id); delete facePanels[mac]; r.ok = true; }
+        catch (e) { r.error = e.message; }
+        results.push(r);
+      }
+      const allOk = results.every(r => r.ok);
+      set['face.panels'] = facePanels;
+      set.panelSync = allOk ? 'synced' : 'pending';
+      if (allOk) {
+        if (m.snapshot) { await snapshotDrop(m.snapshot); unset.snapshot = ''; }
+        if (m.photoPublicId) { try { await cloudinary.uploader.destroy(m.photoPublicId); } catch (e) {} unset.photoUrl = ''; unset.photoPublicId = ''; }
+      }
+    }
+    const upd = { $set: set }; if (Object.keys(unset).length) upd.$unset = unset;
+    await d.collection('gym_members').updateOne({ _id: m._id }, upd);
+    const ok = results.every(r => r.ok);
+    return { ok, results, message: ok ? '' : 'חלק מהפנלים לא עודכנו. אפשר לנסות שוב מכרטיס המנוי.' };
+  }
+  async function reloadMember(id) { const d = await database(); return d.collection('gym_members').findOne({ _id: id }); }
+
+  // ==================== MEMBER ACTIONS ====================
   app.put('/api/gym/members/:id', gymAuth, async (req, res) => {
     try {
       const m = await memberOf(req, res); if (!m) return;
@@ -361,15 +543,19 @@ module.exports = function registerGym(app, deps) {
         if (!plan) return res.status(400).json({ success: false, error: 'מסלול לא קיים' });
         set.planId = plan._id;
       }
-      const panelFieldsChanged = set.planId || u.endDate !== m.endDate || u.firstName !== m.firstName || u.lastName !== m.lastName;
-      if (panelFieldsChanged && m.face && m.face.panels) set.panelSync = 'needs_update';
+      const panelFieldsChanged = set.planId || u.endDate !== m.endDate || u.startDate !== m.startDate || u.firstName !== m.firstName || u.lastName !== m.lastName;
       await d.collection('gym_members').updateOne({ _id: m._id }, { $set: set });
       logAction(req.gym._id, m._id, 'member_update', req.gymUser, {});
-      res.json({ success: true });
+      let panel = null;
+      if (panelFieldsChanged && m.face && m.face.panels && Object.keys(m.face.panels).length && !m.frozen) {
+        // Name changes need the old label gone: the sync re-uploads under the new name and deletes the old record.
+        panel = await syncMember(req.gym, await reloadMember(m._id));
+      }
+      res.json({ success: true, panel });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
-  // Renew: extend by the plan's duration from max(today, current end+1).
+  // Renew: extends from the day after the current end (or today if already expired).
   app.post('/api/gym/members/:id/renew', gymAuth, async (req, res) => {
     try {
       const m = await memberOf(req, res); if (!m) return;
@@ -379,6 +565,7 @@ module.exports = function registerGym(app, deps) {
       const set = { planId: plan._id, updatedAt: new Date() };
       const months = parseMonths(req.body.months);
       const base = m.endDate && m.endDate >= todayStr() ? addDays(m.endDate, 1) : todayStr();
+      if (!(m.endDate && m.endDate >= todayStr())) set.startDate = todayStr();
       if (plan.durationType === 'entries') {
         set.entriesLeft = (m.entriesLeft > 0 ? m.entriesLeft : 0) + plan.durationValue;
         set.endDate = months ? monthsEnd(base, months) : addDays(todayStr(), 365);
@@ -386,27 +573,31 @@ module.exports = function registerGym(app, deps) {
         set.endDate = months ? monthsEnd(base, months) : addDays(base, plan.durationValue - 1);
       }
       if (months) set.months = months;
-      if (m.face && m.face.panels) set.panelSync = 'needs_update';
       await d.collection('gym_members').updateOne({ _id: m._id }, { $set: set });
       logAction(req.gym._id, m._id, 'member_renew', req.gymUser, { endDate: set.endDate, entriesLeft: set.entriesLeft });
-      res.json({ success: true, endDate: set.endDate, entriesLeft: set.entriesLeft ?? null });
+      const panel = await syncMember(req.gym, await reloadMember(m._id));
+      res.json({ success: true, endDate: set.endDate, entriesLeft: set.entriesLeft ?? null, panel });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
   app.post('/api/gym/members/:id/freeze', gymAuth, async (req, res) => {
     try {
       const m = await memberOf(req, res); if (!m) return;
+      if (m.frozen) return res.status(400).json({ success: false, error: 'המנוי כבר מוקפא' });
       const until = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.until || '')) ? req.body.until : null;
       const d = await database();
-      await d.collection('gym_members').updateOne({ _id: m._id }, {
-        $set: { frozen: true, frozenUntil: until, frozenAt: new Date(), panelSync: m.face && m.face.panels ? 'needs_update' : (m.panelSync || 'none') },
-      });
-      logAction(req.gym._id, m._id, 'member_freeze', req.gymUser, { until });
-      res.json({ success: true });
+      await d.collection('gym_members').updateOne({ _id: m._id }, { $set: { frozen: true, frozenUntil: until, frozenAt: new Date() } });
+      const panel = await syncMember(req.gym, await reloadMember(m._id));
+      if (!panel.ok && !(panel.results || []).some(r => r.ok)) {
+        // Could not save a copy / reach any panel: the face is still on the panel.
+        await d.collection('gym_members').updateOne({ _id: m._id }, { $set: { panelSync: 'pending' } });
+      }
+      logAction(req.gym._id, m._id, 'member_freeze', req.gymUser, { until, panel: panel.results });
+      res.json({ success: true, panel });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
-  // Unfreeze: the frozen days are added back to the end date.
+  // Unfreeze: frozen days are added back to the end date, then the face goes back on the panel.
   app.post('/api/gym/members/:id/unfreeze', gymAuth, async (req, res) => {
     try {
       const m = await memberOf(req, res); if (!m) return;
@@ -417,10 +608,20 @@ module.exports = function registerGym(app, deps) {
         if (frozenDays > 0) set.endDate = addDays(m.endDate, frozenDays);
         set.lastFreezeDays = frozenDays;
       }
-      if (m.face && m.face.panels) set.panelSync = 'needs_update';
       await d.collection('gym_members').updateOne({ _id: m._id }, { $set: set, $unset: { frozenAt: '' } });
-      logAction(req.gym._id, m._id, 'member_unfreeze', req.gymUser, { endDate: set.endDate, frozenDays: set.lastFreezeDays });
-      res.json({ success: true, endDate: set.endDate || m.endDate });
+      const panel = await syncMember(req.gym, await reloadMember(m._id));
+      logAction(req.gym._id, m._id, 'member_unfreeze', req.gymUser, { endDate: set.endDate, frozenDays: set.lastFreezeDays, panel: panel.results });
+      res.json({ success: true, endDate: set.endDate || m.endDate, panel });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  // Retry: bring the panel in line with the member (after a panel was offline).
+  app.post('/api/gym/members/:id/panel-sync', gymAuth, async (req, res) => {
+    try {
+      const m = await memberOf(req, res); if (!m) return;
+      const panel = await syncMember(req.gym, m);
+      logAction(req.gym._id, m._id, 'panel_sync', req.gymUser, { results: panel.results });
+      res.json({ success: panel.ok, panel, error: panel.ok ? undefined : panel.message });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
@@ -428,19 +629,13 @@ module.exports = function registerGym(app, deps) {
     try {
       const m = await memberOf(req, res); if (!m) return;
       const d = await database();
-      // Remove the face from every panel it was pushed to (batchdelete by record id).
       const results = [];
       for (const [mac, info] of Object.entries((m.face && m.face.panels) || {})) {
         const r = { mac };
         try {
-          if (!info || info.id === null || info.id === undefined) { r.error = 'מזהה הרשומה בפנל לא ידוע'; results.push(r); continue; }
-          const addr = await resolvePanelAddress(mac);
-          if (!addr) { r.error = 'הפנל לא מחובר'; results.push(r); continue; }
-          const [host, portStr] = addr.split(':'); const port = parseInt(portStr, 10) || 80;
-          const login = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
-          const token = login?.data?.token;
-          if (!token) { r.error = 'התחברות לפנל נכשלה'; results.push(r); continue; }
-          await deleteFaceFromPanel(host, port, token, info.id);
+          if (!info || info.id === null || info.id === undefined) throw new Error('מזהה הרשומה בפנל לא ידוע');
+          const conn = await panelConn(mac);
+          await deleteFaceFromPanel(conn.host, conn.port, conn.token, info.id);
           r.ok = true;
         } catch (e) { r.error = e.message; }
         results.push(r);
@@ -449,126 +644,40 @@ module.exports = function registerGym(app, deps) {
       if (failed.length && req.query.force !== '1') {
         return res.status(409).json({ success: false, error: 'לא ניתן היה להסיר את הפנים מכל הפנלים', results });
       }
+      await snapshotDrop(m.snapshot);
+      if (m.photoPublicId) { try { await cloudinary.uploader.destroy(m.photoPublicId); } catch (e) {} }
       await d.collection('gym_members').deleteOne({ _id: m._id });
       logAction(req.gym._id, m._id, 'member_delete', req.gymUser, { name: `${m.firstName} ${m.lastName}`, panels: results });
       res.json({ success: true, results });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
-  // Photo upload (multipart "photo") → Cloudinary, private to the gym folder.
+  // Photo (multipart "photo"): goes straight to the panel(s). Not stored on our server.
   app.post('/api/gym/members/:id/photo', gymAuth, upload.single('photo'), async (req, res) => {
     try {
       const m = await memberOf(req, res); if (!m) return;
       if (!req.file) return res.status(400).json({ success: false, error: 'לא נבחרה תמונה' });
       if (req.body.consent !== 'true' && !m.consent) return res.status(400).json({ success: false, error: 'נדרשת הסכמת המנוי לשמירת תמונת פנים' });
-      const result = await new Promise((resolve, reject) => {
-        cloudinary.uploader.upload_stream(
-          { folder: `tador/gym/${String(req.gym._id)}`, resource_type: 'image', transformation: [{ width: 800, height: 800, crop: 'limit' }] },
-          (err, r) => (err ? reject(err) : resolve(r))
-        ).end(req.file.buffer);
-      });
+      if (m.frozen) return res.status(400).json({ success: false, error: 'המנוי מוקפא. הפשירו אותו קודם' });
+      if (memberStatus(m) === 'expired') return res.status(400).json({ success: false, error: 'המנוי לא בתוקף. חדשו אותו קודם' });
       const d = await database();
-      const set = { photoUrl: result.secure_url, photoPublicId: result.public_id, consent: true, consentAt: m.consentAt || new Date() };
-      if (m.face && m.face.panels) set.panelSync = 'needs_update';
-      await d.collection('gym_members').updateOne({ _id: m._id }, { $set: set });
-      logAction(req.gym._id, m._id, 'member_photo', req.gymUser, {});
-      res.json({ success: true, photoUrl: result.secure_url });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+      await d.collection('gym_members').updateOne({ _id: m._id }, { $set: { consent: true, consentAt: m.consentAt || new Date() } });
+      const panel = await syncMember(req.gym, await reloadMember(m._id), { newPhoto: req.file.buffer });
+      logAction(req.gym._id, m._id, 'member_photo', req.gymUser, { results: panel.results });
+      const anyOk = (panel.results || []).some(r => r.ok);
+      res.status(anyOk ? 200 : 502).json({ success: anyOk, panel, error: anyOk ? undefined : (panel.message && panel.results.length === 0 ? panel.message : (panel.results.map(r => r.error).filter(Boolean)[0] || panel.message)) });
+    } catch (e) { dbg(req.gym._id, 'photo_error', { error: e.message }); res.status(500).json({ success: false, error: e.message }); }
   });
 
-  // ==================== PANEL: PUSH ONE MEMBER'S FACE ====================
-  // Uploads the member's face to each door their plan opens, with the plan's
-  // weekdays + hours and expiry = end of the member's last day (Jerusalem time).
-  // One member per call, on purpose: verify on one case before any bulk action.
-  function curlJson(cmd) {
-    return new Promise((resolve) => {
-      exec(cmd, { maxBuffer: 2 * 1024 * 1024 }, (err, stdout) => {
-        if (err) return resolve({ _error: err.message });
-        try { resolve(JSON.parse(stdout)); } catch (e) { resolve({ _raw: String(stdout || '').slice(0, 300) }); }
-      });
-    });
-  }
-  async function pushFace(host, port, token, label, photoUrl, access) {
-    const fs = require('fs'); const os = require('os'); const path = require('path');
-    const stamp = `${Date.now()}_${crypto.randomInt(1e6)}`;
-    const tmpImg = path.join(os.tmpdir(), `gymface_${stamp}.jpg`);
-    const tmpJson = path.join(os.tmpdir(), `gymaccess_${stamp}.json`);
-    try {
-      const img = await axios.get(photoUrl, { responseType: 'arraybuffer', timeout: 20000 });
-      fs.writeFileSync(tmpImg, Buffer.from(img.data));
-      const up = await curlJson(`curl -s --max-time 20 -X POST -H "Authorization: Bearer ${token}" -F "file=@${tmpImg};type=image/jpeg" "http://${host}:${port}/api/v1/access/image/jpg"`);
-      const serverFile = up?.data?.name || up?.data?.filename || up?.name || up?.data?.face_picture_name || (typeof up?.data === 'string' ? up.data : null);
-      if (!serverFile) return { ok: false, step: 'image', response: up };
-      const body = {
-        label,
-        effective_date: access.effective,
-        expired_date: access.expired,
-        valid_weekdays: access.weekdays,
-        valid_count: access.count,
-        facePictureName: serverFile,
-        content: serverFile,
-        valid_periods: JSON.stringify([{ begin: access.begin, end: access.end }]),
-        valid_door: '1',
-      };
-      fs.writeFileSync(tmpJson, JSON.stringify(body));
-      const rec = await curlJson(`curl -s --max-time 15 -X POST -H "Authorization: Bearer ${token}" -H "Content-Type: application/json;charset=UTF-8" --data @${tmpJson} "http://${host}:${port}/api/v1/access"`);
-      const failed = rec?._error || rec?.error || (rec?.status && !['OK', 0, '0'].includes(rec.status));
-      return { ok: !failed, step: 'record', response: rec, sent: body };
-    } finally {
-      fs.unlink(tmpImg, () => {}); fs.unlink(tmpJson, () => {});
-    }
-  }
-
-  app.post('/api/gym/members/:id/push-face', gymAuth, async (req, res) => {
-    const gymId = req.gym._id;
+  // Live face image: from the panel (or the frozen copy). Fetched by the page as a blob.
+  app.get('/api/gym/members/:id/face', gymAuth, async (req, res) => {
     try {
       const m = await memberOf(req, res); if (!m) return;
-      if (!m.photoUrl) return res.status(400).json({ success: false, error: 'אין תמונת פנים למנוי' });
-      if (m.frozen || memberStatus(m) === 'expired') return res.status(400).json({ success: false, error: 'המנוי מוקפא או לא בתוקף, לא נשלח לפנל' });
-      const d = await database();
-      const plan = await planFor(d, gymId, m.planId);
-      if (!plan) return res.status(400).json({ success: false, error: 'למנוי אין מסלול' });
-      const gymMacs = (req.gym.panels || []).map(p => p.mac);
-      const doors = (plan.doors && plan.doors.length ? plan.doors : gymMacs).filter(mac => gymMacs.includes(mac));
-      if (!doors.length) return res.status(400).json({ success: false, error: 'לא הוגדרו דלתות לחדר הכושר' });
-      const access = {
-        effective: jerusalemMs(m.startDate || todayStr(), 0, 0, 0),
-        expired: jerusalemMs(m.endDate, 23, 59, 59),
-        weekdays: plan.days,
-        begin: `${plan.start}:00`, end: `${plan.end}:59`,
-        count: plan.durationType === 'entries' ? Math.max(0, m.entriesLeft || 0) : -1,
-      };
-      const label = `${m.firstName} ${m.lastName}`.trim();
-      const results = [];
-      const facePanels = { ...((m.face && m.face.panels) || {}) };
-      for (const mac of doors) {
-        const r = { mac };
-        try {
-          const addr = await resolvePanelAddress(mac);
-          if (!addr) { r.error = 'הפנל לא מחובר'; results.push(r); continue; }
-          const [host, portStr] = addr.split(':'); const port = parseInt(portStr, 10) || 80;
-          const login = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
-          const token = login?.data?.token;
-          if (!token) { r.error = 'התחברות לפנל נכשלה'; results.push(r); continue; }
-          const existing = await getAllPanelFaces(host, port, token);
-          if (existing.some(f => (f.label || '').trim() === label)) { r.error = `כבר קיימת פנים בשם "${label}" בפנל`; results.push(r); continue; }
-          const out = await pushFace(host, port, token, label, m.photoUrl, access);
-          dbg(gymId, 'push_face', { member: String(m._id), mac, ok: out.ok, step: out.step, response: out.response });
-          if (!out.ok) { r.error = 'הפנל דחה את הרשומה'; r.detail = out.response; results.push(r); continue; }
-          const after = await getAllPanelFaces(host, port, token);
-          const rec = after.find(f => (f.label || '').trim() === label);
-          facePanels[mac] = { id: rec ? rec.id : null, uploadedAt: new Date(), expired: access.expired };
-          r.ok = true; r.panelRecordId = rec ? rec.id : null;
-          results.push(r);
-        } catch (e) { r.error = e.message; results.push(r); }
-      }
-      const anyOk = results.some(r => r.ok);
-      if (anyOk) {
-        await d.collection('gym_members').updateOne({ _id: m._id }, { $set: { 'face.panels': facePanels, panelSync: results.every(r => r.ok) ? 'synced' : 'partial' } });
-      }
-      logAction(gymId, m._id, 'push_face', req.gymUser, { results: results.map(r => ({ mac: r.mac, ok: !!r.ok, error: r.error })) });
-      res.json({ success: anyOk, results, sent: access });
-    } catch (e) { dbg(gymId, 'push_face_error', { error: e.message }); res.status(500).json({ success: false, error: e.message }); }
+      const buf = await sourceImage(m);
+      if (!buf) return res.status(404).json({ success: false, error: 'לא נמצאה תמונה' });
+      res.setHeader('Cache-Control', 'no-store');
+      res.type('jpg').send(buf);
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
   // ==================== ENTRY LOG ====================

@@ -143,6 +143,7 @@ function toast(msg) {
   let host = document.getElementById('toasts');
   if (!host) { host = document.createElement('div'); host.id = 'toasts'; host.setAttribute('aria-live', 'polite'); document.body.appendChild(host); }
   const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
+  while (host.children.length >= 3) host.firstElementChild.remove();
   host.appendChild(t); setTimeout(() => t.remove(), 4000);
 }
 const fmtDate = (s) => { if (!s) return '-'; const [y, m, d] = String(s).slice(0, 10).split('-'); return `${d}/${m}/${y}`; };
@@ -156,6 +157,11 @@ function statusBadge(m) {
   if (m.status === 'expiring') { const n = daysTo(m.endDate); t = n === 0 ? 'פג היום' : `פג בעוד ${n} ימים`; }
   if (m.status === 'frozen' && m.frozenUntil) t = `מוקפא עד ${fmtDate(m.frozenUntil).slice(0, 5)}`;
   return `<span class="badge b-${m.status}">${esc(t)}</span>`;
+}
+function panelMsg(panel, okText) {
+  if (!panel || panel.ok || !panel.results) return okText;
+  const bad = panel.results.filter(r => !r.ok).map(r => r.error).filter(Boolean);
+  return `${okText}. הפנל לא עודכן: ${bad[0] || panel.message}`;
 }
 const resultBadge = (r) => `<span class="badge b-${esc(r)}">${esc(RESULT[r] || r)}</span>`;
 function creds(m) {
@@ -354,7 +360,7 @@ function monthsEndISO(start, months) {
 }
 
 // ---------- MEMBER CARD ----------
-const ACTION = { member_create: 'נוצר', member_update: 'עודכן', member_renew: 'חודש', member_freeze: 'הוקפא', member_unfreeze: 'הופשר', member_photo: 'הועלתה תמונה', push_face: 'נשלח לפנל', member_delete: 'נמחק' };
+const ACTION = { panel_sync: 'עדכון פנל', member_create: 'נוצר', member_update: 'עודכן', member_renew: 'חודש', member_freeze: 'הוקפא', member_unfreeze: 'הופשר', member_photo: 'הועלתה תמונה', push_face: 'נשלח לפנל', member_delete: 'נמחק' };
 async function viewMember(id) {
   const j = await api('/api/gym/members/' + encodeURIComponent(id));
   const m = j.member, p = j.plan;
@@ -365,9 +371,9 @@ async function viewMember(id) {
   if (m.status === 'expired') notice = `<div class="note" role="status" style="background:#FDE8EA;color:#8F0A1A;border-color:#F0B8BF">המנוי לא בתוקף מאז ${fmtDate(m.endDate)}.</div>`;
   else if (m.status === 'expiring') notice = `<div class="note" role="status">המנוי פג ב-${fmtDate(m.endDate)}. אחרי תאריך זה הדלת לא תיפתח ל${esc(m.firstName)}.</div>`;
   else if (m.status === 'frozen') notice = `<div class="note info" role="status">המנוי מוקפא${m.frozenUntil ? ` עד ${fmtDate(m.frozenUntil)}` : ''}. ימי ההקפאה יתווספו לתאריך הסיום בהפשרה.</div>`;
-  if (m.panelSync === 'needs_update') notice += `<div class="note info" role="status">השינוי נשמר במערכת. עדכון הפנל עצמו (הקפאה, חידוש, שעות) יופעל אחרי בדיקת הפנל.</div>`;
-  const faceState = m.faceOnPanel ? (m.panelSync === 'needs_update' ? 'בפנל · ממתין לעדכון' : 'פעיל בפנל') : (m.photoUrl ? 'יש תמונה · לא נשלחה לפנל' : 'אין תמונה');
-  const faceBtn = m.photoUrl && !m.faceOnPanel ? `<button class="btn dark" id="pushFace">שליחה לפנל</button>` : `<button class="btn" id="photoBtn">${m.photoUrl ? 'החלפת תמונה' : 'העלאת תמונה'}</button>`;
+  if (m.panelSync === 'pending' || m.panelSync === 'needs_update') notice += `<div class="note" role="status" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><span>השינוי נשמר, אבל הפנל עדיין לא עודכן (כנראה לא היה מחובר).</span><button class="btn" id="syncPanel">עדכון הפנל עכשיו</button></div>`;
+  const faceState = m.faceOnPanel ? 'פעיל בפנל' : (m.faceSaved ? 'הוסר מהפנל בזמן ההקפאה · יוחזר בהפשרה' : 'אין תמונה בפנל');
+  const faceBtn = m.frozen ? '' : `<button class="btn" id="photoBtn">${m.faceOnPanel ? 'החלפת תמונה' : 'העלאת תמונה'}</button>`;
   const hist = j.entries.length ? `<div class="tw"><table style="min-width:460px"><thead><tr><th>מועד</th><th>דלת</th><th>אמצעי</th><th>תוצאה</th></tr></thead><tbody>${j.entries.map(e => `<tr><td>${fmtDT(e.time)}</td><td>${esc(e.door)}</td><td>${esc(METHOD[e.method] || e.method)}</td><td>${resultBadge(e.result)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">אין כניסות רשומות.</div>';
   const acts = j.actions.length ? j.actions.map(a => `<div class="small">${fmtDT(a.at)} · ${esc(ACTION[a.action] || a.action)} · ${esc(a.by || '')}</div>`).join('') : '<div class="small">אין פעולות.</div>';
   after(() => {
@@ -376,7 +382,20 @@ async function viewMember(id) {
     $('#editBtn').addEventListener('click', () => editFlow(m));
     $('#delBtn').addEventListener('click', () => deleteFlow(m));
     $('#photoBtn') && $('#photoBtn').addEventListener('click', () => photoFlow(m));
-    $('#pushFace') && $('#pushFace').addEventListener('click', () => pushFaceFlow(m));
+    $('#syncPanel') && $('#syncPanel').addEventListener('click', async () => {
+      const b = $('#syncPanel'); b.disabled = true; b.textContent = 'מעדכן…';
+      try { await api(`/api/gym/members/${m.id}/panel-sync`, { method: 'POST' }); toast('הפנל עודכן'); } catch (e) { toast(e.message); }
+      route();
+    });
+    if (m.faceOnPanel || m.faceSaved) $('#showFace').addEventListener('click', async () => {
+      const b = $('#showFace'); b.disabled = true; b.textContent = 'טוען מהפנל…';
+      try {
+        const r = await fetch(`/api/gym/members/${m.id}/face`, { headers: { 'x-gym-token': TOKEN } });
+        if (!r.ok) throw new Error('לא ניתן לטעון את התמונה מהפנל');
+        const img = document.createElement('img'); img.alt = `תמונת הפנים של ${m.firstName}`; img.src = URL.createObjectURL(await r.blob());
+        $('#facePhoto').innerHTML = ''; $('#facePhoto').appendChild(img);
+      } catch (e) { toast(e.message); b.disabled = false; b.textContent = 'הצגת תמונה'; }
+    });
     $('#saveNote').addEventListener('click', async () => { try { await api('/api/gym/members/' + m.id, { method: 'PUT', body: { notes: $('#noteTxt').value } }); toast('ההערה נשמרה'); } catch (e) { toast(e.message); } });
   });
   return header(`${m.firstName} ${m.lastName}`, `${esc(m.planName)} · ${statusBadge(m)}`,
@@ -385,7 +404,7 @@ async function viewMember(id) {
     + `<div class="row">
       <div style="flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:20px">
         <section class="card" style="display:flex;gap:18px;align-items:center">
-          <div class="photo">${m.photoUrl ? `<img src="${esc(m.photoUrl)}" alt="תמונת הפנים של ${esc(m.firstName)}">` : '[תמונת פנים]'}</div>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:center"><div class="photo" id="facePhoto">${m.faceOnPanel || m.faceSaved ? 'התמונה בפנל' : 'אין תמונה'}</div>${m.faceOnPanel || m.faceSaved ? '<button class="btn" id="showFace" style="height:36px;font-size:13px">הצגת תמונה</button>' : ''}</div>
           <div class="kv" style="flex:1">${kv('טלפון', telLink(m.phone))}${kv('מסלול', esc(m.planName || '-'))}${kv('התחלה', fmtDate(m.startDate))}${kv('בתוקף עד', fmtDate(m.endDate))}${kv('שעות מותרות', hours)}${kv('ימים', days)}${m.entriesLeft !== null ? kv('כניסות שנותרו', m.entriesLeft) : ''}</div>
         </section>
         <section class="card"><h2>אמצעי כניסה</h2>
@@ -412,23 +431,23 @@ async function renewFlow(id) {
   async (bg, close) => {
     try { const j = await api('/api/gym/members/' + id); $('#rnPlan', bg).value = j.member.planId; $('#rnMonths', bg).value = String(defaultMonths(plans.find(p => p.id === j.member.planId))); } catch (e) {}
     $('#rnOk', bg).addEventListener('click', async () => {
-      try { const r = await api(`/api/gym/members/${id}/renew`, { method: 'POST', body: { planId: $('#rnPlan', bg).value, months: $('#rnMonths', bg).value } }); close(); toast(`חודש עד ${fmtDate(r.endDate)}`); route(); }
+      try { const r = await api(`/api/gym/members/${id}/renew`, { method: 'POST', body: { planId: $('#rnPlan', bg).value, months: $('#rnMonths', bg).value } }); close(); toast(panelMsg(r.panel, `חודש עד ${fmtDate(r.endDate)}`)); route(); }
       catch (e) { $('#rnErr', bg).textContent = e.message; }
     });
   });
 }
 function freezeFlow(id) {
   openModal(`<h2>הקפאת מנוי</h2><label class="f">מוקפא עד (לא חובה)<input class="in" type="date" id="fzUntil" min="${todayISO()}"></label>
-    <p class="small" style="margin:0">בזמן ההקפאה הדלת לא נפתחת למנוי. ימי ההקפאה מתווספים לתאריך הסיום בהפשרה.</p><div class="err" id="fzErr" role="alert"></div>
+    <p class="small" style="margin:0">הפנים יוסרו מהפנל והדלת לא תיפתח למנוי. עותק נשמר באופן פרטי ויוחזר לפנל בהפשרה, עם ימי ההקפאה מתווספים לתאריך הסיום.</p><div class="err" id="fzErr" role="alert"></div>
     <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="fzOk">הקפאה</button></div>`,
   (bg, close) => $('#fzOk', bg).addEventListener('click', async () => {
-    try { await api(`/api/gym/members/${id}/freeze`, { method: 'POST', body: { until: $('#fzUntil', bg).value || null } }); close(); toast('המנוי הוקפא'); route(); }
+    try { const r = await api(`/api/gym/members/${id}/freeze`, { method: 'POST', body: { until: $('#fzUntil', bg).value || null } }); close(); toast(panelMsg(r.panel, 'המנוי הוקפא והפנים הוסרו מהפנל')); route(); }
     catch (e) { $('#fzErr', bg).textContent = e.message; }
   }));
 }
 async function unfreeze(id) {
   if (!await confirmBox('להפשיר את המנוי?', 'הפשרה')) return;
-  try { const r = await api(`/api/gym/members/${id}/unfreeze`, { method: 'POST' }); toast(`הופשר. בתוקף עד ${fmtDate(r.endDate)}`); route(); } catch (e) { toast(e.message); }
+  try { const r = await api(`/api/gym/members/${id}/unfreeze`, { method: 'POST' }); toast(panelMsg(r.panel, `הופשר. בתוקף עד ${fmtDate(r.endDate)}`)); route(); } catch (e) { toast(e.message); }
 }
 async function editFlow(m) {
   const plans = await getPlans(true);
@@ -441,15 +460,15 @@ async function editFlow(m) {
     <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="edOk">שמירה</button></div>`,
   (bg, close) => $('#edOk', bg).addEventListener('click', async () => {
     try {
-      await api('/api/gym/members/' + m.id, { method: 'PUT', body: { firstName: $('#edF', bg).value, lastName: $('#edL', bg).value, phone: $('#edP', bg).value, planId: $('#edPlan', bg).value, endDate: $('#edE', bg).value, card: $('#edC', bg).value, pin: $('#edPin', bg).value } });
-      close(); toast('נשמר'); route();
+      const r = await api('/api/gym/members/' + m.id, { method: 'PUT', body: { firstName: $('#edF', bg).value, lastName: $('#edL', bg).value, phone: $('#edP', bg).value, planId: $('#edPlan', bg).value, endDate: $('#edE', bg).value, card: $('#edC', bg).value, pin: $('#edPin', bg).value } });
+      close(); toast(panelMsg(r.panel, 'נשמר')); route();
     } catch (e) { $('#edErr', bg).textContent = e.message; }
   }));
 }
 function photoFlow(m, opts = {}) {
   const goCard = () => { if (opts.afterNew) location.hash = '#member/' + m.id; else route(); };
   openModal(`<h2>${opts.afterNew ? `תמונת פנים ל${esc(m.firstName)}` : 'תמונת פנים'}</h2>
-    <p class="small" style="margin:0">תמונה ברורה של הפנים, מבט ישר למצלמה, תאורה טובה.</p>
+    <p class="small" style="margin:0">תמונה ברורה של הפנים, מבט ישר למצלמה, תאורה טובה. התמונה נשלחת ישירות לפנל ולא נשמרת בשרת.</p>
     <div class="two">
       <label class="btn" style="position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">
         <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v4h16v-4"/></svg>
@@ -461,7 +480,7 @@ function photoFlow(m, opts = {}) {
     <div class="photo" id="phPrev" style="align-self:center;flex-basis:auto;width:140px;height:140px">לא נבחרה תמונה</div>
     <label class="check" style="align-self:flex-start"><input type="checkbox" id="phConsent" ${m.consent ? 'checked' : ''}>המנוי הסכים לשמירת תמונת הפנים לצורך כניסה</label>
     <div class="err" id="phErr" role="alert"></div>
-    <div class="acts"><button class="btn" id="phSkip">${opts.afterNew ? 'אחר כך' : 'ביטול'}</button><button class="btn primary" id="phOk">שמירת תמונה</button></div>`,
+    <div class="acts"><button class="btn" id="phSkip">${opts.afterNew ? 'אחר כך' : 'ביטול'}</button><button class="btn primary" id="phOk">שליחה לפנל</button></div>`,
   (bg, close) => {
     $('#phFile', bg).addEventListener('change', () => {
       const f = $('#phFile', bg).files[0]; if (!f) return;
@@ -474,21 +493,11 @@ function photoFlow(m, opts = {}) {
       if (!f) return ($('#phErr', bg).textContent = 'יש לבחור תמונה');
       if (!$('#phConsent', bg).checked) return ($('#phErr', bg).textContent = 'נדרשת הסכמת המנוי');
       const fd = new FormData(); fd.append('photo', f); fd.append('consent', 'true');
-      const b = $('#phOk', bg); b.disabled = true; b.textContent = 'מעלה…';
-      try { await api(`/api/gym/members/${m.id}/photo`, { method: 'POST', body: fd }); close(); toast('התמונה נשמרה'); goCard(); }
-      catch (e) { $('#phErr', bg).textContent = e.message; b.disabled = false; b.textContent = 'שמירת תמונה'; }
+      const b = $('#phOk', bg); b.disabled = true; b.textContent = 'שולח לפנל…';
+      try { const r = await api(`/api/gym/members/${m.id}/photo`, { method: 'POST', body: fd }); close(); toast(panelMsg(r.panel, 'הפנים נשלחו לפנל')); goCard(); }
+      catch (e) { $('#phErr', bg).textContent = e.message; b.disabled = false; b.textContent = 'שליחה לפנל'; }
     });
   });
-}
-async function pushFaceFlow(m) {
-  if (!await confirmBox(`לשלוח את הפנים של ${m.firstName} לפנל?`, 'שליחה')) return;
-  const b = $('#pushFace'); if (b) { b.disabled = true; b.textContent = 'שולח…'; }
-  try {
-    const j = await api(`/api/gym/members/${m.id}/push-face`, { method: 'POST' });
-    const bad = j.results.filter(r => !r.ok);
-    toast(bad.length ? `נשלח חלקית: ${bad.map(r => r.error).join(' · ')}` : 'הפנים נשלחו לפנל');
-  } catch (e) { toast(e.data && e.data.results ? e.data.results.map(r => r.error).filter(Boolean).join(' · ') || e.message : e.message); }
-  route();
 }
 async function deleteFlow(m) {
   if (!await confirmBox(`למחוק את ${m.firstName} ${m.lastName}?`, 'מחיקה', true)) return;
