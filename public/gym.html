@@ -189,7 +189,7 @@ const resultBadge = (r, dir) => {
 };
 function creds(m) {
   const c = (on, l) => `<span class="cred ${on ? 'on' : 'off'}">${l}</span>`;
-  return c(m.faceOnPanel, 'פנים') + c(!!m.card, 'כרטיס') + c(!!m.pin, 'קוד');
+  return c(m.faceOnPanel, 'פנים') + c(m.cardOnPanel, 'כרטיס') + c(m.pinOnPanel, 'קוד');
 }
 const telLink = (p) => p ? `<a href="tel:${esc(p)}" dir="ltr" style="text-decoration:underline">${esc(fmtPhone(p))}</a>` : '-';
 function header(title, sub, right = '') {
@@ -448,9 +448,9 @@ async function viewMember(id) {
         </section>
         <section class="card"><h2>אמצעי כניסה</h2>
           <div class="list-row"><div><div class="name">זיהוי פנים</div><div class="small" style="${m.faceOnPanel ? 'color:#0B5C3B;font-weight:600' : ''}">${faceState}</div></div>${faceBtn}</div>
-          <div class="list-row"><div><div class="name">כרטיס</div><div class="small">${m.card ? esc(m.card) + ' · נשמר במערכת' : 'לא הוגדר'}</div></div><button class="btn" onclick="document.getElementById('editBtn').click()">עריכה</button></div>
-          <div class="list-row"><div><div class="name">קוד אישי</div><div class="small">${m.pin ? 'נשמר במערכת' : 'לא הוגדר'}</div></div><button class="btn" onclick="document.getElementById('editBtn').click()">עריכה</button></div>
-          <p class="small" style="margin:12px 0 0">כרטיס וקוד נשמרים במערכת. שליחתם לפנל תתווסף בשלב הבא.</p>
+          <div class="list-row"><div><div class="name">כרטיס</div><div class="small" style="${m.cardOnPanel ? 'color:#0B5C3B;font-weight:600' : ''}">${m.card ? `<span dir="ltr">${esc(m.card)}</span> · ${m.cardOnPanel ? 'פעיל בפנל' : (m.frozen ? 'הוסר בזמן ההקפאה' : 'לא בפנל')}` : 'לא הוגדר'}</div></div><button class="btn" onclick="document.getElementById('editBtn').click()">עריכה</button></div>
+          <div class="list-row"><div><div class="name">קוד אישי</div><div class="small" style="${m.pinOnPanel ? 'color:#0B5C3B;font-weight:600' : ''}">${m.pin ? `<span dir="ltr">${esc(m.pin)}</span> · ${m.pinOnPanel ? 'פעיל בפנל' : (m.frozen ? 'הוסר בזמן ההקפאה' : 'לא בפנל')}` : 'לא הוגדר'}</div></div><button class="btn" onclick="document.getElementById('editBtn').click()">עריכה</button></div>
+          <p class="small" style="margin:12px 0 0">הקפאה מסירה מהפנל את הפנים, הקוד והכרטיס. הפשרה מחזירה אותם עם תאריכי המנוי.</p>
         </section>
         <section class="card"><h2 style="margin-bottom:8px">הערות</h2><label class="f">הערה לצוות<textarea class="in" id="noteTxt" rows="3">${esc(m.notes)}</textarea></label><div style="margin-top:8px;text-align:left"><button class="btn" id="saveNote">שמירת הערה</button></div></section>
       </div>
@@ -500,7 +500,7 @@ async function editFlow(m) {
     <div class="two"><label class="f">שם פרטי<input class="in" id="edF" value="${esc(m.firstName)}"></label><label class="f">שם משפחה<input class="in" id="edL" value="${esc(m.lastName)}"></label></div>
     <label class="f">טלפון<input class="in" id="edP" type="tel" value="${esc(m.phone)}"></label>
     <div class="two"><label class="f">מסלול<select class="in" id="edPlan">${plans.map(p => `<option value="${p.id}" ${p.id === m.planId ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label><label class="f">בתוקף עד<input class="in" type="date" id="edE" value="${esc(m.endDate || '')}"></label></div>
-    <div class="two"><label class="f">מספר כרטיס<input class="in" id="edC" value="${esc(m.card)}" dir="ltr" placeholder="A6B4E94E"></label><label class="f">קוד אישי<input class="in" id="edPin" value="${esc(m.pin)}" inputmode="numeric" dir="ltr"></label></div>
+    <div class="two"><label class="f">מספר כרטיס<input class="in" id="edC" value="${esc(m.card)}" dir="ltr" placeholder="A6B4E94E"></label><label class="f">קוד אישי (4-8 ספרות)<input class="in" id="edPin" value="${esc(m.pin)}" inputmode="numeric" maxlength="8" dir="ltr"></label></div>
     <div class="err" id="edErr" role="alert"></div>
     <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="edOk">שמירה</button></div>`,
   (bg, close) => $('#edOk', bg).addEventListener('click', async () => {

@@ -96,6 +96,8 @@ module.exports = function registerGym(app, deps) {
       status: memberStatus(m), notes: m.notes || '', faceSaved: !!m.snapshot,
       consent: !!m.consent, card: m.card || '', pin: m.pin || '',
       faceOnPanel: !!(m.face && m.face.panels && Object.keys(m.face.panels).length),
+      pinOnPanel: !!(m.creds && m.creds.pin && Object.keys(m.creds.pin).length),
+      cardOnPanel: !!(m.creds && m.creds.card && Object.keys(m.creds.card).length),
       enrollPending: !!(m.enrollToken && m.enrollExpires && new Date(m.enrollExpires) > new Date()),
       panelSync: m.panelSync || 'none', lastEntry: m.lastEntry || null,
       createdAt: m.createdAt,
@@ -285,7 +287,7 @@ module.exports = function registerGym(app, deps) {
       startDate: date(b.startDate), endDate: date(b.endDate),
       notes: String(b.notes || '').slice(0, 500),
       card: String(b.card || '').trim().toUpperCase().replace(/[^0-9A-F]/g, '').slice(0, 16),
-      pin: String(b.pin || '').replace(/\D/g, '').slice(0, 8),
+      pin: String(b.pin || '').replace(/\D/g, '').slice(0, 8),  // 4-8 digits, checked in the routes
       consent: !!b.consent,
     };
   }
@@ -457,75 +459,135 @@ module.exports = function registerGym(app, deps) {
     return null;
   }
 
-  // Bring the panel in line with the member: frozen → off the panel; otherwise → on the
-  // plan's doors with the member's current dates/hours. Returns { ok, results, message }.
+  // ---------- PIN / card records on the panel ----------
+  // A PIN is a "password" access record, a card a "card" record (cardNum, valid_door '' as in the RFID page).
+  // We keep the value in the portal, so freeze = delete from the panel, unfreeze = create again.
+  async function listAccess(conn) {
+    const r = await panelHttpGetWithHeaders(conn.host, conn.port, '/api/v1/access?page_num=1&page_size=500&type=&label=', { Authorization: 'Bearer ' + conn.token });
+    return r?.data?.list || [];
+  }
+  const credMatch = (kind, value) => (a) => (kind === 'pin'
+    ? a.type === 'password' && String(a.content) === String(value)
+    : a.type === 'card' && String(a.content || a.cardNum || '').toUpperCase() === String(value).toUpperCase());
+  async function createCred(conn, kind, value, label, access) {
+    const body = {
+      label, effective_date: access.effective, expired_date: access.expired,
+      valid_weekdays: access.weekdays, valid_count: access.count,
+      valid_periods: JSON.stringify([{ begin: access.begin, end: access.end }]),
+      ...(kind === 'pin' ? { password: value, valid_door: '1' } : { cardNum: value, valid_door: '' }),
+    };
+    const cr = await panelHttpPostWithHeaders(conn.host, conn.port, '/api/v1/access', body, { Authorization: 'Bearer ' + conn.token });
+    dbg(null, 'cred_create', { kind, response: cr });
+    if (cr?.status !== 'OK') {
+      if (cr?.error?.code === 409012) throw new Error(kind === 'pin' ? `הקוד ${value} כבר בשימוש בפנל` : `הכרטיס ${value} כבר רשום בפנל`);
+      throw new Error(cr?.error?.message || 'הפנל דחה את הרשומה');
+    }
+    const rec = (await listAccess(conn)).filter(credMatch(kind, value)).pop();
+    return rec ? rec.id : null;
+  }
+  // Delete an access record. batchdelete works for faces and codes; for cards the RFID page used
+  // DELETE /api/v1/access/{id}, so if the record is still there we try that too, then verify.
+  async function deleteCred(conn, kind, id) {
+    if (id === null || id === undefined) return;
+    await deleteFaceFromPanel(conn.host, conn.port, conn.token, id);
+    let still = (await listAccess(conn)).some(a => Number(a.id) === Number(id));
+    if (still) {
+      const base = `http://${conn.host}:${conn.port}`;
+      await new Promise((resolve) => exec(`curl -s --max-time 15 -X DELETE -H "Authorization: Bearer ${conn.token}" -H "Origin: ${base}" -H "Referer: ${base}/" "${base}/api/v1/access/${id}"`, () => resolve()));
+      still = (await listAccess(conn)).some(a => Number(a.id) === Number(id));
+      dbg(null, 'cred_delete_fallback', { kind, id, still });
+    }
+    if (still) throw new Error(kind === 'pin' ? 'הקוד לא נמחק מהפנל' : 'הכרטיס לא נמחק מהפנל');
+  }
+
+  // Bring the panel in line with the member, for face, PIN and card:
+  //   frozen → all three off the panel (face keeps a private copy to bring it back);
+  //   otherwise → on the plan's doors with the member's current dates and hours.
   async function syncMember(gym, m, opts = {}) {
     const d = await database();
     const label = `${m.firstName} ${m.lastName}`.trim();
     const facePanels = { ...((m.face && m.face.panels) || {}) };
+    const creds = { pin: { ...((m.creds && m.creds.pin) || {}) }, card: { ...((m.creds && m.creds.card) || {}) } };
     const results = [];
     const set = {}; const unset = {};
+    const has = (o) => Object.keys(o).length > 0;
 
     if (m.frozen) {
-      if (!Object.keys(facePanels).length) return { ok: true, results, message: 'אין פנים בפנל' };
-      let snap = m.snapshot || null;
-      if (!snap) {
-        const buf = await sourceImage(m);
-        if (!buf) return { ok: false, results, message: 'לא הצלחנו להוריד את תמונת הפנים מהפנל, לכן היא לא נמחקה. נסו שוב כשהפנל מחובר.' };
-        snap = await snapshotSave(gym._id, buf);
-        set.snapshot = snap;
+      if (!has(facePanels) && !has(creds.pin) && !has(creds.card)) return { ok: true, results, message: 'אין פנים בפנל' };
+      if (has(facePanels)) {
+        let snap = m.snapshot || null;
+        if (!snap) {
+          const buf = await sourceImage(m);
+          if (!buf) return { ok: false, results, message: 'לא הצלחנו להוריד את תמונת הפנים מהפנל, לכן היא לא נמחקה. נסו שוב כשהפנל מחובר.' };
+          snap = await snapshotSave(gym._id, buf);
+          set.snapshot = snap;
+        }
       }
-      for (const [mac, info] of Object.entries(facePanels)) {
+      const macs = new Set([...Object.keys(facePanels), ...Object.keys(creds.pin), ...Object.keys(creds.card)]);
+      for (const mac of macs) {
         const r = { mac };
         try {
           const conn = await panelConn(mac);
-          if (info && info.id !== null && info.id !== undefined) await deleteFaceFromPanel(conn.host, conn.port, conn.token, info.id);
-          delete facePanels[mac]; r.ok = true;
+          if (facePanels[mac]) { if (facePanels[mac].id != null) await deleteFaceFromPanel(conn.host, conn.port, conn.token, facePanels[mac].id); delete facePanels[mac]; }
+          for (const kind of ['pin', 'card']) if (creds[kind][mac]) { await deleteCred(conn, kind, creds[kind][mac].id); delete creds[kind][mac]; }
+          r.ok = true;
         } catch (e) { r.error = e.message; }
         results.push(r);
       }
-      set['face.panels'] = facePanels;
-      set.panelSync = Object.keys(facePanels).length ? 'pending' : 'frozen_saved';
+      set['face.panels'] = facePanels; set['creds'] = creds;
+      set.panelSync = has(facePanels) || has(creds.pin) || has(creds.card) ? 'pending' : 'frozen_saved';
     } else {
-      if (!opts.newPhoto && !Object.keys(facePanels).length && !m.snapshot && !m.photoUrl) return { ok: true, results, message: 'אין תמונת פנים' };
+      const wantFace = !!(opts.newPhoto || has(facePanels) || m.snapshot || m.photoUrl);
+      const wantPin = !!m.pin || has(creds.pin);
+      const wantCard = !!m.card || has(creds.card);
+      if (!wantFace && !wantPin && !wantCard) return { ok: true, results, message: 'אין אמצעי כניסה' };
       if (memberStatus(m) === 'expired' && !opts.newPhoto) return { ok: true, results, message: 'המנוי לא בתוקף, הפנל חוסם לפי תאריך' };
       const plan = await planFor(d, gym._id, m.planId);
       if (!plan) return { ok: false, results, message: 'למנוי אין מסלול' };
       const doors = doorsFor(gym, plan);
       if (!doors.length) return { ok: false, results, message: 'לא הוגדרו דלתות לחדר הכושר' };
-      const buf = opts.newPhoto || await sourceImage(m);
-      if (!buf) return { ok: false, results, message: 'לא נמצאה תמונת פנים לשליחה' };
       const access = accessFor(m, plan);
-      for (const mac of doors) {
+      let buf = null;
+      if (wantFace) {
+        buf = opts.newPhoto || await sourceImage(m);
+        if (!buf) results.push({ mac: '-', error: 'לא נמצאה תמונת פנים לשליחה' });
+      }
+      const allMacs = new Set([...doors, ...Object.keys(facePanels), ...Object.keys(creds.pin), ...Object.keys(creds.card)]);
+      for (const mac of allMacs) {
         const r = { mac };
         try {
           const conn = await panelConn(mac);
-          const old = facePanels[mac];
-          if (!old) {
-            const existing = await getAllPanelFaces(conn.host, conn.port, conn.token);
-            if (existing.some(f => (f.label || '').trim() === label)) throw new Error(`כבר קיימת בפנל פנים בשם "${label}" שלא נוצרה מהפורטל`);
+          const isDoor = doors.includes(mac);
+          // Face
+          if (buf && isDoor) {
+            const old = facePanels[mac];
+            if (!old) {
+              const existing = await getAllPanelFaces(conn.host, conn.port, conn.token);
+              if (existing.some(f => (f.label || '').trim() === label)) throw new Error(`כבר קיימת בפנל פנים בשם "${label}" שלא נוצרה מהפורטל`);
+            }
+            const out = await uploadFace(conn, label, buf, access);
+            dbg(gym._id, 'upload_face', { member: String(m._id), mac, ok: out.ok, step: out.step, id: out.id, response: out.response });
+            if (!out.ok) throw new Error('הפנל דחה את התמונה');
+            if (old && old.id != null && String(old.id) !== String(out.id)) {
+              try { await deleteFaceFromPanel(conn.host, conn.port, conn.token, old.id); } catch (e) { dbg(gym._id, 'old_record_delete_error', { mac, id: old.id, error: e.message }); }
+            }
+            facePanels[mac] = { id: out.id, uploadedAt: new Date(), expired: access.expired };
+          } else if (!isDoor && facePanels[mac]) {
+            if (facePanels[mac].id != null) await deleteFaceFromPanel(conn.host, conn.port, conn.token, facePanels[mac].id);
+            delete facePanels[mac];
           }
-          const out = await uploadFace(conn, label, buf, access);
-          dbg(gym._id, 'upload_face', { member: String(m._id), mac, ok: out.ok, step: out.step, id: out.id, response: out.response });
-          if (!out.ok) throw new Error('הפנל דחה את התמונה');
-          if (old && old.id !== null && old.id !== undefined && String(old.id) !== String(out.id)) {
-            try { await deleteFaceFromPanel(conn.host, conn.port, conn.token, old.id); } catch (e) { dbg(gym._id, 'old_record_delete_error', { mac, id: old.id, error: e.message }); }
+          // PIN and card: delete the old record first (same value can't exist twice), then create.
+          for (const kind of ['pin', 'card']) {
+            const value = kind === 'pin' ? m.pin : m.card;
+            if (creds[kind][mac]) { await deleteCred(conn, kind, creds[kind][mac].id); delete creds[kind][mac]; }
+            if (value && isDoor) creds[kind][mac] = { id: await createCred(conn, kind, value, label, access), value };
           }
-          facePanels[mac] = { id: out.id, uploadedAt: new Date(), expired: access.expired };
           r.ok = true;
         } catch (e) { r.error = e.message; }
         results.push(r);
       }
-      // Doors the plan no longer opens: remove the face there.
-      for (const [mac, info] of Object.entries(facePanels)) {
-        if (doors.includes(mac)) continue;
-        const r = { mac, removed: true };
-        try { const conn = await panelConn(mac); if (info && info.id != null) await deleteFaceFromPanel(conn.host, conn.port, conn.token, info.id); delete facePanels[mac]; r.ok = true; }
-        catch (e) { r.error = e.message; }
-        results.push(r);
-      }
       const allOk = results.every(r => r.ok);
-      set['face.panels'] = facePanels;
+      set['face.panels'] = facePanels; set['creds'] = creds;
       set.panelSync = allOk ? 'synced' : 'pending';
       if (allOk) {
         if (m.snapshot) { await snapshotDrop(m.snapshot); unset.snapshot = ''; }
@@ -546,6 +608,8 @@ module.exports = function registerGym(app, deps) {
       const d = await database();
       const u = sanitizeMember({ ...m, ...req.body });
       if (!u.firstName) return res.status(400).json({ success: false, error: 'חסר שם פרטי' });
+      if (u.pin && u.pin.length < 4) return res.status(400).json({ success: false, error: 'קוד אישי: 4 עד 8 ספרות' });
+      if (u.card && u.card.length < 6) return res.status(400).json({ success: false, error: 'מספר כרטיס לא תקין' });
       if (u.phone !== m.phone && !/^05\d{8}$/.test(u.phone)) return res.status(400).json({ success: false, error: 'מספר טלפון לא תקין: נייד בן 10 ספרות שמתחיל ב-05' });
       const set = { ...u, updatedAt: new Date() };
       if (req.body.planId && String(req.body.planId) !== String(m.planId)) {
@@ -553,11 +617,12 @@ module.exports = function registerGym(app, deps) {
         if (!plan) return res.status(400).json({ success: false, error: 'מסלול לא קיים' });
         set.planId = plan._id;
       }
-      const panelFieldsChanged = set.planId || u.endDate !== m.endDate || u.startDate !== m.startDate || u.firstName !== m.firstName || u.lastName !== m.lastName;
+      const panelFieldsChanged = set.planId || u.endDate !== m.endDate || u.startDate !== m.startDate || u.firstName !== m.firstName || u.lastName !== m.lastName || u.pin !== (m.pin || '') || u.card !== (m.card || '');
       await d.collection('gym_members').updateOne({ _id: m._id }, { $set: set });
       logAction(req.gym._id, m._id, 'member_update', req.gymUser, {});
       let panel = null;
-      if (panelFieldsChanged && m.face && m.face.panels && Object.keys(m.face.panels).length && !m.frozen) {
+      const hasCreds = (m.face && m.face.panels && Object.keys(m.face.panels).length) || u.pin || u.card || (m.creds && (Object.keys(m.creds.pin || {}).length || Object.keys(m.creds.card || {}).length));
+      if (panelFieldsChanged && hasCreds && !m.frozen) {
         // Name changes need the old label gone: the sync re-uploads under the new name and deletes the old record.
         panel = await syncMember(req.gym, await reloadMember(m._id));
       }
@@ -650,9 +715,16 @@ module.exports = function registerGym(app, deps) {
         } catch (e) { r.error = e.message; }
         results.push(r);
       }
+      for (const kind of ['pin', 'card']) {
+        for (const [mac, info] of Object.entries((m.creds && m.creds[kind]) || {})) {
+          const r = { mac, kind };
+          try { await deleteCred(await panelConn(mac), kind, info.id); r.ok = true; } catch (e) { r.error = e.message; }
+          results.push(r);
+        }
+      }
       const failed = results.filter(r => !r.ok);
       if (failed.length && req.query.force !== '1') {
-        return res.status(409).json({ success: false, error: 'לא ניתן היה להסיר את הפנים מכל הפנלים', results });
+        return res.status(409).json({ success: false, error: 'לא ניתן היה להסיר את כל אמצעי הכניסה מהפנלים', results });
       }
       await snapshotDrop(m.snapshot);
       if (m.photoPublicId) { try { await cloudinary.uploader.destroy(m.photoPublicId); } catch (e) {} }
