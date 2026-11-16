@@ -320,6 +320,7 @@ module.exports = function registerGym(app, deps) {
       const dup = await d.collection('gym_members').findOne({ gymId: req.gym._id, phone: m.phone });
       if (dup) return res.status(409).json({ success: false, error: 'כבר קיים מנוי עם מספר הטלפון הזה' });
       m.startDate = m.startDate || todayStr();
+      if (m.endDate && m.endDate < m.startDate) return res.status(400).json({ success: false, error: 'תאריך הסיום לפני תאריך ההתחלה' });
       const months = parseMonths(req.body.months);
       if (plan.durationType === 'entries') {
         m.entriesLeft = plan.durationValue;
@@ -639,15 +640,17 @@ module.exports = function registerGym(app, deps) {
       if (!plan) return res.status(400).json({ success: false, error: 'מסלול לא קיים' });
       const set = { planId: plan._id, updatedAt: new Date() };
       const months = parseMonths(req.body.months);
+      const untilDate = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.endDate || '')) ? req.body.endDate : null;
+      if (untilDate && untilDate < todayStr()) return res.status(400).json({ success: false, error: 'התאריך כבר עבר' });
       const base = m.endDate && m.endDate >= todayStr() ? addDays(m.endDate, 1) : todayStr();
       if (!(m.endDate && m.endDate >= todayStr())) set.startDate = todayStr();
       if (plan.durationType === 'entries') {
         set.entriesLeft = (m.entriesLeft > 0 ? m.entriesLeft : 0) + plan.durationValue;
-        set.endDate = months ? monthsEnd(base, months) : addDays(todayStr(), 365);
+        set.endDate = untilDate || (months ? monthsEnd(base, months) : addDays(todayStr(), 365));
       } else {
-        set.endDate = months ? monthsEnd(base, months) : addDays(base, plan.durationValue - 1);
+        set.endDate = untilDate || (months ? monthsEnd(base, months) : addDays(base, plan.durationValue - 1));
       }
-      if (months) set.months = months;
+      if (months && !untilDate) set.months = months;
       await d.collection('gym_members').updateOne({ _id: m._id }, { $set: set });
       logAction(req.gym._id, m._id, 'member_renew', req.gymUser, { endDate: set.endDate, entriesLeft: set.entriesLeft });
       const panel = await syncMember(req.gym, await reloadMember(m._id));

@@ -356,12 +356,19 @@ async function newMemberFlow() {
     <div class="two"><label class="f">שם פרטי<input class="in" id="nmF" required></label><label class="f">שם משפחה<input class="in" id="nmL"></label></div>
     <label class="f">טלפון נייד<input class="in" id="nmP" type="tel" inputmode="tel" maxlength="12" placeholder="05X-XXXXXXX"></label>
     <div class="two"><label class="f">מסלול<select class="in" id="nmPlan">${plans.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label class="f">תאריך התחלה<input class="in" id="nmS" type="date" value="${todayISO()}"></label></div>
-    <label class="f">לכמה חודשים המנוי תקף<select class="in" id="nmMonths">${monthOptions(1)}</select></label>
+    <fieldset style="border:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px"><legend class="small" style="padding:0;margin-bottom:4px">תוקף המנוי</legend>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><label class="check"><input type="radio" name="nmMode" value="months" checked>לפי חודשים</label><label class="check"><input type="radio" name="nmMode" value="date">עד תאריך מסוים</label></div>
+      <label class="f" id="nmMonthsBox">מספר חודשים<select class="in" id="nmMonths">${monthOptions(1)}</select></label>
+      <label class="f hidden" id="nmDateBox">חסום החל מהיום שאחרי<input class="in" type="date" id="nmUntil" min="${todayISO()}"></label></fieldset>
     <p class="small" style="margin:0" id="nmEndHint"></p>
     <div class="err" id="nmErr" role="alert"></div>
     <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="nmSave">המשך</button></div>`,
   (bg, close) => {
-    const hint = () => { const s = $('#nmS', bg).value || todayISO(); $('#nmEndHint', bg).textContent = `המנוי יהיה בתוקף עד ${fmtDate(monthsEndISO(s, +$('#nmMonths', bg).value))}. זה התאריך שיישלח לפנל.`; };
+    const byDate = () => bg.querySelector('input[name=nmMode]:checked').value === 'date';
+    const endOf = () => byDate() ? $('#nmUntil', bg).value : monthsEndISO($('#nmS', bg).value || todayISO(), +$('#nmMonths', bg).value);
+    const hint = () => { $('#nmUntil', bg).min = $('#nmS', bg).value || todayISO(); const e = endOf(); $('#nmEndHint', bg).textContent = e ? `המנוי יהיה בתוקף עד ${fmtDate(e)} כולל, ונחסם ביום שאחרי. זה התאריך שיישלח לפנל.` : 'בחרו תאריך סיום.'; };
+    bg.querySelectorAll('input[name=nmMode]').forEach(r => r.addEventListener('change', () => { $('#nmMonthsBox', bg).classList.toggle('hidden', byDate()); $('#nmDateBox', bg).classList.toggle('hidden', !byDate()); hint(); }));
+    $('#nmUntil', bg).addEventListener('change', hint);
     const syncPlan = () => { const p = plans.find(x => x.id === $('#nmPlan', bg).value); $('#nmMonths', bg).value = String(defaultMonths(p)); hint(); };
     $('#nmPlan', bg).addEventListener('change', syncPlan);
     $('#nmMonths', bg).addEventListener('change', hint);
@@ -372,7 +379,8 @@ async function newMemberFlow() {
       if (!/^05\d{8}$/.test(ph)) { $('#nmErr', bg).textContent = 'מספר טלפון לא תקין: נייד בן 10 ספרות שמתחיל ב-05'; $('#nmP', bg).focus(); return; }
       const b = $('#nmSave', bg); b.disabled = true;
       try {
-        const body = { firstName: $('#nmF', bg).value, lastName: $('#nmL', bg).value, phone: $('#nmP', bg).value, planId: $('#nmPlan', bg).value, startDate: $('#nmS', bg).value, months: $('#nmMonths', bg).value };
+        const body = { firstName: $('#nmF', bg).value, lastName: $('#nmL', bg).value, phone: $('#nmP', bg).value, planId: $('#nmPlan', bg).value, startDate: $('#nmS', bg).value, ...(byDate() ? { endDate: $('#nmUntil', bg).value } : { months: $('#nmMonths', bg).value }) };
+        if (byDate() && !body.endDate) { $('#nmErr', bg).textContent = 'בחרו תאריך סיום'; b.disabled = false; return; }
         const j = await api('/api/gym/members', { method: 'POST', body });
         close(); toast('המנוי נוסף');
         // Step 2: photo upload, then the member card.
@@ -464,13 +472,19 @@ async function viewMember(id) {
 async function renewFlow(id) {
   const plans = await getPlans(true);
   openModal(`<h2>חידוש מנוי</h2><label class="f">מסלול<select class="in" id="rnPlan">${plans.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label>
-    <label class="f">לכמה חודשים<select class="in" id="rnMonths">${monthOptions(1)}</select></label>
+    <fieldset style="border:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px"><legend class="small" style="padding:0;margin-bottom:4px">תוקף המנוי</legend>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><label class="check"><input type="radio" name="rnMode" value="months" checked>לפי חודשים</label><label class="check"><input type="radio" name="rnMode" value="date">עד תאריך מסוים</label></div>
+      <label class="f" id="rnMonthsBox">מספר חודשים<select class="in" id="rnMonths">${monthOptions(1)}</select></label>
+      <label class="f hidden" id="rnDateBox">חסום החל מהיום שאחרי<input class="in" type="date" id="rnUntil" min="${todayISO()}"></label></fieldset>
     <p class="small" style="margin:0">החידוש מתחיל מיום אחרי סיום המנוי הנוכחי, או מהיום אם הוא כבר פג.</p><div class="err" id="rnErr" role="alert"></div>
     <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="rnOk">חידוש</button></div>`,
   async (bg, close) => {
+    const rnByDate = () => bg.querySelector('input[name=rnMode]:checked').value === 'date';
+    bg.querySelectorAll('input[name=rnMode]').forEach(r => r.addEventListener('change', () => { $('#rnMonthsBox', bg).classList.toggle('hidden', rnByDate()); $('#rnDateBox', bg).classList.toggle('hidden', !rnByDate()); }));
     try { const j = await api('/api/gym/members/' + id); $('#rnPlan', bg).value = j.member.planId; $('#rnMonths', bg).value = String(defaultMonths(plans.find(p => p.id === j.member.planId))); } catch (e) {}
     $('#rnOk', bg).addEventListener('click', async () => {
-      try { const body = { planId: $('#rnPlan', bg).value, months: $('#rnMonths', bg).value }; close(); const r = await withBusy('מחדש את המנוי', () => api(`/api/gym/members/${id}/renew`, { method: 'POST', body }), PANEL_STEPS); toast(panelMsg(r.panel, `חודש עד ${fmtDate(r.endDate)}`)); route(); }
+      if (rnByDate() && !$('#rnUntil', bg).value) { $('#rnErr', bg).textContent = 'בחרו תאריך סיום'; return; }
+      try { const body = { planId: $('#rnPlan', bg).value, ...(rnByDate() ? { endDate: $('#rnUntil', bg).value } : { months: $('#rnMonths', bg).value }) }; close(); const r = await withBusy('מחדש את המנוי', () => api(`/api/gym/members/${id}/renew`, { method: 'POST', body }), PANEL_STEPS); toast(panelMsg(r.panel, `חודש עד ${fmtDate(r.endDate)}`)); route(); }
       catch (e) { toast(e.message); route(); }
     });
   });
