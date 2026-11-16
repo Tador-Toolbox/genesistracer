@@ -81,6 +81,12 @@ td .name{font-weight:500}
 /* login */
 .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
 .login{width:min(400px,100%);display:flex;flex-direction:column;gap:16px}
+.busy-bg{position:fixed;inset:0;background:rgba(17,19,24,.45);display:flex;align-items:center;justify-content:center;z-index:300}
+.busy-card{background:#fff;border-radius:14px;padding:22px 26px;display:flex;align-items:center;gap:14px;min-width:280px;max-width:420px;box-shadow:0 10px 30px rgba(17,19,24,.25)}
+.spin{width:28px;height:28px;border:3px solid #E3E5E9;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
+.busy-card .t{font-weight:600}.busy-card .s{font-size:13px;color:var(--muted)}
 #toasts{position:fixed;bottom:24px;inset-inline-end:24px;display:flex;flex-direction:column;gap:8px;z-index:200;max-width:min(440px,calc(100vw - 48px))}
 .toast{background:var(--ink);color:#fff;padding:12px 18px;border-radius:10px;font-weight:500;box-shadow:0 6px 20px rgba(17,19,24,.18)}
 @media (max-width:860px){.shell{flex-direction:column}.side{position:static;height:auto;flex:none;flex-direction:row;flex-wrap:wrap;padding:12px}.brand{padding:0 8px}.side .foot{margin-top:0}main{padding:20px 16px}.nav{width:auto}}
@@ -139,6 +145,18 @@ async function api(path, opts = {}) {
   if (!r.ok || j.success === false) { const e = new Error(j.error || 'שגיאה בשרת'); e.data = j; e.status = r.status; throw e; }
   return j;
 }
+// Blocking "working…" overlay for slow panel actions. Steps change the second line.
+async function withBusy(title, fn, steps = []) {
+  const bg = document.createElement('div'); bg.className = 'busy-bg';
+  bg.innerHTML = `<div class="busy-card" role="status" aria-live="polite"><div class="spin" aria-hidden="true"></div><div><div class="t"></div><div class="s"></div></div></div>`;
+  bg.querySelector('.t').textContent = title;
+  const sub = bg.querySelector('.s'); let i = 0;
+  const tick = () => { if (steps.length) sub.textContent = steps[Math.min(i++, steps.length - 1)]; };
+  tick(); const timer = steps.length > 1 ? setInterval(tick, 3500) : null;
+  document.body.appendChild(bg);
+  try { return await fn(); } finally { if (timer) clearInterval(timer); bg.remove(); }
+}
+const PANEL_STEPS = ['מתחבר לפנל…', 'מעדכן את הפנל…', 'עוד רגע…'];
 function toast(msg) {
   let host = document.getElementById('toasts');
   if (!host) { host = document.createElement('div'); host.id = 'toasts'; host.setAttribute('aria-live', 'polite'); document.body.appendChild(host); }
@@ -386,7 +404,7 @@ async function viewMember(id) {
     $('#linkFaceBtn') && $('#linkFaceBtn').addEventListener('click', () => linkFaceFlow(m));
     $('#syncPanel') && $('#syncPanel').addEventListener('click', async () => {
       const b = $('#syncPanel'); b.disabled = true; b.textContent = 'מעדכן…';
-      try { await api(`/api/gym/members/${m.id}/panel-sync`, { method: 'POST' }); toast('הפנל עודכן'); } catch (e) { toast(e.message); }
+      try { await withBusy('מעדכן את הפנל', () => api(`/api/gym/members/${m.id}/panel-sync`, { method: 'POST' }), PANEL_STEPS); toast('הפנל עודכן'); } catch (e) { toast(e.message); }
       route();
     });
     if (m.faceOnPanel || m.faceSaved) $('#showFace').addEventListener('click', async () => {
@@ -433,8 +451,8 @@ async function renewFlow(id) {
   async (bg, close) => {
     try { const j = await api('/api/gym/members/' + id); $('#rnPlan', bg).value = j.member.planId; $('#rnMonths', bg).value = String(defaultMonths(plans.find(p => p.id === j.member.planId))); } catch (e) {}
     $('#rnOk', bg).addEventListener('click', async () => {
-      try { const r = await api(`/api/gym/members/${id}/renew`, { method: 'POST', body: { planId: $('#rnPlan', bg).value, months: $('#rnMonths', bg).value } }); close(); toast(panelMsg(r.panel, `חודש עד ${fmtDate(r.endDate)}`)); route(); }
-      catch (e) { $('#rnErr', bg).textContent = e.message; }
+      try { const body = { planId: $('#rnPlan', bg).value, months: $('#rnMonths', bg).value }; close(); const r = await withBusy('מחדש את המנוי', () => api(`/api/gym/members/${id}/renew`, { method: 'POST', body }), PANEL_STEPS); toast(panelMsg(r.panel, `חודש עד ${fmtDate(r.endDate)}`)); route(); }
+      catch (e) { toast(e.message); route(); }
     });
   });
 }
@@ -444,17 +462,18 @@ function freezeFlow(id) {
     <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="fzOk">הקפאה</button></div>`,
   (bg, close) => $('#fzOk', bg).addEventListener('click', async () => {
     try {
-      const r = await api(`/api/gym/members/${id}/freeze`, { method: 'POST', body: { until: $('#fzUntil', bg).value || null } }); close();
+      const until = $('#fzUntil', bg).value || null; close();
+      const r = await withBusy('מקפיא את המנוי', () => api(`/api/gym/members/${id}/freeze`, { method: 'POST', body: { until } }), ['מתחבר לפנל…', 'שומר עותק של התמונה…', 'מוחק את הפנים מהפנל…']);
       const none = r.panel && r.panel.ok && !(r.panel.results || []).length;
       toast(none ? 'הוקפא במערכת, אבל למנוי אין פנים משויכות בפנל ולכן שום דבר לא הוסר. לחצו "שיוך פנים מהפנל".' : panelMsg(r.panel, 'המנוי הוקפא והפנים הוסרו מהפנל'));
       route();
     }
-    catch (e) { $('#fzErr', bg).textContent = e.message; }
+    catch (e) { toast(e.message); route(); }
   }));
 }
 async function unfreeze(id) {
   if (!await confirmBox('להפשיר את המנוי?', 'הפשרה')) return;
-  try { const r = await api(`/api/gym/members/${id}/unfreeze`, { method: 'POST' }); toast(panelMsg(r.panel, `הופשר. בתוקף עד ${fmtDate(r.endDate)}`)); route(); } catch (e) { toast(e.message); }
+  try { const r = await withBusy('מפשיר את המנוי', () => api(`/api/gym/members/${id}/unfreeze`, { method: 'POST' }), ['מתחבר לפנל…', 'מחזיר את הפנים לפנל…', 'עוד רגע…']); toast(panelMsg(r.panel, `הופשר. בתוקף עד ${fmtDate(r.endDate)}`)); route(); } catch (e) { toast(e.message); }
 }
 async function editFlow(m) {
   const plans = await getPlans(true);
@@ -467,7 +486,8 @@ async function editFlow(m) {
     <div class="acts"><button class="btn" data-close>ביטול</button><button class="btn primary" id="edOk">שמירה</button></div>`,
   (bg, close) => $('#edOk', bg).addEventListener('click', async () => {
     try {
-      const r = await api('/api/gym/members/' + m.id, { method: 'PUT', body: { firstName: $('#edF', bg).value, lastName: $('#edL', bg).value, phone: $('#edP', bg).value, planId: $('#edPlan', bg).value, endDate: $('#edE', bg).value, card: $('#edC', bg).value, pin: $('#edPin', bg).value } });
+      const body = { firstName: $('#edF', bg).value, lastName: $('#edL', bg).value, phone: $('#edP', bg).value, planId: $('#edPlan', bg).value, endDate: $('#edE', bg).value, card: $('#edC', bg).value, pin: $('#edPin', bg).value };
+      const r = await withBusy('שומר', () => api('/api/gym/members/' + m.id, { method: 'PUT', body }), PANEL_STEPS);
       close(); toast(panelMsg(r.panel, 'נשמר')); route();
     } catch (e) { $('#edErr', bg).textContent = e.message; }
   }));
@@ -510,7 +530,7 @@ function photoFlow(m, opts = {}) {
       if (!$('#phConsent', bg).checked) return ($('#phErr', bg).textContent = 'נדרשת הסכמת המנוי');
       const fd = new FormData(); fd.append('photo', f); fd.append('consent', 'true');
       const b = $('#phOk', bg); b.disabled = true; b.textContent = 'שולח לפנל…';
-      try { const r = await api(`/api/gym/members/${m.id}/photo`, { method: 'POST', body: fd }); close(); toast(panelMsg(r.panel, 'הפנים נשלחו לפנל')); goCard(); }
+      try { const r = await withBusy('שולח את התמונה לפנל', () => api(`/api/gym/members/${m.id}/photo`, { method: 'POST', body: fd }), ['מתחבר לפנל…', 'מעלה את התמונה…', 'רושם את המנוי בפנל…']); close(); toast(panelMsg(r.panel, 'הפנים נשלחו לפנל')); goCard(); }
       catch (e) { $('#phErr', bg).textContent = e.message; b.disabled = false; b.textContent = 'שליחה לפנל'; }
     });
   });
@@ -546,7 +566,7 @@ async function linkFaceFlow(m) {
       bg.querySelectorAll('[data-link]').forEach(b => b.addEventListener('click', async () => {
         const f = faces[+b.dataset.link]; b.disabled = true;
         try {
-          const r = await api(`/api/gym/members/${m.id}/link-face`, { method: 'POST', body: { mac: f.mac, faceId: f.id } });
+          const r = await withBusy('משייך את הפנים', () => api(`/api/gym/members/${m.id}/link-face`, { method: 'POST', body: { mac: f.mac, faceId: f.id } }), PANEL_STEPS);
           close(); toast(r.panel ? panelMsg(r.panel, 'שויך, והפנים הוסרו מהפנל כי המנוי מוקפא') : 'הפנים שויכו למנוי'); route();
         } catch (e) { $('#lfErr', bg).textContent = e.message; b.disabled = false; }
       }));
@@ -555,7 +575,7 @@ async function linkFaceFlow(m) {
 }
 async function deleteFlow(m) {
   if (!await confirmBox(`למחוק את ${m.firstName} ${m.lastName}?`, 'מחיקה', true)) return;
-  try { await api('/api/gym/members/' + m.id, { method: 'DELETE' }); toast('המנוי נמחק'); location.hash = '#members'; }
+  try { await withBusy('מוחק את המנוי', () => api('/api/gym/members/' + m.id, { method: 'DELETE' }), ['מתחבר לפנל…', 'מוחק את הפנים מהפנל…']); toast('המנוי נמחק'); location.hash = '#members'; }
   catch (e) {
     if (e.status === 409 && e.data && e.data.results) {
       const why = e.data.results.filter(r => !r.ok).map(r => r.error).join(' · ');
