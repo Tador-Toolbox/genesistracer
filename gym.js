@@ -376,7 +376,9 @@ module.exports = function registerGym(app, deps) {
   async function downloadFace(conn, id) {
     const tmp = path.join(os.tmpdir(), `gymdl_${Date.now()}_${crypto.randomInt(1e6)}.jpg`);
     try {
-      await new Promise((resolve) => exec(`curl -s --max-time 20 -H "Authorization: Bearer ${conn.token}" "http://${conn.host}:${conn.port}/api/v1/access/image/${id}.jpg?id=${id}" -o "${tmp}"`, { maxBuffer: 8 * 1024 * 1024 }, () => resolve()));
+      // Same request the panel web page makes (HAR 16.11): GET /api/v1/access/image/{id}.jpg?id={id} with a Referer.
+      const base = `http://${conn.host}:${conn.port}`;
+      await new Promise((resolve) => exec(`curl -s --max-time 20 -H "Authorization: Bearer ${conn.token}" -H "Referer: ${base}/" "${base}/api/v1/access/image/${id}.jpg?id=${id}" -o "${tmp}"`, { maxBuffer: 8 * 1024 * 1024 }, () => resolve()));
       if (!fs.existsSync(tmp) || fs.statSync(tmp).size < 500) return null;
       return fs.readFileSync(tmp);
     } finally { fs.unlink(tmp, () => {}); }
@@ -667,6 +669,58 @@ module.exports = function registerGym(app, deps) {
       const anyOk = (panel.results || []).some(r => r.ok);
       res.status(anyOk ? 200 : 502).json({ success: anyOk, panel, error: anyOk ? undefined : (panel.message && panel.results.length === 0 ? panel.message : (panel.results.map(r => r.error).filter(Boolean)[0] || panel.message)) });
     } catch (e) { dbg(req.gym._id, 'photo_error', { error: e.message }); res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  // ---------- Faces already on the panel (enrolled by hand, not through the portal) ----------
+  // List every face record on the gym's doors so the manager can link one to a member.
+  app.get('/api/gym/panel-faces', gymAuth, async (req, res) => {
+    try {
+      const d = await database();
+      const members = await d.collection('gym_members').find({ gymId: req.gym._id }).project({ firstName: 1, lastName: 1, face: 1 }).toArray();
+      const linked = {};
+      members.forEach(m => Object.entries((m.face && m.face.panels) || {}).forEach(([mac, info]) => { if (info && info.id != null) linked[`${mac}|${info.id}`] = `${m.firstName} ${m.lastName}`.trim(); }));
+      const out = [];
+      for (const p of (req.gym.panels || [])) {
+        try {
+          const conn = await panelConn(p.mac);
+          const faces = (await getAllPanelFaces(conn.host, conn.port, conn.token)).filter(f => !f.type || f.type === 'face');
+          faces.forEach(f => out.push({ mac: p.mac, door: p.label, id: f.id, label: f.label || '', linkedTo: linked[`${p.mac}|${f.id}`] || null }));
+        } catch (e) { out.push({ mac: p.mac, door: p.label, error: e.message }); }
+      }
+      res.json({ success: true, faces: out });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  app.get('/api/gym/panel-faces/:mac/:faceId/image', gymAuth, async (req, res) => {
+    try {
+      const mac = cleanMac(req.params.mac);
+      if (!(req.gym.panels || []).some(p => p.mac === mac)) return res.status(404).end();
+      const buf = await downloadFace(await panelConn(mac), parseInt(req.params.faceId, 10));
+      if (!buf) return res.status(404).end();
+      res.setHeader('Cache-Control', 'no-store');
+      res.type('jpg').send(buf);
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  // Link an existing panel face record to a member (then freeze / renew / delete act on it).
+  app.post('/api/gym/members/:id/link-face', gymAuth, async (req, res) => {
+    try {
+      const m = await memberOf(req, res); if (!m) return;
+      const mac = cleanMac(req.body.mac); const faceId = parseInt(req.body.faceId, 10);
+      if (!(req.gym.panels || []).some(p => p.mac === mac) || !Number.isFinite(faceId)) return res.status(400).json({ success: false, error: 'פנים לא תקינות' });
+      const d = await database();
+      const taken = await d.collection('gym_members').findOne({ gymId: req.gym._id, _id: { $ne: m._id }, [`face.panels.${mac}.id`]: faceId });
+      if (taken) return res.status(409).json({ success: false, error: `הפנים כבר משויכות ל${taken.firstName} ${taken.lastName}` });
+      const conn = await panelConn(mac);
+      const exists = (await getAllPanelFaces(conn.host, conn.port, conn.token)).some(f => Number(f.id) === faceId);
+      if (!exists) return res.status(404).json({ success: false, error: 'הפנים לא נמצאו בפנל' });
+      await d.collection('gym_members').updateOne({ _id: m._id }, { $set: { [`face.panels.${mac}`]: { id: faceId, linkedAt: new Date() }, panelSync: 'synced' } });
+      logAction(req.gym._id, m._id, 'link_face', req.gymUser, { mac, faceId });
+      // Already frozen? Take the face off the panel right away.
+      let panel = null;
+      if (m.frozen) panel = await syncMember(req.gym, await reloadMember(m._id));
+      res.json({ success: true, panel });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
   // Live face image: from the panel (or the frozen copy). Fetched by the page as a blob.
