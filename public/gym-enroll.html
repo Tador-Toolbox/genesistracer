@@ -49,7 +49,10 @@ ul{margin:0;padding-inline-start:20px;color:var(--muted);font-size:14px}
     <label class="btn ghost" style="position:relative">
       <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
       <span id="pickText">צילום תמונה</span>
-      <input type="file" id="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer">
+      <input type="file" id="file" accept="image/*" capture="user" style="position:absolute;inset:0;opacity:0;cursor:pointer">
+    </label>
+    <label class="muted" style="display:block;text-align:center;text-decoration:underline;cursor:pointer;position:relative;padding:6px 0">או בחירת תמונה מהגלריה
+      <input type="file" id="fileGallery" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer">
     </label>
     <label class="check"><input type="checkbox" id="consent"><span>אני מסכים/ה שחדר הכושר ישתמש בתמונת הפנים שלי לצורך כניסה.</span></label>
     <div class="err" id="err" role="alert"></div>
@@ -97,8 +100,8 @@ function shrink(file) {
   });
 }
 
-$('file').addEventListener('change', async () => {
-  const f = $('file').files[0]; if (!f) return;
+const onPick = async (ev) => {
+  const f = ev.target.files[0]; if (!f) return;
   $('err').textContent = '';
   try {
     blob = await shrink(f);
@@ -107,7 +110,9 @@ $('file').addEventListener('change', async () => {
     $('pickText').textContent = 'צילום מחדש';
   } catch (e) { blob = null; $('err').textContent = e.message; }
   ready();
-});
+};
+$('file').addEventListener('change', onPick);
+$('fileGallery').addEventListener('change', onPick);
 $('consent').addEventListener('change', ready);
 
 $('send').addEventListener('click', async () => {
