@@ -115,7 +115,7 @@ async function ensureLogin() {
 }
 
 // DataTables list query (minimal but with the columns the backend expects)
-function listUrl(search) {
+function listUrl(search, start = 0, length = 25) {
   const cols = ['action','name','client','description','softphones','monitors','card',
     'administration','pin_app','phonenumber_app','apartmentnumber_app','allow_ip','billing',
     'activated','last_register','status','validate_softphones'];
@@ -129,7 +129,7 @@ function listUrl(search) {
     p.set(`columns[${i}][search][regex]`, 'false');
   });
   p.set('order[0][column]', '1'); p.set('order[0][dir]', 'asc');
-  p.set('start', '0'); p.set('length', '25');
+  p.set('start', String(start)); p.set('length', String(length));
   p.set('search[value]', search); p.set('search[regex]', 'false');
   p.set('_', String(Date.now()));
   return `${VB_URL}/index.php?${p.toString()}`;
@@ -293,4 +293,42 @@ async function createAccount(name, client) {
   return run;
 }
 
-module.exports = { getQrForAccount, getDebug, createAccount };
+// All accounts whose name starts with `prefix` (e.g. t98 / g510), natural-sorted like ResidentEnroll vb_list_t98.
+// Returns { prefix, count, last, next, recent:[...last 5] }.
+const natKey = s => String(s).split(/(\d+)/).map(t => (/^\d+$/.test(t) ? t.padStart(12, '0') : t.toLowerCase())).join('');
+function stripTags(s) { return String(s || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").trim(); }
+function nextName(name) {
+  // increment the LAST number in the name, keeping its zero padding: t98_5_037 -> t98_5_038
+  const m = String(name).match(/^(.*?)(\d+)(\D*)$/);
+  if (!m) return '';
+  const n = String(parseInt(m[2], 10) + 1).padStart(m[2].length, '0');
+  return m[1] + n + m[3];
+}
+async function lastByPrefix(prefix) {
+  const pre = String(prefix || '').trim().toLowerCase();
+  if (!pre) throw new Error('prefix required');
+  const run = chain.then(async () => {
+    await ensureLogin();
+    const names = new Set();
+    let start = 0;
+    for (let page = 0; page < 20; page++) {
+      let res = await vbGet(listUrl(pre, start, 1000), { 'X-Requested-With': 'XMLHttpRequest', Referer: `${VB_URL}/index.php?p=intercom` });
+      let d = res.data;
+      if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { d = null; } }
+      if (!d && page === 0) { session.ts = 0; await ensureLogin(); res = await vbGet(listUrl(pre, start, 1000), { 'X-Requested-With': 'XMLHttpRequest' }); d = res.data; if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { d = null; } } }
+      if (!d || !Array.isArray(d.data)) throw new Error('Unexpected VoIPBell list response (not JSON) — see voipbell-debug');
+      d.data.forEach(r => { const n = stripTags(r.name); if (n.toLowerCase().startsWith(pre)) names.add(n); });
+      start += d.data.length;
+      const total = parseInt(d.recordsFiltered || d.recordsTotal || 0, 10) || 0;
+      if (!d.data.length || d.data.length < 1000 || start >= total) break;
+    }
+    const sorted = [...names].sort((a, b) => natKey(a) < natKey(b) ? -1 : natKey(a) > natKey(b) ? 1 : 0);
+    const last = sorted[sorted.length - 1] || '';
+    dbg('lastByPrefix', { prefix: pre, count: sorted.length, last });
+    return { prefix: pre, count: sorted.length, last, next: last ? nextName(last) : '', recent: sorted.slice(-5).reverse() };
+  });
+  chain = run.catch(() => {});
+  return run;
+}
+
+module.exports = { getQrForAccount, getDebug, createAccount, lastByPrefix, _nextName: nextName, _natKey: natKey };

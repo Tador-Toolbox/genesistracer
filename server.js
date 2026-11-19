@@ -4265,6 +4265,14 @@ app.post('/api/manager/voipbell/create', async (req, res) => {
   }
 });
 
+// Manager: last existing VoIPBell account for a prefix (t98 / g510) + suggested next name.
+app.get('/api/manager/voipbell/last', async (req, res) => {
+  const prefix = String(req.query.prefix || '').trim();
+  if (!/^[a-z0-9_-]{2,20}$/i.test(prefix)) return res.status(400).json({ success: false, error: 'prefix לא תקין' });
+  try { res.json({ success: true, ...(await voipbell.lastByPrefix(prefix)) }); }
+  catch (e) { res.status(502).json({ success: false, error: e.message }); }
+});
+
 app.get('/api/manager/voipbell-qr', async (req, res) => {
   const account = req.query.account;
   if (!account) return res.status(400).json({ success: false, error: 'account required' });
