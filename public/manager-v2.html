@@ -532,6 +532,7 @@
       <button class="v2-nav" data-go="backups"><span class="ic">💾</span>גיבויים</button>
       <button class="v2-nav" data-go="residents"><span class="ic">🧍</span>רשימות דיירים<span class="bdg" id="v2ResBadge"></span></button>
       <button class="v2-nav" data-go="extras"><span class="ic">📝</span>תכנותים נוספים</button>
+      <button class="v2-nav" data-go="accounts"><span class="ic">☁️</span>חשבונות</button>
       <div class="v2-side-foot">
         <a href="/manager.html">↩ לעיצוב הקודם</a>
         <button class="v2-nav" onclick="logout()" style="color:#ef4444;"><span class="ic">⏻</span>התנתק</button>
@@ -1110,6 +1111,23 @@
             <tbody id="departedBody"><tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text-dim);">—</td></tr></tbody>
           </table>
         </div>
+      </div>
+
+      <!-- Accounts: open a NexHome project for a panel (same flow as the gym "☁️ NexHome") -->
+      <div class="card" data-screen="accounts">
+        <h2 style="margin:0 0 6px;">☁️ פתיחת חשבון NexHome</h2>
+        <p style="font-size:12px;color:var(--text-dim);margin:0 0 14px;">פותח פרויקט ב-NexHome (או משתמש בקיים עם אותו שם) ומוסיף אליו את הפנל. אם ה-MAC כבר משויך לפרויקט — לא משנה כלום.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">שם הפרויקט
+            <input type="text" id="nhName" placeholder="לדוגמה: דוד המלך 14 נתניה" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">כתובת
+            <input type="text" id="nhAddr" placeholder="רחוב, מספר, עיר" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 180px;">MAC
+            <input type="text" id="nhMac" dir="ltr" oninput="v2NhMacHint()" placeholder="2875D8C16B50" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px;background:var(--surface2);color:var(--text);"></label>
+          <button id="nhBtn" onclick="v2NhOpen()" style="padding:9px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">☁️ פתח ב-NexHome</button>
+        </div>
+        <div id="nhHint" style="font-size:12px;color:var(--text-dim);margin-top:6px;"></div>
+        <div id="nhOut" style="margin-top:12px;font-size:13px;"></div>
       </div>
 
       <!-- Permissions: per-account module toggles (hide-only) -->
@@ -1755,6 +1773,36 @@
         v2LoadGyms();
       } catch (e) { out.textContent = '❌ ' + e.message; }
     }
+    // ── חשבונות screen: open a NexHome project for any panel ──
+    // If the MAC is already known in GenesisTracer, offer its address as a starting point.
+    function v2NhMacHint() {
+      const mac = normMac(document.getElementById('nhMac').value);
+      const hint = document.getElementById('nhHint');
+      if (mac.length !== 12) { hint.textContent = ''; return; }
+      let found = null, owner = '';
+      const all = window._installerMacs || {};
+      for (const ph in all) { const m = (all[ph] || []).find(x => normMac(x.mac) === mac); if (m) { found = m; owner = ph; break; } }
+      if (!found) { hint.textContent = 'ה-MAC לא נמצא במערכת (אפשר להמשיך).'; return; }
+      const addr = [found.address, found.city].filter(Boolean).join(', ');
+      const a = document.getElementById('nhAddr'), n = document.getElementById('nhName');
+      if (addr && !a.value) a.value = addr;
+      if (addr && !n.value) n.value = addr;
+      hint.textContent = '✓ נמצא במערכת אצל ' + owner + (found.voipbellAccount ? ' · 📞 ' + found.voipbellAccount : '') + (addr ? ' — מילאתי כתובת' : '');
+    }
+    async function v2NhOpen() {
+      if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+      const name = document.getElementById('nhName').value.trim();
+      const address = document.getElementById('nhAddr').value.trim();
+      const mac = normMac(document.getElementById('nhMac').value);
+      const out = document.getElementById('nhOut');
+      if (!name) { out.innerHTML = '<span style="color:#ef4444;">חסר שם פרויקט</span>'; return; }
+      if (!/^[0-9A-F]{12}$/.test(mac)) { out.innerHTML = '<span style="color:#ef4444;">MAC לא תקין (12 תווים)</span>'; return; }
+      const btn = document.getElementById('nhBtn'); btn.disabled = true;
+      out.innerHTML = '⏳ פותח ב-NexHome…';
+      out.innerHTML = await v2NexhomeOpen(name, address, mac);
+      btn.disabled = false;
+    }
+
     // Open NexHome project + add panel. Returns an HTML summary of each step.
     async function v2NexhomeOpen(name, address, mac) {
       try {
@@ -4202,7 +4250,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
 
   <script>
     // ================= V2: screens =================
-    const V2_SCREENS = ['home', 'installers', 'permissions', 'gyms', 'announce', 'content', 'files', 'activity', 'security', 'backups', 'residents', 'extras'];
+    const V2_SCREENS = ['home', 'installers', 'permissions', 'gyms', 'announce', 'content', 'files', 'activity', 'security', 'backups', 'residents', 'extras', 'accounts'];
     function v2Show(screen) {
       if (!V2_SCREENS.includes(screen)) screen = 'home';
       document.querySelectorAll('[data-screen]').forEach(el =>
