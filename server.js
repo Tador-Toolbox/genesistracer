@@ -1036,6 +1036,8 @@ async function applySwapToPanel(cleanMac, swap) {
   // Leave-only ("עזיבה בלבד"): no one moves in. Never empty an apartment completely;
   // snapshot each departing contact (SIP reserved ~6 months) before deleting it.
   if (swap.leaveOnly) {
+    // Feature parked (TODO) — don't apply any leave-only request that was submitted before it was removed.
+    rep.error = 'עזיבה בלבד הוסרה מהמערכת — דחה את הבקשה הזו'; return rep;
     const inApt = contacts.filter(c => prPad2(c.call_number) === apt);
     const leavingSet = new Set(leavingIds.filter(x => x != null).map(String));
     const remaining = inApt.filter(c => !leavingSet.has(String(c.id)));
@@ -1187,7 +1189,7 @@ app.post('/api/installer/resident-swap/save', async (req, res) => {
       phone: String((e && e.phone) || '').trim().slice(0, 30),              // resident phone — stored + printed only, NOT written to the panel
       sip: String((e && e.sip) != null ? e.sip : '').trim().slice(0, 10)   // preview SIP computed at submit
     })).filter(e => e.firstName || e.lastName);
-    const leaveOnly = !!req.body.leaveOnly;
+    const leaveOnly = false; // 'עזיבה בלבד' removed from the UI for now (TODO) — never accept it
     if (leaveOnly) {
       if (!leaving.length) return res.status(400).json({ success: false, error: 'בחרו לפחות דייר אחד שעוזב' });
       entering.length = 0;
