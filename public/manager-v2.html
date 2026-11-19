@@ -1152,6 +1152,26 @@
         <div id="s3Out" style="margin-top:12px;font-size:13px;"></div>
       </div>
 
+      <!-- Accounts step 4: attach the panel (MAC) to the technician's GenesisTracer account -->
+      <div class="card" data-screen="accounts">
+        <h2 style="margin:0 0 6px;">שלב 4 · 🧾 שיוך הפנל לטכנאי</h2>
+        <p style="font-size:12px;color:var(--text-dim);margin:0 0 14px;">מוסיף את הפנל לחשבון הטכנאי ב-GenesisTracer (כמו "🧾 GenesisTracer" ב-ResidentEnroll), עם כתובת, חשבון VoIPBell וסוג פנל.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">טכנאי
+            <select id="s4Tech" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface2);color:var(--text);font-family:inherit;"><option value="">— בחר טכנאי —</option></select></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 160px;">MAC
+            <input type="text" id="s4Mac" dir="ltr" placeholder="2875D8C16B50" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface2);color:var(--text);font-family:monospace;"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 150px;">חשבון VoIPBell
+            <input type="text" id="s4Acct" dir="ltr" placeholder="g510-008" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface2);color:var(--text);font-family:monospace;"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 180px;">כתובת
+            <input type="text" id="s4Addr" placeholder="רחוב, מספר, עיר" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface2);color:var(--text);font-family:inherit;"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 140px;">סוג פנל
+            <select id="s4Type" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface2);color:var(--text);font-family:inherit;"><option value="">— בחר —</option><option value="genesis7">Genesis 7</option><option value="genesis5">Genesis 5</option></select></label>
+          <button id="s4Btn" onclick="v2S4Assign()" style="padding:9px 16px;background:#0891b2;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">🧾 שייך לטכנאי</button>
+        </div>
+        <div id="s4Out" style="margin-top:12px;font-size:13px;"></div>
+      </div>
+
       <!-- Permissions: per-account module toggles (hide-only) -->
       <div class="card" data-screen="permissions">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
@@ -1868,6 +1888,7 @@
     function v2NhBuildName() {
       const acct = document.getElementById('nhAcct').value.trim();
       const s3a = document.getElementById('s3Acct'); if (s3a && acct) s3a.value = acct;
+      try { v2S4Sync(); } catch (e) {}
       const opt = document.getElementById('nhTech').selectedOptions[0];
       const tech = !opt || !opt.value ? '' : (opt.value === '__new__' ? document.getElementById('nhNewTechName').value.trim() : (opt.getAttribute('data-name') || opt.value));
       document.getElementById('nhName').value = [acct, tech].filter(Boolean).join(' ');
@@ -1889,6 +1910,51 @@
         if (!j.success) {} else if (j.already) out.innerHTML = 'ℹ️ חשבון בשם <b dir="ltr">' + gymEsc(name) + '</b> כבר קיים ב-VoIPBell — לא נוצר שוב.';
         else out.innerHTML = '✓ נפתח חשבון <b dir="ltr">' + gymEsc(name) + '</b> ב-VoIPBell'
           + '<div style="font-size:12px;color:var(--text-dim);margin-top:4px;">משתמש ניהול: <b dir="ltr">' + gymEsc(j.adminUser) + '</b> · סיסמה: <b dir="ltr">' + gymEsc(j.adminPass) + '</b></div>';
+      } catch (e) { out.innerHTML = '❌ ' + gymEsc(e.message); }
+      btn.disabled = false;
+    }
+    // Step 4: fill the technician list and carry values over from steps 1–3 (only into empty fields / when unchanged).
+    function v2S4Sync() {
+      const sel = document.getElementById('s4Tech'); if (!sel) return;
+      if (sel.options.length <= 1) sel.innerHTML = '<option value="">— בחר טכנאי —</option>' + ownerCandidates().map(a =>
+        `<option value="${gymEsc(a.phoneNumber)}" data-name="${gymEsc(a.installerName || '')}">${gymEsc((a.installerName ? a.installerName + ' · ' : '') + a.phoneNumber)}</option>`).join('');
+      const t = document.getElementById('nhTech').value;
+      if (t && t !== '__new__') {
+        if (![...sel.options].some(o => o.value === t)) { sel.options.length = 1; v2S4Sync(); return; }
+        sel.value = t;
+      }
+      const put = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+      put('s4Mac', document.getElementById('nhMac').value);
+      put('s4Acct', document.getElementById('nhAcct').value);
+      put('s4Addr', document.getElementById('nhAddr').value);
+    }
+    async function v2S4Assign() {
+      v2S4Sync();
+      const sel = document.getElementById('s4Tech'); const phone = sel.value;
+      const techName = sel.selectedOptions[0] ? (sel.selectedOptions[0].getAttribute('data-name') || '') : '';
+      const mac = normMac(document.getElementById('s4Mac').value);
+      const acct = document.getElementById('s4Acct').value.trim();
+      const address = document.getElementById('s4Addr').value.trim();
+      const panelType = document.getElementById('s4Type').value;
+      const out = document.getElementById('s4Out');
+      if (!phone) { out.innerHTML = '<span style="color:#ef4444;">בחר טכנאי</span>'; return; }
+      if (!/^[0-9A-F]{12}$/.test(mac)) { out.innerHTML = '<span style="color:#ef4444;">MAC לא תקין (12 תווים)</span>'; return; }
+      if (!panelType) { out.innerHTML = '<span style="color:#ef4444;">בחר סוג פנל (Genesis 7 / Genesis 5)</span>'; return; }
+      const others = Object.entries(window._installerMacs || {}).filter(([ph, ms]) => ph !== phone && (ms || []).some(m => normMac(m.mac) === mac)).map(([ph]) => ph);
+      if (!confirm('לשייך את הפנל ' + mac + ' לטכנאי ' + (techName || phone) + '?' + (others.length ? '\n(הפנל כבר קיים גם אצל: ' + others.join(', ') + ')' : ''))) return;
+      const btn = document.getElementById('s4Btn'); btn.disabled = true; out.textContent = '⏳ משייך…';
+      try {
+        const j = await fetch('/api/manager/installers/' + encodeURIComponent(phone) + '/macs', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ macAddress: mac, address, voipbellAccount: acct, panelType, technicianName: techName, technicianPhone: phone }) }).then(r => r.json());
+        if (!j.success) { out.innerHTML = '❌ ' + gymEsc(j.error || 'שגיאה'); btn.disabled = false; return; }
+        // Verify the MAC is now on the technician's account.
+        const d = await fetch('/api/manager/installers/' + encodeURIComponent(phone)).then(r => r.json());
+        const m = ((d.installer && d.installer.macAddresses) || []).find(x => normMac(x.mac) === mac);
+        out.innerHTML = m
+          ? '✓ הפנל <b dir="ltr">' + gymEsc(mac) + '</b> שויך לטכנאי <b>' + gymEsc(techName || phone) + '</b>'
+            + '<div style="font-size:12px;color:var(--text-dim);margin-top:4px;">חשבון: <span dir="ltr">' + gymEsc(m.voipbellAccount || '—') + '</span> · ' + ((m.panelType || '') === 'genesis5' ? 'Genesis 5' : 'Genesis 7') + (m.address ? ' · ' + gymEsc(m.address) : '') + '</div>'
+          : '⚠ נשמר, אבל הפנל לא מופיע בחשבון הטכנאי — בדוק ברשימת המתקינים';
+        try { loadData(); } catch (e) {}
       } catch (e) { out.innerHTML = '❌ ' + gymEsc(e.message); }
       btn.disabled = false;
     }
@@ -4387,7 +4453,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
     }
     document.addEventListener('click', e => {
       const go = e.target.closest('[data-go]');
-      if (go) { e.preventDefault(); v2Show(go.dataset.go); if (go.dataset.go === 'security') v2LoadSecurity(); if (go.dataset.go === 'backups') v2LoadBackups(); if (go.dataset.go === 'residents') v2LoadResidents(); if (go.dataset.go === 'permissions') v2LoadPermissions(); if (go.dataset.go === 'gyms') v2LoadGyms(); if (go.dataset.go === 'accounts') v2NhFillTechs(); }
+      if (go) { e.preventDefault(); v2Show(go.dataset.go); if (go.dataset.go === 'security') v2LoadSecurity(); if (go.dataset.go === 'backups') v2LoadBackups(); if (go.dataset.go === 'residents') v2LoadResidents(); if (go.dataset.go === 'permissions') v2LoadPermissions(); if (go.dataset.go === 'gyms') v2LoadGyms(); if (go.dataset.go === 'accounts') { v2NhFillTechs(); v2S4Sync(); } }
     });
     document.body.classList.add('v2-body');
     v2Show((location.hash || '#home').slice(1));
