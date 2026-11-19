@@ -4467,6 +4467,10 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
             : (s.status === 'approved'
               ? `<button onclick="window.open('/swap-form.html?id=${s._id}','_blank')" style="padding:4px 10px;margin:2px;background:#0ea5e9;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">📄 טופס</button>`
               : '—');
+          // 💬 message the installer who submitted this update (opens the support chat, pre-filled with context)
+          const chatBtn = s.phoneNumber
+            ? `<button onclick="v2SwapChat('${v2SecEsc(s.phoneNumber)}','${v2SecEsc(String(s.apartment || '')).replace(/'/g, '')}','${v2SecEsc(String(s.panelLabel || s.mac || '')).replace(/'/g, '')}')" title="שלח הודעה למתקין ${v2SecEsc(s.phoneNumber)}" style="padding:4px 10px;margin:2px;background:#7c3aed;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">💬 הודעה</button>`
+            : '';
           // Date + summary (how many entered / left)
           let dt = ''; try { dt = new Date(s.approvedAt || s.createdAt).toLocaleDateString('he-IL'); } catch (e) {}
           const nIn = asg ? asg.length : (s.entering || []).length;
@@ -4477,7 +4481,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
             <td style="padding:8px;text-align:center;font-weight:800;">${v2SecEsc(s.apartment)}</td>
             <td style="padding:8px;"><span style="color:#ef4444;">${leaving}</span> &larr; <span style="color:#16a34a;font-weight:700;">${entering}</span><div style="font-size:11px;color:var(--text-dim);margin-top:4px;">${summary}</div></td>
             <td style="padding:8px;text-align:center;"><span style="color:${st[1]};font-weight:700;">${st[0]}</span></td>
-            <td style="padding:8px;text-align:center;white-space:nowrap;">${actions}</td></tr>`;
+            <td style="padding:8px;text-align:center;white-space:nowrap;">${actions}${chatBtn}</td></tr>`;
         }).join('');
       } catch (e) {
         tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:#ef4444;">שגיאה בטעינה</td></tr>';
@@ -4543,6 +4547,11 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           <tbody>${rows.map(r => `<tr><td style="${td}font-family:monospace;">${v2SecEsc(r.mac)}</td><td style="${td}">${v2SecEsc(r.name) || '—'}</td><td style="${td}text-align:center;">${r.swaps}</td><td style="${td}text-align:center;color:#16a34a;font-weight:700;">${r.inN}</td><td style="${td}text-align:center;color:#ef4444;font-weight:700;">${r.outN}</td></tr>`).join('')}
           <tr style="background:#f3f4f6;font-weight:800;"><td style="${td}" colspan="2">סה"כ (${rows.length} פנלים)</td><td style="${td}text-align:center;">${tSw}</td><td style="${td}text-align:center;color:#16a34a;">${tIn}</td><td style="${td}text-align:center;color:#ef4444;">${tOut}</td></tr></tbody></table>`;
       } catch (e) { out.innerHTML = '<div style="color:#c62828;">שגיאה בטעינה</div>'; }
+    }
+    async function v2SwapChat(phone, apartment, panel) {
+      await openChat(phone);
+      const inp = document.getElementById('chatInput');
+      if (inp) { inp.value = 'לגבי עדכון דייר — ' + panel + ', דירה ' + apartment + ': '; inp.focus(); }
     }
     async function v2SwapStatus(id, status) {
       if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
