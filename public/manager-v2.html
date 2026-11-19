@@ -1115,7 +1115,15 @@
           <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 180px;">חשבון VoIPBell
             <input type="text" id="nhAcct" dir="ltr" oninput="v2NhBuildName()" placeholder="t98_5_037" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px;background:var(--surface2);color:var(--text);"></label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 220px;">טכנאי
-            <select id="nhTech" onchange="v2NhBuildName()" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);"><option value="">— בחר טכנאי —</option></select></label>
+            <select id="nhTech" onchange="v2NhTechChange()" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);"><option value="">— בחר טכנאי —</option></select></label>
+        </div>
+        <div id="nhNewTech" style="display:none;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:8px;padding:10px;border:1px dashed var(--border);border-radius:10px;">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 180px;">שם הטכנאי החדש
+            <input type="text" id="nhNewTechName" oninput="v2NhBuildName()" placeholder="לדוגמה: רז כהן" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 170px;">טלפון (שם משתמש)
+            <input type="text" id="nhNewTechPhone" dir="ltr" inputmode="tel" placeholder="05XXXXXXXX" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px;background:var(--surface2);color:var(--text);"></label>
+          <button onclick="v2NhCreateTech()" style="padding:9px 14px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">➕ צור טכנאי</button>
+          <div id="nhNewTechOut" style="flex-basis:100%;font-size:12px;"></div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
           <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">שם הפרויקט <span style="font-weight:400;color:var(--text-dim);">(חשבון + טכנאי)</span>
@@ -1809,13 +1817,43 @@
     // Step 2 project name = VoIPBell account + technician name, e.g. "t98_5_037 אבי כהן".
     function v2NhFillTechs() {
       const sel = document.getElementById('nhTech'); if (!sel || sel.options.length > 1) return;
-      sel.innerHTML = '<option value="">— בחר טכנאי —</option>' + ownerCandidates().map(a =>
+      sel.innerHTML = '<option value="">— בחר טכנאי —</option><option value="__new__">➕ טכנאי חדש (לא ברשימה)</option>' + ownerCandidates().map(a =>
         `<option value="${gymEsc(a.phoneNumber)}" data-name="${gymEsc(a.installerName || '')}">${gymEsc((a.installerName ? a.installerName + ' · ' : '') + a.phoneNumber)}</option>`).join('');
+    }
+    function v2NhTechChange() {
+      const isNew = document.getElementById('nhTech').value === '__new__';
+      document.getElementById('nhNewTech').style.display = isNew ? 'flex' : 'none';
+      if (isNew) document.getElementById('nhNewTechName').focus();
+      v2NhBuildName();
+    }
+    // Create a new technician (GenesisTracer installer account: phone = username) and select it.
+    async function v2NhCreateTech() {
+      const name = document.getElementById('nhNewTechName').value.trim();
+      const phone = document.getElementById('nhNewTechPhone').value.replace(/[^\d+]/g, '');
+      const out = document.getElementById('nhNewTechOut');
+      if (!name) { out.innerHTML = '<span style="color:#ef4444;">חסר שם טכנאי</span>'; return; }
+      if (phone.replace(/\D/g, '').length < 9) { out.innerHTML = '<span style="color:#ef4444;">טלפון לא תקין</span>'; return; }
+      if ((window._allAccounts || []).some(a => a.phoneNumber === phone)) { out.innerHTML = '<span style="color:#ef4444;">מספר הטלפון כבר קיים במערכת — בחר אותו מהרשימה</span>'; return; }
+      out.textContent = '⏳ יוצר טכנאי…';
+      try {
+        const j = await fetch('/api/manager/installers', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber: phone, macAddresses: [], accountType: 'installer' }) }).then(r => r.json());
+        if (!j.success) { out.innerHTML = '<span style="color:#ef4444;">❌ ' + gymEsc(j.error || 'שגיאה') + '</span>'; return; }
+        await fetch('/api/manager/installers/' + encodeURIComponent(phone) + '/info', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ installerName: name }) });
+        (window._allAccounts = window._allAccounts || []).push({ phoneNumber: phone, installerName: name, accountType: 'installer' });
+        const sel = document.getElementById('nhTech'); sel.options.length = 1; v2NhFillTechs(); sel.value = phone;
+        document.getElementById('nhNewTech').style.display = 'none';
+        document.getElementById('nhNewTechName').value = ''; document.getElementById('nhNewTechPhone').value = '';
+        v2NhBuildName();
+        document.getElementById('nhHint').innerHTML = '✓ נוצר טכנאי <b>' + gymEsc(name) + '</b> · משתמש: <b dir="ltr">' + gymEsc(phone) + '</b> · סיסמה: <b dir="ltr">' + gymEsc(j.password) + '</b>';
+        try { loadData(); } catch (e) {}
+      } catch (e) { out.textContent = '❌ ' + e.message; }
     }
     function v2NhBuildName() {
       const acct = document.getElementById('nhAcct').value.trim();
       const opt = document.getElementById('nhTech').selectedOptions[0];
-      const tech = opt && opt.value ? (opt.getAttribute('data-name') || opt.value) : '';
+      const tech = !opt || !opt.value ? '' : (opt.value === '__new__' ? document.getElementById('nhNewTechName').value.trim() : (opt.getAttribute('data-name') || opt.value));
       document.getElementById('nhName').value = [acct, tech].filter(Boolean).join(' ');
     }
     async function v2VbCreate() {
