@@ -1134,9 +1134,15 @@
       <div class="card" data-screen="accounts">
         <h2 style="margin:0 0 6px;">שלב 2 · ☁️ פתיחת חשבון NexHome</h2>
         <p style="font-size:12px;color:var(--text-dim);margin:0 0 14px;">פותח פרויקט ב-NexHome (או משתמש בקיים עם אותו שם) ומוסיף אליו את הפנל. אם ה-MAC כבר משויך לפרויקט — לא משנה כלום.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:8px;">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 180px;">חשבון VoIPBell
+            <input type="text" id="nhAcct" dir="ltr" oninput="v2NhBuildName()" placeholder="t98_5_037" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px;background:var(--surface2);color:var(--text);"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 220px;">טכנאי
+            <select id="nhTech" onchange="v2NhBuildName()" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);"><option value="">— בחר טכנאי —</option></select></label>
+        </div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">שם הפרויקט
-            <input type="text" id="nhName" placeholder="לדוגמה: דוד המלך 14 נתניה" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">שם הפרויקט <span style="font-weight:400;color:var(--text-dim);">(חשבון + טכנאי)</span>
+            <input type="text" id="nhName" placeholder="t98_5_037 אבי כהן" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);"></label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">כתובת
             <input type="text" id="nhAddr" placeholder="רחוב, מספר, עיר" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);"></label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 180px;">MAC
@@ -1803,7 +1809,11 @@
       const addr = [found.address, found.city].filter(Boolean).join(', ');
       const a = document.getElementById('nhAddr'), n = document.getElementById('nhName');
       if (addr && !a.value) a.value = addr;
-      if (addr && !n.value) n.value = addr;
+      v2NhFillTechs();
+      const acctIn = document.getElementById('nhAcct'), techSel = document.getElementById('nhTech');
+      if (found.voipbellAccount && !acctIn.value) acctIn.value = found.voipbellAccount;
+      if (!techSel.value && [...techSel.options].some(o => o.value === owner)) techSel.value = owner;
+      v2NhBuildName();
       hint.textContent = '✓ נמצא במערכת אצל ' + owner + (found.voipbellAccount ? ' · 📞 ' + found.voipbellAccount : '') + (addr ? ' — מילאתי כתובת' : '');
     }
     async function v2VbLast(prefix) {
@@ -1819,6 +1829,18 @@
           + '<div style="font-size:12px;color:var(--text-dim);margin-top:6px;">אחרונים: <span dir="ltr">' + (j.recent || []).map(gymEsc).join(' · ') + '</span></div>';
       } catch (e) { out.innerHTML = '❌ ' + gymEsc(e.message); }
     }
+    // Step 2 project name = VoIPBell account + technician name, e.g. "t98_5_037 אבי כהן".
+    function v2NhFillTechs() {
+      const sel = document.getElementById('nhTech'); if (!sel || sel.options.length > 1) return;
+      sel.innerHTML = '<option value="">— בחר טכנאי —</option>' + ownerCandidates().map(a =>
+        `<option value="${gymEsc(a.phoneNumber)}" data-name="${gymEsc(a.installerName || '')}">${gymEsc((a.installerName ? a.installerName + ' · ' : '') + a.phoneNumber)}</option>`).join('');
+    }
+    function v2NhBuildName() {
+      const acct = document.getElementById('nhAcct').value.trim();
+      const opt = document.getElementById('nhTech').selectedOptions[0];
+      const tech = opt && opt.value ? (opt.getAttribute('data-name') || opt.value) : '';
+      document.getElementById('nhName').value = [acct, tech].filter(Boolean).join(' ');
+    }
     async function v2VbCreate() {
       if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
       const name = document.getElementById('vbName').value.trim();
@@ -1832,7 +1854,8 @@
         const j = await fetch('/api/manager/voipbell/create', { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...window.__mgr, name, client }) }).then(r => r.json());
         if (!j.success) out.innerHTML = '❌ ' + gymEsc(j.error || 'שגיאה') + ' <a href="/api/manager/voipbell-debug" target="_blank" style="font-size:12px;">יומן</a>';
-        else if (j.already) out.innerHTML = 'ℹ️ חשבון בשם <b dir="ltr">' + gymEsc(name) + '</b> כבר קיים ב-VoIPBell — לא נוצר שוב.';
+        if (j.success) { document.getElementById('nhAcct').value = name; v2NhBuildName(); }
+        if (!j.success) {} else if (j.already) out.innerHTML = 'ℹ️ חשבון בשם <b dir="ltr">' + gymEsc(name) + '</b> כבר קיים ב-VoIPBell — לא נוצר שוב.';
         else out.innerHTML = '✓ נפתח חשבון <b dir="ltr">' + gymEsc(name) + '</b> ב-VoIPBell'
           + '<div style="font-size:12px;color:var(--text-dim);margin-top:4px;">משתמש ניהול: <b dir="ltr">' + gymEsc(j.adminUser) + '</b> · סיסמה: <b dir="ltr">' + gymEsc(j.adminPass) + '</b></div>';
       } catch (e) { out.innerHTML = '❌ ' + gymEsc(e.message); }
@@ -4310,7 +4333,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
     }
     document.addEventListener('click', e => {
       const go = e.target.closest('[data-go]');
-      if (go) { e.preventDefault(); v2Show(go.dataset.go); if (go.dataset.go === 'security') v2LoadSecurity(); if (go.dataset.go === 'backups') v2LoadBackups(); if (go.dataset.go === 'residents') v2LoadResidents(); if (go.dataset.go === 'permissions') v2LoadPermissions(); if (go.dataset.go === 'gyms') v2LoadGyms(); }
+      if (go) { e.preventDefault(); v2Show(go.dataset.go); if (go.dataset.go === 'security') v2LoadSecurity(); if (go.dataset.go === 'backups') v2LoadBackups(); if (go.dataset.go === 'residents') v2LoadResidents(); if (go.dataset.go === 'permissions') v2LoadPermissions(); if (go.dataset.go === 'gyms') v2LoadGyms(); if (go.dataset.go === 'accounts') v2NhFillTechs(); }
     });
     document.body.classList.add('v2-body');
     v2Show((location.hash || '#home').slice(1));
