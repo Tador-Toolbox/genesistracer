@@ -4248,6 +4248,23 @@ app.get('/api/manager/voipbell-debug', (req, res) => {
 });
 
 // Fetch a panel's VoIPBell softphone QR by voipbellAccount name (logs into the portal).
+// Manager: open a new VoIPBell intercom account (eu1.voipbell.net) — same as ResidentEnroll.
+app.post('/api/manager/voipbell/create', async (req, res) => {
+  const { name, client, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) return res.status(401).json({ success: false, error: 'Unauthorized' });
+  const acct = String(name || '').trim();
+  if (!acct) return res.status(400).json({ success: false, error: 'חסר שם חשבון' });
+  try {
+    const out = await voipbell.createAccount(acct, client);
+    try { await logActivity({ phoneNumber: username, action: 'voipbell_create', mac: null, details: { name: acct, already: !!out.already }, success: true }); } catch (e) {}
+    res.json({ success: true, name: acct, ...out });
+  } catch (e) {
+    try { await logActivity({ phoneNumber: username, action: 'voipbell_create', mac: null, details: { name: acct, error: e.message }, success: false }); } catch (e2) {}
+    res.status(502).json({ success: false, error: e.message });
+  }
+});
+
 app.get('/api/manager/voipbell-qr', async (req, res) => {
   const account = req.query.account;
   if (!account) return res.status(400).json({ success: false, error: 'account required' });

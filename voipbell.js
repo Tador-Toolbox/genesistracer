@@ -184,4 +184,113 @@ async function getQrForAccount(account) {
   return run;
 }
 
-module.exports = { getQrForAccount, getDebug };
+// ── Create a new intercom account — ported 1:1 from ResidentEnroll voipbell_create_account ──
+function rand5() { const a = 'abcdefghijklmnopqrstuvwxyz'; let s = ''; for (let i = 0; i < 5; i++) s += a[Math.floor(Math.random() * 26)]; return s; }
+function multipart(fields, boundary) {
+  // fields: ['text', name, value] | ['file', name, filename, ctype, Buffer]
+  const parts = [];
+  for (const f of fields) {
+    parts.push(Buffer.from('--' + boundary + '\r\n'));
+    if (f[0] === 'text') {
+      parts.push(Buffer.from(`Content-Disposition: form-data; name="${f[1]}"\r\n\r\n`));
+      parts.push(Buffer.from(String(f[2]), 'utf8'));
+    } else {
+      parts.push(Buffer.from(`Content-Disposition: form-data; name="${f[1]}"; filename="${f[2]}"\r\nContent-Type: ${f[3]}\r\n\r\n`));
+      parts.push(f[4]);
+    }
+    parts.push(Buffer.from('\r\n'));
+  }
+  parts.push(Buffer.from('--' + boundary + '--\r\n'));
+  return Buffer.concat(parts);
+}
+async function listRows(search) {
+  const res = await vbGet(listUrl(search), { 'X-Requested-With': 'XMLHttpRequest', Referer: `${VB_URL}/index.php?p=intercom` });
+  let d = res.data;
+  if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { d = null; } }
+  return d && Array.isArray(d.data) ? d.data : null;
+}
+async function accountExists(name) {
+  const rows = await listRows(name);
+  if (!rows) return null; // unknown (not JSON)
+  return rows.some(r => String(r.name || '').trim() === String(name).trim());
+}
+function hiddenInputs(html) {
+  const out = {};
+  for (const m of String(html || '').matchAll(/<input[^>]*type=["']hidden["'][^>]*>/gi)) {
+    const nm = m[0].match(/name=["']([^"']+)["']/); const vl = m[0].match(/value=["']([^"']*)["']/);
+    if (nm) out[nm[1]] = vl ? vl[1] : '';
+  }
+  return out;
+}
+
+// Returns { created, already, adminUser, adminPass }.
+async function createAccount(name, client) {
+  const acct = String(name || '').trim();
+  const cli = String(client || '').trim() || 'not assigned';
+  if (!acct) throw new Error('name required');
+  const run = chain.then(async () => {
+    dbg('create:start', { name: acct, client: cli });
+    await ensureLogin();
+    let ex = await accountExists(acct);
+    if (ex === null) { session.ts = 0; await ensureLogin(); ex = await accountExists(acct); }
+    if (ex === null) throw new Error('Unexpected VoIPBell list response (not JSON) — see voipbell-debug');
+    if (ex) { dbg('create:already', { name: acct }); return { created: true, already: true }; }
+
+    const adminUser = rand5(), adminPass = rand5();
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const form = await vbGet(`${VB_URL}/index.php?p=intercom&subpage=addmod`, { Referer: `${VB_URL}/index.php?p=intercom` });
+      if (isLoginPage(form.data)) { session.ts = 0; await ensureLogin(); continue; }
+      const hidden = hiddenInputs(form.data);
+      const fields = [
+        ['text', 'intercom[name]', acct],
+        ['text', 'intercom[client]', cli],
+        ['text', 'intercom[description]', 'דלת כניסה'],
+        ['text', 'intercom[parameters][deviceType]', 'other'],
+        ['text', 'intercom[parameters][sipPassword]', 'Tador@032'],
+        ['text', 'intercom[parameters][sip][transport]', 'udp'],
+        ['text', 'intercom[parameters][sip][port]', '5071'],
+        ['text', 'intercom[parameters][webservice_licence][username]', 'Tador'],
+        ['text', 'intercom[parameters][webservice_licence][password]', 'Tador20Tech19'],
+        ['text', 'intercom[parameters][type_template]', 'template'],
+        ['text', 'intercom[parameters][titleColor]', '#3eb5c0'],
+        ['text', 'intercom[parameters][logo]', 'default'],
+        ['file', 'logo', '', 'application/octet-stream', Buffer.alloc(0)],
+        ['text', 'intercom[parameters][template_intercom_id]', '2'],
+        ['text', 'intercom[admin_username]', adminUser],
+        ['text', 'intercom[admin_password]', adminPass],
+        ['text', 'intercom[parameters][billing_name]', ''],
+        ['text', 'intercom[parameters][pin_code]', ''],
+        ['text', 'intercom[parameters][relay_1_option_open_door]', 'dtmf'],
+        ['text', 'intercom[parameters][relay_1_code]', '31'],
+        ['text', 'intercom[parameters][relay_2_option_open_door]', 'dtmf'],
+        ['text', 'intercom[parameters][relay_2_code]', '32'],
+        ['text', 'intercom[parameters][allow_ip]', ''],
+        ['text', 'intercom[parameters][valid][type]', 'no'],
+        ['text', 'intercom[parameters][valid][softphones]', ''],
+        ['text', 'intercom[parameters][vpn_l2tp_ip]', ''],
+        ['text', 'doadd', 'add'],
+      ];
+      const present = new Set(fields.map(f => f[1]));
+      for (const [k, v] of Object.entries(hidden)) if (!present.has(k)) fields.push(['text', k, v]);
+      const boundary = '----GenesisTracer' + Date.now().toString(16) + Math.random().toString(16).slice(2);
+      const body = multipart(fields, boundary);
+      try {
+        const res = await axios.post(`${VB_URL}/index.php?p=intercom`, body, {
+          headers: { 'User-Agent': VB_UA, Cookie: cookieHeader(), 'Content-Type': 'multipart/form-data; boundary=' + boundary,
+            Referer: `${VB_URL}/index.php?p=intercom&subpage=addmod`, Accept: 'text/html,*/*' },
+          maxRedirects: 0, validateStatus: s => s >= 200 && s < 400, timeout: 30000,
+        });
+        storeCookies(res.headers['set-cookie']);
+        dbg('create:POST', { attempt, status: res.status, body: snippet(res.data) });
+      } catch (e) { dbg('create:POST_error', { attempt, error: e.message }); }
+      await sleep(1300);
+      if (await accountExists(acct)) { dbg('create:ok', { name: acct, attempt }); qrCache[acct] = undefined; return { created: true, already: false, adminUser, adminPass }; }
+      dbg('create:not-found-yet', { attempt });
+    }
+    throw new Error('יצירת החשבון לא אומתה ב-VoIPBell אחרי 3 ניסיונות — ראה voipbell-debug');
+  });
+  chain = run.catch(() => {});
+  return run;
+}
+
+module.exports = { getQrForAccount, getDebug, createAccount };
