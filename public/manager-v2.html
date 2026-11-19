@@ -4685,7 +4685,8 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
       };
       try {
         const data = await fetch('/api/manager/resident-submissions').then(r => r.json());
-        const subs = (data.submissions || []).filter(s => (s.residents || []).length || s.status === 'pending');
+        // Also show lists whose committee link was issued but nothing was saved yet.
+        const subs = (data.submissions || []).filter(s => (s.residents || []).length || s.status === 'pending' || s.committeeCode);
         window.__residents = {}; subs.forEach(s => { window.__residents[s.mac] = s; });
         const stMap = { draft: ['טיוטה', '#64717e'], pending: ['ממתין לאישור', '#9a6b00'], approved: ['אושר', '#2e7d32'], rejected: ['נדחה', '#c62828'] };
         const pend = subs.filter(s => s.status !== 'approved');
@@ -4694,8 +4695,13 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         // Pending/awaiting-approval table (with approve/reject).
         body.innerHTML = pend.length ? pend.map(s => {
           const st = stMap[s.status] || stMap.draft; const mac = v2SecEsc(s.mac || '');
+          const empty = !(s.residents || []).length && s.status !== 'pending';
+          const who = s.lastSavedBy ? (s.lastSavedBy === 'committee' ? 'הוועד' : 'המתקין ' + v2SecEsc(s.lastSavedBy)) : '';
+          let when = ''; try { if (s.lastSavedAt || s.submittedAt) when = new Date(s.lastSavedAt || s.submittedAt).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch (e) {}
+          const label = empty ? ['🔗 קישור נשלח — עוד לא מילאו', '#64748b'] : (s.status === 'draft' ? ['📝 טיוטה — נשמר, עוד לא נשלח', '#64717e'] : st);
+          const sub = !empty && (who || when) ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${s.status === 'pending' ? 'נשלח' : 'נשמר'}${who ? ' ע״י ' + who : ''}${when ? ' · ' + when : ''}</div>` : '';
           return `<tr>${baseCells(s)}
-            <td style="padding:8px;text-align:center;"><span style="color:${st[1]};font-weight:700;">${st[0]}</span></td>
+            <td style="padding:8px;text-align:center;"><span style="color:${label[1]};font-weight:700;">${label[0]}</span>${sub}</td>
             <td style="padding:8px;text-align:center;white-space:nowrap;">
               ${btn('👁 צפה', `v2ViewResidents('${mac}')`, '#eef1f4', '#111')}
               ${btn('🖨️ QR', `v2PrintAllQr('${v2SecEsc(s.phoneNumber || '')}','${mac}')`, '#0ea5e9', '#fff')}
@@ -4873,14 +4879,15 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         ov.innerHTML = '<div id="resViewBox" style="background:#fff;color:#111;border-radius:14px;padding:20px;max-width:560px;width:94%;max-height:86vh;overflow:auto;"></div>';
         document.body.appendChild(ov);
       }
-      const evName = { submit: 'נשלח למנהל', uploaded: 'הועלה לפנל', upload_failed: 'העלאה נכשלה', approved: 'אושר', rejected: 'נדחה' };
+      const evName = { save: 'נשמר (טיוטה)', submit: 'נשלח למנהל', uploaded: 'הועלה לפנל', upload_failed: 'העלאה נכשלה', approved: 'אושר', rejected: 'נדחה' };
       const hist = (s.history || []).slice().reverse();
       const histHtml = hist.length ? ('<div style="font-weight:800;margin:16px 0 6px;">היסטוריה</div>' +
         '<table style="width:100%;border-collapse:collapse;font-size:12.5px;"><tbody>' +
         hist.map(h => {
           const d = h.at ? new Date(h.at).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
           let extra = '';
-          if (h.event === 'submit' && h.count != null) extra = ' (' + h.count + ' דיירים)';
+          if ((h.event === 'submit' || h.event === 'save') && h.count != null) extra = ' (' + h.count + ' דיירים)';
+          if (h.by === 'committee') h = { ...h, by: 'הוועד' };
           if (h.event === 'uploaded') extra = ' (' + (h.created || 0) + ' נוצרו' + (h.skipped ? (', ' + h.skipped + ' קיימים') : '') + (h.failed ? (', ' + h.failed + ' נכשלו') : '') + ')';
           if (h.event === 'upload_failed' && h.error) extra = ' (' + v2SecEsc(h.error) + ')';
           return '<tr><td style="padding:4px 8px;border-bottom:1px solid #eee;white-space:nowrap;">' + d + '</td><td style="padding:4px 8px;border-bottom:1px solid #eee;">' + (evName[h.event] || h.event) + extra + (h.by ? (' · ' + v2SecEsc(h.by)) : '') + '</td></tr>';

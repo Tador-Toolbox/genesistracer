@@ -1092,6 +1092,8 @@ async function savePanelResidents(mac, phoneNumber, residents, status, extra) {
   if (phoneNumber) set.phoneNumber = phoneNumber;
   if (status) set.status = status;
   if (status === 'pending') set.submittedAt = now;
+  // Who saved last and when — so the manager can see the committee is working on the list.
+  if (extra && extra.savedBy) { set.lastSavedBy = extra.savedBy; set.lastSavedAt = now; }
   await db.collection('panel_residents').updateOne(
     { mac }, { $set: set, $setOnInsert: { createdAt: now } }, { upsert: true }
   );
