@@ -2378,7 +2378,9 @@
     // MAC -> buildingCode for every MAC that already has a building (main MAC or extra entrance)
     let buildingByMac = {};
     let buildingsCache = [];
-    const normMac = m => String(m || '').replace(/[:\-\s]/g, '').toUpperCase();
+    // Keep only hex digits: a MAC pasted from WhatsApp/Excel/the panel can carry invisible
+    // direction marks (U+200E/F) or a non-ASCII colon, which broke validation ("28:75:…" failed).
+    const normMac = m => String(m || '').replace(/[^0-9a-fA-F]/g, '').toUpperCase();
 
     async function loadBuildingMacs() {
       try {
