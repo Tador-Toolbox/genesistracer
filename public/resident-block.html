@@ -56,7 +56,7 @@
   <header>
     <div>
       <div class="t" data-i18n="h_title">חסימה זמנית מרשימת הדיירים</div>
-      <div class="s" data-i18n="h_sub">הסרה זמנית של דייר מהפנל — ניתן להחזיר בכל עת</div>
+      <div class="s" data-i18n="h_sub">הדייר נשאר בפנל עם מספר 7777 — מי שמחייג אליו לא מגיע לאף אחד. ניתן להחזיר בכל עת</div>
     </div>
     <div class="hright">
       <div class="langseg">
@@ -104,9 +104,9 @@
   const I18N = {
     he: {
       dir:'rtl',
-      h_title:'חסימה זמנית מרשימת הדיירים', h_sub:'הסרה זמנית של דייר מהפנל — ניתן להחזיר בכל עת',
+      h_title:'חסימה זמנית מרשימת הדיירים', h_sub:'הדייר נשאר בפנל עם מספר 7777 — מי שמחייג אליו לא מגיע לאף אחד. ניתן להחזיר בכל עת',
       panel_lbl:'פנל:',
-      warn:'⚠️ חסימה זו מסירה את הדייר מרשימת הדיירים בלבד. אם לדייר יש זיהוי פנים או קוד אישי בפנל — הם עדיין יעבדו.',
+      warn:'⚠️ חסימה זו חוסמת רק את החיוג לדייר. אם לדייר יש זיהוי פנים או קוד אישי בפנל — הם עדיין יעבדו.',
       block_title:'בחרו דיירים לחסימה', block_sub:'סמנו את הדיירים שברצונכם לחסום זמנית. ניתן לבחור מכמה דירות.',
       blocked_title:'דיירים חסומים', blocked_sub:'סמנו את הדיירים שברצונכם להחזיר, ולחצו "בטל חסימה נבחרים".',
       b_block:'🚫 חסום נבחרים', b_unblock_sel:'↩️ בטל חסימה נבחרים',
@@ -121,7 +121,7 @@
       sel_none:'לא נבחרו דיירים.', sel_some:n=>'נבחרו '+n+' דיירים לחסימה',
       none_blocked:'אין דיירים חסומים כרגע.',
       need_sel:'בחרו לפחות דייר אחד.',
-      confirm_block:n=>'לחסום '+n+' דיירים? הם יוסרו מהפנל (ניתן להחזיר בכל עת).',
+      confirm_block:n=>'לחסום '+n+' דיירים? הם יישארו בפנל עם מספר 7777 ולא יקבלו שיחות (ניתן להחזיר בכל עת).',
       confirm_unblock:nm=>'להחזיר את '+nm+' לפנל?',
       blocking:'חוסם…', blocked_ok:n=>'✓ '+n+' דיירים נחסמו', block_err:'שגיאה בחסימה',
       unblocking:'מחזיר…', unblock_ok:'✓ הדייר הוחזר לפנל', unblock_reassign:s=>'✓ הוחזר עם מספר דייר חדש: '+s,
@@ -129,9 +129,9 @@
     },
     en: {
       dir:'ltr',
-      h_title:'Temporary Resident Block', h_sub:'Temporarily remove a resident from the panel — restore any time',
+      h_title:'Temporary Resident Block', h_sub:'The resident stays on the panel with number 7777 — calls reach no one. Restore any time',
       panel_lbl:'Panel:',
-      warn:'⚠️ This block only removes the resident from the contact list. If the resident has face recognition or a personal code on the panel — those still work.',
+      warn:'⚠️ This block only stops calls to the resident. If the resident has face recognition or a personal code on the panel — those still work.',
       block_title:'Select residents to block', block_sub:'Tick the residents you want to block temporarily. You can pick from several apartments.',
       blocked_title:'Blocked residents', blocked_sub:'Tick the residents you want back, then press "Unblock selected".',
       b_block:'🚫 Block selected', b_unblock_sel:'↩️ Unblock selected',
@@ -146,7 +146,7 @@
       sel_none:'No residents selected.', sel_some:n=>n+' residents selected to block',
       none_blocked:'No blocked residents right now.',
       need_sel:'Select at least one resident.',
-      confirm_block:n=>'Block '+n+' residents? They will be removed from the panel (you can restore any time).',
+      confirm_block:n=>'Block '+n+' residents? They stay on the panel with number 7777 and receive no calls (you can restore any time).',
       confirm_unblock:nm=>'Restore '+nm+' to the panel?',
       blocking:'Blocking…', blocked_ok:n=>'✓ '+n+' residents blocked', block_err:'Block error',
       unblocking:'Restoring…', unblock_ok:'✓ Resident restored to the panel', unblock_reassign:s=>'✓ Restored with a new resident number: '+s,

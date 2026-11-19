@@ -905,7 +905,9 @@ app.get('/api/installer/panel-contacts', async (req, res) => {
     const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
     const token = loginRes && loginRes.data && loginRes.data.token;
     if (!token) return res.status(502).json({ success: false, error: 'כניסה לפנל נכשלה' });
-    const contacts = await getAllPanelContacts(host, port, token);
+    const allContacts = await getAllPanelContacts(host, port, token);
+    // Blocked residents (SIP 7777) are hidden from every picker / print unless ?all=1.
+    const contacts = req.query.all === '1' ? allContacts : allContacts.filter(c => !isBlockSip(c.sip_number));
     let groupcalls = [];
     try {
       const g = await panelHttpGetWithHeaders(host, port, '/api/v1/intercoms/contacts/groupcall?page_num=1&page_size=100', { Authorization: 'Bearer ' + token });
@@ -914,6 +916,11 @@ app.get('/api/installer/panel-contacts', async (req, res) => {
     res.json({ success: true, contacts, groupcalls });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
+
+// חסימה זמנית: a blocked resident stays on the panel with this dummy SIP (dialing reaches no one).
+// The panel accepts the same SIP on several contacts. Never counted as a real resident number.
+const BLOCK_SIP = '7777';
+const isBlockSip = s => String(s == null ? '' : s).trim() === BLOCK_SIP;
 
 // Pad an apartment number to 2 digits for the panel call_number ("3" -> "03").
 function prPad2(apt) { apt = String(apt == null ? '' : apt).trim(); return /^\d+$/.test(apt) ? apt.padStart(2, '0') : apt; }
@@ -1020,7 +1027,7 @@ async function applySwapToPanel(cleanMac, swap) {
   // Also count SIPs held by currently-blocked residents (חסימה זמנית): they're off the panel
   // but their number stays reserved so a new contact never reuses it while they're blocked.
   let base = 1000;
-  contacts.forEach(c => { const n = parseInt(c.sip_number, 10); if (!isNaN(n) && n > base) base = n; });
+  contacts.forEach(c => { if (isBlockSip(c.sip_number)) return; const n = parseInt(c.sip_number, 10); if (!isNaN(n) && n > base) base = n; });
   try {
     const blockedSips = await db.listActiveBlockedSips(cleanMac);
     blockedSips.forEach(s => { const n = parseInt(s, 10); if (!isNaN(n) && n > base) base = n; });
@@ -1308,7 +1315,7 @@ app.post('/api/manager/departed/restore', async (req, res) => {
     let reassigned = false;
     if (!sip || usedSips.has(sip)) {
       let base = 1000;
-      contacts.forEach(c => { const n = parseInt(c.sip_number, 10); if (!isNaN(n) && n > base) base = n; });
+      contacts.forEach(c => { if (isBlockSip(c.sip_number)) return; const n = parseInt(c.sip_number, 10); if (!isNaN(n) && n > base) base = n; });
       try { (await db.listActiveBlockedSips(cleanMac)).forEach(s => { const n = parseInt(s, 10); if (!isNaN(n) && n > base) base = n; }); } catch (e) {}
       sip = String(base + 1); reassigned = true;
     }
@@ -1385,15 +1392,18 @@ app.post('/api/installer/resident-block/block', async (req, res) => {
 
     const contacts = await getAllPanelContacts(host, port, token);
     const byId = {}; contacts.forEach(c => { byId[String(c.id)] = c; });
-    const chosen = ids.map(id => byId[id]).filter(Boolean);
+    const chosen = ids.map(id => byId[id]).filter(c => c && !isBlockSip(c.sip_number));
     if (!chosen.length) return res.status(404).json({ success: false, error: 'הדיירים שנבחרו לא נמצאו בפנל' });
 
-    // Delete from the panel first; only persist the block records if the panel delete succeeded.
-    const del = await panelBatchDeleteCurl(host, port, chosen.map(c => c.id));
-    if (!del.ok) return res.status(502).json({ success: false, error: 'מחיקת הדיירים מהפנל נכשלה', raw: del.raw });
-
+    // Block = keep the contact (same name) but switch its SIP to 7777, so dialing reaches no one.
+    // Only residents whose panel edit succeeded get a block record (with the original SIP to restore).
     const blocked = [];
+    let failed = 0;
     for (const c of chosen) {
+      const patch = { name: c.name || '', sip_account_id: c.sip_account_id != null ? c.sip_account_id : 2, call_number: c.call_number,
+        sip_number: BLOCK_SIP, contact_group_id: c.contact_group_id != null ? c.contact_group_id : 1, top: 'false', email: c.email || '' };
+      const out = await panelPatchContactCurl(host, port, c.id, patch);
+      if (!out.ok) { failed++; continue; }
       try {
         const rec = await db.saveResidentBlock({
           mac: cleanMac, phoneNumber, panelLabel: req.body.panelLabel,
@@ -1408,8 +1418,9 @@ app.post('/api/installer/resident-block/block', async (req, res) => {
         residents: blocked.map(b => (b.name || '(ללא שם)') + (b.sip ? ' (' + b.sip + ')' : '')), count: blocked.length
       });
     } catch (e) {}
-    try { await logActivity({ phoneNumber, action: 'resident_block', mac: cleanMac, details: { count: blocked.length }, success: true }); } catch (e) {}
-    res.json({ success: true, blocked, count: blocked.length });
+    try { await logActivity({ phoneNumber, action: 'resident_block', mac: cleanMac, details: { count: blocked.length, failed }, success: true }); } catch (e) {}
+    if (!blocked.length) return res.status(502).json({ success: false, error: 'החסימה בפנל נכשלה' });
+    res.json({ success: true, blocked, count: blocked.length, failed });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
@@ -1435,13 +1446,14 @@ app.post('/api/installer/resident-block/unblock', async (req, res) => {
 
     // Check the resident's original SIP is still free; if it was taken meanwhile, assign the next free one.
     const contacts = await getAllPanelContacts(host, port, token);
-    const usedSips = new Set(contacts.map(c => String(c.sip_number)));
     const snap = blk.contact || {};
+    const onPanel = snap.id != null ? contacts.find(c => String(c.id) === String(snap.id) && isBlockSip(c.sip_number)) : null;
+    const usedSips = new Set(contacts.filter(c => !isBlockSip(c.sip_number)).map(c => String(c.sip_number)));
     let sip = String(blk.sip || snap.sip_number || '').trim();
     let reassigned = false;
-    if (!sip || usedSips.has(sip)) {
+    if (!sip || isBlockSip(sip) || usedSips.has(sip)) {
       let base = 1000;
-      contacts.forEach(c => { const n = parseInt(c.sip_number, 10); if (!isNaN(n) && n > base) base = n; });
+      contacts.forEach(c => { if (isBlockSip(c.sip_number)) return; const n = parseInt(c.sip_number, 10); if (!isNaN(n) && n > base) base = n; });
       try { (await db.listActiveBlockedSips(cleanMac)).forEach(s => { const n = parseInt(s, 10); if (!isNaN(n) && n > base) base = n; }); } catch (e) {}
       sip = String(base + 1);
       reassigned = true;
@@ -1454,7 +1466,16 @@ app.post('/api/installer/resident-block/unblock', async (req, res) => {
       contact_group_id: snap.contact_group_id != null ? snap.contact_group_id : 1,
       top: 'false', allow_unlock: 'true'
     };
-    const out = await panelCreateContactCurl(host, port, contact);
+    let out;
+    if (onPanel) {
+      // Still on the panel with 7777 → just put the original SIP (and name) back.
+      out = await panelPatchContactCurl(host, port, onPanel.id, { name: contact.name || onPanel.name || '', sip_account_id: contact.sip_account_id,
+        call_number: onPanel.call_number, sip_number: sip, contact_group_id: onPanel.contact_group_id != null ? onPanel.contact_group_id : contact.contact_group_id,
+        top: 'false', email: onPanel.email || '' });
+    } else {
+      // Older blocks deleted the contact → recreate it from the snapshot.
+      out = await panelCreateContactCurl(host, port, contact);
+    }
     if (!out.ok) return res.status(502).json({ success: false, error: 'שחזור הדייר בפנל נכשל', raw: out.raw });
 
     await db.setResidentBlockStatus(id, 'restored', { restoredSip: sip, reassigned, restoredBy: phoneNumber });
