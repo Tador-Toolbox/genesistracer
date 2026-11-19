@@ -1115,6 +1115,7 @@
           <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 180px;">חשבון VoIPBell
             <input type="text" id="nhAcct" dir="ltr" oninput="v2NhBuildName()" placeholder="t98_5_037" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px;background:var(--surface2);color:var(--text);"></label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 220px;">טכנאי
+            <input type="search" placeholder="🔍 חיפוש לפי שם או טלפון" oninput="v2FilterSelect('nhTech', this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;background:var(--bg-card,#fff);color:var(--text);">
             <select id="nhTech" onchange="v2NhTechChange()" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);"><option value="">— בחר טכנאי —</option></select></label>
         </div>
         <div id="nhNewTech" style="display:none;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:8px;padding:10px;border:1px dashed var(--border);border-radius:10px;">
@@ -1158,6 +1159,7 @@
         <p style="font-size:12px;color:var(--text-dim);margin:0 0 14px;">מוסיף את הפנל לחשבון הטכנאי ב-GenesisTracer (כמו "🧾 GenesisTracer" ב-ResidentEnroll), עם כתובת, חשבון VoIPBell וסוג פנל.</p>
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
           <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">טכנאי
+            <input type="search" placeholder="🔍 חיפוש לפי שם או טלפון" oninput="v2FilterSelect('s4Tech', this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;background:var(--bg-card,#fff);color:var(--text);">
             <select id="s4Tech" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface2);color:var(--text);font-family:inherit;"><option value="">— בחר טכנאי —</option></select></label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 160px;">MAC
             <input type="text" id="s4Mac" dir="ltr" placeholder="2875D8C16B50" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface2);color:var(--text);font-family:monospace;"></label>
@@ -1852,8 +1854,25 @@
     // Step 2 project name = VoIPBell account + technician name, e.g. "t98_5_037 אבי כהן".
     function v2NhFillTechs() {
       const sel = document.getElementById('nhTech'); if (!sel || sel.options.length > 1) return;
+      sel._all = null;
       sel.innerHTML = '<option value="">— בחר טכנאי —</option><option value="__new__">➕ טכנאי חדש (לא ברשימה)</option>' + ownerCandidates().map(a =>
         `<option value="${gymEsc(a.phoneNumber)}" data-name="${gymEsc(a.installerName || '')}">${gymEsc((a.installerName ? a.installerName + ' · ' : '') + a.phoneNumber)}</option>`).join('');
+    }
+    // Filter a technician <select> by name/phone. Keeps the placeholder + "new technician" rows;
+    // a single match is selected automatically.
+    function v2FilterSelect(id, q) {
+      const sel = document.getElementById(id); if (!sel) return;
+      const all = [...sel.options].filter(o => !o.dataset.empty).map(o => o);
+      if (!sel._all || sel._all.length < all.length) sel._all = all.map(o => ({ value: o.value, html: o.outerHTML, text: o.textContent }));
+      const norm = s => String(s || '').toLowerCase().replace(/[\s\-]/g, '');
+      const nq = norm(q);
+      const keep = sel._all.filter(o => !o.value || o.value === '__new__' || !nq || norm(o.text).includes(nq));
+      const cur = sel.value;
+      const real = keep.filter(o => o.value && o.value !== '__new__');
+      sel.innerHTML = keep.map(o => o.html).join('') + (nq && !real.length ? '<option disabled data-empty="1">אין תוצאות</option>' : '');
+      if (nq && real.length === 1) sel.value = real[0].value;
+      else if (keep.some(o => o.value === cur)) sel.value = cur;
+      if (sel.value !== cur) sel.dispatchEvent(new Event('change'));
     }
     function v2NhTechChange() {
       const isNew = document.getElementById('nhTech').value === '__new__';
@@ -1916,6 +1935,7 @@
     // Step 4: fill the technician list and carry values over from steps 1–3 (only into empty fields / when unchanged).
     function v2S4Sync() {
       const sel = document.getElementById('s4Tech'); if (!sel) return;
+      if (sel.options.length <= 1) sel._all = null;
       if (sel.options.length <= 1) sel.innerHTML = '<option value="">— בחר טכנאי —</option>' + ownerCandidates().map(a =>
         `<option value="${gymEsc(a.phoneNumber)}" data-name="${gymEsc(a.installerName || '')}">${gymEsc((a.installerName ? a.installerName + ' · ' : '') + a.phoneNumber)}</option>`).join('');
       const t = document.getElementById('nhTech').value;
