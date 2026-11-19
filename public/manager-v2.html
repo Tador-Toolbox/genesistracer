@@ -1113,9 +1113,26 @@
         </div>
       </div>
 
+      <!-- Accounts: open a VoIPBell intercom account (eu1.voipbell.net) -->
+      <div class="card" data-screen="accounts">
+        <h2 style="margin:0 0 6px;">שלב 1 · 📞 פתיחת חשבון VoIPBell</h2>
+        <p style="font-size:12px;color:var(--text-dim);margin:0 0 14px;">פותח חשבון אינטרקום חדש ב-eu1.voipbell.net (כמו ב-ResidentEnroll): תיאור "דלת כניסה", SIP Tador@032 · UDP 5071, ריליי DTMF 31/32. אם קיים חשבון עם אותו שם — לא נוצר שוב.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">שם החשבון
+            <input type="text" id="vbName" dir="ltr" placeholder="t98_5_037" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px;background:var(--surface2);color:var(--text);"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">לקוח (Client)
+            <input type="text" id="vbClient" placeholder="לדוגמה: דוד המלך 14 נתניה" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);"></label>
+          <button onclick="v2VbLast('t98_5_')" style="padding:9px 12px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">🔍 אחרון T98</button>
+          <button onclick="v2VbLast('g510-')" style="padding:9px 12px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">🔍 אחרון G510</button>
+          <button id="vbBtn" onclick="v2VbCreate()" style="padding:9px 16px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">📞 פתח ב-VoIPBell</button>
+        </div>
+        <div id="vbOut" style="margin-top:12px;font-size:13px;"></div>
+      </div>
+
+
       <!-- Accounts: open a NexHome project for a panel (same flow as the gym "☁️ NexHome") -->
       <div class="card" data-screen="accounts">
-        <h2 style="margin:0 0 6px;">☁️ פתיחת חשבון NexHome</h2>
+        <h2 style="margin:0 0 6px;">שלב 2 · ☁️ פתיחת חשבון NexHome</h2>
         <p style="font-size:12px;color:var(--text-dim);margin:0 0 14px;">פותח פרויקט ב-NexHome (או משתמש בקיים עם אותו שם) ומוסיף אליו את הפנל. אם ה-MAC כבר משויך לפרויקט — לא משנה כלום.</p>
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
           <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">שם הפרויקט
@@ -1128,22 +1145,6 @@
         </div>
         <div id="nhHint" style="font-size:12px;color:var(--text-dim);margin-top:6px;"></div>
         <div id="nhOut" style="margin-top:12px;font-size:13px;"></div>
-      </div>
-
-      <!-- Accounts: open a VoIPBell intercom account (eu1.voipbell.net) -->
-      <div class="card" data-screen="accounts">
-        <h2 style="margin:0 0 6px;">📞 פתיחת חשבון VoIPBell</h2>
-        <p style="font-size:12px;color:var(--text-dim);margin:0 0 14px;">פותח חשבון אינטרקום חדש ב-eu1.voipbell.net (כמו ב-ResidentEnroll): תיאור "דלת כניסה", SIP Tador@032 · UDP 5071, ריליי DTMF 31/32. אם קיים חשבון עם אותו שם — לא נוצר שוב.</p>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">שם החשבון
-            <input type="text" id="vbName" dir="ltr" placeholder="t98_5_037" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px;background:var(--surface2);color:var(--text);"></label>
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">לקוח (Client)
-            <input type="text" id="vbClient" placeholder="לדוגמה: דוד המלך 14 נתניה" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);"></label>
-          <button onclick="v2VbLast('t98_5_')" style="padding:9px 12px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">🔍 אחרון T98</button>
-          <button onclick="v2VbLast('g510-')" style="padding:9px 12px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">🔍 אחרון G510</button>
-          <button id="vbBtn" onclick="v2VbCreate()" style="padding:9px 16px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">📞 פתח ב-VoIPBell</button>
-        </div>
-        <div id="vbOut" style="margin-top:12px;font-size:13px;"></div>
       </div>
 
       <!-- Permissions: per-account module toggles (hide-only) -->
