@@ -1192,6 +1192,18 @@ async function setResidentSwapStatus(id, status, by, applyReport, extra) {
   await db.collection('resident_swaps').updateOne({ _id }, { $set: set });
   return db.collection('resident_swaps').findOne({ _id });
 }
+// Pending swaps for one panel+apartment (duplicate guard / auto-clean).
+async function listPendingSwapsFor(mac, apartment) {
+  await connectDB();
+  return db.collection('resident_swaps').find({ mac, apartment: String(apartment || '').trim(), status: 'pending' }).toArray();
+}
+// Two swaps are the SAME request when panel, apartment, leaving SIPs and entering names all match.
+function swapSignature(s) {
+  const n = v => String(v || '').trim().replace(/\s+/g, ' ');
+  const leaving = (s.leaving || []).map(l => n(l.sip) || n(l.name)).sort().join('|');
+  const entering = (s.entering || []).map(e => n((e.firstName || '') + ' ' + (e.lastName || ''))).sort().join('|');
+  return [n(s.mac).toUpperCase(), n(s.apartment), leaving, entering].join('#');
+}
 async function listResidentSwapsByBuilding(buildingCode, status) {
   await connectDB();
   const q = { buildingCode: String(buildingCode || '').trim().toUpperCase() };
@@ -1269,6 +1281,8 @@ module.exports = {
   listPanelResidentSubmissions,
   saveResidentSwap,
   listResidentSwaps,
+  listPendingSwapsFor,
+  swapSignature,
   getResidentSwap,
   setResidentSwapStatus,
   listResidentSwapsByBuilding,

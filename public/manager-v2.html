@@ -4454,7 +4454,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         swaps.sort((a, b) => (a.status === 'pending' ? -1 : 0) - (b.status === 'pending' ? -1 : 0));
         if (!swaps.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-dim);">אין בקשות</td></tr>'; return; }
         tb.innerHTML = swaps.map(s => {
-          const st = stMap[s.status] || stMap.pending;
+          const st = (s.status === 'rejected' && s.rejectReason === 'duplicate') ? ['נדחה – כפילות', '#9ca3af'] : (stMap[s.status] || stMap.pending);
           const leaving = (s.leaving || []).map(l => v2SecEsc(l.name) + (l.sip ? (' (' + v2SecEsc(l.sip) + ')') : '')).join(', ') || '—';
           // Numbers the incoming residents get: real (apply report) if approved, else the preview.
           const asg = (s.applyReport && s.applyReport.assignments) || null;
@@ -4567,7 +4567,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         if (status === 'approved') {
           const r = d.report || {};
           if (r.error) alert('⚠ אושר אך ההחלה בפנל נכשלה: ' + r.error + '\nאפשר לנסות שוב.');
-          else alert('✓ בוצע בפנל — עודכנו: ' + (r.edited || 0) + ', נוספו: ' + (r.created || 0) + ', נמחקו: ' + (r.deleted || 0) + (r.failed ? (' , נכשלו: ' + r.failed) : ''));
+          else alert('✓ בוצע בפנל — עודכנו: ' + (r.edited || 0) + ', נוספו: ' + (r.created || 0) + ', נמחקו: ' + (r.deleted || 0) + (r.failed ? (' , נכשלו: ' + r.failed) : '') + (d.duplicatesRejected ? ('\n🧹 ' + d.duplicatesRejected + ' בקשות כפולות נדחו אוטומטית') : ''));
         }
         v2LoadSwaps();
       } catch (e) { v2Busy(false); alert('❌ שגיאת תקשורת'); }

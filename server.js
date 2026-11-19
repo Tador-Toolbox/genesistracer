@@ -1166,6 +1166,9 @@ app.post('/api/installer/resident-swap/save', async (req, res) => {
     })).filter(e => e.firstName || e.lastName);
     if (!entering.length) return res.status(400).json({ success: false, error: 'אין דיירים נכנסים' });
     if (entering.length > 5) return res.status(400).json({ success: false, error: 'מקסימום 5 דיירים לדירה' });
+    // Duplicate guard: one pending request per panel+apartment.
+    const pendingSame = await db.listPendingSwapsFor(cleanMac, apartment);
+    if (pendingSame.length) return res.status(409).json({ success: false, duplicate: true, error: 'יש כבר בקשה ממתינה לדירה הזו — המתן לאישור המנהל' });
     const rec = await db.saveResidentSwap({ mac: cleanMac, phoneNumber, panelLabel: req.body.panelLabel, apartment, leaving, entering, by: phoneNumber });
     try { await logActivity({ phoneNumber, action: 'resident_swap_submit', mac: cleanMac, details: { apartment, leaving: leaving.length, entering: entering.length }, success: true }); } catch (e) {}
     res.json({ success: true, id: String(rec._id) });
@@ -1193,6 +1196,8 @@ app.post('/api/manager/resident-swaps/status', async (req, res) => {
   try {
     const swap = await db.getResidentSwap(id);
     if (!swap) return res.status(404).json({ success: false, error: 'swap not found' });
+    // Never apply the same request twice.
+    if (swap.status !== 'pending') return res.status(409).json({ success: false, error: 'הבקשה כבר טופלה (' + swap.status + ')' });
     // Resolve the building (committee) this panel belongs to, so the committee portal can show it.
     let buildingCode = '';
     try {
@@ -1217,8 +1222,21 @@ app.post('/api/manager/resident-swaps/status', async (req, res) => {
       } catch (e) {}
     }
     const updated = await db.setResidentSwapStatus(id, status, username, report, buildingCode ? { buildingCode } : null);
+    // Auto-clean: on approve, reject other pending requests that are an EXACT copy of this one.
+    let duplicatesRejected = 0;
+    if (status === 'approved') {
+      try {
+        const sig = db.swapSignature(swap);
+        const others = await db.listPendingSwapsFor(swap.mac, swap.apartment);
+        for (const o of others) {
+          if (String(o._id) === String(swap._id) || db.swapSignature(o) !== sig) continue;
+          await db.setResidentSwapStatus(o._id, 'rejected', username, null, { rejectReason: 'duplicate', duplicateOf: String(swap._id) });
+          duplicatesRejected++;
+        }
+      } catch (e) {}
+    }
     try { await logActivity({ phoneNumber: username, action: 'resident_swap_' + status, mac: swap.mac, details: { apartment: swap.apartment, report }, success: true }); } catch (e) {}
-    res.json({ success: true, status: updated ? updated.status : status, report });
+    res.json({ success: true, status: updated ? updated.status : status, report, duplicatesRejected });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
