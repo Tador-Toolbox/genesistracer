@@ -1138,6 +1138,20 @@
         <div id="nhOut" style="margin-top:12px;font-size:13px;"></div>
       </div>
 
+      <!-- Accounts step 3: write VoIPBell login into the panel's SIP account 2 -->
+      <div class="card" data-screen="accounts">
+        <h2 style="margin:0 0 6px;">שלב 3 · ⚙️ הגדרת חשבון בפנל</h2>
+        <p style="font-size:12px;color:var(--text-dim);margin:0 0 14px;">מתחבר לפנל (דרך NexHome) ומכניס לחשבון SIP 2 את פרטי ה-VoIPBell: שם החשבון, סיסמה Tador@032, שרת eu1.voipbell.net · 5071 · UDP. הפנל חייב להיות מחובר.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 180px;">MAC
+            <input type="text" id="s3Mac" dir="ltr" placeholder="2875D8C16B50" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px;background:var(--surface2);color:var(--text);"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 180px;">חשבון VoIPBell
+            <input type="text" id="s3Acct" dir="ltr" placeholder="g510-008" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px;background:var(--surface2);color:var(--text);"></label>
+          <button id="s3Btn" onclick="v2S3Sip()" style="padding:9px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">⚙️ הגדר בפנל</button>
+        </div>
+        <div id="s3Out" style="margin-top:12px;font-size:13px;"></div>
+      </div>
+
       <!-- Permissions: per-account module toggles (hide-only) -->
       <div class="card" data-screen="permissions">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
@@ -1785,6 +1799,7 @@
     // If the MAC is already known in GenesisTracer, offer its address as a starting point.
     function v2NhMacHint() {
       const mac = normMac(document.getElementById('nhMac').value);
+      const s3m = document.getElementById('s3Mac'); if (s3m) s3m.value = document.getElementById('nhMac').value;
       const hint = document.getElementById('nhHint');
       if (mac.length !== 12) { hint.textContent = ''; return; }
       let found = null, owner = '';
@@ -1852,6 +1867,7 @@
     }
     function v2NhBuildName() {
       const acct = document.getElementById('nhAcct').value.trim();
+      const s3a = document.getElementById('s3Acct'); if (s3a && acct) s3a.value = acct;
       const opt = document.getElementById('nhTech').selectedOptions[0];
       const tech = !opt || !opt.value ? '' : (opt.value === '__new__' ? document.getElementById('nhNewTechName').value.trim() : (opt.getAttribute('data-name') || opt.value));
       document.getElementById('nhName').value = [acct, tech].filter(Boolean).join(' ');
@@ -1873,6 +1889,27 @@
         if (!j.success) {} else if (j.already) out.innerHTML = 'ℹ️ חשבון בשם <b dir="ltr">' + gymEsc(name) + '</b> כבר קיים ב-VoIPBell — לא נוצר שוב.';
         else out.innerHTML = '✓ נפתח חשבון <b dir="ltr">' + gymEsc(name) + '</b> ב-VoIPBell'
           + '<div style="font-size:12px;color:var(--text-dim);margin-top:4px;">משתמש ניהול: <b dir="ltr">' + gymEsc(j.adminUser) + '</b> · סיסמה: <b dir="ltr">' + gymEsc(j.adminPass) + '</b></div>';
+      } catch (e) { out.innerHTML = '❌ ' + gymEsc(e.message); }
+      btn.disabled = false;
+    }
+    async function v2S3Sip() {
+      if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+      const macIn = document.getElementById('s3Mac'), acctIn = document.getElementById('s3Acct');
+      if (!macIn.value) macIn.value = document.getElementById('nhMac').value;
+      if (!acctIn.value) acctIn.value = document.getElementById('nhAcct').value || document.getElementById('vbName').value;
+      const mac = normMac(macIn.value), account = acctIn.value.trim();
+      const out = document.getElementById('s3Out');
+      if (!/^[0-9A-F]{12}$/.test(mac)) { out.innerHTML = '<span style="color:#ef4444;">MAC לא תקין (12 תווים)</span>'; return; }
+      if (!account) { out.innerHTML = '<span style="color:#ef4444;">חסר שם חשבון VoIPBell</span>'; return; }
+      if (!confirm('להגדיר בפנל ' + mac + ' את חשבון 2 = ' + account + '?')) return;
+      const btn = document.getElementById('s3Btn'); btn.disabled = true;
+      out.innerHTML = '⏳ מתחבר לפנל ומגדיר…';
+      try {
+        const j = await fetch('/api/manager/panel/sip2', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...window.__mgr, mac, account }) }).then(r => r.json());
+        const steps = (j.steps || []).map(s => `${s.ok ? '✓' : '✗'} ${gymEsc(s.step)}: ${gymEsc(s.detail || '')}`).join('<br>');
+        out.innerHTML = (j.success ? '✓ חשבון 2 בפנל הוגדר ל-<b dir="ltr">' + gymEsc(account) + '</b>' : '❌ ' + gymEsc(j.error || 'שגיאה') + ' <a href="/api/manager/panel/sip2-debug" target="_blank" style="font-size:12px;">יומן</a>')
+          + '<div style="font-size:12px;color:var(--text-dim);margin-top:4px;">' + steps + '</div>';
       } catch (e) { out.innerHTML = '❌ ' + gymEsc(e.message); }
       btn.disabled = false;
     }

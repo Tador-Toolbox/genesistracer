@@ -944,6 +944,25 @@ function panelCreateContactCurl(host, port, contact) {
     });
   });
 }
+// Generic panel JSON POST via curl (NexHome tunnel: NO Authorization, only Content-Type + Origin + Referer).
+function panelPostJsonCurl(host, port, apiPath, body) {
+  return new Promise((resolve) => {
+    const os = require('os'), fs = require('fs'), path = require('path');
+    const tmp = path.join(os.tmpdir(), `ppost_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+    try { fs.writeFileSync(tmp, JSON.stringify(body)); } catch (e) { return resolve({ ok: false, error: 'tmp write' }); }
+    const cmd = `curl -s --max-time 15 -X POST ` +
+      `-H "Content-Type: application/json;charset=UTF-8" ` +
+      `-H "Origin: http://${host}:${port}" -H "Referer: http://${host}:${port}/" ` +
+      `--data @${tmp} "http://${host}:${port}${apiPath}"`;
+    exec(cmd, { maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      fs.unlink(tmp, () => {});
+      if (err) return resolve({ ok: false, error: err.message });
+      let j = null; try { j = JSON.parse(stdout); } catch (e) {}
+      resolve({ ok: !!(j && j.status === 'OK'), json: j, raw: (stdout || '').slice(0, 300) });
+    });
+  });
+}
+
 // Rename an auto-created apartment group call via curl PATCH.
 function panelPatchGroupcallCurl(host, port, id, name) {
   return new Promise((resolve) => {
@@ -3668,6 +3687,59 @@ app.post('/api/manager/panel-info', async (req, res) => {
   }
 });
 
+
+// ==================== PANEL SIP ACCOUNT 2 (VoIPBell) ====================
+// Step 3 of "חשבונות": write the VoIPBell login into the panel's SIP account 2.
+// Body = ResidentEnroll panel_config_sip_account2 (HAR-confirmed save field names).
+const sip2Debug = [];
+function sip2Dbg(event, data) { sip2Debug.push({ at: new Date().toISOString(), event, ...(data || {}) }); while (sip2Debug.length > 60) sip2Debug.shift(); }
+app.get('/api/manager/panel/sip2-debug', (req, res) => res.json({ success: true, log: sip2Debug.slice(-40) }));
+
+app.post('/api/manager/panel/sip2', async (req, res) => {
+  const { mac, account, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) return res.status(401).json({ success: false, error: 'Unauthorized' });
+  const cleanMac = String(mac || '').replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
+  const acct = String(account || '').trim();
+  if (!/^[0-9A-F]{12}$/.test(cleanMac)) return res.status(400).json({ success: false, error: 'MAC לא תקין (12 תווים)' });
+  if (!acct) return res.status(400).json({ success: false, error: 'חסר שם חשבון VoIPBell' });
+  const steps = [];
+  try {
+    const panelAddress = await resolvePanelAddress(cleanMac);
+    if (!panelAddress) { steps.push({ step: 'התחברות לפנל', ok: false, detail: 'הפנל אינו מחובר או לא נמצא ב-NexHome' }); return res.json({ success: false, error: 'הפנל אינו מחובר', steps }); }
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes && loginRes.data && loginRes.data.token;
+    if (!token) { steps.push({ step: 'התחברות לפנל', ok: false, detail: 'כניסה לפנל נכשלה' }); return res.json({ success: false, error: 'כניסה לפנל נכשלה', steps }); }
+    steps.push({ step: 'התחברות לפנל', ok: true, detail: panelAddress });
+
+    const body = {
+      displayName: acct, password: 'Tador@032', username: acct, expires: 180,
+      server: 'eu1.voipbell.net', port: 5071, enable: 'true', as_default: 'true',
+      proxy_server_endpoint: '', proxy_server_port: 5060, proxy_enable: 'false', transport: 'UDP',
+    };
+    const out = await panelPostJsonCurl(host, port, '/api/v1/intercoms/sips/2', body);
+    sip2Dbg('save', { mac: cleanMac, account: acct, ok: out.ok, raw: out.raw, error: out.error });
+    steps.push({ step: 'שמירת חשבון 2', ok: out.ok, detail: out.ok ? 'נשמר' : ((out.json && out.json.error && (out.json.error.message || JSON.stringify(out.json.error))) || out.raw || out.error || 'נכשל') });
+    if (!out.ok) return res.json({ success: false, error: 'שמירת חשבון 2 בפנל נכשלה', steps });
+
+    // Read back to confirm what the panel holds now.
+    let sip2 = null;
+    try { sip2 = await panelHttpGetWithHeaders(host, port, '/api/v1/intercoms/sips/2', { Authorization: 'Bearer ' + token }); } catch (e) {}
+    const d = (sip2 && sip2.data) || {};
+    sip2Dbg('readback', { mac: cleanMac, data: JSON.stringify(d).slice(0, 400) });
+    const gotUser = d.username || d.register || '';
+    const gotServer = d.server_endpoint || d.server || '';
+    const match = String(gotUser) === acct && /voipbell/i.test(gotServer);
+    steps.push({ step: 'אימות', ok: match, detail: `חשבון: ${gotUser || '—'} · שרת: ${gotServer || '—'}` + (d.status != null ? ` · סטטוס: ${d.status == 1 ? 'מחובר' : 'עדיין לא נרשם (תקין מיד אחרי שמירה)'}` : '') });
+    try { await logActivity({ phoneNumber: username, action: 'panel_sip2', mac: cleanMac, details: { account: acct, ok: match }, success: match }); } catch (e) {}
+    res.json({ success: match, error: match ? null : 'הפנל לא מציג את החשבון החדש — ראה יומן', steps });
+  } catch (e) {
+    sip2Dbg('error', { mac: cleanMac, error: e.message });
+    res.status(500).json({ success: false, error: e.message, steps });
+  }
+});
 
 // ==================== CATALOG ====================
 app.get('/api/catalog', async (req, res) => {
