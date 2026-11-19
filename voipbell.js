@@ -322,10 +322,25 @@ async function lastByPrefix(prefix) {
       const total = parseInt(d.recordsFiltered || d.recordsTotal || 0, 10) || 0;
       if (!d.data.length || d.data.length < 1000 || start >= total) break;
     }
-    const sorted = [...names].sort((a, b) => natKey(a) < natKey(b) ? -1 : natKey(a) > natKey(b) ? 1 : 0);
-    const last = sorted[sorted.length - 1] || '';
-    dbg('lastByPrefix', { prefix: pre, count: sorted.length, last });
-    return { prefix: pre, count: sorted.length, last, next: last ? nextName(last) : '', recent: sorted.slice(-5).reverse() };
+    // Running number = everything after the fixed prefix (t98_5_037 -> 37). Suggest the FIRST FREE
+    // number (a gap left by a deleted account), else highest+1. Keep the usual zero padding.
+    const nums = new Map(); const widths = {};
+    for (const n of names) {
+      const rest = n.slice(pre.length);
+      if (!/^\d+$/.test(rest)) continue;
+      nums.set(parseInt(rest, 10), n); widths[rest.length] = (widths[rest.length] || 0) + 1;
+    }
+    const sortedNums = [...nums.keys()].sort((a, b) => a - b);
+    const max = sortedNums.length ? sortedNums[sortedNums.length - 1] : 0;
+    const width = Number(Object.entries(widths).sort((a, b) => b[1] - a[1])[0]?.[0] || 0);
+    const fmt = n => pre + String(n).padStart(width, '0');
+    const free = [];
+    for (let i = 1; i < max && free.length < 50; i++) if (!nums.has(i)) free.push(i);
+    const nextNum = free.length ? free[0] : max + 1;
+    const last = max ? nums.get(max) : '';
+    dbg('lastByPrefix', { prefix: pre, count: nums.size, last, free: free.slice(0, 10) });
+    return { prefix: pre, count: nums.size, last, next: fmt(nextNum), nextIsGap: free.length > 0,
+      free: free.map(fmt), recent: sortedNums.slice(-5).reverse().map(n => nums.get(n)) };
   });
   chain = run.catch(() => {});
   return run;

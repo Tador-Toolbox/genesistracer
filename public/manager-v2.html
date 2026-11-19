@@ -1139,8 +1139,8 @@
             <input type="text" id="vbName" dir="ltr" placeholder="t98_5_037" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px;background:var(--surface2);color:var(--text);"></label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">לקוח (Client)
             <input type="text" id="vbClient" placeholder="לדוגמה: דוד המלך 14 נתניה" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);"></label>
-          <button onclick="v2VbLast('t98')" style="padding:9px 12px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">🔍 אחרון T98</button>
-          <button onclick="v2VbLast('g510')" style="padding:9px 12px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">🔍 אחרון G510</button>
+          <button onclick="v2VbLast('t98_5_')" style="padding:9px 12px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">🔍 אחרון T98</button>
+          <button onclick="v2VbLast('g510-')" style="padding:9px 12px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">🔍 אחרון G510</button>
           <button id="vbBtn" onclick="v2VbCreate()" style="padding:9px 16px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">📞 פתח ב-VoIPBell</button>
         </div>
         <div id="vbOut" style="margin-top:12px;font-size:13px;"></div>
@@ -1812,8 +1812,9 @@
         const j = await fetch('/api/manager/voipbell/last?prefix=' + encodeURIComponent(prefix)).then(r => r.json());
         if (!j.success) { out.innerHTML = '❌ ' + gymEsc(j.error || 'שגיאה') + ' <a href="/api/manager/voipbell-debug" target="_blank" style="font-size:12px;">יומן</a>'; return; }
         if (!j.count) { out.innerHTML = 'לא נמצאו חשבונות שמתחילים ב-<b dir="ltr">' + gymEsc(prefix) + '</b>'; return; }
-        out.innerHTML = '📋 החשבון האחרון: <b dir="ltr" style="font-size:15px;">' + gymEsc(j.last) + '</b> <span style="color:var(--text-dim);">(' + j.count + ' חשבונות ' + gymEsc(prefix.toUpperCase()) + ')</span>'
-          + (j.next ? '<div style="margin-top:6px;">הבא המוצע: <b dir="ltr" style="color:#0ea5e9;">' + gymEsc(j.next) + '</b> <button onclick="document.getElementById(\'vbName\').value=\'' + gymEsc(j.next) + '\'" style="margin-inline-start:6px;padding:3px 10px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">השתמש</button></div>' : '')
+        out.innerHTML = '📋 המספר הגבוה ביותר: <b dir="ltr" style="font-size:15px;">' + gymEsc(j.last) + '</b> <span style="color:var(--text-dim);">(' + j.count + ' חשבונות ' + gymEsc(prefix) + ')</span>'
+          + ((j.free || []).length ? '<div style="font-size:12px;margin-top:4px;color:#b45309;">מספרים פנויים באמצע: <span dir="ltr">' + j.free.slice(0, 15).map(gymEsc).join(' · ') + (j.free.length > 15 ? ' …' : '') + '</span></div>' : '')
+          + (j.next ? '<div style="margin-top:6px;">' + (j.nextIsGap ? 'הפנוי הראשון' : 'הבא בתור') + ': <b dir="ltr" style="color:#0ea5e9;">' + gymEsc(j.next) + '</b> <button onclick="document.getElementById(\'vbName\').value=\'' + gymEsc(j.next) + '\'" style="margin-inline-start:6px;padding:3px 10px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">השתמש</button></div>' : '')
           + '<div style="font-size:12px;color:var(--text-dim);margin-top:6px;">אחרונים: <span dir="ltr">' + (j.recent || []).map(gymEsc).join(' · ') + '</span></div>';
       } catch (e) { out.innerHTML = '❌ ' + gymEsc(e.message); }
     }
