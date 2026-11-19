@@ -1089,6 +1089,29 @@
         </div>
       </div>
 
+      <!-- Departed residents (עזיבה בלבד) — SIP reserved 6 months -->
+      <div class="card" data-screen="residents">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:10px;">
+          <h2 style="margin:0;">🚪 דיירים שעזבו</h2>
+          <button onclick="v2LoadDeparted()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">רענן</button>
+        </div>
+        <div style="font-size:12px;font-weight:600;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-bottom:12px;">ℹ️ כל מספר שסומן כעוזב יישמר במערכת ל-6 חודשים במידה והדייר חוזר, ולאחר מכן יימחק מהזיכרון.</div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr style="background:var(--bg-card);">
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">פנל</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">דירה</th>
+              <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border);">דייר</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">מס׳ דייר</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">עזב</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">נשמר עד</th>
+              <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border);">פעולות</th>
+            </tr></thead>
+            <tbody id="departedBody"><tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text-dim);">—</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Permissions: per-account module toggles (hide-only) -->
       <div class="card" data-screen="permissions">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
@@ -4439,7 +4462,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
       } catch (e) {
         body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:18px;color:#ef4444;">שגיאה בטעינה</td></tr>';
       }
-      v2LoadSwaps();
+      v2LoadSwaps(); v2LoadDeparted();
     }
 
     // ── Resident swaps (עדכון דייר גרסא 2 · beta) ──
@@ -4458,13 +4481,15 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           const leaving = (s.leaving || []).map(l => v2SecEsc(l.name) + (l.sip ? (' (' + v2SecEsc(l.sip) + ')') : '')).join(', ') || '—';
           // Numbers the incoming residents get: real (apply report) if approved, else the preview.
           const asg = (s.applyReport && s.applyReport.assignments) || null;
-          const entering = asg
+          const entering = s.leaveOnly
+            ? '<span style="color:#ef4444;font-weight:800;">🚪 עזיבה בלבד</span>'
+            : asg
             ? asg.map(a => v2SecEsc(a.name) + ' <b style="color:var(--accent);">→ ' + v2SecEsc(a.sip) + '</b>').join(', ')
             : (s.entering || []).map(e => v2SecEsc(((e.firstName || '') + ' ' + (e.lastName || '')).trim()) + (e.sip ? ' <b style="color:var(--accent);">→ ' + v2SecEsc(e.sip) + '</b>' : '')).join(', ');
           const actions = (s.status === 'pending')
             ? `<button onclick="v2SwapStatus('${s._id}','approved')" style="padding:4px 10px;margin:2px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">✓ אשר</button>
                <button onclick="v2SwapStatus('${s._id}','rejected')" style="padding:4px 10px;margin:2px;background:#ef4444;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">✕ דחה</button>`
-            : (s.status === 'approved'
+            : (s.status === 'approved' && !s.leaveOnly
               ? `<button onclick="window.open('/swap-form.html?id=${s._id}','_blank')" style="padding:4px 10px;margin:2px;background:#0ea5e9;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">📄 טופס</button>`
               : '—');
           // 💬 message the installer who submitted this update (opens the support chat, pre-filled with context)
@@ -4548,6 +4573,42 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           <tr style="background:#f3f4f6;font-weight:800;"><td style="${td}" colspan="2">סה"כ (${rows.length} פנלים)</td><td style="${td}text-align:center;">${tSw}</td><td style="${td}text-align:center;color:#16a34a;">${tIn}</td><td style="${td}text-align:center;color:#ef4444;">${tOut}</td></tr></tbody></table>`;
       } catch (e) { out.innerHTML = '<div style="color:#c62828;">שגיאה בטעינה</div>'; }
     }
+    async function v2LoadDeparted() {
+      const tb = document.getElementById('departedBody'); if (!tb) return;
+      try {
+        const d = await fetch('/api/manager/departed').then(r => r.json());
+        const rows = d.departed || [];
+        if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text-dim);">אין דיירים שעזבו</td></tr>'; return; }
+        const fd = x => { try { return new Date(x).toLocaleDateString('he-IL'); } catch (e) { return ''; } };
+        tb.innerHTML = rows.map(b => {
+          const acct = v2AccountForMac(b.mac);
+          return `<tr>
+            <td style="padding:8px;"><b>${v2SecEsc(b.panelLabel || b.mac)}</b><div style="font-size:11px;color:var(--text-dim);">${v2SecEsc(b.mac)}${acct ? ' · 📞 ' + v2SecEsc(acct) : ''}</div></td>
+            <td style="padding:8px;text-align:center;font-weight:800;">${v2SecEsc(b.apartment)}</td>
+            <td style="padding:8px;">${v2SecEsc(b.name) || '(ללא שם)'}</td>
+            <td style="padding:8px;text-align:center;font-weight:800;color:var(--accent);">${v2SecEsc(b.sip)}</td>
+            <td style="padding:8px;text-align:center;">${fd(b.leftAt)}</td>
+            <td style="padding:8px;text-align:center;color:#b45309;font-weight:700;">${fd(b.expiresAt)}</td>
+            <td style="padding:8px;text-align:center;white-space:nowrap;">
+              <button onclick="v2RestoreDeparted('${b.id}','${v2SecEsc(b.name).replace(/'/g, '')}','${v2SecEsc(b.sip)}')" style="padding:4px 10px;margin:2px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">↩ חזר</button>
+              ${b.phoneNumber ? `<button onclick="v2SwapChat('${v2SecEsc(b.phoneNumber)}','${v2SecEsc(b.apartment)}','${v2SecEsc(b.panelLabel || b.mac).replace(/'/g, '')}')" style="padding:4px 10px;margin:2px;background:#7c3aed;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">💬 הודעה</button>` : ''}
+            </td></tr>`;
+        }).join('');
+      } catch (e) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:#ef4444;">שגיאה בטעינה</td></tr>'; }
+    }
+    async function v2RestoreDeparted(id, name, sip) {
+      if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+      if (!confirm('להחזיר את ' + (name || 'הדייר') + ' לפנל עם מספר דייר ' + sip + '?')) return;
+      v2Busy(true, 'מחזיר לפנל…');
+      try {
+        const d = await fetch('/api/manager/departed/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, username: window.__mgr.username, password: window.__mgr.password }) }).then(r => r.json());
+        v2Busy(false);
+        if (!d.success) { alert('❌ ' + (d.error || 'שגיאה')); return; }
+        alert(d.reassigned ? ('✓ הדייר הוחזר לפנל, אבל המספר ' + sip + ' היה תפוס — קיבל מספר חדש: ' + d.sip) : ('✓ הדייר הוחזר לפנל עם אותו מספר: ' + d.sip));
+        v2LoadDeparted();
+      } catch (e) { v2Busy(false); alert('❌ שגיאת תקשורת'); }
+    }
     async function v2SwapChat(phone, apartment, panel) {
       await openChat(phone);
       const inp = document.getElementById('chatInput');
@@ -4567,9 +4628,10 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         if (status === 'approved') {
           const r = d.report || {};
           if (r.error) alert('⚠ אושר אך ההחלה בפנל נכשלה: ' + r.error + '\nאפשר לנסות שוב.');
+          else if (r.departed) alert('🚪 הוסרו מהפנל: ' + r.departed.map(x => x.name + ' (' + x.sip + ')').join(', ') + '\nמספר הדייר נשמר 6 חודשים — אם הדייר חוזר, לחץ "↩ חזר" ברשימת "דיירים שעזבו".' + (d.duplicatesRejected ? ('\n🧹 ' + d.duplicatesRejected + ' בקשות כפולות נדחו אוטומטית') : ''));
           else alert('✓ בוצע בפנל — עודכנו: ' + (r.edited || 0) + ', נוספו: ' + (r.created || 0) + ', נמחקו: ' + (r.deleted || 0) + (r.failed ? (' , נכשלו: ' + r.failed) : '') + (d.duplicatesRejected ? ('\n🧹 ' + d.duplicatesRejected + ' בקשות כפולות נדחו אוטומטית') : ''));
         }
-        v2LoadSwaps();
+        v2LoadSwaps(); v2LoadDeparted();
       } catch (e) { v2Busy(false); alert('❌ שגיאת תקשורת'); }
     }
     function v2ViewResidents(mac) {

@@ -1160,6 +1160,7 @@ async function saveResidentSwap(doc) {
     apartment: String(doc.apartment || '').trim(),
     leaving: Array.isArray(doc.leaving) ? doc.leaving : [],
     entering: Array.isArray(doc.entering) ? doc.entering : [],
+    leaveOnly: !!doc.leaveOnly,
     status: 'pending',
     by: doc.by || '',
     createdAt: now,
@@ -1264,12 +1265,49 @@ async function setResidentBlockStatus(id, status, extra) {
   await db.collection('resident_blocks').updateOne({ _id }, { $set: set });
   return db.collection('resident_blocks').findOne({ _id });
 }
+// ── Departed residents ("עזיבה בלבד") — same collection as blocks, status 'left'.
+// The SIP stays reserved for DEPARTED_KEEP_DAYS so the resident can return with the same
+// number; after that the record is deleted and the number is free again.
+const DEPARTED_KEEP_DAYS = 183; // ~6 months
+async function saveResidentDeparture(doc) {
+  await connectDB();
+  const now = new Date();
+  const rec = {
+    mac: doc.mac, phoneNumber: doc.phoneNumber || '', panelLabel: doc.panelLabel || '',
+    name: String(doc.name || '').slice(0, 120),
+    sip: String(doc.sip == null ? '' : doc.sip).trim(),
+    apartment: String(doc.apartment == null ? '' : doc.apartment).trim(),
+    contact: (doc.contact && typeof doc.contact === 'object') ? doc.contact : {},
+    status: 'left', kind: 'departure', swapId: doc.swapId || '',
+    blockedBy: doc.by || '', blockedAt: now, updatedAt: now,
+    expiresAt: new Date(now.getTime() + DEPARTED_KEEP_DAYS * 86400000),
+  };
+  const r = await db.collection('resident_blocks').insertOne(rec);
+  rec._id = r.insertedId;
+  return rec;
+}
+// Delete departed records whose 6-month window has passed (frees their SIPs).
+async function purgeExpiredDepartures() {
+  await connectDB();
+  const r = await db.collection('resident_blocks').deleteMany({ status: 'left', expiresAt: { $lt: new Date() } });
+  return r.deletedCount || 0;
+}
+async function listDepartedResidents() {
+  await connectDB();
+  try { await purgeExpiredDepartures(); } catch (e) {}
+  return db.collection('resident_blocks').find({ status: 'left' }).sort({ blockedAt: -1 }).limit(1000).toArray();
+}
+
 // SIP numbers currently held by blocked residents on this panel — so new contacts
 // never reuse a blocked number while it's away (keeps its slot reserved).
+// Also includes departed residents still inside their 6-month window.
 async function listActiveBlockedSips(mac) {
   await connectDB();
   const rows = await db.collection('resident_blocks')
-    .find({ mac: String(mac || '').trim().toUpperCase(), status: 'blocked' })
+    .find({ mac: String(mac || '').trim().toUpperCase(), $or: [
+      { status: 'blocked' },
+      { status: 'left', expiresAt: { $gt: new Date() } },
+    ] })
     .project({ sip: 1 }).toArray();
   return rows.map(r => String(r.sip == null ? '' : r.sip).trim()).filter(Boolean);
 }
@@ -1282,6 +1320,10 @@ module.exports = {
   saveResidentSwap,
   listResidentSwaps,
   listPendingSwapsFor,
+  saveResidentDeparture,
+  purgeExpiredDepartures,
+  listDepartedResidents,
+  DEPARTED_KEEP_DAYS,
   swapSignature,
   getResidentSwap,
   setResidentSwapStatus,

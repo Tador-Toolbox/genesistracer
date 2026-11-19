@@ -1033,6 +1033,29 @@ async function applySwapToPanel(cleanMac, swap) {
     return m ? m.id : null;
   });
 
+  // Leave-only ("עזיבה בלבד"): no one moves in. Never empty an apartment completely;
+  // snapshot each departing contact (SIP reserved ~6 months) before deleting it.
+  if (swap.leaveOnly) {
+    const inApt = contacts.filter(c => prPad2(c.call_number) === apt);
+    const leavingSet = new Set(leavingIds.filter(x => x != null).map(String));
+    const remaining = inApt.filter(c => !leavingSet.has(String(c.id)));
+    if (!leavingSet.size) { rep.error = 'הדיירים העוזבים לא נמצאו בפנל'; return rep; }
+    if (!remaining.length) { rep.error = 'לא ניתן להסיר את הדייר האחרון בדירה — לעדכון השתמש בעדכון דייר רגיל'; return rep; }
+    const toDel = contacts.filter(c => leavingSet.has(String(c.id)));
+    const out = await panelBatchDeleteCurl(host, port, toDel.map(c => c.id));
+    if (!out.ok) { rep.error = 'מחיקת הדיירים מהפנל נכשלה'; return rep; }
+    rep.deleted = toDel.length;
+    rep.departed = [];
+    for (const c of toDel) {
+      try {
+        await db.saveResidentDeparture({ mac: cleanMac, phoneNumber: swap.phoneNumber, panelLabel: swap.panelLabel,
+          name: c.name || '', sip: c.sip_number, apartment: c.call_number, contact: c, swapId: String(swap._id || ''), by: swap.phoneNumber });
+        rep.departed.push({ name: c.name || '', sip: String(c.sip_number || '') });
+      } catch (e) {}
+    }
+    return rep;
+  }
+
   const n = entering.length;
   for (let i = 0; i < n; i++) {
     const e = entering[i] || {};
@@ -1164,12 +1187,16 @@ app.post('/api/installer/resident-swap/save', async (req, res) => {
       phone: String((e && e.phone) || '').trim().slice(0, 30),              // resident phone — stored + printed only, NOT written to the panel
       sip: String((e && e.sip) != null ? e.sip : '').trim().slice(0, 10)   // preview SIP computed at submit
     })).filter(e => e.firstName || e.lastName);
-    if (!entering.length) return res.status(400).json({ success: false, error: 'אין דיירים נכנסים' });
+    const leaveOnly = !!req.body.leaveOnly;
+    if (leaveOnly) {
+      if (!leaving.length) return res.status(400).json({ success: false, error: 'בחרו לפחות דייר אחד שעוזב' });
+      entering.length = 0;
+    } else if (!entering.length) return res.status(400).json({ success: false, error: 'אין דיירים נכנסים' });
     if (entering.length > 5) return res.status(400).json({ success: false, error: 'מקסימום 5 דיירים לדירה' });
     // Duplicate guard: one pending request per panel+apartment.
     const pendingSame = await db.listPendingSwapsFor(cleanMac, apartment);
     if (pendingSame.length) return res.status(409).json({ success: false, duplicate: true, error: 'יש כבר בקשה ממתינה לדירה הזו — המתן לאישור המנהל' });
-    const rec = await db.saveResidentSwap({ mac: cleanMac, phoneNumber, panelLabel: req.body.panelLabel, apartment, leaving, entering, by: phoneNumber });
+    const rec = await db.saveResidentSwap({ mac: cleanMac, phoneNumber, panelLabel: req.body.panelLabel, apartment, leaving, entering, leaveOnly, by: phoneNumber });
     try { await logActivity({ phoneNumber, action: 'resident_swap_submit', mac: cleanMac, details: { apartment, leaving: leaving.length, entering: entering.length }, success: true }); } catch (e) {}
     res.json({ success: true, id: String(rec._id) });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
@@ -1209,10 +1236,15 @@ app.post('/api/manager/resident-swaps/status', async (req, res) => {
     if (status === 'approved') {
       try { report = await applySwapToPanel(swap.mac, swap); }
       catch (e) { report = { error: e.message }; }
+      // Nothing was applied → keep the request pending so it can be retried (don't mark approved).
+      if (report && report.error) {
+        try { await logActivity({ phoneNumber: username, action: 'resident_swap_apply_failed', mac: swap.mac, details: { apartment: swap.apartment, error: report.error }, success: false }); } catch (e) {}
+        return res.json({ success: false, error: report.error + ' — הבקשה נשארה ממתינה', report });
+      }
       // Dated history on the panel's resident doc: leaving, entering, intercom + date.
       try {
         await db.addResidentHistory(swap.mac, {
-          event: (report && !report.error && !report.failed) ? 'swap' : 'swap_partial',
+          event: swap.leaveOnly ? 'leave' : ((report && !report.error && !report.failed) ? 'swap' : 'swap_partial'),
           by: username, apartment: swap.apartment, panelLabel: swap.panelLabel || '',
           leaving: (swap.leaving || []).map(l => (l.name || '') + (l.sip ? ' (' + l.sip + ')' : '')),
           entering: (report && report.assignments || []).map(a => a.name + ' (' + a.sip + ')'),
@@ -1237,6 +1269,61 @@ app.post('/api/manager/resident-swaps/status', async (req, res) => {
     }
     try { await logActivity({ phoneNumber: username, action: 'resident_swap_' + status, mac: swap.mac, details: { apartment: swap.apartment, report }, success: true }); } catch (e) {}
     res.json({ success: true, status: updated ? updated.status : status, report, duplicatesRejected });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Manager: departed residents ("עזיבה בלבד") still inside their 6-month keep window.
+app.get('/api/manager/departed', async (req, res) => {
+  try {
+    const rows = await db.listDepartedResidents();
+    res.json({ success: true, keepDays: db.DEPARTED_KEEP_DAYS, departed: (rows || []).map(b => ({
+      id: String(b._id), mac: b.mac, panelLabel: b.panelLabel || '', name: b.name || '', sip: b.sip || '',
+      apartment: b.apartment || '', leftAt: b.blockedAt, expiresAt: b.expiresAt, phoneNumber: b.phoneNumber || ''
+    })) });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Manager: a departed resident came back → restore to the panel with the SAME SIP (if still free).
+app.post('/api/manager/departed/restore', async (req, res) => {
+  const { id, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) return res.status(401).json({ success: false, error: 'Unauthorized' });
+  try {
+    const blk = await db.getResidentBlock(id);
+    if (!blk || blk.status !== 'left') return res.status(404).json({ success: false, error: 'הדייר לא נמצא ברשימת העוזבים' });
+    const cleanMac = String(blk.mac || '').toUpperCase();
+    const panelAddress = await resolvePanelAddress(cleanMac);
+    if (!panelAddress) return res.status(502).json({ success: false, error: 'הפנל אינו מחובר או לא נמצא' });
+    const [host, portStr] = panelAddress.split(':');
+    const port = parseInt(portStr) || 80;
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes && loginRes.data && loginRes.data.token;
+    if (!token) return res.status(502).json({ success: false, error: 'כניסה לפנל נכשלה' });
+    const contacts = await getAllPanelContacts(host, port, token);
+    const usedSips = new Set(contacts.map(c => String(c.sip_number)));
+    const snap = blk.contact || {};
+    let sip = String(blk.sip || snap.sip_number || '').trim();
+    let reassigned = false;
+    if (!sip || usedSips.has(sip)) {
+      let base = 1000;
+      contacts.forEach(c => { const n = parseInt(c.sip_number, 10); if (!isNaN(n) && n > base) base = n; });
+      try { (await db.listActiveBlockedSips(cleanMac)).forEach(s => { const n = parseInt(s, 10); if (!isNaN(n) && n > base) base = n; }); } catch (e) {}
+      sip = String(base + 1); reassigned = true;
+    }
+    const contact = {
+      name: snap.name || blk.name || '',
+      sip_account_id: snap.sip_account_id != null ? snap.sip_account_id : 2,
+      call_number: snap.call_number != null ? snap.call_number : (blk.apartment || ''),
+      sip_number: sip,
+      contact_group_id: snap.contact_group_id != null ? snap.contact_group_id : 1,
+      top: 'false', allow_unlock: 'true'
+    };
+    const out = await panelCreateContactCurl(host, port, contact);
+    if (!out.ok) return res.status(502).json({ success: false, error: 'החזרת הדייר לפנל נכשלה', raw: out.raw });
+    await db.setResidentBlockStatus(id, 'returned', { restoredAt: new Date(), restoredSip: sip, reassigned, restoredBy: username });
+    try { await db.addResidentHistory(cleanMac, { event: 'return', by: username, panelLabel: blk.panelLabel || '', residents: [(contact.name || '(ללא שם)') + ' (' + sip + ')'], reassigned, count: 1 }); } catch (e) {}
+    try { await logActivity({ phoneNumber: username, action: 'resident_return', mac: cleanMac, details: { sip, reassigned }, success: true }); } catch (e) {}
+    res.json({ success: true, sip, reassigned, name: contact.name });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
@@ -6254,6 +6341,11 @@ app.delete('/api/pricelist/product-gallery/:productId', requireManagerAuth, asyn
 // ============================================================
 
 app.listen(PORT, () => {
+  // Departed residents: free SIPs whose 6-month keep window has passed.
+  try {
+    const purgeDeps = () => db.purgeExpiredDepartures().then(n => { if (n) console.log('🧹 purged ' + n + ' expired departed residents'); }).catch(() => {});
+    setTimeout(purgeDeps, 90 * 1000); setInterval(purgeDeps, 6 * 3600 * 1000);
+  } catch (e) {}
   console.log('✅ GenesisTracer Server Running');
   console.log(`🌐 Main: http://localhost:${PORT}`);
   console.log(`👨‍💼 Manager: http://localhost:${PORT}/manager.html`);

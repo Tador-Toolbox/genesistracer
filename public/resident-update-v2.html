@@ -88,8 +88,14 @@
       <div class="selinfo" id="selInfo"></div>
     </div>
 
+    <!-- Leave-only toggle -->
+    <label class="card" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 16px;">
+      <input type="checkbox" id="leaveOnly" onchange="toggleLeaveOnly()" style="width:19px;height:19px;accent-color:var(--red);">
+      <span><b data-i18n="lo_title">🚪 עזיבה בלבד – אין דייר נכנס</b><br><span style="font-size:.8rem;color:var(--muted);" data-i18n="lo_sub">הדייר יוסר מהפנל. מספר הדייר נשמר 6 חודשים למקרה שיחזור.</span></span>
+    </label>
+
     <!-- Step 2: who is entering -->
-    <div class="card">
+    <div class="card" id="enterCard">
       <h3><span class="step-n">2</span><span data-i18n="s2_title">מי נכנס?</span></h3>
       <div class="sub" data-i18n="s2_sub">הזינו את הדייר/ים הנכנסים. הדירה מתמלאת אוטומטית (אותה דירה). עד 5 דיירים.</div>
       <table>
@@ -133,7 +139,10 @@
       max5:'מקסימום 5 דיירים לדירה.',
       confirm:(l,e,a)=>'לשלוח לאישור? דירה '+a+': '+l+' עוזבים, '+e+' נכנסים.',
       sending:'שולח…', sent_ok:'✓ נשלח לאישור המנהל', save_err:'שגיאה בשליחה', net_err:m=>'שגיאת רשת: '+m,
-      del_title:'הסר'
+      del_title:'הסר',
+      lo_title:'🚪 עזיבה בלבד – אין דייר נכנס', lo_sub:'הדייר יוסר מהפנל. מספר הדייר נשמר 6 חודשים למקרה שיחזור.',
+      last_err:'לא ניתן להסיר את הדייר האחרון בדירה — לעדכון השתמש בעדכון דייר רגיל (עוזב + נכנס).',
+      confirm_lo:(l,a)=>'לשלוח לאישור? דירה '+a+': '+l+' עוזבים, ללא דייר נכנס.'
     },
     en: {
       dir:'ltr', h_title:'Resident Update', h_sub:'Swap a resident in an apartment — send for manager approval', panel_lbl:'Panel:',
@@ -151,7 +160,10 @@
       max5:'Maximum 5 residents per apartment.',
       confirm:(l,e,a)=>'Send for approval? Apt '+a+': '+l+' leaving, '+e+' moving in.',
       sending:'Sending…', sent_ok:'✓ Sent for manager approval', save_err:'Send error', net_err:m=>'Network error: '+m,
-      del_title:'Remove'
+      del_title:'Remove',
+      lo_title:'🚪 Leaving only – nobody moves in', lo_sub:'The resident is removed from the panel. Their resident number is kept for 6 months in case they return.',
+      last_err:'You cannot remove the last resident of an apartment — use a regular update (leaving + moving in).',
+      confirm_lo:(l,a)=>'Send for approval? Apt '+a+': '+l+' leaving, nobody moving in.'
     }
   };
   let LANG = 'he';
@@ -251,10 +263,33 @@
 
   function msg(t, ok){ const m=document.getElementById('msg'); m.textContent=t; m.className='msg '+(ok?'ok':'err'); }
 
+  function isLeaveOnly(){ const c=document.getElementById('leaveOnly'); return !!(c && c.checked); }
+  function toggleLeaveOnly(){ document.getElementById('enterCard').style.display = isLeaveOnly() ? 'none' : ''; }
+
   async function send(){
     const d = tr();
     const leaving = selectedContacts();
     if (!leaving.length){ msg(d.need_leave, false); return; }
+    if (isLeaveOnly()) {
+      // Never empty an apartment: at least one resident must stay.
+      const inApt = contacts.filter(c => String(c.call_number||'').trim() === String(selApt));
+      if (leaving.length >= inApt.length){ msg(d.last_err, false); return; }
+      if (!confirm(d.confirm_lo(leaving.length, selApt))) return;
+      const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);
+      msg(d.sending, true);
+      try{
+        const res = await fetch('/api/installer/resident-swap/save', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ phoneNumber: PHONE, mac: MAC, panelLabel: LABEL, apartment: selApt, leaveOnly: true,
+            leaving: leaving.map(c=>({ name:c.name, sip:c.sip_number, contactId:c.id })), entering: [] })
+        });
+        const r = await res.json();
+        if (!r.success){ msg(r.error || d.save_err, false); }
+        else { msg(d.sent_ok, true); selectedIds = []; selApt = null; document.getElementById('leaveOnly').checked=false; toggleLeaveOnly(); renderLeave(); updateSel(); }
+      }catch(e){ msg(d.net_err(e.message), false); }
+      finally{ btns.forEach(b=>b.disabled=false); }
+      return;
+    }
     const entering = [];
     document.querySelectorAll('#enterRows tr').forEach(tr=>{
       const f = tr.querySelector('.f-first').value.trim();
