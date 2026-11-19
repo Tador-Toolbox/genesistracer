@@ -1830,7 +1830,7 @@
       try {
         const j = await fetch('/api/manager/voipbell/create', { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...window.__mgr, name, client }) }).then(r => r.json());
-        if (!j.success) out.innerHTML = '❌ ' + gymEsc(j.error || 'שגיאה') + ' <a href="/api/manager/voipbell-debug" target="_blank" style="font-size:12px;">יומן</a>';
+        if (!j.success) out.innerHTML = '❌ ' + gymEsc(j.error || 'שגיאה') + ' <a href="/api/manager/voipbell/create-debug" target="_blank" style="font-size:12px;">פרטי יצירה</a> · <a href="/api/manager/voipbell-debug" target="_blank" style="font-size:12px;">יומן</a>';
         if (j.success) { document.getElementById('nhAcct').value = name; v2NhBuildName(); }
         if (!j.success) {} else if (j.already) out.innerHTML = 'ℹ️ חשבון בשם <b dir="ltr">' + gymEsc(name) + '</b> כבר קיים ב-VoIPBell — לא נוצר שוב.';
         else out.innerHTML = '✓ נפתח חשבון <b dir="ltr">' + gymEsc(name) + '</b> ב-VoIPBell'

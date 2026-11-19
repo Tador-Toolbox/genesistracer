@@ -214,6 +214,36 @@ async function accountExists(name) {
   if (!rows) return null; // unknown (not JSON)
   return rows.some(r => String(r.name || '').trim() === String(name).trim());
 }
+// Debug helpers for the create flow: what fields does the portal's add form expect, and what
+// message did it show after our POST? (kept in lastCreate, shown at /api/manager/voipbell/create-debug)
+let lastCreate = null;
+function formFields(html) {
+  const out = []; const h = String(html || '');
+  for (const m of h.matchAll(/<(input|select|textarea)\b[^>]*name=["']([^"']+)["'][^>]*>/gi)) {
+    const tag = m[0]; const type = (tag.match(/type=["']([^"']+)["']/i) || [])[1] || m[1].toLowerCase();
+    const val = (tag.match(/value=["']([^"']*)["']/i) || [])[1];
+    const f = { name: m[2], type, required: /\brequired\b/i.test(tag) };
+    if (val != null && type !== 'password') f.value = val.slice(0, 40);
+    if (m[1].toLowerCase() === 'select') {
+      const close = h.indexOf('</select>', m.index);
+      const body = h.slice(m.index, close > 0 ? close : m.index + 4000);
+      f.options = [...body.matchAll(/<option[^>]*value=["']([^"']*)["'][^>]*>([^<]*)/gi)].slice(0, 25).map(o => (o[1] + '=' + o[2].trim()).slice(0, 50));
+    }
+    out.push(f);
+  }
+  return out;
+}
+function pageMessages(html) {
+  const h = String(html || ''); const msgs = [];
+  const re = /<(div|span|p|li|small)[^>]*class=["'][^"']*(alert|error|invalid-feedback|text-danger|danger|warning|notice|message)[^"']*["'][^>]*>([\s\S]{0,400}?)<\/\1>/gi;
+  for (const m of h.matchAll(re)) { const t = m[3].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(); if (t) msgs.push(t.slice(0, 200)); }
+  for (const m of h.matchAll(/(?:alert|swal|toastr\.\w+)\(\s*["']([^"']{3,200})["']/gi)) msgs.push('js: ' + m[1]);
+  const title = (h.match(/<h[1-4][^>]*>([\s\S]{0,120}?)<\/h[1-4]>/i) || [])[1];
+  if (title) msgs.push('h: ' + title.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+  return [...new Set(msgs)].slice(0, 15);
+}
+function getCreateDebug() { return lastCreate; }
+
 function hiddenInputs(html) {
   const out = {};
   for (const m of String(html || '').matchAll(/<input[^>]*type=["']hidden["'][^>]*>/gi)) {
@@ -241,6 +271,11 @@ async function createAccount(name, client) {
       const form = await vbGet(`${VB_URL}/index.php?p=intercom&subpage=addmod`, { Referer: `${VB_URL}/index.php?p=intercom` });
       if (isLoginPage(form.data)) { session.ts = 0; await ensureLogin(); continue; }
       const hidden = hiddenInputs(form.data);
+      if (attempt === 1) {
+        const ff = formFields(form.data);
+        lastCreate = { at: new Date().toISOString(), name: acct, client: cli, formLen: String(form.data || '').length,
+          formFields: ff, posts: [] };
+      }
       const fields = [
         ['text', 'intercom[name]', acct],
         ['text', 'intercom[client]', cli],
@@ -281,7 +316,11 @@ async function createAccount(name, client) {
           maxRedirects: 0, validateStatus: s => s >= 200 && s < 400, timeout: 30000,
         });
         storeCookies(res.headers['set-cookie']);
-        dbg('create:POST', { attempt, status: res.status, body: snippet(res.data) });
+        const msgs = pageMessages(res.data);
+        dbg('create:POST', { attempt, status: res.status, location: res.headers.location || '', messages: msgs });
+        if (lastCreate) lastCreate.posts.push({ attempt, status: res.status, location: res.headers.location || '', len: String(res.data || '').length,
+          messages: msgs, isLogin: isLoginPage(res.data), sentFields: fields.map(f => f[1]),
+          missingFromForm: lastCreate.formFields.map(f => f.name).filter(n => !fields.some(x => x[1] === n)) });
       } catch (e) { dbg('create:POST_error', { attempt, error: e.message }); }
       await sleep(1300);
       if (await accountExists(acct)) { dbg('create:ok', { name: acct, attempt }); qrCache[acct] = undefined; return { created: true, already: false, adminUser, adminPass }; }
@@ -346,4 +385,4 @@ async function lastByPrefix(prefix) {
   return run;
 }
 
-module.exports = { getQrForAccount, getDebug, createAccount, lastByPrefix, _nextName: nextName, _natKey: natKey };
+module.exports = { getCreateDebug, getQrForAccount, getDebug, createAccount, lastByPrefix, _nextName: nextName, _natKey: natKey };

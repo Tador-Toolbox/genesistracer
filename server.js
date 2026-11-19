@@ -4288,6 +4288,11 @@ app.post('/api/manager/voipbell/create', async (req, res) => {
   }
 });
 
+// Manager: diagnostics of the last VoIPBell create attempt (form fields the portal expects + messages it returned).
+app.get('/api/manager/voipbell/create-debug', (req, res) => {
+  res.json({ success: true, lastCreate: voipbell.getCreateDebug() });
+});
+
 // Manager: last existing VoIPBell account for a prefix (t98 / g510) + suggested next name.
 app.get('/api/manager/voipbell/last', async (req, res) => {
   const prefix = String(req.query.prefix || '').trim();
