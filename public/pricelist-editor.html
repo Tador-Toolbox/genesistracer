@@ -297,7 +297,7 @@ let S={
 };
 
 function makeCat(name){return{id:'c'+Date.now()+Math.random().toString(36).slice(2),name:name||'',subtitle:'',products:[],open:true};}
-function makeProd(n){return{id:'p'+Date.now()+Math.random().toString(36).slice(2),name:'',sku:'',price:'',currency:'ils',desc:'',dimensions:'',hasApp:false,appExtra:'',link:'',youtubeUrl:'',imgUrl:null,images:[],hidden:false,order:n||0,open:false};}
+function makeProd(n){return{id:'p'+Date.now()+Math.random().toString(36).slice(2),name:'',sku:'',price:'',currency:'ils',desc:'',dimensions:'',hasApp:false,appExtra:'',appName:'',link:'',youtubeUrl:'',imgUrl:null,images:[],hidden:false,order:n||0,open:false};}
 // Currency symbol helper — defaults to shekel for products saved before this field existed
 function curSym(p){return (p&&p.currency==='usd')?'$':'₪';}
 
@@ -524,6 +524,13 @@ function renderProds(ci){
             <input type="number" value="${p.appExtra||''}" oninput="updP(${ci},${pi},'appExtra',this.value)" placeholder="0 (ריק = ללא כפתור)" style="font-family:var(--mono)"/>
           </div>
           ${(parseFloat(p.appExtra)>0)?`<div style="margin-top:4px;font-size:11px;color:var(--on-sfv)">מחיר עם אפליקציה: <b style="color:var(--pr)">${curSym(p)}${(parseFloat(p.price||0)+parseFloat(p.appExtra)).toLocaleString()}</b></div>`:''}
+        </div>
+        <div>
+          <label>שם דגם עם אפליקציה (ריק = שם לא משתנה)</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="ms" style="color:var(--pr);font-size:18px;flex-shrink:0">sync_alt</span>
+            <input type="text" value="${esc(p.appName||'')}" oninput="updP(${ci},${pi},'appName',this.value)" placeholder="לדוגמא: Apollo-7-W"/>
+          </div>
         </div>
         <div>
           <label>קישור (לחיצה על תמונה תפתח אותו)</label>

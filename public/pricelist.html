@@ -263,7 +263,7 @@ function showCat(idx){
         </div>
         <div class="pl-card-body">
           ${p.price?`<div class="pl-card-price" id="price-${p.id}" data-base="${esc(p.price)}" data-extra="${esc(p.appExtra||0)}" data-sym="${curSym(p)}">${curSym(p)}${fmtNum(p.price)}</div>`:''}
-          <div class="pl-card-name">${esc(p.name||'')}</div>
+          <div class="pl-card-name" id="name-${p.id}" data-base-name="${esc(p.name||'')}" data-app-name="${esc(p.appName||'')}">${esc(p.name||'')}</div>
           ${p.desc?`<div class="pl-card-desc">${esc(p.desc)}</div>`:''}
           ${p.dimensions?`<div class="pl-card-dim"><span class="ms" style="font-size:13px">straighten</span>${esc(p.dimensions)}</div>`:''}
           ${(p.price && parseFloat(p.appExtra)>0)?`<button type="button" class="pl-app-toggle" id="apptgl-${p.id}" onclick="toggleApp('${p.id}')"><span class="ms" style="font-size:16px">add_circle</span><span class="pl-app-txt">הוסף אפליקציה (+${curSym(p)}${fmtNum(p.appExtra)})</span></button>`:''}
@@ -358,6 +358,11 @@ function toggleApp(id){
   const on=btn.classList.toggle('active');
   const val=on?base+extra:base;
   priceEl.textContent=sym+val.toLocaleString();
+  const nameEl=document.getElementById('name-'+id);
+  if(nameEl){
+    const appName=nameEl.dataset.appName;
+    if(appName){ nameEl.textContent = on ? appName : nameEl.dataset.baseName; }
+  }
   const txt=btn.querySelector('.pl-app-txt');
   const icon=btn.querySelector('.ms');
   if(on){txt.textContent='\u05e2\u05dd \u05d0\u05e4\u05dc\u05d9\u05e7\u05e6\u05d9\u05d4 \u05d5\u05de\u05e1\u05da WiFi \u2713';icon.textContent='check_circle';}
