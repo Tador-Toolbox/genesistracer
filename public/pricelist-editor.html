@@ -138,6 +138,7 @@ textarea{resize:vertical;min-height:52px}
 .pl-card-price{font-size:18px;font-weight:800;color:var(--pr);font-family:var(--mono)}
 .pl-card-name{font-size:13px;font-weight:700;line-height:1.3;margin:4px 0 3px;color:var(--on-sf);word-break:break-word}
 .pl-card-desc{font-size:12px;color:var(--on-sfv);line-height:1.4;white-space:pre-wrap;word-break:break-word}
+.pl-card-dim{font-size:11px;color:var(--on-sfv);font-family:var(--mono);margin-top:5px;display:inline-flex;align-items:center;gap:3px;background:var(--sf-hi);padding:2px 7px;border-radius:5px}
 .pl-empty-card{border:1px solid var(--outv);border-radius:8px;background:var(--sf-low);opacity:.2;aspect-ratio:.75}
 .pl-notes{background:var(--inv-sf);color:var(--inv-on-sf);border-radius:8px;padding:14px;margin-top:16px;border-right:6px solid var(--pr)}
 .pl-notes-t{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#ffb4ab;margin-bottom:7px}
@@ -296,7 +297,7 @@ let S={
 };
 
 function makeCat(name){return{id:'c'+Date.now()+Math.random().toString(36).slice(2),name:name||'',subtitle:'',products:[],open:true};}
-function makeProd(n){return{id:'p'+Date.now()+Math.random().toString(36).slice(2),name:'',sku:'',price:'',currency:'ils',desc:'',link:'',youtubeUrl:'',imgUrl:null,images:[],hidden:false,order:n||0,open:false};}
+function makeProd(n){return{id:'p'+Date.now()+Math.random().toString(36).slice(2),name:'',sku:'',price:'',currency:'ils',desc:'',dimensions:'',hasApp:false,appExtra:'',link:'',youtubeUrl:'',imgUrl:null,images:[],hidden:false,order:n||0,open:false};}
 // Currency symbol helper — defaults to shekel for products saved before this field existed
 function curSym(p){return (p&&p.currency==='usd')?'$':'₪';}
 
@@ -506,6 +507,25 @@ function renderProds(ci){
         </div>
         <div><label>תיאור</label><textarea oninput="updP(${ci},${pi},'desc',this.value)" placeholder="תיאור קצר...">${esc(p.desc)}</textarea></div>
         <div>
+          <label>מידות פנל (לדוגמא: 100x100x100)</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="ms" style="color:var(--out);font-size:18px;flex-shrink:0">straighten</span>
+            <input type="text" value="${esc(p.dimensions||'')}" oninput="updP(${ci},${pi},'dimensions',this.value)" placeholder="100x100x100" style="font-family:var(--mono)"/>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;padding:4px 0">
+          <input type="checkbox" id="app-${p.id}" ${p.hasApp?'checked':''} onchange="updP(${ci},${pi},'hasApp',this.checked)" style="width:15px;height:15px;accent-color:var(--pr);cursor:pointer"/>
+          <label for="app-${p.id}" style="margin:0;cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px"><span class="ms" style="font-size:16px;color:var(--pr)">smartphone</span> עובד עם אפליקציה</label>
+        </div>
+        <div>
+          <label>תוספת מחיר לאפליקציה (ללקוח יהיה כפתור "הוסף אפליקציה")</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="ms" style="color:var(--pr);font-size:18px;flex-shrink:0">add_circle</span>
+            <input type="number" value="${p.appExtra||''}" oninput="updP(${ci},${pi},'appExtra',this.value)" placeholder="0 (ריק = ללא כפתור)" style="font-family:var(--mono)"/>
+          </div>
+          ${(parseFloat(p.appExtra)>0)?`<div style="margin-top:4px;font-size:11px;color:var(--on-sfv)">מחיר עם אפליקציה: <b style="color:var(--pr)">${curSym(p)}${(parseFloat(p.price||0)+parseFloat(p.appExtra)).toLocaleString()}</b></div>`:''}
+        </div>
+        <div>
           <label>קישור (לחיצה על תמונה תפתח אותו)</label>
           <div style="display:flex;align-items:center;gap:6px">
             <span class="ms" style="color:var(--out);font-size:18px;flex-shrink:0">link</span>
@@ -627,12 +647,15 @@ function buildPL(){
         ${p.sku?`<span class="pl-sku" style="z-index:2;position:relative">${esc(p.sku)}</span>`:''}
         ${(p.images&&p.images.length)?`<span style="position:absolute;top:6px;left:6px;z-index:2;background:rgba(0,0,0,.6);border-radius:99px;padding:2px 7px;display:inline-flex;align-items:center;gap:2px;color:#fff;font-size:10px;font-weight:700"><span class="ms" style="font-size:11px">photo_library</span>${p.images.length+1}</span>`:''}
         ${p.youtubeUrl?`<span style="position:absolute;top:6px;right:6px;z-index:2;background:#f00;border-radius:99px;padding:2px 6px;display:inline-flex;align-items:center;z-index:2"><span class="ms" style="font-size:12px;color:#fff">smart_display</span></span>`:''}
+        ${p.hasApp?`<span title="עובד עם אפליקציה" style="position:absolute;bottom:6px;right:6px;z-index:2;background:var(--pr);border-radius:99px;padding:3px 6px;display:inline-flex;align-items:center;gap:3px;color:#fff;font-size:10px;font-weight:700"><span class="ms" style="font-size:12px">smartphone</span>אפליקציה</span>`:''}
         ${p.link?`<span style="position:absolute;bottom:6px;left:6px;z-index:2;background:rgba(0,0,0,.55);border-radius:99px;padding:3px 6px;display:inline-flex;align-items:center;gap:3px"><span class="ms" style="font-size:12px;color:#fff">open_in_new</span></span>`:''}
       </div>
       <div class="pl-card-body">
         ${p.price?`<div class="pl-card-price">${curSym(p)}${esc(p.price)}</div>`:''}
         <div class="pl-card-name">${esc(p.name||'מוצר')}</div>
         ${p.desc?`<div class="pl-card-desc">${esc(p.desc)}</div>`:''}
+        ${p.dimensions?`<div class="pl-card-dim"><span class="ms" style="font-size:12px">straighten</span>${esc(p.dimensions)}</div>`:''}
+        ${(p.price && parseFloat(p.appExtra)>0)?`<div style="margin-top:7px;display:inline-flex;align-items:center;justify-content:center;gap:5px;width:100%;border:1.5px solid var(--pr);color:var(--pr);border-radius:8px;padding:6px;font-size:11px;font-weight:700"><span class="ms" style="font-size:14px">add_circle</span>הוסף אפליקציה (+${curSym(p)}${(parseFloat(p.appExtra)).toLocaleString()})</div>`:''}
       </div>
     </div>`).join('');
 
