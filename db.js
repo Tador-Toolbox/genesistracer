@@ -1135,6 +1135,46 @@ async function setResidentListCode(mac) {
   );
   return code;
 }
+// ── Resident self-registration link ("הרשמת דיירים") ──
+// The manager issues a SEPARATE code per panel (residents must not get the committee's code).
+// Residents' entries land in panel_residents.signups as 'pending'; the committee approves them into the list.
+async function setResidentSignupCode(mac) {
+  await connectDB();
+  const existing = await db.collection('panel_residents').findOne({ mac });
+  if (existing && existing.signupCode) return existing.signupCode;
+  let code;
+  for (let i = 0; i < 8; i++) {
+    code = genResidentCode();
+    if (!(await db.collection('panel_residents').findOne({ $or: [{ signupCode: code }, { committeeCode: code }] }))) break;
+  }
+  const now = new Date();
+  await db.collection('panel_residents').updateOne(
+    { mac },
+    { $set: { signupCode: code, updatedAt: now }, $setOnInsert: { residents: [], status: 'draft', apartmentsCount: 0, createdAt: now } },
+    { upsert: true }
+  );
+  return code;
+}
+async function getPanelResidentsBySignupCode(code) {
+  await connectDB();
+  if (!code) return null;
+  return db.collection('panel_residents').findOne({ signupCode: String(code).trim().toUpperCase() });
+}
+async function addResidentSignup(mac, entry) {
+  await connectDB();
+  const rec = Object.assign({ id: require('crypto').randomBytes(6).toString('hex'), status: 'pending', createdAt: new Date() }, entry);
+  await db.collection('panel_residents').updateOne({ mac }, { $push: { signups: rec }, $set: { updatedAt: new Date() } });
+  return rec;
+}
+async function resolveResidentSignup(mac, id, status, by) {
+  await connectDB();
+  const r = await db.collection('panel_residents').updateOne(
+    { mac, signups: { $elemMatch: { id: String(id), status: 'pending' } } },
+    { $set: { 'signups.$.status': status, 'signups.$.resolvedAt': new Date(), 'signups.$.resolvedBy': by || '' } }
+  );
+  return r.modifiedCount === 1;
+}
+
 async function getPanelResidentsByCode(code) {
   await connectDB();
   if (!code) return null;
@@ -1341,6 +1381,10 @@ module.exports = {
   listActiveBlockedSips,
   setPanelResidentsStatus,
   setResidentListCode,
+  setResidentSignupCode,
+  getPanelResidentsBySignupCode,
+  addResidentSignup,
+  resolveResidentSignup,
   getPanelResidentsByCode,
   addResidentHistory,
   createInstaller,

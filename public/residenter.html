@@ -62,6 +62,14 @@
   .addrbox label{font-weight:700;font-size:.86rem}
   .addrbox input{flex:1 1 240px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font:inherit}
   .addrbox .hint{flex-basis:100%;font-size:.75rem;color:var(--muted)}
+  .signups{display:none;background:#f0fbf3;border:1px solid #b9e4c4;border-radius:12px;padding:10px 14px;margin-bottom:12px}
+  .signups h3{margin:0 0 6px;font-size:.95rem}
+  .su-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:7px 0;border-top:1px solid #d6eedc;font-size:.9rem}
+  .su-row:first-of-type{border-top:none}
+  .su-row .su-act{display:flex;gap:6px}
+  .su-row button{border:none;border-radius:8px;padding:6px 11px;font:inherit;font-weight:700;font-size:.8rem;cursor:pointer}
+  .su-ok{background:#2e9e3f;color:#fff} .su-no{background:#eceff3;color:#17202a}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .signups{background:#12261a;border-color:#24533a}}
   .initnote{background:#eef4ff;border:1px solid #c9dafc;color:#1e3a8a;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:.86rem;line-height:1.55}
   @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .initnote{background:#152038;border-color:#2b3f6b;color:#c7d6ff}}
   .grpwarn{display:none;margin:10px 2px 0;padding:10px 12px;border:1px solid #f0c36d;background:#fff8e6;border-radius:10px;font-size:.84rem;line-height:1.5}
@@ -114,6 +122,8 @@
     <button class="b b-check" onclick="checkConnection()" data-i18n="conn_btn">🔌 בדיקת חיבור</button>
     <span id="connResult" class="connres"></span>
   </div>
+
+  <div class="signups" id="signups"></div>
 
   <div class="initnote" data-i18n="init_note">ℹ️ רשימה זו משמשת להזנה הראשונית של דיירי הבניין לפנל האינטרקום. עם סיום הטעינה הראשונית, הרשימה תתעדכן במערכת ולא תתאפשר עריכה חוזרת שלה. לאחר שלב זה כל עדכון, הוספה או הסרה של דיירים יתבצעו ישירות דרך פורטל הוועד.</div>
 
@@ -177,6 +187,8 @@
       counts:(p,a)=>'דיירים: '+p+' · דירות (רישיונות): <b>'+a+'</b>',
       list_note:'הרשימה נשמרת עבור פנל זה. "שמור טיוטה" ו"שלח לאישור" מעדכנים את אותה רשימה, ובפתיחה הבאה היא נטענת שוב.',
       grp_label:'שם קבוצת דירה בפנל:', grp_apartment:'לפי דירה (דירה 07)', grp_family:'לפי שם משפחה (משפחת שלמה)',
+      su_title:n=>'📥 בקשות הרשמה מדיירים ('+n+')', su_apt:'דירה', su_add:'✓ הוסף לרשימה', su_rej:'✕ דחה',
+      su_confirm_rej:n=>'לדחות את הבקשה של '+n+'?', su_added:n=>'✓ '+n+' נוסף לרשימה ונשמר כטיוטה', su_err:'הפעולה נכשלה — נסו שוב',
       init_note:'ℹ️ רשימה זו משמשת להזנה הראשונית של דיירי הבניין לפנל האינטרקום. עם סיום הטעינה הראשונית, הרשימה תתעדכן במערכת ולא תתאפשר עריכה חוזרת שלה. לאחר שלב זה כל עדכון, הוספה או הסרה של דיירים יתבצעו ישירות דרך פורטל הוועד.',
       addr_label:'📍 כתובת הבניין', addr_ph:'לדוגמה: חורב 9, פתח תקווה', addr_hint:'הכתובת תוצג במסך הבית של פנל האינטרקום.',
       gw_title:'⚠️ שמות משפחה שונים באותה דירה',
@@ -205,6 +217,8 @@
       counts:(p,a)=>'Residents: '+p+' · Apartments (licenses): <b>'+a+'</b>',
       list_note:'The list is saved for this panel. "Save draft" and "Submit for approval" update the same list, and it loads again next time you open it.',
       grp_label:'Apartment group name on the panel:', grp_apartment:'By apartment (Apartment 07)', grp_family:'By family name (The Shlomo family)',
+      su_title:n=>'📥 Registration requests from residents ('+n+')', su_apt:'Apt', su_add:'✓ Add to list', su_rej:'✕ Reject',
+      su_confirm_rej:n=>'Reject the request from '+n+'?', su_added:n=>'✓ '+n+' added to the list and saved as a draft', su_err:'Action failed — please try again',
       init_note:'ℹ️ This list is used for the initial entry of the building residents into the intercom panel. Once the initial upload is complete, the list is updated in the system and can no longer be edited. After that, every update, addition or removal of residents is done directly through the committee portal.',
       addr_label:'📍 Building address', addr_ph:'e.g. 9 Horev St, Petah Tikva', addr_hint:'The address is shown on the intercom panel home screen.',
       gw_title:'⚠️ Different family names in the same apartment',
@@ -266,7 +280,7 @@
     setStatus(curStatus);
     updateCounts();
   }
-  function setLang(l){ applyLang(l); try { checkGroups(); } catch(e){} }
+  function setLang(l){ applyLang(l); try { checkGroups(); renderSignups(); } catch(e){} }
 
   function showMain(){ document.getElementById('main').style.display=''; document.getElementById('gate').style.display='none'; updateMeta(); }
   function showGate(err){ document.getElementById('main').style.display='none'; document.getElementById('gate').style.display='block'; if (err) document.getElementById('gateMsg').textContent = err; }
@@ -376,6 +390,41 @@
     return out;
   }
 
+  // ── Registration requests residents sent through the signup link (pending → committee approves into the list) ──
+  var SIGNUPS = [];
+  function renderSignups(){
+    const box = document.getElementById('signups'); if (!box) return;
+    if (!SIGNUPS.length){ box.style.display='none'; box.innerHTML=''; return; }
+    const d = tr();
+    box.innerHTML = '<h3>'+d.su_title(SIGNUPS.length)+'</h3>' + SIGNUPS.map(s =>
+      `<div class="su-row"><div><b>${esc(d.su_apt)} ${esc(s.apartment)}</b> · ${esc(s.firstName)} ${esc(s.lastName)} · <span dir="ltr">${esc(s.phone)}</span></div>
+        <div class="su-act"><button class="su-ok" onclick="approveSignup('${esc(s.id)}')">${esc(d.su_add)}</button><button class="su-no" onclick="rejectSignup('${esc(s.id)}')">${esc(d.su_rej)}</button></div></div>`).join('');
+    box.style.display='block';
+  }
+  async function resolveSignup(id, status){
+    const body = (MODE==='committee') ? { code:CODE, id, status } : { phoneNumber:PHONE, mac:MAC, id, status };
+    const r = await fetch('/api/residents/signups/resolve', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(x=>x.json());
+    return !!(r && r.success);
+  }
+  async function approveSignup(id){
+    const s = SIGNUPS.find(x=>x.id===id); if (!s) return;
+    const row = { firstName:s.firstName, lastName:s.lastName, apartment:s.apartment, phone:s.phone };
+    // Fill the first empty row if there is one, else append.
+    const empty = [...document.querySelectorAll('#rows tr')].find(tr => ['.f-first','.f-last','.f-apt','.f-phone'].every(c => !tr.querySelector(c).value.trim()));
+    if (empty){ empty.querySelector('.f-first').value=row.firstName; empty.querySelector('.f-last').value=row.lastName; empty.querySelector('.f-apt').value=row.apartment; empty.querySelector('.f-phone').value=row.phone; renumber(); }
+    else addRow(row);
+    const saved = await save(false);
+    if (!saved){ msg(tr().su_err, false); return; }
+    if (await resolveSignup(id, 'approved')) { SIGNUPS = SIGNUPS.filter(x=>x.id!==id); renderSignups(); msg(tr().su_added(s.firstName+' '+s.lastName), true); }
+    else msg(tr().su_err, false);
+  }
+  async function rejectSignup(id){
+    const s = SIGNUPS.find(x=>x.id===id); if (!s) return;
+    if (!confirm(tr().su_confirm_rej(s.firstName+' '+s.lastName))) return;
+    if (await resolveSignup(id, 'rejected')) { SIGNUPS = SIGNUPS.filter(x=>x.id!==id); renderSignups(); }
+    else msg(tr().su_err, false);
+  }
+
   function msg(t, ok){ const m=document.getElementById('msg'); m.textContent=t; m.className='msg '+(ok?'ok':'err'); }
 
   async function save(submit){
@@ -396,6 +445,7 @@
     const buildingAddress = document.getElementById('bAddr').value.trim();
     if (submit && !confirm(d.confirm_send(residents.length, aptCount))) return;
     const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);
+    let ok = false;
     msg(submit ? d.sending : d.saving, true);
     try{
       const groupNameBy = ((document.querySelector('input[name=grpby]:checked')||{}).value) || 'apartment';
@@ -406,14 +456,15 @@
         body: JSON.stringify(payload)
       });
       const dd = await res.json();
-      if (!dd.success){ msg(dd.error || d.save_err, false); }
-      else {
+      if (!dd.success){ msg(dd.error || d.save_err, false); ok = false; }
+      else { ok = true;
         render(dd.residents); setStatus(dd.status);
         try { document.getElementById('savedLbl').textContent = (submit ? d.saved_sent_lbl : d.saved_saved_lbl) + new Date().toLocaleTimeString(d.locale,{hour:'2-digit',minute:'2-digit'}); } catch(e){}
         msg(submit ? d.sent_ok : d.saved_ok, true);
       }
-    }catch(e){ msg(d.net_err(e.message), false); }
+    }catch(e){ msg(d.net_err(e.message), false); ok = false; }
     finally{ btns.forEach(b=>b.disabled=false); }
+    return ok;
   }
 
   function render(list){
@@ -425,7 +476,7 @@
   async function loadByCode(){
     try{
       const d = await fetch('/api/residents/by-code?code='+encodeURIComponent(CODE)).then(r=>r.json());
-      if (d.success){ GROUP_NAMES = d.groupNames || {}; document.getElementById('bAddr').value = d.buildingAddress || ''; render(d.residents); setStatus(d.status); setGroupBy(d.groupNameBy); return true; }
+      if (d.success){ GROUP_NAMES = d.groupNames || {}; SIGNUPS = d.signups || []; document.getElementById('bAddr').value = d.buildingAddress || ''; render(d.residents); renderSignups(); setStatus(d.status); setGroupBy(d.groupNameBy); return true; }
       return false;
     }catch(e){ return false; }
   }
@@ -436,7 +487,7 @@
     if (!MAC){ render([]); return; }
     try{
       const d = await fetch('/api/installer/residents?mac='+encodeURIComponent(MAC)).then(r=>r.json());
-      if (d.success){ GROUP_NAMES = d.groupNames || {}; document.getElementById('bAddr').value = d.buildingAddress || ''; render(d.residents); setStatus(d.status); setGroupBy(d.groupNameBy); }
+      if (d.success){ GROUP_NAMES = d.groupNames || {}; SIGNUPS = d.signups || []; document.getElementById('bAddr').value = d.buildingAddress || ''; render(d.residents); renderSignups(); setStatus(d.status); setGroupBy(d.groupNameBy); }
       else render([]);
     }catch(e){ render([]); }
   }

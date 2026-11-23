@@ -859,7 +859,8 @@ app.get('/api/installer/residents', async (req, res) => {
     if (!cleanMac) return res.status(400).json({ success: false, error: 'mac required' });
     const doc = await db.getPanelResidents(cleanMac);
     res.json({ success: true, residents: doc ? doc.residents : [], status: doc ? (doc.status || 'draft') : 'draft', groupNameBy: doc ? (doc.groupNameBy || 'apartment') : 'apartment',
-      buildingAddress: (doc && doc.buildingAddress) || '', groupNames: (doc && doc.groupNames) || {} });
+      buildingAddress: (doc && doc.buildingAddress) || '', groupNames: (doc && doc.groupNames) || {},
+      signups: ((doc && doc.signups) || []).filter(x => x.status === 'pending') });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
@@ -1617,6 +1618,70 @@ app.post('/api/manager/resident-submissions/link', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// ── Resident self-registration (הרשמת דיירים) ──
+// Manager issues the per-panel signup link.
+app.post('/api/manager/resident-submissions/signup-link', async (req, res) => {
+  const { mac, username, password } = req.body || {};
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  if (username !== adminUser || password !== process.env.ADMIN_PASS) return res.status(401).json({ success: false, error: 'Unauthorized' });
+  const cleanMac = prCleanMac(mac);
+  if (!cleanMac) return res.status(400).json({ success: false, error: 'mac required' });
+  try { res.json({ success: true, code: await db.setResidentSignupCode(cleanMac) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+// Public: is the signup code valid (+ building address to show on the form)?
+app.get('/api/residents/signup-info', async (req, res) => {
+  try {
+    const doc = await db.getPanelResidentsBySignupCode(req.query.code);
+    if (!doc) return res.status(404).json({ success: false, error: 'קישור לא תקין' });
+    res.json({ success: true, address: doc.buildingAddress || '' });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+// Public: a resident submits his details → pending in the committee's resident list.
+const signupLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 15, standardHeaders: true, legacyHeaders: false,
+  message: { success: false, error: 'יותר מדי ניסיונות — נסו שוב בעוד כמה דקות' } });
+app.post('/api/residents/signup', signupLimiter, async (req, res) => {
+  try {
+    const doc = await db.getPanelResidentsBySignupCode(req.body.code);
+    if (!doc) return res.status(404).json({ success: false, error: 'קישור לא תקין' });
+    const apartment = String(req.body.apartment || '').trim().slice(0, 20);
+    const firstName = String(req.body.firstName || '').trim().slice(0, 60);
+    const lastName  = String(req.body.lastName  || '').trim().slice(0, 60);
+    const phone     = String(req.body.phone     || '').replace(/[^\d+]/g, '').slice(0, 15);
+    if (!apartment || !firstName || !lastName || !phone) return res.status(400).json({ success: false, error: 'נא למלא את כל השדות' });
+    if (phone.replace(/\D/g, '').length < 9) return res.status(400).json({ success: false, error: 'מספר טלפון לא תקין' });
+    const digits = p => String(p || '').replace(/\D/g, '');
+    if ((doc.signups || []).some(x => x.status === 'pending' && digits(x.phone) === digits(phone)))
+      return res.status(409).json({ success: false, error: 'כבר נשלחה בקשה ממספר הטלפון הזה — היא ממתינה לאישור הוועד' });
+    if ((doc.residents || []).some(r => digits(r.phone) && digits(r.phone) === digits(phone)))
+      return res.status(409).json({ success: false, error: 'מספר הטלפון הזה כבר רשום ברשימת הדיירים' });
+    if ((doc.signups || []).filter(x => x.status === 'pending').length >= 300)
+      return res.status(429).json({ success: false, error: 'יותר מדי בקשות ממתינות — פנו לוועד הבית' });
+    await db.addResidentSignup(doc.mac, { apartment, firstName, lastName, phone });
+    try { await logActivity({ phoneNumber: 'resident', action: 'resident_signup', mac: doc.mac, details: { apartment }, success: true }); } catch (e) {}
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+// Committee (code) or installer (phone + own MAC): approve/reject a pending signup.
+// Approving only marks it — the page adds the row to the list and saves it as a draft first.
+app.post('/api/residents/signups/resolve', async (req, res) => {
+  try {
+    const { code, phoneNumber, mac, id, status } = req.body || {};
+    if (!['approved', 'rejected'].includes(status) || !id) return res.status(400).json({ success: false, error: 'id and status required' });
+    let doc = null, by = '';
+    if (code) { doc = await db.getPanelResidentsByCode(code); by = 'committee'; }
+    else if (phoneNumber && mac) {
+      const cleanMac = prCleanMac(mac);
+      if (!(await prInstallerOwnsMac(String(phoneNumber).trim(), cleanMac))) return res.status(403).json({ success: false, error: 'not your panel' });
+      doc = await db.getPanelResidents(cleanMac); by = String(phoneNumber).trim();
+    }
+    if (!doc) return res.status(404).json({ success: false, error: 'הרשימה לא נמצאה' });
+    const ok = await db.resolveResidentSignup(doc.mac, id, status, by);
+    if (!ok) return res.status(404).json({ success: false, error: 'הבקשה לא נמצאה או כבר טופלה' });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // Manager: toggle a per-MAC boolean flag (e.g. qrShowBuilding — whether the installer's
 // QR print includes the committee + resident-registration building barcodes).
 app.post('/api/manager/mac-flag', async (req, res) => {
@@ -1759,7 +1824,8 @@ app.get('/api/residents/by-code', async (req, res) => {
     const doc = await db.getPanelResidentsByCode(req.query.code);
     if (!doc) return res.status(404).json({ success: false, error: 'קוד שגוי' });
     res.json({ success: true, residents: doc.residents || [], status: doc.status || 'draft', groupNameBy: doc.groupNameBy || 'apartment',
-      buildingAddress: doc.buildingAddress || '', groupNames: doc.groupNames || {} });
+      buildingAddress: doc.buildingAddress || '', groupNames: doc.groupNames || {},
+      signups: (doc.signups || []).filter(x => x.status === 'pending') });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 

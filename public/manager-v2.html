@@ -1028,6 +1028,7 @@
           <h2 style="margin:0;">🧍 רשימות דיירים</h2>
           <div style="display:flex;gap:8px;">
             <button onclick="v2ResidentLinkByMac()" style="padding:6px 12px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">🔗 קישור לוועד (MAC)</button>
+            <button onclick="v2SignupLinkByMac()" style="padding:6px 12px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">📝 קישור הרשמה לדיירים (MAC)</button>
             <button onclick="v2LoadResidents()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">רענן</button>
           </div>
         </div>
@@ -4686,7 +4687,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
       try {
         const data = await fetch('/api/manager/resident-submissions').then(r => r.json());
         // Also show lists whose committee link was issued but nothing was saved yet.
-        const subs = (data.submissions || []).filter(s => (s.residents || []).length || s.status === 'pending' || s.committeeCode);
+        const subs = (data.submissions || []).filter(s => (s.residents || []).length || s.status === 'pending' || s.committeeCode || s.signupCode);
         window.__residents = {}; subs.forEach(s => { window.__residents[s.mac] = s; });
         const stMap = { draft: ['טיוטה', '#64717e'], pending: ['ממתין לאישור', '#9a6b00'], approved: ['אושר', '#2e7d32'], rejected: ['נדחה', '#c62828'] };
         const pend = subs.filter(s => s.status !== 'approved');
@@ -4699,13 +4700,16 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           const who = s.lastSavedBy ? (s.lastSavedBy === 'committee' ? 'הוועד' : 'המתקין ' + v2SecEsc(s.lastSavedBy)) : '';
           let when = ''; try { if (s.lastSavedAt || s.submittedAt) when = new Date(s.lastSavedAt || s.submittedAt).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch (e) {}
           const label = empty ? ['🔗 קישור נשלח — עוד לא מילאו', '#64748b'] : (s.status === 'draft' ? ['📝 טיוטה — נשמר, עוד לא נשלח', '#64717e'] : st);
+          const pendSu = (s.signups || []).filter(x => x.status === 'pending').length;
+          const suLine = pendSu ? `<div style="font-size:11px;color:#16a34a;font-weight:700;margin-top:2px;">📥 ${pendSu} הרשמות ממתינות לוועד</div>` : '';
           const sub = !empty && (who || when) ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${s.status === 'pending' ? 'נשלח' : 'נשמר'}${who ? ' ע״י ' + who : ''}${when ? ' · ' + when : ''}</div>` : '';
           return `<tr>${baseCells(s)}
-            <td style="padding:8px;text-align:center;"><span style="color:${label[1]};font-weight:700;">${label[0]}</span>${sub}</td>
+            <td style="padding:8px;text-align:center;"><span style="color:${label[1]};font-weight:700;">${label[0]}</span>${sub}${suLine}</td>
             <td style="padding:8px;text-align:center;white-space:nowrap;">
               ${btn('👁 צפה', `v2ViewResidents('${mac}')`, '#eef1f4', '#111')}
               ${btn('🖨️ QR', `v2PrintAllQr('${v2SecEsc(s.phoneNumber || '')}','${mac}')`, '#0ea5e9', '#fff')}
               ${btn('🔗 קישור לוועד', `v2ResidentLink('${mac}')`, '#64748b', '#fff')}
+              ${btn('📝 הרשמת דיירים', `v2SignupLink('${mac}')`, '#16a34a', '#fff')}
               ${btn('✓ אשר', `v2ResidentStatus('${mac}','approved')`, '#16a34a', '#fff')}
               ${btn('✕ דחה', `v2ResidentStatus('${mac}','rejected')`, '#ef4444', '#fff')}
             </td></tr>`;
@@ -4722,6 +4726,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
                 ${btn('👁 צפה', `v2ViewResidents('${mac}')`, '#eef1f4', '#111')}
                 ${btn('🖨️ QR', `v2PrintAllQr('${v2SecEsc(s.phoneNumber || '')}','${mac}')`, '#0ea5e9', '#fff')}
                 ${btn('🔗 קישור לוועד', `v2ResidentLink('${mac}')`, '#64748b', '#fff')}
+              ${btn('📝 הרשמת דיירים', `v2SignupLink('${mac}')`, '#16a34a', '#fff')}
               </td></tr>`;
           }).join('') : '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--text-dim);">אין רשימות שהועלו עדיין</td></tr>';
         }
@@ -4903,6 +4908,23 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
     function v2ResidentLinkByMac() {
       const mac = window.prompt('הזן כתובת MAC של הפנל ליצירת קישור לוועד:');
       if (mac && mac.trim()) v2ResidentLink(mac.trim());
+    }
+    // Resident self-registration link (residents fill apt/name/phone → pending in the committee's list).
+    async function v2SignupLink(mac) {
+      if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
+      try {
+        const d = await fetch('/api/manager/resident-submissions/signup-link', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mac, username: window.__mgr.username, password: window.__mgr.password }) }).then(r => r.json());
+        if (d.success) window.prompt('קישור הרשמה לדיירים (לשליחה בקבוצת הבניין). הבקשות יגיעו לרשימת הדיירים של הוועד לאישור:', location.origin + '/resident-signup.html#k=' + d.code);
+        else alert('❌ ' + (d.error || 'שגיאה'));
+      } catch (e) { alert('❌ שגיאת תקשורת'); }
+    }
+    function v2SignupLinkByMac() {
+      const m = window.prompt('הזן כתובת MAC של הפנל ליצירת קישור הרשמה לדיירים:');
+      const mac = normMac(m || '');
+      if (!mac) return;
+      if (!/^[0-9A-F]{12}$/.test(mac)) { alert('MAC לא תקין'); return; }
+      v2SignupLink(mac);
     }
     async function v2ResidentLink(mac) {
       if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
