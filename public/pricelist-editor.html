@@ -297,7 +297,7 @@ let S={
 };
 
 function makeCat(name){return{id:'c'+Date.now()+Math.random().toString(36).slice(2),name:name||'',subtitle:'',products:[],open:true};}
-function makeProd(n){return{id:'p'+Date.now()+Math.random().toString(36).slice(2),name:'',sku:'',price:'',currency:'ils',desc:'',dimensions:'',hasApp:false,appExtra:'',appName:'',link:'',youtubeUrl:'',imgUrl:null,images:[],hidden:false,order:n||0,open:false};}
+function makeProd(n){return{id:'p'+Date.now()+Math.random().toString(36).slice(2),name:'',sku:'',price:'',currency:'ils',desc:'',dimensions:'',hasApp:false,appExtra:'',appName:'',screen10Extra:'',screen10Name:'',link:'',youtubeUrl:'',imgUrl:null,images:[],hidden:false,order:n||0,open:false};}
 // Currency symbol helper — defaults to shekel for products saved before this field existed
 function curSym(p){return (p&&p.currency==='usd')?'$':'₪';}
 
@@ -533,6 +533,21 @@ function renderProds(ci){
           </div>
         </div>
         <div>
+          <label>תוספת מחיר לשדרוג מסך 10" (ללקוח יהיה כפתור)</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="ms" style="color:var(--pr);font-size:18px;flex-shrink:0">tv</span>
+            <input type="number" value="${p.screen10Extra||''}" oninput="updP(${ci},${pi},'screen10Extra',this.value)" placeholder="0 (ריק = ללא כפתור)" style="font-family:var(--mono)"/>
+          </div>
+          ${(parseFloat(p.screen10Extra)>0)?`<div style="margin-top:4px;font-size:11px;color:var(--on-sfv)">מחיר עם מסך 10": <b style="color:var(--pr)">${curSym(p)}${(parseFloat(p.price||0)+parseFloat(p.screen10Extra)).toLocaleString()}</b></div>`:''}
+        </div>
+        <div>
+          <label>שם דגם עם מסך 10" (ריק = שם לא משתנה)</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="ms" style="color:var(--pr);font-size:18px;flex-shrink:0">sync_alt</span>
+            <input type="text" value="${esc(p.screen10Name||'')}" oninput="updP(${ci},${pi},'screen10Name',this.value)" placeholder="לדוגמא: Apollo-10-C"/>
+          </div>
+        </div>
+        <div>
           <label>קישור (לחיצה על תמונה תפתח אותו)</label>
           <div style="display:flex;align-items:center;gap:6px">
             <span class="ms" style="color:var(--out);font-size:18px;flex-shrink:0">link</span>
@@ -663,6 +678,7 @@ function buildPL(){
         ${p.desc?`<div class="pl-card-desc">${esc(p.desc)}</div>`:''}
         ${p.dimensions?`<div class="pl-card-dim"><span class="ms" style="font-size:12px">straighten</span>${esc(p.dimensions)}</div>`:''}
         ${(p.price && parseFloat(p.appExtra)>0)?`<div style="margin-top:7px;display:inline-flex;align-items:center;justify-content:center;gap:5px;width:100%;border:1.5px solid var(--pr);color:var(--pr);border-radius:8px;padding:6px;font-size:11px;font-weight:700"><span class="ms" style="font-size:14px">add_circle</span>הוסף אפליקציה (+${curSym(p)}${(parseFloat(p.appExtra)).toLocaleString()})</div>`:''}
+        ${(p.price && parseFloat(p.screen10Extra)>0)?`<div style="margin-top:7px;display:inline-flex;align-items:center;justify-content:center;gap:5px;width:100%;border:1.5px solid var(--pr);color:var(--pr);border-radius:8px;padding:6px;font-size:11px;font-weight:700"><span class="ms" style="font-size:14px">tv</span>שדרוג למסך 10" (+${curSym(p)}${(parseFloat(p.screen10Extra)).toLocaleString()})</div>`:''}
       </div>
     </div>`).join('');
 

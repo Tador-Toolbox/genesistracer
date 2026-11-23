@@ -262,11 +262,12 @@ function showCat(idx){
           ${p.hasApp?`<span title="עובד עם אפליקציה" style="position:absolute;bottom:7px;right:7px;z-index:2;background:var(--pr);border-radius:99px;padding:3px 8px;display:inline-flex;align-items:center;gap:3px;color:#fff;font-size:11px;font-weight:700"><span class="ms" style="font-size:13px">smartphone</span>אפליקציה · מסך WiFi</span>`:''}
         </div>
         <div class="pl-card-body">
-          ${p.price?`<div class="pl-card-price" id="price-${p.id}" data-base="${esc(p.price)}" data-extra="${esc(p.appExtra||0)}" data-sym="${curSym(p)}">${curSym(p)}${fmtNum(p.price)}</div>`:''}
-          <div class="pl-card-name" id="name-${p.id}" data-base-name="${esc(p.name||'')}" data-app-name="${esc(p.appName||'')}">${esc(p.name||'')}</div>
+          ${p.price?`<div class="pl-card-price" id="price-${p.id}" data-base="${esc(p.price)}" data-app-extra="${esc(p.appExtra||0)}" data-scr-extra="${esc(p.screen10Extra||0)}" data-sym="${curSym(p)}">${curSym(p)}${fmtNum(p.price)}</div>`:''}
+          <div class="pl-card-name" id="name-${p.id}" data-base-name="${esc(p.name||'')}" data-app-name="${esc(p.appName||'')}" data-scr-name="${esc(p.screen10Name||'')}">${esc(p.name||'')}</div>
           ${p.desc?`<div class="pl-card-desc">${esc(p.desc)}</div>`:''}
           ${p.dimensions?`<div class="pl-card-dim"><span class="ms" style="font-size:13px">straighten</span>${esc(p.dimensions)}</div>`:''}
-          ${(p.price && parseFloat(p.appExtra)>0)?`<button type="button" class="pl-app-toggle" id="apptgl-${p.id}" onclick="toggleApp('${p.id}')"><span class="ms" style="font-size:16px">add_circle</span><span class="pl-app-txt">הוסף אפליקציה (+${curSym(p)}${fmtNum(p.appExtra)})</span></button>`:''}
+          ${(p.price && parseFloat(p.appExtra)>0)?`<button type="button" class="pl-app-toggle" id="btn-app-${p.id}" onclick="selectOption('${p.id}','app')"><span class="ms" style="font-size:16px">add_circle</span><span class="pl-opt-txt">הוסף אפליקציה (+${curSym(p)}${fmtNum(p.appExtra)})</span></button>`:''}
+          ${(p.price && parseFloat(p.screen10Extra)>0)?`<button type="button" class="pl-app-toggle" id="btn-scr-${p.id}" onclick="selectOption('${p.id}','scr')"><span class="ms" style="font-size:16px">tv</span><span class="pl-opt-txt">שדרוג למסך 10" (+${curSym(p)}${fmtNum(p.screen10Extra)})</span></button>`:''}
           ${ytId?`<a href="https://youtube.com/watch?v=${ytId}" target="_blank" rel="noopener" class="pl-yt-btn" style="margin-top:9px;display:inline-flex;align-items:center;gap:6px;background:#f00;color:#fff;text-decoration:none;padding:7px 12px;border-radius:7px;font-size:12px;font-weight:700"><span class="ms" style="font-size:16px">smart_display</span> צפה בסרטון</a>`:''}
         </div>
       </div>`;
@@ -348,25 +349,47 @@ document.addEventListener('keydown', e => {
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function curSym(p){return (p&&p.currency==='usd')?'$':'₪';}
 function fmtNum(n){const v=parseFloat(n);return isNaN(v)?String(n):v.toLocaleString();}
-function toggleApp(id){
+function selectOption(id, which){
   const priceEl=document.getElementById('price-'+id);
-  const btn=document.getElementById('apptgl-'+id);
-  if(!priceEl||!btn)return;
-  const base=parseFloat(priceEl.dataset.base)||0;
-  const extra=parseFloat(priceEl.dataset.extra)||0;
-  const sym=priceEl.dataset.sym||String.fromCharCode(8362);
-  const on=btn.classList.toggle('active');
-  const val=on?base+extra:base;
-  priceEl.textContent=sym+val.toLocaleString();
   const nameEl=document.getElementById('name-'+id);
+  if(!priceEl)return;
+  const sym=priceEl.dataset.sym||String.fromCharCode(8362);
+  const base=parseFloat(priceEl.dataset.base)||0;
+  const appExtra=parseFloat(priceEl.dataset.appExtra)||0;
+  const scrExtra=parseFloat(priceEl.dataset.scrExtra)||0;
+  const appBtn=document.getElementById('btn-app-'+id);
+  const scrBtn=document.getElementById('btn-scr-'+id);
+  const clicked=(which==='app')?appBtn:scrBtn;
+  if(!clicked)return;
+  const wasActive=clicked.classList.contains('active');
+  // one at a time: clear both, then set the clicked one unless it was already active (toggle off)
+  [appBtn,scrBtn].forEach(b=>{if(b)b.classList.remove('active');});
+  let activeWhich=null;
+  if(!wasActive){ clicked.classList.add('active'); activeWhich=which; }
+  // price
+  let val=base;
+  if(activeWhich==='app') val=base+appExtra;
+  else if(activeWhich==='scr') val=base+scrExtra;
+  priceEl.textContent=sym+val.toLocaleString();
+  // name
   if(nameEl){
+    const baseName=nameEl.dataset.baseName;
     const appName=nameEl.dataset.appName;
-    if(appName){ nameEl.textContent = on ? appName : nameEl.dataset.baseName; }
+    const scrName=nameEl.dataset.scrName;
+    let nm=baseName;
+    if(activeWhich==='app'&&appName) nm=appName;
+    else if(activeWhich==='scr'&&scrName) nm=scrName;
+    nameEl.textContent=nm;
   }
-  const txt=btn.querySelector('.pl-app-txt');
-  const icon=btn.querySelector('.ms');
-  if(on){txt.textContent='\u05e2\u05dd \u05d0\u05e4\u05dc\u05d9\u05e7\u05e6\u05d9\u05d4 \u05d5\u05de\u05e1\u05da WiFi \u2713';icon.textContent='check_circle';}
-  else{txt.textContent='\u05d4\u05d5\u05e1\u05e3 \u05d0\u05e4\u05dc\u05d9\u05e7\u05e6\u05d9\u05d4 (+'+sym+extra.toLocaleString()+')';icon.textContent='add_circle';}
+  // button labels
+  if(appBtn){ const t=appBtn.querySelector('.pl-opt-txt'), ic=appBtn.querySelector('.ms');
+    if(appBtn.classList.contains('active')){t.textContent='\u05e2\u05dd \u05d0\u05e4\u05dc\u05d9\u05e7\u05e6\u05d9\u05d4 \u05d5\u05de\u05e1\u05da WiFi \u2713';ic.textContent='check_circle';}
+    else{t.textContent='\u05d4\u05d5\u05e1\u05e3 \u05d0\u05e4\u05dc\u05d9\u05e7\u05e6\u05d9\u05d4 (+'+sym+appExtra.toLocaleString()+')';ic.textContent='add_circle';}
+  }
+  if(scrBtn){ const t=scrBtn.querySelector('.pl-opt-txt'), ic=scrBtn.querySelector('.ms');
+    if(scrBtn.classList.contains('active')){t.textContent='\u05e2\u05dd \u05de\u05e1\u05da 10" \u2713';ic.textContent='check_circle';}
+    else{t.textContent='\u05e9\u05d3\u05e8\u05d5\u05d2 \u05dc\u05de\u05e1\u05da 10" (+'+sym+scrExtra.toLocaleString()+')';ic.textContent='tv';}
+  }
 }
 // Extract the video id from any YouTube URL format (watch, youtu.be, shorts, embed)
 function ytExtract(url){
