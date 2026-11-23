@@ -259,7 +259,7 @@ function showCat(idx){
           ${p.sku?`<span class="pl-sku" style="position:relative;z-index:2">${esc(p.sku)}</span>`:''}
           ${gallery.length>1?`<span style="position:absolute;top:7px;left:7px;z-index:2;background:rgba(0,0,0,.6);border-radius:99px;padding:3px 8px;display:inline-flex;align-items:center;gap:3px;color:#fff;font-size:11px;font-weight:700"><span class="ms" style="font-size:13px">photo_library</span>${gallery.length}</span>`:''}
           ${p.link?`<span style="position:absolute;bottom:7px;left:7px;z-index:2;background:rgba(0,0,0,.55);border-radius:99px;padding:3px 7px;display:inline-flex;align-items:center;gap:3px"><span class="ms" style="font-size:13px;color:#fff">open_in_new</span></span>`:''}
-          ${p.hasApp?`<span title="עובד עם אפליקציה" style="position:absolute;bottom:7px;right:7px;z-index:2;background:var(--pr);border-radius:99px;padding:3px 8px;display:inline-flex;align-items:center;gap:3px;color:#fff;font-size:11px;font-weight:700"><span class="ms" style="font-size:13px">smartphone</span>אפליקציה</span>`:''}
+          ${p.hasApp?`<span title="עובד עם אפליקציה" style="position:absolute;bottom:7px;right:7px;z-index:2;background:var(--pr);border-radius:99px;padding:3px 8px;display:inline-flex;align-items:center;gap:3px;color:#fff;font-size:11px;font-weight:700"><span class="ms" style="font-size:13px">smartphone</span>אפליקציה · מסך WiFi</span>`:''}
         </div>
         <div class="pl-card-body">
           ${p.price?`<div class="pl-card-price" id="price-${p.id}" data-base="${esc(p.price)}" data-extra="${esc(p.appExtra||0)}" data-sym="${curSym(p)}">${curSym(p)}${fmtNum(p.price)}</div>`:''}
