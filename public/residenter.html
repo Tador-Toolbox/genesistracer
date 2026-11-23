@@ -58,6 +58,15 @@
   .counts b{color:var(--red)}
   .saved{font-size:.8rem;color:var(--muted)}
   .note{font-size:.78rem;color:var(--muted);margin:4px 2px 0;line-height:1.4}
+  .addrbox{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:12px}
+  .addrbox label{font-weight:700;font-size:.86rem}
+  .addrbox input{flex:1 1 240px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font:inherit}
+  .addrbox .hint{flex-basis:100%;font-size:.75rem;color:var(--muted)}
+  .grpwarn{display:none;margin:10px 2px 0;padding:10px 12px;border:1px solid #f0c36d;background:#fff8e6;border-radius:10px;font-size:.84rem;line-height:1.5}
+  .grpwarn .gw-row{margin-top:8px}
+  .grpwarn input{margin-top:4px;width:100%;max-width:340px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit}
+  .grpwarn input.missing{border-color:#e53935;background:#fff1f0}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .grpwarn{background:#2a2410;border-color:#4a3f1a}}
   .grpopt{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:12px 2px 2px;font-size:.86rem}
   .grpopt > span{font-weight:700;color:var(--muted)}
   .grpopt label{display:inline-flex;gap:5px;align-items:center;cursor:pointer}
@@ -104,6 +113,12 @@
     <span id="connResult" class="connres"></span>
   </div>
 
+  <div class="addrbox">
+    <label for="bAddr" data-i18n="addr_label">📍 כתובת הבניין</label>
+    <input id="bAddr" data-i18n-ph="addr_ph" placeholder="לדוגמה: חורב 9, פתח תקווה" maxlength="120">
+    <div class="hint" data-i18n="addr_hint">הכתובת תוצג במסך הבית של פנל האינטרקום.</div>
+  </div>
+
   <div class="tablewrap">
     <table>
       <thead>
@@ -131,6 +146,7 @@
     <label><input type="radio" name="grpby" value="apartment" checked> <span data-i18n="grp_apartment">לפי דירה (דירה 07)</span></label>
     <label><input type="radio" name="grpby" value="family"> <span data-i18n="grp_family">לפי שם משפחה (משפחת שלמה)</span></label>
   </div>
+  <div class="grpwarn" id="grpWarn"></div>
 
   <div class="actions">
     <button class="b b-add" onclick="addRow()" data-i18n="b_add">➕ הוסף דייר</button>
@@ -157,6 +173,10 @@
       counts:(p,a)=>'דיירים: '+p+' · דירות (רישיונות): <b>'+a+'</b>',
       list_note:'הרשימה נשמרת עבור פנל זה. "שמור טיוטה" ו"שלח לאישור" מעדכנים את אותה רשימה, ובפתיחה הבאה היא נטענת שוב.',
       grp_label:'שם קבוצת דירה בפנל:', grp_apartment:'לפי דירה (דירה 07)', grp_family:'לפי שם משפחה (משפחת שלמה)',
+      addr_label:'📍 כתובת הבניין', addr_ph:'לדוגמה: חורב 9, פתח תקווה', addr_hint:'הכתובת תוצג במסך הבית של פנל האינטרקום.',
+      gw_title:'⚠️ שמות משפחה שונים באותה דירה',
+      gw_row:(apt,rows,names)=>'בדירה <b>'+apt+'</b> (שורות '+rows+') יש שמות משפחה שונים: <b>'+names+'</b>. אנא רשמו את השם הרצוי לקבוצה הזו, או מספר דירה:',
+      gw_ph:(apt,fam)=>'לדוגמה: משפחת '+fam+' / דירה '+apt, gw_missing:'יש לרשום שם לכל דירה עם שמות משפחה שונים לפני השליחה.',
       b_add:'➕ הוסף דייר', b_pull:'⬇ משוך רשימה מהפנל', b_save:'💾 שמור טיוטה', b_send:'📤 שלח לאישור',
       st_draft:'טיוטה', st_pending:'ממתין לאישור', st_approved:'אושר', st_rejected:'נדחה',
       save_missing_panel:'חסר מידע על הפנל — פתח מחדש מהפורטל.', save_missing_code:'חסר קוד', save_none:'אין דיירים לשליחה.',
@@ -180,6 +200,10 @@
       counts:(p,a)=>'Residents: '+p+' · Apartments (licenses): <b>'+a+'</b>',
       list_note:'The list is saved for this panel. "Save draft" and "Submit for approval" update the same list, and it loads again next time you open it.',
       grp_label:'Apartment group name on the panel:', grp_apartment:'By apartment (Apartment 07)', grp_family:'By family name (The Shlomo family)',
+      addr_label:'📍 Building address', addr_ph:'e.g. 9 Horev St, Petah Tikva', addr_hint:'The address is shown on the intercom panel home screen.',
+      gw_title:'⚠️ Different family names in the same apartment',
+      gw_row:(apt,rows,names)=>'Apartment <b>'+apt+'</b> (rows '+rows+') has different family names: <b>'+names+'</b>. Please enter the name you want for this group, or an apartment number:',
+      gw_ph:(apt,fam)=>'e.g. The '+fam+' family / Apartment '+apt, gw_missing:'Enter a name for every apartment with different family names before sending.',
       b_add:'➕ Add resident', b_pull:'⬇ Pull list from panel', b_save:'💾 Save draft', b_send:'📤 Submit for approval',
       st_draft:'Draft', st_pending:'Pending approval', st_approved:'Approved', st_rejected:'Rejected',
       save_missing_panel:'Panel info missing — reopen from the portal.', save_missing_code:'Missing code', save_none:'No residents to send.',
@@ -236,7 +260,7 @@
     setStatus(curStatus);
     updateCounts();
   }
-  function setLang(l){ applyLang(l); }
+  function setLang(l){ applyLang(l); try { checkGroups(); } catch(e){} }
 
   function showMain(){ document.getElementById('main').style.display=''; document.getElementById('gate').style.display='none'; updateMeta(); }
   function showGate(err){ document.getElementById('main').style.display='none'; document.getElementById('gate').style.display='block'; if (err) document.getElementById('gateMsg').textContent = err; }
@@ -259,7 +283,46 @@
     const el = document.getElementById('statusLbl');
     el.textContent = map[curStatus]; el.className = 'status ' + STCLS[curStatus];
   }
-  function setGroupBy(v){ document.querySelectorAll('input[name=grpby]').forEach(r=>{ r.checked = (r.value === (v || 'apartment')); }); }
+  function setGroupBy(v){ document.querySelectorAll('input[name=grpby]').forEach(r=>{ r.checked = (r.value === (v || 'apartment')); }); checkGroups(); }
+
+  // ── Apartment group names: when grouping by family name and one apartment has residents with
+  // different family names, ask which name the panel group should get (saved with the list, sent to the panel).
+  var GROUP_NAMES = {};   // { "01": "משפחת טוינה" } — loaded from the saved list, kept between renders
+  const pad2 = a => { a = String(a==null?'':a).trim(); return /^\d+$/.test(a) ? a.padStart(2,'0') : a; };
+  function groupBy(){ return ((document.querySelector('input[name=grpby]:checked')||{}).value) || 'apartment'; }
+  function groupConflicts(){
+    const byApt = {};
+    document.querySelectorAll('#rows tr').forEach((tr,i)=>{
+      const apt = pad2(tr.querySelector('.f-apt').value), last = tr.querySelector('.f-last').value.trim();
+      if (!apt) return;
+      (byApt[apt] = byApt[apt] || []).push({ row:i+1, last });
+    });
+    return Object.keys(byApt).sort().map(apt => {
+      const names = [...new Set(byApt[apt].map(x=>x.last).filter(Boolean))];
+      return { apt, rows: byApt[apt].map(x=>x.row), names };
+    }).filter(c => c.rows.length >= 2 && c.names.length >= 2);
+  }
+  function checkGroups(){
+    const box = document.getElementById('grpWarn'); if (!box) return;
+    // remember what was typed before re-rendering
+    box.querySelectorAll('input[data-apt]').forEach(i=>{ GROUP_NAMES[i.dataset.apt] = i.value; });
+    const list = groupBy()==='family' ? groupConflicts() : [];
+    if (!list.length){ box.style.display='none'; box.innerHTML=''; return; }
+    const d = tr();
+    box.innerHTML = '<b>'+d.gw_title+'</b>' + list.map(c =>
+      `<div class="gw-row">${d.gw_row(esc(c.apt), c.rows.join(', '), c.names.map(esc).join(', '))}<br>
+        <input data-apt="${esc(c.apt)}" value="${esc(GROUP_NAMES[c.apt]||'')}" placeholder="${esc(d.gw_ph(c.apt, c.names[0]))}" maxlength="40" oninput="this.classList.remove('missing')"></div>`).join('');
+    box.style.display = 'block';
+  }
+  function collectGroupNames(){
+    const out = {}; const box = document.getElementById('grpWarn');
+    if (box) box.querySelectorAll('input[data-apt]').forEach(i=>{ GROUP_NAMES[i.dataset.apt] = i.value; });
+    const active = groupBy()==='family' ? groupConflicts().map(c=>c.apt) : [];
+    active.forEach(a => { const v = String(GROUP_NAMES[a]||'').trim(); if (v) out[a] = v; });
+    return out;
+  }
+  document.addEventListener('change', e => { if (e.target && e.target.name === 'grpby') checkGroups(); });
+  document.addEventListener('input', e => { if (e.target && e.target.closest && e.target.closest('#rows') && (e.target.classList.contains('f-apt') || e.target.classList.contains('f-last'))) checkGroups(); });
 
   function rowHtml(r){
     r = r || {}; const d = tr();
@@ -281,7 +344,7 @@
   function renumber(){
     const trs = document.querySelectorAll('#rows tr');
     trs.forEach((tr,i)=>{ tr.querySelector('.num').textContent = i+1; });
-    updateCounts();
+    updateCounts(); checkGroups();
   }
   // Live count: residents filled in, and distinct apartments (= VoIPBell licenses).
   function updateCounts(){
@@ -316,13 +379,22 @@
     const residents = collect();
     if (submit && !residents.length){ msg(d.save_none, false); return; }
     const aptCount = new Set(residents.map(r=>String(r.apartment||'').trim()).filter(Boolean)).size;
+    const groupNames = collectGroupNames();
+    if (submit && groupBy()==='family') {
+      const missing = groupConflicts().filter(c => !groupNames[c.apt]);
+      if (missing.length) {
+        document.querySelectorAll('#grpWarn input[data-apt]').forEach(i=>{ if (!i.value.trim()) i.classList.add('missing'); });
+        msg(d.gw_missing, false); document.getElementById('grpWarn').scrollIntoView({behavior:'smooth',block:'center'}); return;
+      }
+    }
+    const buildingAddress = document.getElementById('bAddr').value.trim();
     if (submit && !confirm(d.confirm_send(residents.length, aptCount))) return;
     const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);
     msg(submit ? d.sending : d.saving, true);
     try{
       const groupNameBy = ((document.querySelector('input[name=grpby]:checked')||{}).value) || 'apartment';
       const endpoint = (MODE==='committee') ? '/api/residents/by-code/save' : '/api/installer/residents/save';
-      const payload  = (MODE==='committee') ? { code:CODE, residents, submit, groupNameBy } : { phoneNumber:PHONE, mac:MAC, residents, submit, groupNameBy };
+      const payload  = (MODE==='committee') ? { code:CODE, residents, submit, groupNameBy, groupNames, buildingAddress } : { phoneNumber:PHONE, mac:MAC, residents, submit, groupNameBy, groupNames, buildingAddress };
       const res = await fetch(endpoint, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify(payload)
@@ -347,7 +419,7 @@
   async function loadByCode(){
     try{
       const d = await fetch('/api/residents/by-code?code='+encodeURIComponent(CODE)).then(r=>r.json());
-      if (d.success){ render(d.residents); setStatus(d.status); setGroupBy(d.groupNameBy); return true; }
+      if (d.success){ GROUP_NAMES = d.groupNames || {}; document.getElementById('bAddr').value = d.buildingAddress || ''; render(d.residents); setStatus(d.status); setGroupBy(d.groupNameBy); return true; }
       return false;
     }catch(e){ return false; }
   }
@@ -358,7 +430,7 @@
     if (!MAC){ render([]); return; }
     try{
       const d = await fetch('/api/installer/residents?mac='+encodeURIComponent(MAC)).then(r=>r.json());
-      if (d.success){ render(d.residents); setStatus(d.status); setGroupBy(d.groupNameBy); }
+      if (d.success){ GROUP_NAMES = d.groupNames || {}; document.getElementById('bAddr').value = d.buildingAddress || ''; render(d.residents); setStatus(d.status); setGroupBy(d.groupNameBy); }
       else render([]);
     }catch(e){ render([]); }
   }

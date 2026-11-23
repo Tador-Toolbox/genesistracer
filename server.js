@@ -831,6 +831,20 @@ function prSanitizeResidents(arr) {
   });
   return out;
 }
+// Building address for the panel home screen, and per-apartment group names ({"01": "משפחת כהן"}).
+function prSanitizeListExtras(body) {
+  const out = {};
+  if (body && typeof body.buildingAddress === 'string') out.buildingAddress = body.buildingAddress.trim().slice(0, 120);
+  if (body && body.groupNames && typeof body.groupNames === 'object') {
+    const g = {};
+    Object.entries(body.groupNames).slice(0, 300).forEach(([k, v]) => {
+      const key = prPad2(String(k).trim().slice(0, 20)); const val = String(v == null ? '' : v).trim().slice(0, 40);
+      if (key && val) g[key] = val;
+    });
+    out.groupNames = g;
+  }
+  return out;
+}
 async function prInstallerOwnsMac(phoneNumber, cleanMac) {
   try {
     const d = await db.getInstallerDetails(phoneNumber);
@@ -844,7 +858,8 @@ app.get('/api/installer/residents', async (req, res) => {
     const cleanMac = prCleanMac(req.query.mac);
     if (!cleanMac) return res.status(400).json({ success: false, error: 'mac required' });
     const doc = await db.getPanelResidents(cleanMac);
-    res.json({ success: true, residents: doc ? doc.residents : [], status: doc ? (doc.status || 'draft') : 'draft', groupNameBy: doc ? (doc.groupNameBy || 'apartment') : 'apartment' });
+    res.json({ success: true, residents: doc ? doc.residents : [], status: doc ? (doc.status || 'draft') : 'draft', groupNameBy: doc ? (doc.groupNameBy || 'apartment') : 'apartment',
+      buildingAddress: (doc && doc.buildingAddress) || '', groupNames: (doc && doc.groupNames) || {} });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
@@ -857,7 +872,7 @@ app.post('/api/installer/residents/save', async (req, res) => {
     if (!(await prInstallerOwnsMac(phoneNumber, cleanMac))) return res.status(403).json({ success: false, error: 'not your panel' });
     const residents = prSanitizeResidents(req.body.residents);
     const status = req.body.submit ? 'pending' : 'draft';
-    const doc = await db.savePanelResidents(cleanMac, phoneNumber, residents, status, { groupNameBy: req.body.groupNameBy, savedBy: phoneNumber });
+    const doc = await db.savePanelResidents(cleanMac, phoneNumber, residents, status, { groupNameBy: req.body.groupNameBy, savedBy: phoneNumber, ...prSanitizeListExtras(req.body) });
     try { await db.addResidentHistory(cleanMac, { event: req.body.submit ? 'submit' : 'save', by: phoneNumber, count: residents.length }); } catch (e) {}
     try { await logActivity({ phoneNumber, action: req.body.submit ? 'residents_submit' : 'residents_save', mac: cleanMac, details: { count: residents.length }, success: true }); } catch (e) {}
     res.json({ success: true, residents: doc.residents, status: doc.status });
@@ -1114,7 +1129,9 @@ async function applySwapToPanel(cleanMac, swap) {
 
 // Push an approved resident list to the panel's Contacts.
 // Dedupes by sip_number (so re-running won't duplicate), then names apartment groups.
-async function pushResidentsToPanel(cleanMac, residents, groupNameBy) {
+async function pushResidentsToPanel(cleanMac, residents, groupNameBy, opts) {
+  opts = opts || {};
+  const groupNames = opts.groupNames || {};
   const rep = { created: 0, skipped: 0, failed: 0, groupsNamed: 0, error: null };
   const panelAddress = await resolvePanelAddress(cleanMac);
   if (!panelAddress) { rep.error = 'הפנל אינו מחובר או לא נמצא'; return rep; }
@@ -1153,7 +1170,8 @@ async function pushResidentsToPanel(cleanMac, residents, groupNameBy) {
           const gc = gcs.find(x => String(x.call_number) === cn);
           if (!gc || !gc.id) continue;
           let gname = 'דירה ' + cn;                 // default: name by apartment
-          if (groupNameBy === 'family') {
+          if (groupNames[cn]) gname = groupNames[cn];   // a name the committee/installer chose for this apartment wins
+          else if (groupNameBy === 'family') {
             const surnames = [...new Set((byApt[cn] || []).map(r => String((r && r.lastName) || '').trim()).filter(Boolean))];
             if (surnames.length === 1) gname = 'משפחת ' + surnames[0];   // one shared surname -> "משפחת <שם>"; else keep "דירה NN"
           }
@@ -1163,7 +1181,32 @@ async function pushResidentsToPanel(cleanMac, residents, groupNameBy) {
       }
     }
   } catch (e) {}
+
+  // Building address → panel home screen text (HAR: display/homepage, info.type customText).
+  if (opts.buildingAddress) {
+    try { rep.address = await setPanelHomeText(host, port, opts.buildingAddress); }
+    catch (e) { rep.address = { ok: false, error: e.message }; }
+  }
   return rep;
+}
+
+// Write a custom text (the building address) on the panel's home screen.
+// GET keeps the panel's language + reset timeout; POST goes through the tunnel without Authorization.
+async function setPanelHomeText(host, port, text) {
+  let language = 'en_US,he_IL', lang_reset_timeout = 15;
+  try {
+    const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+    const token = loginRes && loginRes.data && loginRes.data.token;
+    if (token) {
+      const cur = await panelHttpGetWithHeaders(host, port, '/api/v1/configurations/display/homepage', { Authorization: 'Bearer ' + token });
+      const d = (cur && cur.data) || {};
+      if (d.language) language = d.language;
+      if (d.lang_reset_timeout != null) lang_reset_timeout = d.lang_reset_timeout;
+    }
+  } catch (e) {}
+  const out = await panelPostJsonCurl(host, port, '/api/v1/configurations/display/homepage',
+    { language, lang_reset_timeout, info: { type: 'customText', content: String(text) } });
+  return { ok: out.ok, raw: out.ok ? undefined : out.raw };
 }
 
 // Manager: approve (pushes to the panel) / reject a submission
@@ -1180,7 +1223,8 @@ app.post('/api/manager/resident-submissions/status', async (req, res) => {
     const doc = await db.setPanelResidentsStatus(prCleanMac(mac), status, username);
     let push = null;
     if (status === 'approved') {
-      try { push = await pushResidentsToPanel(prCleanMac(mac), (doc && doc.residents) || [], doc && doc.groupNameBy); }
+      try { push = await pushResidentsToPanel(prCleanMac(mac), (doc && doc.residents) || [], doc && doc.groupNameBy,
+        { groupNames: (doc && doc.groupNames) || {}, buildingAddress: (doc && doc.buildingAddress) || '' }); }
       catch (e) { push = { error: e.message }; }
       try {
         await db.addResidentHistory(prCleanMac(mac), {
@@ -1714,7 +1758,8 @@ app.get('/api/residents/by-code', async (req, res) => {
   try {
     const doc = await db.getPanelResidentsByCode(req.query.code);
     if (!doc) return res.status(404).json({ success: false, error: 'קוד שגוי' });
-    res.json({ success: true, residents: doc.residents || [], status: doc.status || 'draft', groupNameBy: doc.groupNameBy || 'apartment' });
+    res.json({ success: true, residents: doc.residents || [], status: doc.status || 'draft', groupNameBy: doc.groupNameBy || 'apartment',
+      buildingAddress: doc.buildingAddress || '', groupNames: doc.groupNames || {} });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
@@ -1725,7 +1770,7 @@ app.post('/api/residents/by-code/save', async (req, res) => {
     if (!doc) return res.status(404).json({ success: false, error: 'קוד שגוי' });
     const residents = prSanitizeResidents(req.body.residents);
     const status = req.body.submit ? 'pending' : 'draft';
-    const saved = await db.savePanelResidents(doc.mac, undefined, residents, status, { groupNameBy: req.body.groupNameBy, savedBy: 'committee' });
+    const saved = await db.savePanelResidents(doc.mac, undefined, residents, status, { groupNameBy: req.body.groupNameBy, savedBy: 'committee', ...prSanitizeListExtras(req.body) });
     try { await db.addResidentHistory(doc.mac, { event: req.body.submit ? 'submit' : 'save', by: 'committee', count: residents.length }); } catch (e) {}
     try { await logActivity({ phoneNumber: 'committee', action: req.body.submit ? 'residents_submit_committee' : 'residents_save_committee', mac: doc.mac, details: { count: residents.length }, success: true }); } catch (e) {}
     res.json({ success: true, residents: saved.residents, status: saved.status });

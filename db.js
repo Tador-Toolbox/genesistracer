@@ -1094,6 +1094,9 @@ async function savePanelResidents(mac, phoneNumber, residents, status, extra) {
   if (status === 'pending') set.submittedAt = now;
   // Who saved last and when — so the manager can see the committee is working on the list.
   if (extra && extra.savedBy) { set.lastSavedBy = extra.savedBy; set.lastSavedAt = now; }
+  // Building address (shown on the panel home screen) + chosen names for apartment groups.
+  if (extra && typeof extra.buildingAddress === 'string') set.buildingAddress = extra.buildingAddress;
+  if (extra && extra.groupNames && typeof extra.groupNames === 'object') set.groupNames = extra.groupNames;
   await db.collection('panel_residents').updateOne(
     { mac }, { $set: set, $setOnInsert: { createdAt: now } }, { upsert: true }
   );

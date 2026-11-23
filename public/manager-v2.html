@@ -4894,6 +4894,8 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         }).join('') + '</tbody></table>') : '<div style="color:#888;font-size:12px;margin-top:14px;">אין היסטוריה עדיין</div>';
       document.getElementById('resViewBox').innerHTML =
         `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h3 style="margin:0;">דיירים — ${v2SecEsc(mac)}</h3><button onclick="document.getElementById('resViewOverlay').style.display='none'" style="border:none;background:#eee;border-radius:6px;padding:4px 10px;cursor:pointer;">✕</button></div>
+        ${s.buildingAddress ? `<div style="font-size:13px;margin-bottom:6px;">📍 כתובת הבניין: <b>${v2SecEsc(s.buildingAddress)}</b></div>` : ''}
+        ${s.groupNames && Object.keys(s.groupNames).length ? `<div style="font-size:13px;margin-bottom:8px;">👪 שמות קבוצות: ${Object.entries(s.groupNames).map(([a, n]) => 'דירה ' + v2SecEsc(a) + ' ← <b>' + v2SecEsc(n) + '</b>').join(' · ')}</div>` : ''}
         <table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#f6f7f9;"><th style="padding:6px 8px;">SIP</th><th style="padding:6px 8px;text-align:right;">שם</th><th style="padding:6px 8px;">דירה</th><th style="padding:6px 8px;text-align:right;">טלפון</th></tr></thead><tbody>${rows || '<tr><td colspan="4" style="padding:12px;text-align:center;color:#888;">ריק</td></tr>'}</tbody></table>
         ${histHtml}`;
       ov.style.display = 'flex';
@@ -4940,6 +4942,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
             if (p && !p.error) {
               m += '\nהעלאה לפנל: ' + p.created + ' נוצרו, ' + p.skipped + ' כבר קיימים, ' + p.failed + ' נכשלו';
               if (p.groupsNamed) m += ', ' + p.groupsNamed + ' קבוצות דירה נוצרו';
+              if (p.address) m += p.address.ok ? '\n📍 הכתובת עודכנה במסך הבית של הפנל' : '\n⚠ עדכון הכתובת בפנל נכשל';
             } else if (p && p.error) {
               m += '\n⚠ ההעלאה לפנל נכשלה: ' + p.error + '\nאפשר ללחוץ אישור שוב לניסיון נוסף.';
             }
