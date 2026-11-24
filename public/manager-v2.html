@@ -4669,6 +4669,21 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
       return '';
     }
 
+    // Installer that owns this MAC (committee accounts skipped) — used when the
+    // resident list was created by the committee/signup link and has no phoneNumber.
+    function v2InstallerForMac(mac) {
+      const n = normMac(mac || '');
+      const all = window._installerMacs || {};
+      const accts = window._allAccounts || [];
+      const info = ph => accts.find(a => a.phoneNumber === ph) || {};
+      for (const ph in all) {
+        const a = info(ph);
+        if (a.accountType === 'committee') continue;
+        if ((all[ph] || []).some(x => normMac(x.mac) === n)) return { phone: ph, name: a.installerName || '' };
+      }
+      return null;
+    }
+
     async function v2LoadResidents() {
       const body = document.getElementById('residentsBody');
       const upBody = document.getElementById('residentsUploadedBody');
@@ -4680,7 +4695,13 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         const cnt = (s.residents || []).length;
         const apt = (s.apartmentsCount != null) ? s.apartmentsCount : new Set((s.residents || []).map(r => String((r && r.apartment) || '').trim()).filter(Boolean)).size;
         return `<td style="padding:8px;"><b>${mac}</b>${acct ? `<div style="font-size:11px;color:var(--text-dim);">📞 ${v2SecEsc(acct)}</div>` : ''}</td>
-            <td style="padding:8px;text-align:center;">${v2SecEsc(s.phoneNumber || '')}</td>
+            <td style="padding:8px;text-align:center;">${(() => {
+              const own = v2InstallerForMac(s.mac);
+              const ph = s.phoneNumber || (own && own.phone) || '';
+              if (!ph) return '<span style="color:var(--text-dim);">—</span>';
+              const nm = (own && own.phone === ph && own.name) || ((window._allAccounts || []).find(a => a.phoneNumber === ph) || {}).installerName || '';
+              return (nm ? `<div style="font-weight:700;">${v2SecEsc(nm)}</div>` : '') + `<div style="font-size:11px;color:var(--text-dim);">${v2SecEsc(ph)}</div>`;
+            })()}</td>
             <td style="padding:8px;text-align:center;font-weight:700;">${cnt}</td>
             <td style="padding:8px;text-align:center;font-weight:700;color:var(--accent);">${apt}</td>`;
       };
