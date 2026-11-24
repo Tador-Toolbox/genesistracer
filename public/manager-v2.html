@@ -4736,7 +4736,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
             </td></tr>`;
         }).join('') : '<tr><td colspan="6" style="text-align:center;padding:18px;color:var(--text-dim);">אין רשימות ממתינות</td></tr>';
 
-        // Uploaded-to-panel table (view / QR / link only — no re-upload).
+        // Uploaded-to-panel table (view / QR / links / send again to the panel).
         if (upBody) {
           upBody.innerHTML = up.length ? up.map(s => {
             const mac = v2SecEsc(s.mac || '');
@@ -4745,6 +4745,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
               <td style="padding:8px;text-align:center;color:var(--text-dim);">${dt || '—'}</td>
               <td style="padding:8px;text-align:center;white-space:nowrap;">
                 ${btn('👁 צפה', `v2ViewResidents('${mac}')`, '#eef1f4', '#111')}
+                ${btn('🔁 שלח שוב לפנל', `v2ResidentResend('${mac}')`, '#7c3aed', '#fff')}
                 ${btn('🖨️ QR', `v2PrintAllQr('${v2SecEsc(s.phoneNumber || '')}','${mac}')`, '#0ea5e9', '#fff')}
                 ${btn('🔗 קישור לוועד', `v2ResidentLink('${mac}')`, '#64748b', '#fff')}
               ${btn('📝 הרשמת דיירים', `v2SignupLink('${mac}')`, '#16a34a', '#fff')}
@@ -4965,10 +4966,19 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
       if (!o) { o = document.createElement('div'); o.id = 'v2Busy'; o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100001;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700;'; document.body.appendChild(o); }
       o.textContent = text || '…'; o.style.display = show ? 'flex' : 'none';
     }
-    async function v2ResidentStatus(mac, status) {
+    // Send an already-uploaded list to the panel again (e.g. panel was reset / a contact failed / panel was offline).
+    // Same push as approve: adds only residents whose resident number is missing on the panel,
+    // re-applies group names + building address; never deletes or renames existing contacts.
+    function v2ResidentResend(mac) {
+      if (!confirm('לשלוח שוב את רשימת הדיירים של ' + mac + ' לפנל?\n\n' +
+        '• דיירים שחסרים בפנל יתווספו\n• דיירים שכבר קיימים בפנל (לפי מספר דייר) לא ישתנו\n' +
+        '• שמות קבוצות וכתובת הבניין יעודכנו שוב\n• שום דייר לא יימחק מהפנל')) return;
+      v2ResidentStatus(mac, 'approved', true);
+    }
+    async function v2ResidentStatus(mac, status, skipConfirm) {
       if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
       const verb = status === 'approved' ? 'לאשר ולהעלות לפנל' : 'לדחות';
-      if (!confirm(verb + ' את רשימת הדיירים של ' + mac + '?')) return;
+      if (!skipConfirm && !confirm(verb + ' את רשימת הדיירים של ' + mac + '?')) return;
       if (status === 'approved') v2Busy(true, 'מעלה לפנל… (עשוי לקחת כמה שניות)');
       try {
         const res = await fetch('/api/manager/resident-submissions/status', {
