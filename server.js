@@ -1078,13 +1078,14 @@ async function applySwapToPanel(cleanMac, swap) {
   // Leave-only ("עזיבה בלבד"): no one moves in. Never empty an apartment completely;
   // snapshot each departing contact (SIP reserved ~6 months) before deleting it.
   if (swap.leaveOnly) {
-    // Feature parked (TODO) — don't apply any leave-only request that was submitted before it was removed.
-    rep.error = 'עזיבה בלבד הוסרה מהמערכת — דחה את הבקשה הזו'; return rep;
+    // "אין דייר שנכנס" — the departing residents are deleted from the panel. Removing ALL of an
+    // apartment's residents is allowed: the apartment then simply no longer exists on the panel.
+    // Their SIPs are kept reserved for 6 months (resident_blocks 'left') so a new resident never
+    // gets a number a departed resident's app still dials.
     const inApt = contacts.filter(c => prPad2(c.call_number) === apt);
     const leavingSet = new Set(leavingIds.filter(x => x != null).map(String));
-    const remaining = inApt.filter(c => !leavingSet.has(String(c.id)));
     if (!leavingSet.size) { rep.error = 'הדיירים העוזבים לא נמצאו בפנל'; return rep; }
-    if (!remaining.length) { rep.error = 'לא ניתן להסיר את הדייר האחרון בדירה — לעדכון השתמש בעדכון דייר רגיל'; return rep; }
+    rep.apartmentRemoved = inApt.every(c => leavingSet.has(String(c.id)));
     const toDel = contacts.filter(c => leavingSet.has(String(c.id)));
     const out = await panelBatchDeleteCurl(host, port, toDel.map(c => c.id));
     if (!out.ok) { rep.error = 'מחיקת הדיירים מהפנל נכשלה'; return rep; }
@@ -1260,7 +1261,7 @@ app.post('/api/installer/resident-swap/save', async (req, res) => {
       phone: String((e && e.phone) || '').trim().slice(0, 30),              // resident phone — stored + printed only, NOT written to the panel
       sip: String((e && e.sip) != null ? e.sip : '').trim().slice(0, 10)   // preview SIP computed at submit
     })).filter(e => e.firstName || e.lastName);
-    const leaveOnly = false; // 'עזיבה בלבד' removed from the UI for now (TODO) — never accept it
+    const leaveOnly = !!req.body.leaveOnly;   // "אין דייר שנכנס" — residents leave, nobody moves in
     if (leaveOnly) {
       if (!leaving.length) return res.status(400).json({ success: false, error: 'בחרו לפחות דייר אחד שעוזב' });
       entering.length = 0;

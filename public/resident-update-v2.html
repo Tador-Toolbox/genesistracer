@@ -60,6 +60,8 @@
   .addonly{display:flex;align-items:center;gap:8px;margin:4px 0 12px;padding:10px 12px;border:1px dashed #9ad1a8;background:#f0fbf3;border-radius:10px;cursor:pointer;font-size:.92rem}
   .addonly input{width:18px;height:18px;accent-color:#2e9e3f}
   .leavelist.off{opacity:.35;pointer-events:none}
+  .leaveonly{display:block;cursor:pointer;padding:12px 16px}
+  .leaveonly input{width:18px;height:18px;accent-color:#e8001c;vertical-align:middle;margin-inline-end:6px}
   #enterRows .f-apt.editable{background:#fff;border:1px solid #e8001c55}
 </style>
 </head>
@@ -92,6 +94,10 @@
       <div class="leavelist" id="leaveList"></div>
       <div class="selinfo" id="selInfo"></div>
     </div>
+
+    <!-- "nobody is moving in" -->
+    <label class="card leaveonly"><input type="checkbox" id="leaveOnly" onchange="toggleLeaveOnly()"> <b data-i18n="lo_title">🚪 אין דייר שנכנס — רק עזיבה</b>
+      <span data-i18n="lo_sub" style="display:block;font-size:.8rem;color:var(--muted);margin-top:2px;">הדיירים שסומנו יימחקו מהפנל. אם סומנו כל דיירי הדירה — הדירה תוסר מהפנל לגמרי.</span></label>
 
     <!-- Step 2: who is entering -->
     <div class="card" id="enterCard">
@@ -139,9 +145,9 @@
       confirm:(l,e,a)=>'לשלוח לאישור? דירה '+a+': '+l+' עוזבים, '+e+' נכנסים.',
       sending:'שולח…', sent_ok:'✓ נשלח לאישור המנהל', save_err:'שגיאה בשליחה', net_err:m=>'שגיאת רשת: '+m,
       del_title:'הסר',
-      lo_title:'🚪 עזיבה בלבד – אין דייר נכנס', lo_sub:'הדייר יוסר מהפנל. מספר הדייר נשמר 6 חודשים למקרה שיחזור.',
+      lo_title:'🚪 אין דייר שנכנס — רק עזיבה', lo_sub:'הדיירים שסומנו יימחקו מהפנל. אם סומנו כל דיירי הדירה — הדירה תוסר מהפנל לגמרי.',
       last_err:'לא ניתן להסיר את הדייר האחרון בדירה — לעדכון השתמש בעדכון דייר רגיל (עוזב + נכנס).',
-      confirm_lo:(l,a)=>'לשלוח לאישור? דירה '+a+': '+l+' עוזבים, ללא דייר נכנס.'
+      confirm_lo:(l,a,all)=>'לשלוח לאישור? דירה '+a+': '+l+' דיירים יימחקו מהפנל, אף אחד לא נכנס.'+(all?'\n\n⚠️ סומנו כל דיירי הדירה — הדירה תוסר מהפנל לגמרי.':'')
     },
     en: {
       dir:'ltr', h_title:'Resident Update', h_sub:'Swap a resident in an apartment — send for manager approval', panel_lbl:'Panel:',
@@ -160,9 +166,9 @@
       confirm:(l,e,a)=>'Send for approval? Apt '+a+': '+l+' leaving, '+e+' moving in.',
       sending:'Sending…', sent_ok:'✓ Sent for manager approval', save_err:'Send error', net_err:m=>'Network error: '+m,
       del_title:'Remove',
-      lo_title:'🚪 Leaving only – nobody moves in', lo_sub:'The resident is removed from the panel. Their resident number is kept for 6 months in case they return.',
+      lo_title:'🚪 Nobody is moving in — leaving only', lo_sub:'The selected residents are deleted from the panel. If all residents of the apartment are selected, the apartment is removed from the panel completely.',
       last_err:'You cannot remove the last resident of an apartment — use a regular update (leaving + moving in).',
-      confirm_lo:(l,a)=>'Send for approval? Apt '+a+': '+l+' leaving, nobody moving in.'
+      confirm_lo:(l,a,all)=>'Send for approval? Apt '+a+': '+l+' residents deleted from the panel, nobody moving in.'+(all?'\n\n⚠️ All residents of the apartment are selected — the apartment will be removed from the panel.':'')
     }
   };
   let LANG = 'he';
@@ -264,8 +270,16 @@
   }
   // ── "Nobody is leaving" — add residents only; the apartment is typed by hand ──
   function isAddOnly(){ const c=document.getElementById('addOnly'); return !!(c && c.checked); }
+  function isLeaveOnly(){ const c=document.getElementById('leaveOnly'); return !!(c && c.checked); }
+  // "Nobody is moving in": hide step 2; the two checkboxes exclude each other.
+  function toggleLeaveOnly(){
+    const on = isLeaveOnly();
+    if (on && isAddOnly()){ document.getElementById('addOnly').checked = false; toggleAddOnly(); }
+    document.getElementById('enterCard').style.display = on ? 'none' : '';
+  }
   function toggleAddOnly(){
     const on = isAddOnly();
+    if (on && isLeaveOnly()){ document.getElementById('leaveOnly').checked = false; toggleLeaveOnly(); }
     if (on){ selectedIds = []; selApt = null; renderLeave(); updateSel(); }
     document.getElementById('leaveList').classList.toggle('off', on);
     document.querySelectorAll('#enterRows .f-apt').forEach(i=>{ i.readOnly = !on; i.classList.toggle('editable', on); if (!on) i.value = selApt || ''; else i.value = ''; });
@@ -286,6 +300,22 @@
     if (!addOnly && !leaving.length){ msg(d.need_leave, false); return; }
     const apt = addOnly ? String((document.querySelector('#enterRows .f-apt')||{}).value||'').trim() : selApt;
     if (addOnly && !apt){ msg(d.need_apt, false); const f=document.querySelector('#enterRows .f-apt'); if (f) f.focus(); return; }
+    if (isLeaveOnly()) {
+      const inApt = contacts.filter(c => String(c.call_number||'').trim() === String(selApt));
+      const all = leaving.length >= inApt.length;
+      if (!confirm(d.confirm_lo(leaving.length, selApt, all))) return;
+      const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);
+      msg(d.sending, true);
+      try{
+        const r = await fetch('/api/installer/resident-swap/save', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ phoneNumber: PHONE, mac: MAC, panelLabel: LABEL, apartment: selApt, leaveOnly: true,
+            leaving: leaving.map(c=>({ name:c.name, sip:c.sip_number, contactId:c.id })), entering: [] }) }).then(x=>x.json());
+        if (!r.success){ msg(r.error || d.save_err, false); }
+        else { msg(d.sent_ok, true); selectedIds = []; selApt = null; document.getElementById('leaveOnly').checked=false; toggleLeaveOnly(); renderLeave(); updateSel(); }
+      }catch(e){ msg(d.net_err(e.message), false); }
+      finally{ btns.forEach(b=>b.disabled=false); }
+      return;
+    }
     const entering = [];
     document.querySelectorAll('#enterRows tr').forEach(tr=>{
       const f = tr.querySelector('.f-first').value.trim();
