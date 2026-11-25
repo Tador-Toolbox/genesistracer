@@ -55,6 +55,7 @@
 <body>
   <div class="bar noprint">
     <div class="seg"><button id="lhe" onclick="setLang('he')">עברית</button><button id="len" onclick="setLang('en')">English</button></div>
+            <div class="seg" id="sortSeg"><button id="srtNum" onclick="setSort('num')">מס׳ דייר</button><button id="srtApt" onclick="setSort('apt')">לפי דירה</button></div>
     <button class="prt" onclick="window.print()">🖨️</button>
   </div>
   <div id="root"><div class="page"><p style="text-align:center;color:#666;padding:40px;">מכין את המערכת…</p></div></div>
@@ -63,7 +64,24 @@
             function qr(d,s){return "https://api.qrserver.com/v1/create-qr-code/?size="+s+"x"+s+"&margin=8&data="+encodeURIComponent(d);}
             function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c];});}
             function sub(t,it){if(it.kind==="committee")return t.codeLbl+": "+it.code+" · "+t.pwLbl+": "+it.password;if(it.kind==="voipbell")return t.softphoneLbl+it.account;return it.addr;}
+            // Resident form order: by resident number (default) or by apartment (first → last apartment).
+            var SORT = "num"; try { if (localStorage.getItem("qrFormSort") === "apt") SORT = "apt"; } catch (e) {}
+            function aptKey(a){ a=String(a==null?"":a).trim(); var n=parseInt(a,10); return isNaN(n) ? [1e9, a] : [n, a]; }
+            function sortedForm(list){
+              var out=(list||[]).slice();
+              if (SORT==="apt") out.sort(function(x,y){ var a=aptKey(x.apt), b=aptKey(y.apt);
+                if (a[0]!==b[0]) return a[0]-b[0]; if (a[1]!==b[1]) return a[1]<b[1]?-1:1; return (parseInt(x.num,10)||0)-(parseInt(y.num,10)||0); });
+              else out.sort(function(x,y){ return (parseInt(x.num,10)||0)-(parseInt(y.num,10)||0); });
+              return out;
+            }
+            function setSort(s){ SORT=s; try { localStorage.setItem("qrFormSort", s); } catch (e) {} render(CURL); }
+            var CURL = "he";
             function render(lang){
+              CURL = lang;
+              var sn=document.getElementById("srtNum"), sa=document.getElementById("srtApt");
+              if (sn && sa) { sn.className=(SORT==="num"?"on":""); sa.className=(SORT==="apt"?"on":"");
+                sn.textContent = lang==="he" ? "מיון: מס׳ דייר" : "Sort: resident no."; sa.textContent = lang==="he" ? "לפי דירה" : "By apartment";
+                var ss=document.getElementById("sortSeg"); if (ss) ss.style.display = (DATA && DATA.form && DATA.form.length) ? "" : "none"; }
               var t=T[lang], d=DATA; CUR=lang;
               document.getElementById("doc").dir=t.dir;
               document.getElementById("lhe").className=(lang==="he"?"on":"");
@@ -87,7 +105,7 @@
               }
               var p3="";
               if(d.form && d.form.length){
-                var frows=d.form.map(function(r){return "<tr><td class='fn'>"+esc(r.name)+"</td><td>"+esc(r.apt)+"</td><td class='fnum'>"+esc(r.num)+"</td></tr>";}).join("");
+                var frows=sortedForm(d.form).map(function(r){return "<tr><td class='fn'>"+esc(r.name)+"</td><td>"+esc(r.apt)+"</td><td class='fnum'>"+esc(r.num)+"</td></tr>";}).join("");
                 var srcTxt = d.formSource==='panel' ? t.fSrcPanel : (d.formSource==='saved' ? t.fSrcSaved : '');
                 p3="<div class='page p3'><div class='ghd'><img src='"+d.logo+"' alt='Tador'><h1>"+esc(t.formTitle)+"</h1><p>"+esc(t.formSub)+"</p></div>"
                   +"<div class='fsrc' style='color:#e8001c;font-weight:600;'>"+esc(t.fNote)+"</div>"+(srcTxt ? "<div class='fsrc'>"+esc(srcTxt)+"</div>" : "")
