@@ -4771,7 +4771,8 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
         if (!swaps.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-dim);">אין בקשות</td></tr>'; return; }
         tb.innerHTML = swaps.map(s => {
           const st = (s.status === 'rejected' && s.rejectReason === 'duplicate') ? ['נדחה – כפילות', '#9ca3af'] : (stMap[s.status] || stMap.pending);
-          const leaving = (s.leaving || []).map(l => v2SecEsc(l.name) + (l.sip ? (' (' + v2SecEsc(l.sip) + ')') : '')).join(', ') || '—';
+          const leaving = (s.leaving || []).map(l => v2SecEsc(l.name) + (l.sip ? (' (' + v2SecEsc(l.sip) + ')') : '')).join(', ')
+            || (s.leaveOnly ? '—' : '<span style="color:#16a34a;font-weight:800;">➕ הוספה בלבד</span>');
           // Numbers the incoming residents get: real (apply report) if approved, else the preview.
           const asg = (s.applyReport && s.applyReport.assignments) || null;
           const entering = s.leaveOnly

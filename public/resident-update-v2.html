@@ -57,6 +57,10 @@
   .selinfo{font-size:.86rem;font-weight:700;margin:4px 2px}
   .selinfo b{color:var(--red)}
   @media (max-width:520px){ header .t{font-size:1.02rem} }
+  .addonly{display:flex;align-items:center;gap:8px;margin:4px 0 12px;padding:10px 12px;border:1px dashed #9ad1a8;background:#f0fbf3;border-radius:10px;cursor:pointer;font-size:.92rem}
+  .addonly input{width:18px;height:18px;accent-color:#2e9e3f}
+  .leavelist.off{opacity:.35;pointer-events:none}
+  #enterRows .f-apt.editable{background:#fff;border:1px solid #e8001c55}
 </style>
 </head>
 <body>
@@ -84,6 +88,7 @@
     <div class="card">
       <h3><span class="step-n">1</span><span data-i18n="s1_title">מי עוזב?</span></h3>
       <div class="sub" data-i18n="s1_sub">בחרו את הדייר/ים שעוזבים — מאותה דירה בלבד.</div>
+      <label class="addonly"><input type="checkbox" id="addOnly" onchange="toggleAddOnly()"> <b data-i18n="ao_title">➕ אין דייר שעוזב — רק הוספת דייר</b></label>
       <div class="leavelist" id="leaveList"></div>
       <div class="selinfo" id="selInfo"></div>
     </div>
@@ -129,7 +134,7 @@
       load_empty:'אין דיירים בפנל זה.',
       apt_word:'דירה', sip_word:'מס׳ דייר', noname:'(ללא שם)',
       sel_none:'לא נבחרו דיירים עוזבים.', sel_some:n=>'נבחרו '+n+' דיירים עוזבים · דירה ',
-      need_leave:'בחרו לפחות דייר אחד שעוזב.', need_enter:'הזינו לפחות דייר אחד נכנס.',
+      need_leave:'בחרו לפחות דייר אחד שעוזב, או סמנו "אין דייר שעוזב".', ao_title:'➕ אין דייר שעוזב — רק הוספת דייר', need_apt:'הזינו מספר דירה לדייר הנכנס.', confirm_add:(e,a)=>'לשלוח לאישור? דירה '+a+': '+e+' דיירים נכנסים, אף אחד לא עוזב.', need_enter:'הזינו לפחות דייר אחד נכנס.',
       max5:'מקסימום 5 דיירים לדירה.',
       confirm:(l,e,a)=>'לשלוח לאישור? דירה '+a+': '+l+' עוזבים, '+e+' נכנסים.',
       sending:'שולח…', sent_ok:'✓ נשלח לאישור המנהל', save_err:'שגיאה בשליחה', net_err:m=>'שגיאת רשת: '+m,
@@ -150,7 +155,7 @@
       load_empty:'No residents on this panel.',
       apt_word:'Apt', sip_word:'Res. no.', noname:'(no name)',
       sel_none:'No departing residents selected.', sel_some:n=>n+' departing selected · Apt ',
-      need_leave:'Select at least one departing resident.', need_enter:'Enter at least one incoming resident.',
+      need_leave:'Select at least one departing resident, or tick "Nobody is leaving".', ao_title:'➕ Nobody is leaving — just add a resident', need_apt:'Enter the apartment number for the incoming resident.', confirm_add:(e,a)=>'Send for approval? Apt '+a+': '+e+' incoming, nobody leaving.', need_enter:'Enter at least one incoming resident.',
       max5:'Maximum 5 residents per apartment.',
       confirm:(l,e,a)=>'Send for approval? Apt '+a+': '+l+' leaving, '+e+' moving in.',
       sending:'Sending…', sent_ok:'✓ Sent for manager approval', save_err:'Send error', net_err:m=>'Network error: '+m,
@@ -244,7 +249,7 @@
       <td><input class="f-first" placeholder="${esc(d.ph_first)}"></td>
       <td><input class="f-last"  placeholder="${esc(d.ph_last)}"></td>
       <td><input class="f-phone" placeholder="${esc(d.ph_phone)}" inputmode="tel"></td>
-      <td class="apt"><input class="f-apt" value="${esc(selApt||'')}" readonly></td>
+      <td class="apt"><input class="f-apt${isAddOnly()?' editable':''}" value="${esc(isAddOnly() ? ((document.querySelector('#enterRows .f-apt')||{}).value||'') : (selApt||''))}" ${isAddOnly()?'':'readonly'}></td>
       <td class="del"><button class="xbtn" title="${esc(d.del_title)}" onclick="this.closest('tr').remove()">✕</button></td>
     </tr>`;
   }
@@ -253,14 +258,34 @@
     document.getElementById('enterRows').insertAdjacentHTML('beforeend', enterRowHtml());
     const inp = document.querySelector('#enterRows tr:last-child .f-first'); if (inp) inp.focus();
   }
-  function syncApt(){ document.querySelectorAll('#enterRows .f-apt').forEach(i=>i.value = selApt || ''); }
+  function syncApt(){
+    if (isAddOnly()) return;   // add-only: the apartment is typed, not taken from a departing resident
+    document.querySelectorAll('#enterRows .f-apt').forEach(i=>i.value = selApt || '');
+  }
+  // ── "Nobody is leaving" — add residents only; the apartment is typed by hand ──
+  function isAddOnly(){ const c=document.getElementById('addOnly'); return !!(c && c.checked); }
+  function toggleAddOnly(){
+    const on = isAddOnly();
+    if (on){ selectedIds = []; selApt = null; renderLeave(); updateSel(); }
+    document.getElementById('leaveList').classList.toggle('off', on);
+    document.querySelectorAll('#enterRows .f-apt').forEach(i=>{ i.readOnly = !on; i.classList.toggle('editable', on); if (!on) i.value = selApt || ''; else i.value = ''; });
+    if (on){ const f=document.querySelector('#enterRows .f-apt'); if (f) f.focus(); }
+  }
+  // typing the apartment in one incoming row copies it to the others (one apartment per request)
+  document.addEventListener('input', e => {
+    if (!isAddOnly() || !e.target.classList || !e.target.classList.contains('f-apt')) return;
+    document.querySelectorAll('#enterRows .f-apt').forEach(i=>{ if (i!==e.target) i.value = e.target.value; });
+  });
 
   function msg(t, ok){ const m=document.getElementById('msg'); m.textContent=t; m.className='msg '+(ok?'ok':'err'); }
 
   async function send(){
     const d = tr();
-    const leaving = selectedContacts();
-    if (!leaving.length){ msg(d.need_leave, false); return; }
+    const addOnly = isAddOnly();
+    const leaving = addOnly ? [] : selectedContacts();
+    if (!addOnly && !leaving.length){ msg(d.need_leave, false); return; }
+    const apt = addOnly ? String((document.querySelector('#enterRows .f-apt')||{}).value||'').trim() : selApt;
+    if (addOnly && !apt){ msg(d.need_apt, false); const f=document.querySelector('#enterRows .f-apt'); if (f) f.focus(); return; }
     const entering = [];
     document.querySelectorAll('#enterRows tr').forEach(tr=>{
       const f = tr.querySelector('.f-first').value.trim();
@@ -271,15 +296,15 @@
     if (!entering.length){ msg(d.need_enter, false); return; }
     // Preview resident numbers (SIP): highest on the panel + 1, +2, ... (manager re-checks on approval).
     let base = 1000;
-    contacts.forEach(c=>{ const n=parseInt(c.sip_number,10); if(!isNaN(n)&&n>base) base=n; });
+    contacts.forEach(c=>{ if (String(c.sip_number).trim()==='7777') return; const n=parseInt(c.sip_number,10); if(!isNaN(n)&&n>base) base=n; });
     entering.forEach((e,i)=>{ e.sip = String(base + i + 1); });
     if (entering.length > 5){ msg(d.max5, false); return; }
-    if (!confirm(d.confirm(leaving.length, entering.length, selApt))) return;
+    if (!confirm(addOnly ? d.confirm_add(entering.length, apt) : d.confirm(leaving.length, entering.length, selApt))) return;
     const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);
     msg(d.sending, true);
     try{
       const payload = {
-        phoneNumber: PHONE, mac: MAC, panelLabel: LABEL, apartment: selApt,
+        phoneNumber: PHONE, mac: MAC, panelLabel: LABEL, apartment: apt,
         leaving: leaving.map(c=>({ name:c.name, sip:c.sip_number, contactId:c.id })),
         entering
       };
@@ -291,6 +316,7 @@
       else {
         msg(d.sent_ok, true);
         selectedIds = []; selApt = null;
+        document.getElementById('addOnly').checked = false; document.getElementById('leaveList').classList.remove('off');
         document.getElementById('enterRows').innerHTML = ''; addEnter();
         renderLeave(); updateSel();
       }
