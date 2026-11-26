@@ -5287,7 +5287,15 @@ async function autoUploadResidentToPanel(residentId, building) {
 
     const cleanMac = (building.mac || '').replace(/[:\-\s]/g, '').toUpperCase();
     regUp(`🔓 auto-upload: START resident=${resident.firstName} ${resident.lastName} mac=${cleanMac}`);
-    const panelAddress = await resolvePanelAddress(cleanMac);
+    let r1 = await resolvePanelAddressDetailed(cleanMac, false);
+    let panelAddress = r1.addr;
+    if (!panelAddress) {
+      regUp('🔓 auto-upload: ⚠ panel lookup failed (try 1): ' + JSON.stringify(r1.d));
+      await new Promise(r => setTimeout(r, 1500));
+      const r2 = await resolvePanelAddressDetailed(cleanMac, true);   // retry with a fresh NexHome login
+      panelAddress = r2.addr;
+      regUp('🔓 auto-upload: ' + (panelAddress ? '✓' : '❌') + ' panel lookup (try 2, fresh login): ' + JSON.stringify(r2.d));
+    }
     if (!panelAddress) { regUp(`🔓 auto-upload: ❌ panel ${cleanMac} not found/offline`); return false; }
     regUp(`🔓 auto-upload: panel resolved → ${panelAddress}`);
 
@@ -5331,6 +5339,28 @@ async function resolvePanelAddress(cleanMac) {
   const ip = reverseLoginData?.result?.targetHost || null;
   const port = reverseLoginData?.result?.targetPort || null;
   return ip && port ? `${ip}:${port}` : null;
+}
+
+// Same as resolvePanelAddress but reports which step failed (used by face auto-upload + register-debug).
+// forceRelogin: drop the cached NexHome token of the chosen account first (stale/kicked session).
+async function resolvePanelAddressDetailed(cleanMac, forceRelogin) {
+  const d = { mac: cleanMac };
+  try {
+    if (forceRelogin) { const acc = NEXHOME_ACCOUNTS[roundRobinIndex % NEXHOME_ACCOUNTS.length]; if (acc) acc.expiresAt = 0; }
+    const auth = await getAuthToken('face-upload');
+    d.account = auth && auth.username;
+    const macData = await searchMac(auth, cleanMac);
+    const macEntry = (macData?.result?.elements || macData?.result?.list || [])[0];
+    if (!macEntry) { d.failedAt = 'searchMac'; d.resp = JSON.stringify(macData || null).slice(0, 300); return { addr: null, d }; }
+    const communityId = macEntry.usedCommunityId || macEntry.communityId;
+    const deviceData = await getDeviceByMac(auth, cleanMac, communityId);
+    const deviceEntry = (deviceData?.result?.elements || deviceData?.result?.list || [])[0];
+    if (!deviceEntry) { d.failedAt = 'getDeviceByMac'; d.resp = JSON.stringify(deviceData || null).slice(0, 300); return { addr: null, d }; }
+    const rl = await getReverseLoginInfo(auth, deviceEntry.id, communityId);
+    const ip = rl?.result?.targetHost || null, port = rl?.result?.targetPort || null;
+    if (!(ip && port)) { d.failedAt = 'reverseLogin'; d.resp = JSON.stringify(rl || null).slice(0, 300); return { addr: null, d }; }
+    return { addr: `${ip}:${port}`, d };
+  } catch (e) { d.failedAt = 'exception'; d.error = e.message; return { addr: null, d }; }
 }
 
 // Upload a single face: download from Cloudinary, then panel 2-step (image + access record) via curl
