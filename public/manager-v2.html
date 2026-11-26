@@ -1995,7 +1995,7 @@
       const panelType = document.getElementById('s4Type').value;
       const out = document.getElementById('s4Out');
       if (!phone) { out.innerHTML = '<span style="color:#ef4444;">בחר טכנאי</span>'; return; }
-      if (!/^[0-9A-F]{12}$/.test(mac)) { out.innerHTML = '<span style="color:#ef4444;">MAC לא תקין (12 תווים)</span>'; return; }
+      if (!/^[0-9A-F]{12}$/.test(mac)) { out.innerHTML = v2MacErr(mac); return; }
       if (!panelType) { out.innerHTML = '<span style="color:#ef4444;">בחר סוג פנל (Genesis 7 / Genesis 5)</span>'; return; }
       const others = Object.entries(window._installerMacs || {}).filter(([ph, ms]) => ph !== phone && (ms || []).some(m => normMac(m.mac) === mac)).map(([ph]) => ph);
       if (!confirm('לשייך את הפנל ' + mac + ' לטכנאי ' + (techName || phone) + '?' + (others.length ? '\n(הפנל כבר קיים גם אצל: ' + others.join(', ') + ')' : ''))) return;
@@ -2062,7 +2062,7 @@
       const phone = ex ? document.getElementById('s5Comm').value : document.getElementById('s5Phone').value.replace(/[^\d+]/g, '');
       const name = document.getElementById('s5Name').value.trim();
       if (!phone) { out.innerHTML = '<span style="color:#ef4444;">' + (ex ? 'בחר חשבון ועד' : 'הזן טלפון לוועד') + '</span>'; return; }
-      if (!/^[0-9A-F]{12}$/.test(mac)) { out.innerHTML = '<span style="color:#ef4444;">MAC לא תקין (12 תווים)</span>'; return; }
+      if (!/^[0-9A-F]{12}$/.test(mac)) { out.innerHTML = v2MacErr(mac); return; }
       if (!panelType) { out.innerHTML = '<span style="color:#ef4444;">בחר סוג פנל (Genesis 7 / Genesis 5)</span>'; return; }
       if (!ex && (window._allAccounts || []).some(a => a.phoneNumber === phone)) { out.innerHTML = '<span style="color:#ef4444;">הטלפון כבר קיים במערכת — בחר "חשבון ועד קיים"</span>'; return; }
       const q = ex ? ('לשייך את הפנל ' + mac + ' לחשבון הוועד ' + phone + '?')
@@ -2098,7 +2098,7 @@
       if (!acctIn.value) acctIn.value = document.getElementById('nhAcct').value || document.getElementById('vbName').value;
       const mac = normMac(macIn.value), account = acctIn.value.trim();
       const out = document.getElementById('s3Out');
-      if (!/^[0-9A-F]{12}$/.test(mac)) { out.innerHTML = '<span style="color:#ef4444;">MAC לא תקין (12 תווים)</span>'; return; }
+      if (!/^[0-9A-F]{12}$/.test(mac)) { out.innerHTML = v2MacErr(mac); return; }
       if (!account) { out.innerHTML = '<span style="color:#ef4444;">חסר שם חשבון VoIPBell</span>'; return; }
       if (!confirm('להגדיר בפנל ' + mac + ' את חשבון 2 = ' + account + '?')) return;
       const btn = document.getElementById('s3Btn'); btn.disabled = true;
@@ -2112,6 +2112,11 @@
       } catch (e) { out.innerHTML = '❌ ' + gymEsc(e.message); }
       btn.disabled = false;
     }
+    // Clear MAC error: shows what was typed and how many characters (e.g. 11 instead of 12).
+    function v2MacErr(mac) {
+      return '<span style="color:#ef4444;">MAC לא תקין: <b dir="ltr" style="font-family:monospace;">' + gymEsc(mac || '—') + '</b> — '
+        + (mac ? mac.length : 0) + ' תווים במקום 12. בדוק שלא חסרה או מיותרת ספרה.</span>';
+    }
     async function v2NhOpen() {
       if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
       const name = document.getElementById('nhName').value.trim();
@@ -2119,7 +2124,7 @@
       const mac = normMac(document.getElementById('nhMac').value);
       const out = document.getElementById('nhOut');
       if (!name) { out.innerHTML = '<span style="color:#ef4444;">חסר שם פרויקט</span>'; return; }
-      if (!/^[0-9A-F]{12}$/.test(mac)) { out.innerHTML = '<span style="color:#ef4444;">MAC לא תקין (12 תווים)</span>'; return; }
+      if (!/^[0-9A-F]{12}$/.test(mac)) { out.innerHTML = v2MacErr(mac); return; }
       const btn = document.getElementById('nhBtn'); btn.disabled = true;
       out.innerHTML = '⏳ פותח ב-NexHome…';
       out.innerHTML = await v2NexhomeOpen(name, address, mac);
