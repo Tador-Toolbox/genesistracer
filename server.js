@@ -4776,6 +4776,31 @@ app.post('/api/residents/register', upload.single('photo'), async (req, res) => 
         }
         return res.json({ success: true, pending: true });
       }
+      if (mode === 'list') {
+        // Name + apartment come from the resident list, never from the form.
+        const hit = await findPhoneInResidentLists(building, phone);
+        if (!hit) return res.json({ success: false, error: 'not_found' });
+        let photoUrl = null;
+        if (req.file) {
+          const result = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              { folder: 'genesistracer-residents', resource_type: 'image' },
+              (error, result) => error ? reject(error) : resolve(result)
+            );
+            stream.end(req.file.buffer);
+          });
+          photoUrl = result.secure_url;
+        }
+        const insertResult = await database.collection('residents').insertOne({
+          buildingCode, mac: building.mac,
+          firstName: hit.firstName, lastName: hit.lastName, phone: cleanPhone, apartment: hit.apartment,
+          photoUrl, status: 'approved', uploadedToPanel: false, selfRegistered: true, fromResidentList: true,
+          createdAt: new Date(), registeredAt: new Date(),
+        });
+        // The list was already approved by the manager → upload the face right away (like 'open').
+        const uploaded = await autoUploadResidentToPanel(insertResult.insertedId, building);
+        return res.json({ success: true, autoUploaded: true, reachedPanel: uploaded });
+      }
       return res.json({ success: false, error: 'not_found' });
     }
     if (resident.status === 'registered') return res.json({ success: false, error: 'already_registered' });
@@ -4863,7 +4888,7 @@ app.post('/api/buildings/:code/registration-mode', async (req, res) => {
     if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASS) {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
-    if (!['whitelist', 'committee', 'open'].includes(mode)) {
+    if (!['whitelist', 'committee', 'open', 'list'].includes(mode)) {
       return res.json({ success: false, error: 'Invalid mode' });
     }
     const database = await require('./db').connectDB();
@@ -5617,6 +5642,27 @@ app.post('/api/buildings/:code/upload-residents', upload.single('file'), async (
   }
 });
 
+// 'list' registration mode: the phone must appear in a resident list (רשימת דיירים) that was
+// already approved AND uploaded to one of the building's panels. Returns the list row (name/apartment) or null.
+function regNormPhone(p) {
+  let d = String(p || '').replace(/\D/g, '');
+  if (d.startsWith('972')) d = '0' + d.slice(3);
+  return d;
+}
+async function findPhoneInResidentLists(building, phone) {
+  const want = regNormPhone(phone);
+  if (!building || want.length < 7) return null;
+  const macs = [...new Set([building.mac, ...((building.panels || []).map(p => p && p.mac))]
+    .filter(Boolean).map(m => String(m).replace(/[:\-\s]/g, '').toUpperCase()))];
+  for (const mac of macs) {
+    const doc = await db.getPanelResidents(mac);
+    if (!doc || doc.status !== 'approved' || !(doc.history || []).some(h => h && h.event === 'uploaded')) continue;
+    const r = (doc.residents || []).find(x => regNormPhone(x.phone) === want);
+    if (r) return { firstName: r.firstName || '', lastName: r.lastName || '', apartment: r.apartment || '', mac };
+  }
+  return null;
+}
+
 // Public: verify phone for registration
 app.post('/api/residents/verify-phone', async (req, res) => {
   try {
@@ -5633,6 +5679,10 @@ app.post('/api/residents/verify-phone', async (req, res) => {
       const mode = building ? (building.registrationMode || (building.openRegistration ? 'committee' : 'whitelist')) : 'whitelist';
       if (mode === 'committee' || mode === 'open') {
         return res.json({ success: true, openMode: true, mode, firstName: '', lastName: '', apartment: '', residentId: null });
+      }
+      if (mode === 'list') {
+        const hit = await findPhoneInResidentLists(building, phone);
+        if (hit) return res.json({ success: true, listMode: true, mode, firstName: hit.firstName, lastName: hit.lastName, apartment: hit.apartment, residentId: null });
       }
       return res.json({ success: false, error: 'not_found' });
     }

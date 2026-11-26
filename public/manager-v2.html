@@ -2691,6 +2691,7 @@
       whitelist: 'רשימה מאושרת — רק דיירים שהוזנו מראש ע״י הוועד יכולים להירשם',
       committee: 'אישור ועד — כל אחד יכול להירשם, הוועד מאשר כל דייר לפני העלאה לפנל',
       open:      'פתוח לגמרי — כל אחד נרשם ומועלה אוטומטית לפנל (ללא אישור)',
+      list:      'לפי רשימת הדיירים — רק טלפון שמופיע ברשימת הדיירים שעלתה לפנל; השם והדירה נלקחים מהרשימה, הפנים עולות אוטומטית',
     };
     async function v2SetBuildingMode(code, mode) {
       if (!window.__mgr) { alert('יש להתחבר מחדש כדי לשנות מצב'); return; }
@@ -2744,6 +2745,7 @@
           ${modeRadio('whitelist')}
           ${modeRadio('committee')}
           ${modeRadio('open')}
+          ${modeRadio('list')}
           <div id="bldModeMsg" style="font-size:12px;color:#16a34a;min-height:16px;margin-top:4px;"></div>
         </div>
         <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
