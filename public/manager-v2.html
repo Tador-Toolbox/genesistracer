@@ -1957,6 +1957,10 @@
       try {
         const j = await fetch('/api/manager/voipbell/create', { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...window.__mgr, name, client }) }).then(r => r.json());
+        if (!j.success && j.code === 'NAME_TAKEN') {
+          out.innerHTML = '⚠️ ' + gymEsc(j.error) + ' <div style="margin-top:6px;font-size:12px;">לחץ שוב על "אחרון T98" / "אחרון G510" לקבלת המספר הפנוי הבא (השם הזה כבר לא יוצע).</div>';
+          btn.disabled = false; return;
+        }
         if (!j.success) out.innerHTML = '❌ ' + gymEsc(j.error || 'שגיאה') + ' <a href="/api/manager/voipbell/create-debug" target="_blank" style="font-size:12px;">פרטי יצירה</a> · <a href="/api/manager/voipbell-debug" target="_blank" style="font-size:12px;">יומן</a>';
         if (j.success) { document.getElementById('nhAcct').value = name; v2NhBuildName(); }
         if (!j.success) {} else if (j.already) out.innerHTML = 'ℹ️ חשבון בשם <b dir="ltr">' + gymEsc(name) + '</b> כבר קיים ב-VoIPBell — לא נוצר שוב.';

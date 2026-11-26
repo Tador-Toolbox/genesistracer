@@ -4618,7 +4618,7 @@ app.post('/api/manager/voipbell/create', async (req, res) => {
     res.json({ success: true, name: acct, ...out });
   } catch (e) {
     try { await logActivity({ phoneNumber: username, action: 'voipbell_create', mac: null, details: { name: acct, error: e.message }, success: false }); } catch (e2) {}
-    res.status(502).json({ success: false, error: e.message });
+    res.status(502).json({ success: false, error: e.message, code: e.code || null });
   }
 });
 

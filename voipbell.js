@@ -253,6 +253,10 @@ function hiddenInputs(html) {
   return out;
 }
 
+// Names the portal refused with "nombre ya existe" although they're not in our list (taken on the
+// server by another user / a deleted account). Skipped when suggesting the next free number.
+const takenNames = new Set();
+
 // Returns { created, already, adminUser, adminPass }.
 async function createAccount(name, client) {
   const acct = String(name || '').trim();
@@ -321,7 +325,13 @@ async function createAccount(name, client) {
         if (lastCreate) lastCreate.posts.push({ attempt, status: res.status, location: res.headers.location || '', len: String(res.data || '').length,
           messages: msgs, isLogin: isLoginPage(res.data), sentFields: fields.map(f => f[1]),
           missingFromForm: lastCreate.formFields.map(f => f.name).filter(n => !fields.some(x => x[1] === n)) });
-      } catch (e) { dbg('create:POST_error', { attempt, error: e.message }); }
+        if (msgs.some(m => /ya existe/i.test(String(m)))) {
+          takenNames.add(acct.toLowerCase());
+          dbg('create:name_taken', { name: acct });
+          const err = new Error('השם ' + acct + ' כבר תפוס בשרת VoIPBell (לא מופיע ברשימה שלנו — כנראה חשבון של משתמש אחר או חשבון שנמחק). בחר מספר אחר.');
+          err.code = 'NAME_TAKEN'; throw err;
+        }
+      } catch (e) { if (e.code === 'NAME_TAKEN') throw e; dbg('create:POST_error', { attempt, error: e.message }); }
       await sleep(1300);
       if (await accountExists(acct)) { dbg('create:ok', { name: acct, attempt }); qrCache[acct] = undefined; return { created: true, already: false, adminUser, adminPass }; }
       dbg('create:not-found-yet', { attempt });
@@ -374,10 +384,10 @@ async function lastByPrefix(prefix) {
     const width = Number(Object.entries(widths).sort((a, b) => b[1] - a[1])[0]?.[0] || 0);
     const fmt = n => pre + String(n).padStart(width, '0');
     const free = [];
-    for (let i = 1; i < max && free.length < 50; i++) if (!nums.has(i)) free.push(i);
+    for (let i = 1; i < max && free.length < 50; i++) if (!nums.has(i) && !takenNames.has(fmt(i).toLowerCase())) free.push(i);
     const nextNum = free.length ? free[0] : max + 1;
     const last = max ? nums.get(max) : '';
-    dbg('lastByPrefix', { prefix: pre, count: nums.size, last, free: free.slice(0, 10) });
+    dbg('lastByPrefix', { prefix: pre, count: nums.size, last, free: free.slice(0, 10), skippedTaken: [...takenNames].filter(n => n.startsWith(pre)) });
     return { prefix: pre, count: nums.size, last, next: fmt(nextNum), nextIsGap: free.length > 0,
       free: free.map(fmt), recent: sortedNums.slice(-5).reverse().map(n => nums.get(n)) };
   });
