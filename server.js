@@ -4838,6 +4838,8 @@ app.post('/api/residents/register', upload.single('photo'), async (req, res) => 
       resident = await database.collection('residents').findOne({ buildingCode, phone: cleanPhone });
     }
 
+    regLog({ step: 'register', buildingCode, phone: cleanPhone, residentIdSent: residentId || null, mode: building.registrationMode || (building.openRegistration ? 'committee' : 'whitelist'),
+      existingResident: regResSummary(resident), hasFile: !!req.file, path: resident ? (resident.status === 'registered' ? 'already_registered' : 'existing_record → save only, NO panel upload') : 'no_record → mode branch' });
     if (!resident) {
       // Self-registration modes for unknown phones:
       //   'committee' → create as pending (committee approves before panel)
@@ -4903,6 +4905,7 @@ app.post('/api/residents/register', upload.single('photo'), async (req, res) => 
         });
         // The list was already approved by the manager → upload the face right away (like 'open').
         const uploaded = await autoUploadResidentToPanel(insertResult.insertedId, building);
+        regLog({ step: 'register_list_upload', buildingCode, phone: cleanPhone, name: hit.firstName + ' ' + hit.lastName, residentId: String(insertResult.insertedId), reachedPanel: uploaded });
         return res.json({ success: true, autoUploaded: true, reachedPanel: uploaded });
       }
       return res.json({ success: false, error: 'not_found' });
@@ -5231,29 +5234,30 @@ async function runUploadFacesJob(jobId, buildingCode, building, residentIds, pan
 // Auto-upload a single resident's face to the building's panel immediately (open mode 3).
 // Runs in the background — errors are logged but never block the resident's registration.
 async function autoUploadResidentToPanel(residentId, building) {
+  const regUp = (msg) => { console.log(msg); try { regLog({ step: 'auto_upload', residentId: String(residentId), msg }); } catch (e) {} };
   try {
     const { ObjectId } = require('mongodb');
     const database = await require('./db').connectDB();
     const resident = await database.collection('residents').findOne({ _id: new ObjectId(residentId) });
-    if (!resident || !resident.photoUrl) { console.log('🔓 auto-upload: no resident/photo'); return false; }
+    if (!resident || !resident.photoUrl) { regUp('🔓 auto-upload: no resident/photo'); return false; }
 
     const cleanMac = (building.mac || '').replace(/[:\-\s]/g, '').toUpperCase();
-    console.log(`🔓 auto-upload: START resident=${resident.firstName} ${resident.lastName} mac=${cleanMac}`);
+    regUp(`🔓 auto-upload: START resident=${resident.firstName} ${resident.lastName} mac=${cleanMac}`);
     const panelAddress = await resolvePanelAddress(cleanMac);
-    if (!panelAddress) { console.log(`🔓 auto-upload: ❌ panel ${cleanMac} not found/offline`); return false; }
-    console.log(`🔓 auto-upload: panel resolved → ${panelAddress}`);
+    if (!panelAddress) { regUp(`🔓 auto-upload: ❌ panel ${cleanMac} not found/offline`); return false; }
+    regUp(`🔓 auto-upload: panel resolved → ${panelAddress}`);
 
     const [host, portStr] = panelAddress.split(':');
     const port = parseInt(portStr) || 80;
     const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
     const token = loginRes?.data?.token;
-    if (!token) { console.log('🔓 auto-upload: ❌ panel login failed'); return false; }
+    if (!token) { regUp('🔓 auto-upload: ❌ panel login failed'); return false; }
 
     const name = (resident.firstName + ' ' + resident.lastName).trim();
     // Skip if a face with this name already exists on the panel
     const existing = await getAllPanelFaces(host, port, token);
     if (existing.some(f => (f.label || '').trim().toLowerCase() === name.toLowerCase())) {
-      console.log(`🔓 auto-upload: ${name} already on panel`);
+      regUp(`🔓 auto-upload: ${name} already on panel`);
       await database.collection('residents').updateOne({ _id: resident._id },
         { $set: { uploadedToPanel: true, uploadedAt: new Date(), status: 'approved' } });
       return true;
@@ -5262,10 +5266,10 @@ async function autoUploadResidentToPanel(residentId, building) {
     await uploadFaceToPanel(host, port, token, name, resident.photoUrl);
     await database.collection('residents').updateOne({ _id: resident._id },
       { $set: { uploadedToPanel: true, uploadedAt: new Date(), status: 'approved' } });
-    console.log(`🔓 auto-upload: ✅ ${name} uploaded to panel ${host}:${port}`);
+    regUp(`🔓 auto-upload: ✅ ${name} uploaded to panel ${host}:${port}`);
     return true;
   } catch (e) {
-    console.log(`🔓 auto-upload: ❌ ${e.message}`);
+    regUp(`🔓 auto-upload: ❌ ${e.message}`);
     return false;
   }
 }
@@ -5748,6 +5752,12 @@ app.post('/api/buildings/:code/upload-residents', upload.single('file'), async (
 
 // 'list' registration mode: the phone must appear in a resident list (רשימת דיירים) that was
 // already approved AND uploaded to one of the building's panels, updated by approved עדכוני דייר. Returns the list row (name/apartment) or null.
+// Registration debug log (resident-register.html): every verify/register step with the path taken.
+const REG_DEBUG_LOG = [];
+function regLog(e) { REG_DEBUG_LOG.unshift({ at: new Date().toISOString(), ...e }); if (REG_DEBUG_LOG.length > 200) REG_DEBUG_LOG.length = 200; }
+app.get('/api/manager/register-debug', (req, res) => res.json({ success: true, log: REG_DEBUG_LOG }));
+function regResSummary(r) { return r ? { id: String(r._id), name: ((r.firstName || '') + ' ' + (r.lastName || '')).trim(), status: r.status, hasPhoto: !!r.photoUrl, uploadedToPanel: !!r.uploadedToPanel, leftAt: r.leftAt || null, fromResidentList: !!r.fromResidentList } : null; }
+
 function regNormPhone(p) {
   let d = String(p || '').replace(/\D/g, '');
   if (d.startsWith('972')) d = '0' + d.slice(3);
@@ -5792,6 +5802,13 @@ app.post('/api/residents/verify-phone', async (req, res) => {
     const database = await require('./db').connectDB();
 
     const resident = await database.collection('residents').findOne({ buildingCode, phone: cleanPhone });
+    try {
+      const b0 = await database.collection('buildings').findOne({ buildingCode });
+      const m0 = b0 ? (b0.registrationMode || (b0.openRegistration ? 'committee' : 'whitelist')) : 'whitelist';
+      const hit0 = (m0 === 'list') ? await findPhoneInResidentLists(b0, phone) : undefined;
+      regLog({ step: 'verify', buildingCode, phone: cleanPhone, mode: m0, existingResident: regResSummary(resident), listHit: hit0 === undefined ? '(not list mode)' : hit0,
+        path: resident ? (resident.status === 'registered' ? 'already_registered' : 'existing_record') : 'no_record' });
+    } catch (e) { regLog({ step: 'verify', buildingCode, phone: cleanPhone, logError: e.message }); }
     if (!resident) {
       // committee + open modes both let unknown phones self-register (resident types name/apt)
       const building = await database.collection('buildings').findOne({ buildingCode });
