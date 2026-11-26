@@ -1367,6 +1367,19 @@ app.post('/api/manager/resident-swaps/status', async (req, res) => {
       try { photos = await deleteDepartedResidentPhotos(buildingCode, swap.apartment, swap.leaving); }
       catch (e) { photos = [{ name: '', result: 'error', error: e.message }]; }
       if (report && typeof report === 'object') report.photos = photos;
+      // …and delete their face from the panel(s) so the door no longer opens for them (HAR: POST /api/v1/access/batchdelete {list:[id]}).
+      let faces = null;
+      try {
+        let macs = [swap.mac];
+        try {
+          const col = (await require('./db').connectDB()).collection('buildings');
+          const b = await findBuildingByMac(col, swap.mac);
+          if (b) macs = [...new Set([swap.mac, b.mac, ...((b.panels || []).map(p => p && p.mac))].filter(Boolean).map(m => String(m).replace(/[:\-\s]/g, '').toUpperCase()))];
+        } catch (e) {}
+        const skip = new Set((photos || []).filter(p => p.result === 'ambiguous').map(p => String(p.name || '').replace(/\s+/g, ' ').trim().toLowerCase()));
+        faces = await deleteDepartedFacesFromPanels(macs, swap.leaving, skip, buildingCode);
+      } catch (e) { faces = [{ name: '', result: 'error', error: e.message }]; }
+      if (report && typeof report === 'object') report.faces = faces;
     }
     const updated = await db.setResidentSwapStatus(id, status, username, report, buildingCode ? { buildingCode } : null);
     // Auto-clean: on approve, reject other pending requests that are an EXACT copy of this one.
@@ -1422,6 +1435,53 @@ async function deleteDepartedResidentPhotos(buildingCode, apartment, leaving) {
   }
   return out;
 }
+// Delete departing residents' FACES from the panel(s): match face label == contact name (exactly one
+// face with that name per panel; more than one → 'ambiguous', nothing deleted). Verified by re-reading the list.
+async function deleteDepartedFacesFromPanels(macs, leaving, skipNames, buildingCode) {
+  const out = [];
+  const norm = (x) => String(x || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const log = (e) => { PHOTO_DELETE_LOG.unshift({ at: new Date().toISOString(), kind: 'face', buildingCode, ...e }); PHOTO_DELETE_LOG.length = Math.min(PHOTO_DELETE_LOG.length, 200); };
+  for (const mac of macs) {
+    let host, port, token, faces;
+    try {
+      const addr = await resolvePanelAddress(mac);
+      if (!addr) { (leaving || []).forEach(l => { const e = { mac, name: l.name || '', result: 'panel_offline' }; out.push(e); log(e); }); continue; }
+      [host, port] = [addr.split(':')[0], parseInt(addr.split(':')[1]) || 80];
+      const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+      token = loginRes && loginRes.data && loginRes.data.token;
+      if (!token) throw new Error('כניסה לפנל נכשלה');
+      faces = await getAllPanelFaces(host, port, token);
+    } catch (err) { (leaving || []).forEach(l => { const e = { mac, name: l.name || '', result: 'error', error: err.message }; out.push(e); log(e); }); continue; }
+    for (const l of (leaving || [])) {
+      const name = norm(l.name);
+      let e;
+      if (!name) continue;
+      if (skipNames && skipNames.has(name)) e = { mac, name: l.name, result: 'ambiguous' };
+      else {
+        const hits = faces.filter(f => norm(f.label) === name);
+        if (!hits.length) e = { mac, name: l.name, result: 'not_found' };
+        else if (hits.length > 1) e = { mac, name: l.name, result: 'ambiguous', count: hits.length };
+        else {
+          const id = Number(hits[0].id);
+          const out2 = await new Promise((resolve) => {
+            const fs = require('fs'), os = require('os');
+            const tmp = require('path').join(os.tmpdir(), `facedel_${Date.now()}_${id}.json`);
+            fs.writeFileSync(tmp, JSON.stringify({ list: [Number.isFinite(id) ? id : hits[0].id] }));
+            const cmd = `curl -s --max-time 15 -X POST -H "Authorization: Bearer ${token}" -H "Content-Type: application/json;charset=UTF-8" ` +
+              `-H "Origin: http://${host}:${port}" -H "Referer: http://${host}:${port}/" --data @${tmp} "http://${host}:${port}/api/v1/access/batchdelete"`;
+            exec(cmd, { maxBuffer: 1024 * 1024 }, (err, stdout) => { fs.unlink(tmp, () => {}); resolve(err ? { error: err.message } : { stdout }); });
+          });
+          let gone = false;
+          try { gone = !(await getAllPanelFaces(host, port, token)).some(f => String(f.id) === String(hits[0].id)); } catch (x) {}
+          e = { mac, name: l.name, result: gone ? 'deleted' : 'error', faceId: hits[0].id, panel: (out2.stdout || out2.error || '').slice(0, 200) };
+        }
+      }
+      out.push(e); log(e);
+    }
+  }
+  return out;
+}
+
 app.get('/api/manager/photo-delete-debug', (req, res) => res.json({ success: true, log: PHOTO_DELETE_LOG }));
 
 // Manager: departed residents ("עזיבה בלבד") still inside their 6-month keep window.

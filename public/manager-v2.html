@@ -4985,7 +4985,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
     async function v2SwapStatus(id, status) {
       if (!window.__mgr) { alert('יש להתחבר מחדש'); return; }
       if (!confirm(status === 'approved' ? 'לאשר ולבצע את השינוי בפנל?' : 'לדחות את הבקשה?')) return;
-      if (status === 'approved') v2Busy(true, 'מבצע בפנל… (עשוי לקחת כמה שניות)');
+      if (status === 'approved') v2Busy(true, 'מבצע בפנל… (עשוי לקחת כמה דקות)');
       try {
         const d = await fetch('/api/manager/resident-swaps/status', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -4997,9 +4997,11 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           const r = d.report || {};
           const ph = (r.photos || []);
           const phTxt = ph.length ? ('\n🖼️ תמונות מהשרת: ' + ph.map(p => p.name + ' — ' + ({ deleted: 'נמחקה', not_found: 'לא נמצא רישום', no_photo: 'אין תמונה', ambiguous: 'יותר מדייר אחד בשם הזה, לא נמחק', no_building: 'אין בניין משויך' }[p.result] || ('שגיאה ' + (p.error || p.cloudinary || '')))).join(' · ')) : '';
+          const fc = (r.faces || []);
+          const fcTxt = fc.length ? ('\n🧑 זיהוי פנים בפנל: ' + fc.map(p => p.name + ' — ' + ({ deleted: 'הפנים נמחקו מזיכרון הפנל', not_found: 'לא נמצאו פנים בשם הזה', ambiguous: 'יותר מאחד בשם הזה, לא נמחק', panel_offline: 'הפנל לא מחובר' }[p.result] || ('שגיאה ' + (p.error || '')))).join(' · ')) : '';
           if (r.error) alert('⚠ אושר אך ההחלה בפנל נכשלה: ' + r.error + '\nאפשר לנסות שוב.');
-          else if (r.departed) alert('🚪 הוסרו מהפנל: ' + r.departed.map(x => x.name + ' (' + x.sip + ')').join(', ') + (r.apartmentRemoved ? '\n🏚️ כל דיירי הדירה הוסרו — הדירה כבר לא קיימת בפנל.' : '') + phTxt + (d.duplicatesRejected ? ('\n🧹 ' + d.duplicatesRejected + ' בקשות כפולות נדחו אוטומטית') : ''));
-          else alert('✓ בוצע בפנל — עודכנו: ' + (r.edited || 0) + ', נוספו: ' + (r.created || 0) + ', נמחקו: ' + (r.deleted || 0) + (r.failed ? (' , נכשלו: ' + r.failed) : '') + phTxt + (d.duplicatesRejected ? ('\n🧹 ' + d.duplicatesRejected + ' בקשות כפולות נדחו אוטומטית') : ''));
+          else if (r.departed) alert('🚪 הוסרו מהפנל: ' + r.departed.map(x => x.name + ' (' + x.sip + ')').join(', ') + (r.apartmentRemoved ? '\n🏚️ כל דיירי הדירה הוסרו — הדירה כבר לא קיימת בפנל.' : '') + phTxt + fcTxt + (d.duplicatesRejected ? ('\n🧹 ' + d.duplicatesRejected + ' בקשות כפולות נדחו אוטומטית') : ''));
+          else alert('✓ בוצע בפנל — עודכנו: ' + (r.edited || 0) + ', נוספו: ' + (r.created || 0) + ', נמחקו: ' + (r.deleted || 0) + (r.failed ? (' , נכשלו: ' + r.failed) : '') + phTxt + fcTxt + (d.duplicatesRejected ? ('\n🧹 ' + d.duplicatesRejected + ' בקשות כפולות נדחו אוטומטית') : ''));
         }
         v2LoadSwaps();
       } catch (e) { v2Busy(false); alert('❌ שגיאת תקשורת'); }
