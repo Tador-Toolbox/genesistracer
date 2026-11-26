@@ -1216,6 +1216,11 @@ async function saveResidentSwap(doc) {
   rec._id = r.insertedId;
   return rec;
 }
+// Approved resident updates for one panel, oldest first (used to keep the face-registration allow-list current).
+async function listApprovedSwapsForMac(mac) {
+  await connectDB();
+  return db.collection('resident_swaps').find({ mac, status: 'approved' }).sort({ approvedAt: 1, createdAt: 1 }).toArray();
+}
 async function listResidentSwaps(status) {
   await connectDB();
   const q = status ? { status } : {};
@@ -1359,6 +1364,7 @@ async function listActiveBlockedSips(mac) {
 }
 
 module.exports = {
+  listApprovedSwapsForMac,
   connectDB,
   getPanelResidents,
   savePanelResidents,

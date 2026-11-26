@@ -5643,7 +5643,7 @@ app.post('/api/buildings/:code/upload-residents', upload.single('file'), async (
 });
 
 // 'list' registration mode: the phone must appear in a resident list (רשימת דיירים) that was
-// already approved AND uploaded to one of the building's panels. Returns the list row (name/apartment) or null.
+// already approved AND uploaded to one of the building's panels, updated by approved עדכוני דייר. Returns the list row (name/apartment) or null.
 function regNormPhone(p) {
   let d = String(p || '').replace(/\D/g, '');
   if (d.startsWith('972')) d = '0' + d.slice(3);
@@ -5655,10 +5655,25 @@ async function findPhoneInResidentLists(building, phone) {
   const macs = [...new Set([building.mac, ...((building.panels || []).map(p => p && p.mac))]
     .filter(Boolean).map(m => String(m).replace(/[:\-\s]/g, '').toUpperCase()))];
   for (const mac of macs) {
+    // Start from the resident list — only if it was approved AND uploaded to the panel…
     const doc = await db.getPanelResidents(mac);
-    if (!doc || doc.status !== 'approved' || !(doc.history || []).some(h => h && h.event === 'uploaded')) continue;
-    const r = (doc.residents || []).find(x => regNormPhone(x.phone) === want);
-    if (r) return { firstName: r.firstName || '', lastName: r.lastName || '', apartment: r.apartment || '', mac };
+    let rows = (doc && doc.status === 'approved' && (doc.history || []).some(h => h && h.event === 'uploaded'))
+      ? (doc.residents || []).map(r => ({ firstName: r.firstName || '', lastName: r.lastName || '', apartment: r.apartment || '', phone: r.phone || '', sip: String(r.sip || '') }))
+      : [];
+    // …then apply every approved עדכון דייר in order: leaving residents out (by SIP), incoming residents in.
+    let swaps = [];
+    try { swaps = await db.listApprovedSwapsForMac(mac); } catch (e) {}
+    for (const sw of swaps) {
+      const outSips = new Set((sw.leaving || []).map(l => String(l.sip || '')).filter(Boolean));
+      if (outSips.size) rows = rows.filter(r => !outSips.has(r.sip));
+      const asg = (sw.applyReport && sw.applyReport.assignments) || [];
+      (sw.entering || []).forEach((e, i) => {
+        const a = asg.find(x => x && e.phone && regNormPhone(x.phone) === regNormPhone(e.phone)) || asg[i] || {};
+        rows.push({ firstName: e.firstName || '', lastName: e.lastName || '', apartment: a.apartment || sw.apartment || '', phone: e.phone || '', sip: String(a.sip || e.sip || '') });
+      });
+    }
+    const r = rows.find(x => regNormPhone(x.phone) === want);
+    if (r) return { firstName: r.firstName, lastName: r.lastName, apartment: r.apartment, mac };
   }
   return null;
 }
