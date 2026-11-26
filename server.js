@@ -1361,6 +1361,13 @@ app.post('/api/manager/resident-swaps/status', async (req, res) => {
         });
       } catch (e) {}
     }
+    // Departing residents: delete their registration photo from Cloudinary (panel faces are NOT touched).
+    let photos = null;
+    if (status === 'approved' && (swap.leaving || []).length) {
+      try { photos = await deleteDepartedResidentPhotos(buildingCode, swap.apartment, swap.leaving); }
+      catch (e) { photos = [{ name: '', result: 'error', error: e.message }]; }
+      if (report && typeof report === 'object') report.photos = photos;
+    }
     const updated = await db.setResidentSwapStatus(id, status, username, report, buildingCode ? { buildingCode } : null);
     // Auto-clean: on approve, reject other pending requests that are an EXACT copy of this one.
     let duplicatesRejected = 0;
@@ -1379,6 +1386,43 @@ app.post('/api/manager/resident-swaps/status', async (req, res) => {
     res.json({ success: true, status: updated ? updated.status : status, report, duplicatesRejected });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
+
+// When a resident leaves (approved עדכון דייר): find their face-registration record in the building
+// (same full name, same apartment if the record has one) and delete the photo from Cloudinary.
+// Same name twice → nothing is deleted ('ambiguous'). Every result is kept in PHOTO_DELETE_LOG (debug route below).
+const PHOTO_DELETE_LOG = [];
+async function deleteDepartedResidentPhotos(buildingCode, apartment, leaving) {
+  const out = [];
+  const log = (e) => { PHOTO_DELETE_LOG.unshift({ at: new Date().toISOString(), buildingCode, apartment, ...e }); PHOTO_DELETE_LOG.length = Math.min(PHOTO_DELETE_LOG.length, 200); };
+  if (!buildingCode) { (leaving || []).forEach(l => { const e = { name: l.name || '', result: 'no_building' }; out.push(e); log(e); }); return out; }
+  const norm = (x) => String(x || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const aptN = (x) => String(x || '').trim().replace(/^0+(?=\d)/, '');
+  const col = (await require('./db').connectDB()).collection('residents');
+  const all = await col.find({ buildingCode }).toArray();
+  for (const l of (leaving || [])) {
+    const name = norm(l.name);
+    const hits = all.filter(r => norm((r.firstName || '') + ' ' + (r.lastName || '')) === name
+      && (!r.apartment || !apartment || aptN(r.apartment) === aptN(apartment)));
+    let e;
+    if (!hits.length) e = { name: l.name || '', result: 'not_found' };
+    else if (hits.length > 1) e = { name: l.name || '', result: 'ambiguous', count: hits.length };
+    else {
+      const r = hits[0];
+      const m = String(r.photoUrl || '').match(/\/(genesistracer-residents\/[^./?]+)/);
+      if (!m) e = { name: l.name || '', result: 'no_photo', residentId: String(r._id) };
+      else {
+        let destroy = null;
+        try { destroy = await cloudinary.uploader.destroy(m[1], { resource_type: 'image' }); } catch (err) { destroy = { result: 'error', error: err.message }; }
+        const ok = destroy && (destroy.result === 'ok' || destroy.result === 'not found');
+        if (ok) await col.updateOne({ _id: r._id }, { $unset: { photoUrl: '' }, $set: { photoDeletedAt: new Date(), leftAt: new Date() } });
+        e = { name: l.name || '', result: ok ? 'deleted' : 'error', publicId: m[1], cloudinary: destroy && destroy.result, error: destroy && destroy.error, residentId: String(r._id) };
+      }
+    }
+    out.push(e); log(e);
+  }
+  return out;
+}
+app.get('/api/manager/photo-delete-debug', (req, res) => res.json({ success: true, log: PHOTO_DELETE_LOG }));
 
 // Manager: departed residents ("עזיבה בלבד") still inside their 6-month keep window.
 app.get('/api/manager/departed', async (req, res) => {
