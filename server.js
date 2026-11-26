@@ -1364,7 +1364,7 @@ app.post('/api/manager/resident-swaps/status', async (req, res) => {
     // Departing residents: delete their registration photo from Cloudinary (panel faces are NOT touched).
     let photos = null;
     if (status === 'approved' && (swap.leaving || []).length) {
-      try { photos = await deleteDepartedResidentPhotos(buildingCode, swap.apartment, swap.leaving); }
+      try { photos = await deleteDepartedResidentPhotos(buildingCode, swap.apartment, swap.leaving, swap.mac); }
       catch (e) { photos = [{ name: '', result: 'error', error: e.message }]; }
       if (report && typeof report === 'object') report.photos = photos;
       // …and delete their face from the panel(s) so the door no longer opens for them (HAR: POST /api/v1/access/batchdelete {list:[id]}).
@@ -1377,7 +1377,11 @@ app.post('/api/manager/resident-swaps/status', async (req, res) => {
           if (b) macs = [...new Set([swap.mac, b.mac, ...((b.panels || []).map(p => p && p.mac))].filter(Boolean).map(m => String(m).replace(/[:\-\s]/g, '').toUpperCase()))];
         } catch (e) {}
         const skip = new Set((photos || []).filter(p => p.result === 'ambiguous').map(p => String(p.name || '').replace(/\s+/g, ' ').trim().toLowerCase()));
-        faces = await deleteDepartedFacesFromPanels(macs, swap.leaving, skip, buildingCode);
+        const leavingForFaces = (swap.leaving || []).map(l => {
+          const p = (photos || []).find(x => x.name === l.name && x.recordName);
+          return { ...l, altName: p ? p.recordName : '' };
+        });
+        faces = await deleteDepartedFacesFromPanels(macs, leavingForFaces, skip, buildingCode);
       } catch (e) { faces = [{ name: '', result: 'error', error: e.message }]; }
       if (report && typeof report === 'object') report.faces = faces;
     }
@@ -1404,7 +1408,7 @@ app.post('/api/manager/resident-swaps/status', async (req, res) => {
 // (same full name, same apartment if the record has one) and delete the photo from Cloudinary.
 // Same name twice → nothing is deleted ('ambiguous'). Every result is kept in PHOTO_DELETE_LOG (debug route below).
 const PHOTO_DELETE_LOG = [];
-async function deleteDepartedResidentPhotos(buildingCode, apartment, leaving) {
+async function deleteDepartedResidentPhotos(buildingCode, apartment, leaving, mac) {
   const out = [];
   const log = (e) => { PHOTO_DELETE_LOG.unshift({ at: new Date().toISOString(), buildingCode, apartment, ...e }); PHOTO_DELETE_LOG.length = Math.min(PHOTO_DELETE_LOG.length, 200); };
   if (!buildingCode) { (leaving || []).forEach(l => { const e = { name: l.name || '', result: 'no_building' }; out.push(e); log(e); }); return out; }
@@ -1412,9 +1416,15 @@ async function deleteDepartedResidentPhotos(buildingCode, apartment, leaving) {
   const aptN = (x) => String(x || '').trim().replace(/^0+(?=\d)/, '');
   const col = (await require('./db').connectDB()).collection('residents');
   const all = await col.find({ buildingCode }).toArray();
+  // SIP → phone from the resident list + approved updates (the departing resident is still in it at this point).
+  let rows = [];
+  try { if (mac) rows = await residentListRowsForMac(mac); } catch (e) {}
   for (const l of (leaving || [])) {
     const name = norm(l.name);
-    const hits = all.filter(r => norm((r.firstName || '') + ' ' + (r.lastName || '')) === name
+    const row = l.sip ? rows.find(r => r.sip && String(r.sip) === String(l.sip)) : null;
+    const ph = row && regNormPhone(row.phone);
+    let hits = (ph && ph.length >= 7) ? all.filter(r => regNormPhone(r.phone) === ph) : [];
+    if (!hits.length) hits = all.filter(r => norm((r.firstName || '') + ' ' + (r.lastName || '')) === name
       && (!r.apartment || !apartment || aptN(r.apartment) === aptN(apartment)));
     let e;
     if (!hits.length) e = { name: l.name || '', result: 'not_found' };
@@ -1422,13 +1432,14 @@ async function deleteDepartedResidentPhotos(buildingCode, apartment, leaving) {
     else {
       const r = hits[0];
       const m = String(r.photoUrl || '').match(/\/(genesistracer-residents\/[^./?]+)/);
-      if (!m) e = { name: l.name || '', result: 'no_photo', residentId: String(r._id) };
+      if (!m) { e = { name: l.name || '', result: 'no_photo', residentId: String(r._id), recordName: ((r.firstName || '') + ' ' + (r.lastName || '')).trim() };
+        await col.updateOne({ _id: r._id }, { $set: { leftAt: new Date() } }); }
       else {
         let destroy = null;
         try { destroy = await cloudinary.uploader.destroy(m[1], { resource_type: 'image' }); } catch (err) { destroy = { result: 'error', error: err.message }; }
         const ok = destroy && (destroy.result === 'ok' || destroy.result === 'not found');
         if (ok) await col.updateOne({ _id: r._id }, { $unset: { photoUrl: '' }, $set: { photoDeletedAt: new Date(), leftAt: new Date() } });
-        e = { name: l.name || '', result: ok ? 'deleted' : 'error', publicId: m[1], cloudinary: destroy && destroy.result, error: destroy && destroy.error, residentId: String(r._id) };
+        e = { name: l.name || '', result: ok ? 'deleted' : 'error', publicId: m[1], cloudinary: destroy && destroy.result, error: destroy && destroy.error, residentId: String(r._id), recordName: ((r.firstName || '') + ' ' + (r.lastName || '')).trim() };
       }
     }
     out.push(e); log(e);
@@ -1458,7 +1469,8 @@ async function deleteDepartedFacesFromPanels(macs, leaving, skipNames, buildingC
       if (!name) continue;
       if (skipNames && skipNames.has(name)) e = { mac, name: l.name, result: 'ambiguous' };
       else {
-        const hits = faces.filter(f => norm(f.label) === name);
+        let hits = faces.filter(f => norm(f.label) === name);
+        if (!hits.length && l.altName) hits = faces.filter(f => norm(f.label) === norm(l.altName));
         if (!hits.length) e = { mac, name: l.name, result: 'not_found' };
         else if (hits.length > 1) e = { mac, name: l.name, result: 'ambiguous', count: hits.length };
         else {
@@ -4839,7 +4851,39 @@ app.post('/api/residents/register', upload.single('photo'), async (req, res) => 
     }
 
     regLog({ step: 'register', buildingCode, phone: cleanPhone, residentIdSent: residentId || null, mode: building.registrationMode || (building.openRegistration ? 'committee' : 'whitelist'),
-      existingResident: regResSummary(resident), hasFile: !!req.file, path: resident ? (resident.status === 'registered' ? 'already_registered' : 'existing_record → save only, NO panel upload') : 'no_record → mode branch' });
+      existingResident: regResSummary(resident), hasFile: !!req.file, path: building.registrationMode === 'list' ? 'list_mode' : (resident ? (resident.status === 'registered' ? 'already_registered' : 'existing_record → save only, NO panel upload') : 'no_record → mode branch') });
+    if (building.registrationMode === 'list') {
+      // Phone must be on the list; name + apartment from the list; reuse any old record of this phone; face goes straight to the panel.
+      const hit = await findPhoneInResidentLists(building, phone);
+      if (!hit) return res.json({ success: false, error: 'not_found' });
+      let photoUrl = null;
+      if (req.file) {
+        const result = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { folder: 'genesistracer-residents', resource_type: 'image' },
+            (error, result) => error ? reject(error) : resolve(result)
+          );
+          stream.end(req.file.buffer);
+        });
+        photoUrl = result.secure_url;
+      }
+      const col = database.collection('residents');
+      const old = await col.findOne({ buildingCode, phone: cleanPhone });
+      const fields = { mac: building.mac, firstName: hit.firstName, lastName: hit.lastName, apartment: hit.apartment, phone: cleanPhone,
+        photoUrl, status: 'approved', uploadedToPanel: false, selfRegistered: true, fromResidentList: true, registeredAt: new Date() };
+      let rid;
+      if (old) {
+        const om = String(old.photoUrl || '').match(/\/(genesistracer-residents\/[^./?]+)/);
+        if (om) { try { await cloudinary.uploader.destroy(om[1], { resource_type: 'image' }); } catch (e) {} }
+        await col.updateOne({ _id: old._id }, { $set: fields, $unset: { leftAt: '', photoDeletedAt: '' } });
+        rid = old._id;
+      } else {
+        rid = (await col.insertOne({ buildingCode, ...fields, createdAt: new Date() })).insertedId;
+      }
+      const uploaded = await autoUploadResidentToPanel(rid, building);
+      regLog({ step: 'register_list_upload', buildingCode, phone: cleanPhone, name: hit.firstName + ' ' + hit.lastName, residentId: String(rid), reusedOldRecord: !!old, reachedPanel: uploaded });
+      return res.json({ success: true, autoUploaded: true, reachedPanel: uploaded });
+    }
     if (!resident) {
       // Self-registration modes for unknown phones:
       //   'committee' → create as pending (committee approves before panel)
@@ -5763,30 +5807,34 @@ function regNormPhone(p) {
   if (d.startsWith('972')) d = '0' + d.slice(3);
   return d;
 }
+// Current allow-list rows for one panel: the uploaded resident list, updated by approved עדכוני דייר.
+async function residentListRowsForMac(mac) {
+  const doc = await db.getPanelResidents(mac);
+  let rows = (doc && doc.status === 'approved' && (doc.history || []).some(h => h && h.event === 'uploaded'))
+    ? (doc.residents || []).map(r => ({ firstName: r.firstName || '', lastName: r.lastName || '', apartment: r.apartment || '', phone: r.phone || '', sip: String(r.sip || '') }))
+    : [];
+  let swaps = [];
+  try { swaps = await db.listApprovedSwapsForMac(mac); } catch (e) {}
+  for (const sw of swaps) {
+    const outSips = new Set((sw.leaving || []).map(l => String(l.sip || '')).filter(Boolean));
+    if (outSips.size) rows = rows.filter(r => !outSips.has(r.sip));
+    const asg = (sw.applyReport && sw.applyReport.assignments) || [];
+    (sw.entering || []).forEach((e, i) => {
+      const a = asg.find(x => x && e.phone && regNormPhone(x.phone) === regNormPhone(e.phone)) || asg[i] || {};
+      rows.push({ firstName: e.firstName || '', lastName: e.lastName || '', apartment: a.apartment || sw.apartment || '', phone: e.phone || '', sip: String(a.sip || e.sip || '') });
+    });
+  }
+  return rows;
+}
+function buildingPanelMacs(building) {
+  return [...new Set([building && building.mac, ...(((building && building.panels) || []).map(p => p && p.mac))]
+    .filter(Boolean).map(m => String(m).replace(/[:\-\s]/g, '').toUpperCase()))];
+}
 async function findPhoneInResidentLists(building, phone) {
   const want = regNormPhone(phone);
   if (!building || want.length < 7) return null;
-  const macs = [...new Set([building.mac, ...((building.panels || []).map(p => p && p.mac))]
-    .filter(Boolean).map(m => String(m).replace(/[:\-\s]/g, '').toUpperCase()))];
-  for (const mac of macs) {
-    // Start from the resident list — only if it was approved AND uploaded to the panel…
-    const doc = await db.getPanelResidents(mac);
-    let rows = (doc && doc.status === 'approved' && (doc.history || []).some(h => h && h.event === 'uploaded'))
-      ? (doc.residents || []).map(r => ({ firstName: r.firstName || '', lastName: r.lastName || '', apartment: r.apartment || '', phone: r.phone || '', sip: String(r.sip || '') }))
-      : [];
-    // …then apply every approved עדכון דייר in order: leaving residents out (by SIP), incoming residents in.
-    let swaps = [];
-    try { swaps = await db.listApprovedSwapsForMac(mac); } catch (e) {}
-    for (const sw of swaps) {
-      const outSips = new Set((sw.leaving || []).map(l => String(l.sip || '')).filter(Boolean));
-      if (outSips.size) rows = rows.filter(r => !outSips.has(r.sip));
-      const asg = (sw.applyReport && sw.applyReport.assignments) || [];
-      (sw.entering || []).forEach((e, i) => {
-        const a = asg.find(x => x && e.phone && regNormPhone(x.phone) === regNormPhone(e.phone)) || asg[i] || {};
-        rows.push({ firstName: e.firstName || '', lastName: e.lastName || '', apartment: a.apartment || sw.apartment || '', phone: e.phone || '', sip: String(a.sip || e.sip || '') });
-      });
-    }
-    const r = rows.find(x => regNormPhone(x.phone) === want);
+  for (const mac of buildingPanelMacs(building)) {
+    const r = (await residentListRowsForMac(mac)).find(x => regNormPhone(x.phone) === want);
     if (r) return { firstName: r.firstName, lastName: r.lastName, apartment: r.apartment, mac };
   }
   return null;
@@ -5809,6 +5857,15 @@ app.post('/api/residents/verify-phone', async (req, res) => {
       regLog({ step: 'verify', buildingCode, phone: cleanPhone, mode: m0, existingResident: regResSummary(resident), listHit: hit0 === undefined ? '(not list mode)' : hit0,
         path: resident ? (resident.status === 'registered' ? 'already_registered' : 'existing_record') : 'no_record' });
     } catch (e) { regLog({ step: 'verify', buildingCode, phone: cleanPhone, logError: e.message }); }
+    // 'list' mode: the resident list is the only authority — an old record (left / renamed / already registered) doesn't matter.
+    {
+      const bL = await database.collection('buildings').findOne({ buildingCode });
+      if (bL && bL.registrationMode === 'list') {
+        const hit = await findPhoneInResidentLists(bL, phone);
+        if (!hit) return res.json({ success: false, error: 'not_found' });
+        return res.json({ success: true, listMode: true, mode: 'list', firstName: hit.firstName, lastName: hit.lastName, apartment: hit.apartment, residentId: null });
+      }
+    }
     if (!resident) {
       // committee + open modes both let unknown phones self-register (resident types name/apt)
       const building = await database.collection('buildings').findOne({ buildingCode });
