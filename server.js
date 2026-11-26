@@ -827,7 +827,9 @@ function prSanitizeResidents(arr) {
     const apartment = String(r.apartment || '').trim().slice(0, 20);
     const phone     = String(r.phone     || '').trim().slice(0, 30);
     if (!firstName && !lastName && !apartment && !phone) return; // skip blank rows
-    out.push({ firstName, lastName, apartment, phone, sip: sip++ });
+    const rec = { firstName, lastName, apartment, phone, sip: sip++ };
+    if (r.wantsTag === true || r.wantsTag === 'true') rec.wantsTag = true;   // resident wants a proximity tag (תג קרבה)
+    out.push(rec);
   });
   return out;
 }
@@ -835,6 +837,8 @@ function prSanitizeResidents(arr) {
 function prSanitizeListExtras(body) {
   const out = {};
   if (body && typeof body.buildingAddress === 'string') out.buildingAddress = body.buildingAddress.trim().slice(0, 120);
+  // Desired building entry code (permanent PIN on the panel) — digits only, up to 5 (panel limit).
+  if (body && typeof body.entryCode === 'string') out.entryCode = body.entryCode.replace(/\D/g, '').slice(0, 5);
   if (body && body.groupNames && typeof body.groupNames === 'object') {
     const g = {};
     Object.entries(body.groupNames).slice(0, 300).forEach(([k, v]) => {
@@ -859,7 +863,7 @@ app.get('/api/installer/residents', async (req, res) => {
     if (!cleanMac) return res.status(400).json({ success: false, error: 'mac required' });
     const doc = await db.getPanelResidents(cleanMac);
     res.json({ success: true, residents: doc ? doc.residents : [], status: doc ? (doc.status || 'draft') : 'draft', groupNameBy: doc ? (doc.groupNameBy || 'apartment') : 'apartment',
-      buildingAddress: (doc && doc.buildingAddress) || '', groupNames: (doc && doc.groupNames) || {},
+      buildingAddress: (doc && doc.buildingAddress) || '', groupNames: (doc && doc.groupNames) || {}, entryCode: (doc && doc.entryCode) || '',
       signups: ((doc && doc.signups) || []).filter(x => x.status === 'pending') });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
@@ -1184,12 +1188,42 @@ async function pushResidentsToPanel(cleanMac, residents, groupNameBy, opts) {
     }
   } catch (e) {}
 
+  // Desired entry code → a permanent PIN code on the panel (same body as the installer's קודים קבועים).
+  if (opts.entryCode) {
+    try { rep.entryCode = await setPanelEntryCode(host, port, opts.entryCode); }
+    catch (e) { rep.entryCode = { ok: false, error: e.message }; }
+  }
+
   // Building address → panel home screen text (HAR: display/homepage, info.type customText).
   if (opts.buildingAddress) {
     try { rep.address = await setPanelHomeText(host, port, opts.buildingAddress); }
     catch (e) { rep.address = { ok: false, error: e.message }; }
   }
   return rep;
+}
+
+// Create the building entry code as a permanent PIN ("קוד קבוע קוד כניסה לבניין", relay 1, always valid).
+// Already on the panel → ok (nothing to do). Max 5 permanent codes per panel, as in the installer portal.
+async function setPanelEntryCode(host, port, code) {
+  code = String(code || '').replace(/\D/g, '');
+  if (!/^\d{1,5}$/.test(code)) return { ok: false, error: 'קוד לא תקין' };
+  const loginRes = await panelHttpPost(host, port, '/api/v1/accounts/tokens', { username: 'admin', password: '123456' });
+  const token = loginRes && loginRes.data && loginRes.data.token;
+  const authHeaders = token ? { Authorization: 'Bearer ' + token } : {};
+  const listRes = await panelHttpGetWithHeaders(host, port, '/api/v1/access?page_num=1&page_size=500', authHeaders);
+  const existing = (listRes && listRes.data && listRes.data.list) || [];
+  if (existing.some(i => String(i.content || i.password || '') === code)) return { ok: true, already: true };
+  const perm = await listPanelPermCodes(host, port, authHeaders);
+  if (perm.length >= 5) return { ok: false, error: 'בפנל כבר יש 5 קודים קבועים' };
+  const body = {
+    label: PERM_CODE_PREFIX + 'קוד כניסה לבניין', password: code,
+    effective_date: Date.now(), expired_date: 7258175999000,
+    valid_weekdays: [0, 1, 2, 3, 4, 5, 6], valid_count: -1,
+    valid_periods: JSON.stringify([{ begin: '00:00:00', end: '23:59:59' }]), valid_door: '1',
+  };
+  const r = await panelHttpPostWithHeaders(host, port, '/api/v1/access', body, authHeaders);
+  if (r && r.status === 'OK') return { ok: true };
+  return { ok: false, error: String((r && r.error && (r.error.message || r.error)) || (r && r.status) || 'נכשל') };
 }
 
 // Write a custom text (the building address) on the panel's home screen.
@@ -1226,7 +1260,7 @@ app.post('/api/manager/resident-submissions/status', async (req, res) => {
     let push = null;
     if (status === 'approved') {
       try { push = await pushResidentsToPanel(prCleanMac(mac), (doc && doc.residents) || [], doc && doc.groupNameBy,
-        { groupNames: (doc && doc.groupNames) || {}, buildingAddress: (doc && doc.buildingAddress) || '' }); }
+        { groupNames: (doc && doc.groupNames) || {}, buildingAddress: (doc && doc.buildingAddress) || '', entryCode: (doc && doc.entryCode) || '' }); }
       catch (e) { push = { error: e.message }; }
       try {
         await db.addResidentHistory(prCleanMac(mac), {
@@ -1825,7 +1859,7 @@ app.get('/api/residents/by-code', async (req, res) => {
     const doc = await db.getPanelResidentsByCode(req.query.code);
     if (!doc) return res.status(404).json({ success: false, error: 'קוד שגוי' });
     res.json({ success: true, residents: doc.residents || [], status: doc.status || 'draft', groupNameBy: doc.groupNameBy || 'apartment',
-      buildingAddress: doc.buildingAddress || '', groupNames: doc.groupNames || {},
+      buildingAddress: doc.buildingAddress || '', groupNames: doc.groupNames || {}, entryCode: doc.entryCode || '',
       signups: (doc.signups || []).filter(x => x.status === 'pending') });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });

@@ -1097,6 +1097,7 @@ async function savePanelResidents(mac, phoneNumber, residents, status, extra) {
   // Building address (shown on the panel home screen) + chosen names for apartment groups.
   if (extra && typeof extra.buildingAddress === 'string') set.buildingAddress = extra.buildingAddress;
   if (extra && extra.groupNames && typeof extra.groupNames === 'object') set.groupNames = extra.groupNames;
+  if (extra && typeof extra.entryCode === 'string') set.entryCode = extra.entryCode;   // desired building entry code
   await db.collection('panel_residents').updateOne(
     { mac }, { $set: set, $setOnInsert: { createdAt: now } }, { upsert: true }
   );

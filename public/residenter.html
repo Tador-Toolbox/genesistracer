@@ -54,6 +54,8 @@
   .msg.ok{color:var(--ok)} .msg.err{color:var(--red)}
   .hint{font-size:.8rem;color:var(--muted);margin:6px 2px 0}
   .summary{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 2px 2px}
+  th.tag,td.tag{text-align:center;width:74px}
+  td.tag input{width:20px;height:20px;accent-color:var(--red);cursor:pointer}
   .counts{font-weight:800;font-size:.95rem}
   .counts b{color:var(--red)}
   .saved{font-size:.8rem;color:var(--muted)}
@@ -131,6 +133,9 @@
     <label for="bAddr" data-i18n="addr_label">📍 כתובת הבניין</label>
     <input id="bAddr" data-i18n-ph="addr_ph" placeholder="לדוגמה: חורב 9, פתח תקווה" maxlength="120">
     <div class="hint" data-i18n="addr_hint">הכתובת תוצג במסך הבית של פנל האינטרקום.</div>
+    <label for="eCode" data-i18n="code_label">🔢 קוד כניסה רצוי</label>
+    <input id="eCode" data-i18n-ph="code_ph" placeholder="לדוגמה: 1234" inputmode="numeric" maxlength="5" dir="ltr" style="flex:0 1 160px;text-align:center;letter-spacing:3px" oninput="this.value=this.value.replace(/\D/g,'')">
+    <div class="hint" data-i18n="code_hint">קוד לפתיחת דלת הכניסה (עד 5 ספרות). לאחר אישור המנהל הקוד יוגדר בפנל.</div>
   </div>
 
   <div class="tablewrap">
@@ -142,6 +147,7 @@
           <th data-i18n="th_last">שם משפחה</th>
           <th data-i18n="th_apt">מספר דירה</th>
           <th data-i18n="th_phone">טלפון דייר</th>
+          <th class="tag" data-i18n="th_tag">תג קרבה</th>
           <th class="del"></th>
         </tr>
       </thead>
@@ -190,6 +196,8 @@
       su_title:n=>'📥 בקשות הרשמה מדיירים ('+n+')', su_apt:'דירה', su_add:'✓ הוסף לרשימה', su_rej:'✕ דחה',
       su_confirm_rej:n=>'לדחות את הבקשה של '+n+'?', su_added:n=>'✓ '+n+' נוסף לרשימה ונשמר כטיוטה', su_err:'הפעולה נכשלה — נסו שוב',
       init_note:'ℹ️ רשימה זו משמשת להזנה הראשונית של דיירי הבניין לפנל האינטרקום. עם סיום הטעינה הראשונית, הרשימה תתעדכן במערכת ולא תתאפשר עריכה חוזרת שלה. לאחר שלב זה כל עדכון, הוספה או הסרה של דיירים יתבצעו ישירות דרך פורטל הוועד.',
+      th_tag:'תג קרבה', tags_cnt:n=>'🏷️ תגי קרבה: <b>'+n+'</b>',
+      code_label:'🔢 קוד כניסה רצוי', code_ph:'לדוגמה: 1234', code_hint:'קוד לפתיחת דלת הכניסה (עד 5 ספרות). לאחר אישור המנהל הקוד יוגדר בפנל.',
       addr_label:'📍 כתובת הבניין', addr_ph:'לדוגמה: חורב 9, פתח תקווה', addr_hint:'הכתובת תוצג במסך הבית של פנל האינטרקום.',
       gw_title:'⚠️ שמות משפחה שונים באותה דירה',
       gw_row:(apt,rows,names)=>'בדירה <b>'+apt+'</b> (שורות '+rows+') יש שמות משפחה שונים: <b>'+names+'</b>. אנא רשמו את השם הרצוי לקבוצה הזו, או מספר דירה:',
@@ -220,6 +228,8 @@
       su_title:n=>'📥 Registration requests from residents ('+n+')', su_apt:'Apt', su_add:'✓ Add to list', su_rej:'✕ Reject',
       su_confirm_rej:n=>'Reject the request from '+n+'?', su_added:n=>'✓ '+n+' added to the list and saved as a draft', su_err:'Action failed — please try again',
       init_note:'ℹ️ This list is used for the initial entry of the building residents into the intercom panel. Once the initial upload is complete, the list is updated in the system and can no longer be edited. After that, every update, addition or removal of residents is done directly through the committee portal.',
+      th_tag:'Proximity tag', tags_cnt:n=>'🏷️ Proximity tags: <b>'+n+'</b>',
+      code_label:'🔢 Desired entry code', code_ph:'e.g. 1234', code_hint:'Code that opens the entrance door (up to 5 digits). It is set on the panel after the manager approves.',
       addr_label:'📍 Building address', addr_ph:'e.g. 9 Horev St, Petah Tikva', addr_hint:'The address is shown on the intercom panel home screen.',
       gw_title:'⚠️ Different family names in the same apartment',
       gw_row:(apt,rows,names)=>'Apartment <b>'+apt+'</b> (rows '+rows+') has different family names: <b>'+names+'</b>. Please enter the name you want for this group, or an apartment number:',
@@ -352,6 +362,7 @@
       <td><input class="f-last"  value="${esc(r.lastName)}"  placeholder="${esc(d.ph_last)}"></td>
       <td><input class="f-apt"   value="${esc(r.apartment)}" placeholder="${esc(d.ph_apt)}" inputmode="numeric"></td>
       <td><input class="f-phone" value="${esc(r.phone)}"     placeholder="${esc(d.ph_phone)}" inputmode="tel"></td>
+      <td class="tag"><input type="checkbox" class="f-tag" ${r.wantsTag ? 'checked' : ''} title="${esc(d.th_tag)}" onchange="updateCounts()"></td>
       <td class="del"><button class="xbtn" title="${esc(d.del_title)}" onclick="this.closest('tr').remove();renumber()">✕</button></td>
     </tr>`;
   }
@@ -368,23 +379,24 @@
   }
   // Live count: residents filled in, and distinct apartments (= VoIPBell licenses).
   function updateCounts(){
-    const apts = new Set(); let people = 0;
+    const apts = new Set(); let people = 0, tags = 0;
     document.querySelectorAll('#rows tr').forEach(tr=>{
       const f=tr.querySelector('.f-first').value.trim();
       const l=tr.querySelector('.f-last').value.trim();
       const a=tr.querySelector('.f-apt').value.trim();
       const p=tr.querySelector('.f-phone').value.trim();
-      if (f||l||a||p) people++;
+      if (f||l||a||p) { people++; if (tr.querySelector('.f-tag').checked) tags++; }
       if (a) apts.add(a);
     });
     const el=document.getElementById('counts');
-    if (el) el.innerHTML = tr().counts(people, apts.size);
+    if (el) el.innerHTML = tr().counts(people, apts.size) + (tags ? ' · ' + tr().tags_cnt(tags) : '');
   }
   function collect(){
     const out = [];
     document.querySelectorAll('#rows tr').forEach(tr=>{
       const g = c => tr.querySelector(c).value.trim();
       const row = { firstName:g('.f-first'), lastName:g('.f-last'), apartment:g('.f-apt'), phone:g('.f-phone') };
+      if (tr.querySelector('.f-tag').checked) row.wantsTag = true;
       if (row.firstName || row.lastName || row.apartment || row.phone) out.push(row);
     });
     return out;
@@ -443,6 +455,7 @@
       }
     }
     const buildingAddress = document.getElementById('bAddr').value.trim();
+    const entryCode = document.getElementById('eCode').value.replace(/\D/g,'');
     if (submit && !confirm(d.confirm_send(residents.length, aptCount))) return;
     const btns = document.querySelectorAll('.b'); btns.forEach(b=>b.disabled=true);
     let ok = false;
@@ -450,7 +463,7 @@
     try{
       const groupNameBy = ((document.querySelector('input[name=grpby]:checked')||{}).value) || 'apartment';
       const endpoint = (MODE==='committee') ? '/api/residents/by-code/save' : '/api/installer/residents/save';
-      const payload  = (MODE==='committee') ? { code:CODE, residents, submit, groupNameBy, groupNames, buildingAddress } : { phoneNumber:PHONE, mac:MAC, residents, submit, groupNameBy, groupNames, buildingAddress };
+      const payload  = (MODE==='committee') ? { code:CODE, residents, submit, groupNameBy, groupNames, buildingAddress, entryCode } : { phoneNumber:PHONE, mac:MAC, residents, submit, groupNameBy, groupNames, buildingAddress, entryCode };
       const res = await fetch(endpoint, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify(payload)
@@ -476,7 +489,7 @@
   async function loadByCode(){
     try{
       const d = await fetch('/api/residents/by-code?code='+encodeURIComponent(CODE)).then(r=>r.json());
-      if (d.success){ GROUP_NAMES = d.groupNames || {}; SIGNUPS = d.signups || []; document.getElementById('bAddr').value = d.buildingAddress || ''; render(d.residents); renderSignups(); setStatus(d.status); setGroupBy(d.groupNameBy); return true; }
+      if (d.success){ GROUP_NAMES = d.groupNames || {}; SIGNUPS = d.signups || []; document.getElementById('bAddr').value = d.buildingAddress || ''; document.getElementById('eCode').value = d.entryCode || ''; render(d.residents); renderSignups(); setStatus(d.status); setGroupBy(d.groupNameBy); return true; }
       return false;
     }catch(e){ return false; }
   }
@@ -487,7 +500,7 @@
     if (!MAC){ render([]); return; }
     try{
       const d = await fetch('/api/installer/residents?mac='+encodeURIComponent(MAC)).then(r=>r.json());
-      if (d.success){ GROUP_NAMES = d.groupNames || {}; SIGNUPS = d.signups || []; document.getElementById('bAddr').value = d.buildingAddress || ''; render(d.residents); renderSignups(); setStatus(d.status); setGroupBy(d.groupNameBy); }
+      if (d.success){ GROUP_NAMES = d.groupNames || {}; SIGNUPS = d.signups || []; document.getElementById('bAddr').value = d.buildingAddress || ''; document.getElementById('eCode').value = d.entryCode || ''; render(d.residents); renderSignups(); setStatus(d.status); setGroupBy(d.groupNameBy); }
       else render([]);
     }catch(e){ render([]); }
   }
