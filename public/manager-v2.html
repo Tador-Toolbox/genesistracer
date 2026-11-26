@@ -5381,6 +5381,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
           <div class="bar noprint">
             <div class="seg"><button id="lhe" onclick="setLang('he')">עברית</button><button id="len" onclick="setLang('en')">English</button></div>
             <div class="seg" id="sortSeg"><button id="srtNum" onclick="setSort('num')">מס׳ דייר</button><button id="srtApt" onclick="setSort('apt')">לפי דירה</button></div>
+            <div class="seg" id="sysSeg"><button id="sysOn" onclick="setSys(1)">כולל שורות מערכת</button><button id="sysOff" onclick="setSys(0)">דיירים בלבד</button></div>
             <button class="prt" onclick="window.print()">🖨️</button>
           </div>
           <div id="root"></div>
@@ -5401,6 +5402,11 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
               return out;
             }
             function setSort(s){ SORT=s; try { localStorage.setItem("qrFormSort", s); } catch (e) {} render(CURL); }
+            // System rows = contacts whose number isn't a resident number (e.g. management center "ge8fzut7xvy",
+            // other panels "192.168.1.7"). "דיירים בלבד" leaves them out of the resident form.
+            var SYS = 1; try { if (localStorage.getItem("qrFormSys") === "0") SYS = 0; } catch (e) {}
+            function isSysRow(r){ return !/^\\d+$/.test(String(r && r.num == null ? "" : r.num).trim()); }
+            function setSys(v){ SYS=v; try { localStorage.setItem("qrFormSys", String(v)); } catch (e) {} render(CURL); }
             var CURL = "he";
             function render(lang){
               CURL = lang;
@@ -5408,6 +5414,10 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
               if (sn && sa) { sn.className=(SORT==="num"?"on":""); sa.className=(SORT==="apt"?"on":"");
                 sn.textContent = lang==="he" ? "מיון: מס׳ דייר" : "Sort: resident no."; sa.textContent = lang==="he" ? "לפי דירה" : "By apartment";
                 var ss=document.getElementById("sortSeg"); if (ss) ss.style.display = (DATA && DATA.form && DATA.form.length) ? "" : "none"; }
+              var y1=document.getElementById("sysOn"), y0=document.getElementById("sysOff");
+              if (y1 && y0) { y1.className=(SYS?"on":""); y0.className=(SYS?"":"on");
+                y1.textContent = lang==="he" ? "כולל שורות מערכת" : "With system rows"; y0.textContent = lang==="he" ? "דיירים בלבד" : "Residents only";
+                var ys=document.getElementById("sysSeg"); if (ys) ys.style.display = (DATA && DATA.form && DATA.form.some(isSysRow)) ? "" : "none"; }
               var t=T[lang], d=DATA;
               document.getElementById("doc").dir=t.dir;
               document.getElementById("lhe").className=(lang==="he"?"on":"");
@@ -5430,7 +5440,7 @@ document.getElementById('panelInfoModal').addEventListener('click', function(e) 
               }
               var p3="";
               if(d.form && d.form.length){
-                var frows=sortedForm(d.form).map(function(r){return "<tr><td class='fn'>"+esc(r.name)+"</td><td>"+esc(r.apt)+"</td><td class='fnum'>"+esc(r.num)+"</td></tr>";}).join("");
+                var frows=sortedForm(SYS ? d.form : d.form.filter(function(r){return !isSysRow(r);})).map(function(r){return "<tr><td class='fn'>"+esc(r.name)+"</td><td>"+esc(r.apt)+"</td><td class='fnum'>"+esc(r.num)+"</td></tr>";}).join("");
                 var srcTxt = d.formSource==='panel' ? t.fSrcPanel : (d.formSource==='saved' ? t.fSrcSaved : '');
                 p3="<div class='page p3'><div class='ghd'><img src='"+d.logo+"' alt='Tador'><h1>"+esc(t.formTitle)+"</h1><p>"+esc(t.formSub)+"</p></div>"
                   +"<div class='fsrc' style='color:#e8001c;font-weight:600;'>"+esc(t.fNote)+"</div>"+(srcTxt ? "<div class='fsrc'>"+esc(srcTxt)+"</div>" : "")
