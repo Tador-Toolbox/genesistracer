@@ -135,6 +135,38 @@ function listUrl(search, start = 0, length = 25) {
   return `${VB_URL}/index.php?${p.toString()}`;
 }
 
+// Extra intercoms (p=extraintercom) share the same name space as intercoms on the server — e.g. g510-010
+// can be an extra intercom of t98_5_32. HAR: GET index.php?background=extraintercom&… (DataTables JSON).
+function extraListUrl(search, start = 0, length = 1000) {
+  const cols = ['action', 'name', 'description', 'intercom', 'extension', 'status'];
+  const p = new URLSearchParams();
+  p.set('background', 'extraintercom'); p.set('draw', '1');
+  cols.forEach((c, i) => {
+    p.set(`columns[${i}][data]`, c); p.set(`columns[${i}][name]`, '');
+    p.set(`columns[${i}][searchable]`, 'true'); p.set(`columns[${i}][orderable]`, i ? 'true' : 'false');
+    p.set(`columns[${i}][search][value]`, ''); p.set(`columns[${i}][search][regex]`, 'false');
+  });
+  p.set('order[0][column]', '1'); p.set('order[0][dir]', 'asc');
+  p.set('start', String(start)); p.set('length', String(length));
+  p.set('search[value]', search); p.set('search[regex]', 'false');
+  p.set('_', String(Date.now()));
+  return `${VB_URL}/index.php?${p.toString()}`;
+}
+// [{ name, intercom }] of extra intercoms matching `search` (null if the answer isn't JSON).
+async function extraRows(search) {
+  const all = [];
+  for (let start = 0, page = 0; page < 20; page++) {
+    const res = await vbGet(extraListUrl(search, start, 1000), { 'X-Requested-With': 'XMLHttpRequest', Referer: `${VB_URL}/index.php?p=extraintercom` });
+    let d = res.data;
+    if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { d = null; } }
+    if (!d || !Array.isArray(d.data)) { dbg('extra:not_json', { search }); return page ? all : null; }
+    d.data.forEach(r => all.push({ name: stripTags(r.name), intercom: stripTags(r.intercom) }));
+    start += d.data.length;
+    if (!d.data.length || d.data.length < 1000 || start >= (parseInt(d.recordsFiltered || 0, 10) || 0)) break;
+  }
+  return all;
+}
+
 // Fetch the QR "manual loading" payload for a VoIPBell account (intercom name).
 // Returns { account, intercomId, payload }. payload is the base64 the QR encodes.
 async function getQrForAccount(account) {
@@ -269,6 +301,16 @@ async function createAccount(name, client) {
     if (ex === null) { session.ts = 0; await ensureLogin(); ex = await accountExists(acct); }
     if (ex === null) throw new Error('Unexpected VoIPBell list response (not JSON) — see voipbell-debug');
     if (ex) { dbg('create:already', { name: acct }); return { created: true, already: true }; }
+    try {
+      const ext = (await extraRows(acct)) || [];
+      const hitX = ext.find(r => r.name.toLowerCase() === acct.toLowerCase());
+      if (hitX) {
+        takenNames.add(acct.toLowerCase());
+        dbg('create:taken_by_extra', { name: acct, intercom: hitX.intercom });
+        const err = new Error('השם ' + acct + ' תפוס — הוא קיים כאינטרקום נוסף (extra intercom) של ' + (hitX.intercom || 'מערכת אחרת') + '. בחר מספר אחר.');
+        err.code = 'NAME_TAKEN'; throw err;
+      }
+    } catch (e) { if (e.code === 'NAME_TAKEN') throw e; dbg('extra:error', { error: e.message }); }
 
     const adminUser = rand5(), adminPass = rand5();
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -371,6 +413,10 @@ async function lastByPrefix(prefix) {
       const total = parseInt(d.recordsFiltered || d.recordsTotal || 0, 10) || 0;
       if (!d.data.length || d.data.length < 1000 || start >= total) break;
     }
+    // Extra intercoms use the same name space — a number used by an extra intercom isn't free.
+    const extraNames = new Set();
+    try { ((await extraRows(pre)) || []).forEach(r => { if (r.name.toLowerCase().startsWith(pre)) extraNames.add(r.name.toLowerCase()); }); }
+    catch (e) { dbg('extra:error', { error: e.message }); }
     // Running number = everything after the fixed prefix (t98_5_037 -> 37). Suggest the FIRST FREE
     // number (a gap left by a deleted account), else highest+1. Keep the usual zero padding.
     const nums = new Map(); const widths = {};
@@ -384,12 +430,14 @@ async function lastByPrefix(prefix) {
     const width = Number(Object.entries(widths).sort((a, b) => b[1] - a[1])[0]?.[0] || 0);
     const fmt = n => pre + String(n).padStart(width, '0');
     const free = [];
-    for (let i = 1; i < max && free.length < 50; i++) if (!nums.has(i) && !takenNames.has(fmt(i).toLowerCase())) free.push(i);
-    const nextNum = free.length ? free[0] : max + 1;
+    const usedByExtra = n => [...extraNames].some(x => /^\d+$/.test(x.slice(pre.length)) && parseInt(x.slice(pre.length), 10) === n);
+    for (let i = 1; i < max && free.length < 50; i++) if (!nums.has(i) && !takenNames.has(fmt(i).toLowerCase()) && !usedByExtra(i)) free.push(i);
+    let nextNum = free.length ? free[0] : max + 1;
+    while (!free.length && (usedByExtra(nextNum) || takenNames.has(fmt(nextNum).toLowerCase()))) nextNum++;
     const last = max ? nums.get(max) : '';
-    dbg('lastByPrefix', { prefix: pre, count: nums.size, last, free: free.slice(0, 10), skippedTaken: [...takenNames].filter(n => n.startsWith(pre)) });
+    dbg('lastByPrefix', { prefix: pre, count: nums.size, last, free: free.slice(0, 10), skippedTaken: [...takenNames].filter(n => n.startsWith(pre)), extra: [...extraNames] });
     return { prefix: pre, count: nums.size, last, next: fmt(nextNum), nextIsGap: free.length > 0,
-      free: free.map(fmt), recent: sortedNums.slice(-5).reverse().map(n => nums.get(n)) };
+      free: free.map(fmt), extraCount: extraNames.size, recent: sortedNums.slice(-5).reverse().map(n => nums.get(n)) };
   });
   chain = run.catch(() => {});
   return run;
