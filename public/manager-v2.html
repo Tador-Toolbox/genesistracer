@@ -1178,7 +1178,7 @@
       <!-- Accounts step 5: open a committee (ועד) account for the panel, or attach the panel to an existing one -->
       <div class="card" data-screen="accounts">
         <h2 style="margin:0 0 6px;">שלב 5 · 🏢 חשבון ועד</h2>
-        <p style="font-size:12px;color:var(--text-dim);margin:0 0 10px;">פותח חשבון ועד חדש עם הפנל, או משייך את הפנל לחשבון ועד קיים. הוועד משויך לטכנאי משלב 4.</p>
+        <p style="font-size:12px;color:var(--text-dim);margin:0 0 10px;">פותח חשבון ועד חדש עם הפנל, או משייך את הפנל לחשבון ועד קיים.</p>
         <div style="display:flex;gap:16px;margin-bottom:10px;font-size:13px;font-weight:600;">
           <label style="cursor:pointer;"><input type="radio" name="s5Mode" value="new" checked onchange="v2S5Mode()"> ➕ חשבון ועד חדש</label>
           <label style="cursor:pointer;"><input type="radio" name="s5Mode" value="existing" onchange="v2S5Mode()"> 🔗 חשבון ועד קיים</label>
@@ -1193,11 +1193,17 @@
             <select id="s5Comm" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface2);color:var(--text);font-family:inherit;"><option value="">— בחר ועד —</option></select></label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 160px;">MAC
             <input type="text" id="s5Mac" dir="ltr" placeholder="2875D8C16B50" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface2);color:var(--text);font-family:inherit;font-family:monospace;"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 150px;">חשבון VoIPBell
+            <input type="text" id="s5Acct" dir="ltr" placeholder="g510-008" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface2);color:var(--text);font-family:inherit;font-family:monospace;"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:0 1 140px;">סוג פנל
+            <select id="s5Type" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface2);color:var(--text);font-family:inherit;"><option value="">— בחר —</option><option value="genesis7">Genesis 7</option><option value="genesis5">Genesis 5</option></select></label>
+          <label id="s5TechBox" style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 200px;">טכנאי אחראי (לא חובה)
+            <input type="search" placeholder="🔍 חיפוש לפי שם או טלפון" oninput="v2FilterSelect('s5Tech', this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;background:var(--bg-card,#fff);color:var(--text);">
+            <select id="s5Tech" onfocus="v2S5Techs()" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface2);color:var(--text);font-family:inherit;"><option value="">— ללא טכנאי —</option></select></label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;flex:1 1 180px;">כתובת
             <input type="text" id="s5Addr" placeholder="רחוב, מספר, עיר" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface2);color:var(--text);font-family:inherit;"></label>
           <button id="s5Btn" onclick="v2S5Run()" style="padding:9px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">🏢 פתח / שייך ועד</button>
         </div>
-        <div style="font-size:12px;color:var(--text-dim);margin-top:6px;">טכנאי, חשבון VoIPBell וסוג פנל נלקחים משלב 4.</div>
         <div id="s5Out" style="margin-top:12px;font-size:13px;"></div>
       </div>
 
@@ -2010,6 +2016,7 @@
       const ex = (document.querySelector('input[name=s5Mode]:checked') || {}).value === 'existing';
       document.getElementById('s5NewBox').style.display = ex ? 'none' : 'flex';
       document.getElementById('s5NameBox').style.display = ex ? 'none' : 'flex';
+      document.getElementById('s5TechBox').style.display = ex ? 'none' : 'flex';
       document.getElementById('s5ExBox').style.display = ex ? 'flex' : 'none';
       if (ex) v2S5Fill();
     }
@@ -2021,10 +2028,22 @@
         `<option value="${gymEsc(a.phoneNumber)}" data-name="${gymEsc(a.installerName || '')}">${gymEsc((a.installerName ? a.installerName + ' · ' : '') + a.phoneNumber + (a.ownerName ? ' (👷 ' + a.ownerName + ')' : ''))}</option>`).join('');
       sel.value = keep;
     }
+    function v2S5Techs() {
+      const sel = document.getElementById('s5Tech'); if (sel.options.length > 1) return;
+      sel._all = null;
+      sel.innerHTML = '<option value="">— ללא טכנאי —</option>' + ownerCandidates().map(a =>
+        `<option value="${gymEsc(a.phoneNumber)}" data-name="${gymEsc(a.installerName || '')}">${gymEsc((a.installerName ? a.installerName + ' · ' : '') + a.phoneNumber)}</option>`).join('');
+    }
     function v2S5Sync() {
+      v2S5Techs();
+      const t4 = document.getElementById('s4Tech').value || document.getElementById('nhTech').value;
+      const st = document.getElementById('s5Tech');
+      if (!st.value && t4 && t4 !== '__new__' && [...st.options].some(o => o.value === t4)) st.value = t4;
+      const ty = document.getElementById('s5Type'); if (!ty.value) ty.value = document.getElementById('s4Type').value;
       const put = (id, v) => { const el = document.getElementById(id); if (el && !el.value && v) el.value = v; };
       put('s5Mac', document.getElementById('s4Mac').value || document.getElementById('nhMac').value);
       put('s5Addr', document.getElementById('s4Addr').value || document.getElementById('nhAddr').value);
+      put('s5Acct', document.getElementById('s4Acct').value || document.getElementById('nhAcct').value);
     }
     async function v2S5Run() {
       v2S5Sync();
@@ -2032,15 +2051,15 @@
       const out = document.getElementById('s5Out');
       const mac = normMac(document.getElementById('s5Mac').value);
       const address = document.getElementById('s5Addr').value.trim();
-      const techSel = document.getElementById('s4Tech'); const tech = techSel.value;
-      const techName = techSel.selectedOptions[0] ? (techSel.selectedOptions[0].getAttribute('data-name') || '') : '';
-      const acct = document.getElementById('s4Acct').value.trim() || document.getElementById('nhAcct').value.trim();
-      const panelType = document.getElementById('s4Type').value;
+      const techSel = document.getElementById('s5Tech'); const tech = ex ? '' : techSel.value;
+      const techName = (!ex && techSel.selectedOptions[0]) ? (techSel.selectedOptions[0].getAttribute('data-name') || '') : '';
+      const acct = document.getElementById('s5Acct').value.trim();
+      const panelType = document.getElementById('s5Type').value;
       const phone = ex ? document.getElementById('s5Comm').value : document.getElementById('s5Phone').value.replace(/[^\d+]/g, '');
       const name = document.getElementById('s5Name').value.trim();
       if (!phone) { out.innerHTML = '<span style="color:#ef4444;">' + (ex ? 'בחר חשבון ועד' : 'הזן טלפון לוועד') + '</span>'; return; }
       if (!/^[0-9A-F]{12}$/.test(mac)) { out.innerHTML = '<span style="color:#ef4444;">MAC לא תקין (12 תווים)</span>'; return; }
-      if (!panelType) { out.innerHTML = '<span style="color:#ef4444;">בחר סוג פנל בשלב 4</span>'; return; }
+      if (!panelType) { out.innerHTML = '<span style="color:#ef4444;">בחר סוג פנל (Genesis 7 / Genesis 5)</span>'; return; }
       if (!ex && (window._allAccounts || []).some(a => a.phoneNumber === phone)) { out.innerHTML = '<span style="color:#ef4444;">הטלפון כבר קיים במערכת — בחר "חשבון ועד קיים"</span>'; return; }
       const q = ex ? ('לשייך את הפנל ' + mac + ' לחשבון הוועד ' + phone + '?')
                    : ('לפתוח חשבון ועד ' + phone + (name ? ' (' + name + ')' : '') + ' עם הפנל ' + mac + (tech ? ' תחת הטכנאי ' + (techName || tech) : ' (ללא טכנאי)') + '?');
